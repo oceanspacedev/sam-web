@@ -5,6 +5,8 @@ namespace App\Filament\Resources\PlanVisitResource\Pages;
 use App\Filament\Resources\PlanVisitResource;
 use App\Models\PlanVisit;
 use Filament\Actions;
+use Filament\Actions\ExportAction;
+use App\Filament\Exports\PlanVisitExporter;
 use Filament\Forms\Components\DatePicker;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Gate;
@@ -43,6 +45,11 @@ class ListPlanVisits extends ListRecords
                         'tanggal2' => $data['tanggal2'],
                     ]);
                 });
+            $actions[] = ExportAction::make()
+                ->exporter(VisitExporter::class)
+                ->label('Export Filament')
+                ->color('info')
+                ->icon('heroicon-o-document-arrow-down');
         }
 
         return $actions;

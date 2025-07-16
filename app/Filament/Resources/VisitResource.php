@@ -36,121 +36,153 @@ class VisitResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Visit Information')
+                Forms\Components\Group::make()
                     ->schema([
-                        Forms\Components\DateTimePicker::make('tanggal_visit')
-                        ->default(\Carbon\Carbon::parse(now())->startOfDay()) // Setel waktu ke 00:00:00
-                        ->required()
-                        ->label('Tanggal Visit'),                                      
-                        Forms\Components\Select::make('tipe_visit')
-                            ->options([
-                                'PLANNED' => 'PLANNED',
-                                'EXTRACALL' => 'EXTRACALL',
-                            ])
-                            ->required()
-                            ->label('Tipe Visit')
-                            ->placeholder('Select a type')
-                            ->searchable(),
-                    ])
-                    ->columns(2),
-                Forms\Components\Section::make('User and Outlet')
-                    ->schema([
-                        Forms\Components\Select::make('user_id')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->reactive()
-                            ->label('Pilih User')
-                            ->placeholder('Cari User berdasarkan nama lengkap')
-                            ->options(function () {
-                                $users = User::with(['badanusaha', 'divisi'])->get();
+                        Forms\Components\Section::make('Visit Information')
+                            ->schema([
+                                Forms\Components\DateTimePicker::make('tanggal_visit')
+                                    ->default(\Carbon\Carbon::parse(now())->startOfDay()) // Setel waktu ke 00:00:00
+                                    ->required()
+                                    ->label('Tanggal Visit'),
+                                Forms\Components\ToggleButtons::make('tipe_visit')
+                                    ->label('Tipe Visit')
+                                    ->required()
+                                    ->inline()
+                                    ->options([
+                                        'PLANNED' => 'PLANNED',
+                                        'EXTRACALL' => 'EXTRACALL',
+                                    ])
+                                    ->icons([
+                                        'PLANNED' => 'heroicon-o-calendar',
+                                        'EXTRACALL' => 'heroicon-o-bolt',
+                                    ])
+                                    ->colors([
+                                        'PLANNED' => 'primary',
+                                        'EXTRACALL' => 'info',
+                                    ])
+                                    ->default('EXTRACALL'),
+                                Forms\Components\Select::make('user_id')
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->reactive()
+                                    ->label('Pilih User')
+                                    ->placeholder('Cari User berdasarkan nama lengkap')
+                                    ->options(function () {
+                                        $users = User::with(['badanusaha', 'divisi'])->get();
 
-                                return $users->mapWithKeys(function ($user) {
-                                    $badanusahaName = $user->badanusaha ? $user->badanusaha->name : 'Tidak ada badan usaha';
-                                    $divisiName = $user->divisi ? $user->divisi->name : 'Tidak ada divisi';
-                                    return [$user->id => "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}"];
-                                });
-                            }),
-                        Forms\Components\Select::make('outlet_id')
-                            ->searchable()
-                            ->required()
-                            ->label('Pilih Outlet')
-                            ->options(function () {
-                                // Eager load badanusaha dan divisi
-                                $outlets = Outlet::with(['badanusaha', 'divisi'])->get();
+                                        return $users->mapWithKeys(function ($user) {
+                                            $badanusahaName = $user->badanusaha ? $user->badanusaha->name : 'Tidak ada badan usaha';
+                                            $divisiName = $user->divisi ? $user->divisi->name : 'Tidak ada divisi';
+                                            return [$user->id => "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}"];
+                                        });
+                                    }),
+                                Forms\Components\Select::make('outlet_id')
+                                    ->searchable()
+                                    ->required()
+                                    ->label('Pilih Outlet')
+                                    ->options(function () {
+                                        // Eager load badanusaha dan divisi
+                                        $outlets = Outlet::with(['badanusaha', 'divisi'])->get();
 
-                                return $outlets->mapWithKeys(function ($outlet) {
-                                    // Menggabungkan nama outlet, badan usaha, dan divisi untuk label
-                                    $badanusahaName = $outlet->badanusaha ? $outlet->badanusaha->name : 'Tidak ada badan usaha';
-                                    $divisiName = $outlet->divisi ? $outlet->divisi->name : 'Tidak ada divisi';
-                                    return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
-                                });
-                            }),
-                    ])
-                    ->columns(2),
-                Forms\Components\Section::make('Location & Timing')
-                    ->schema([
-                        Forms\Components\TextInput::make('latlong_in')
-                            ->maxLength(255)
-                            ->label('LatLong In')
-                            ->placeholder('Latitude and Longitude at the start'),
-                        Forms\Components\TextInput::make('latlong_out')
-                            ->maxLength(255)
-                            ->label('LatLong Out')
-                            ->placeholder('Latitude and Longitude at the end')
-                            ->visible(fn(string $context): bool => $context === 'edit'),
-                        Forms\Components\DateTimePicker::make('check_in_time')
-                            ->label('Check-in Time'),
-                        Forms\Components\DateTimePicker::make('check_out_time')
-                            ->label('Check-out Time')
-                            ->visible(fn(string $context): bool => $context === 'edit'),
-                    ])
-                    ->columns(2),
-                Forms\Components\Section::make('Files')
-                    ->schema([
-                        Forms\Components\FileUpload::make('picture_visit_in')
-                            ->image()
-                            ->columnSpanFull()
-                            ->required()
-                            ->disk('public')
-                            ->resize(30)
-                            ->label('Picture at Start of Visit')
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                $user = User::find($get('user_id'));
-                                $username = $user ? $user->username : 'vacant';
-                                return Carbon::now()->format('Y-m-d') . '-' . $username . '-IN-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $file->getClientOriginalExtension();
-                            }),
-                        Forms\Components\FileUpload::make('picture_visit_out')
-                            ->image()
-                            ->columnSpanFull()
-                            // ->required()
-                            ->disk('public')
-                            ->resize(30)
-                            ->label('Picture at End of Visit')
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                $user = User::find($get('user_id'));
-                                $username = $user ? $user->username : 'vacant';
-                                return Carbon::now()->format('Y-m-d') . '-' . $username . '-OUT-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $file->getClientOriginalExtension();
-                            })
-                            ->visible(fn(string $context): bool => $context === 'edit'),
-                    ]),
-                Forms\Components\Section::make('Transaction Information')
-                    ->schema([
-                        Forms\Components\Select::make('transaksi')
-                            ->label('Transaksi')
-                            ->options([
-                                'YES' => 'YES',
-                                'NO' => 'NO',
+                                        return $outlets->mapWithKeys(function ($outlet) {
+                                            // Menggabungkan nama outlet, badan usaha, dan divisi untuk label
+                                            $badanusahaName = $outlet->badanusaha ? $outlet->badanusaha->name : 'Tidak ada badan usaha';
+                                            $divisiName = $outlet->divisi ? $outlet->divisi->name : 'Tidak ada divisi';
+                                            return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
+                                        });
+                                    })
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $outlet = \App\Models\Outlet::find($state);
+                                            $set('latlong_in', $outlet?->latlong ?? null);
+                                        } else {
+                                            $set('latlong_in', null);
+                                        }
+                                    }),
                             ])
-                            // ->required()
-                            ->placeholder('Select Yes or No')
-                            ->searchable(),
-                        Forms\Components\Textarea::make('laporan_visit')
-                            ->columnSpanFull()
-                            ->label('Laporan Visit'),
+                            ->columns(2),
+                        Forms\Components\Section::make('Location & Timing')
+                            ->schema([
+                                Forms\Components\TextInput::make('latlong_in')
+                                    ->maxLength(255)
+                                    ->label('LatLong In')
+                                    ->placeholder('Latitude and Longitude at the start'),
+                                Forms\Components\TextInput::make('latlong_out')
+                                    ->maxLength(255)
+                                    ->label('LatLong Out')
+                                    ->placeholder('Latitude and Longitude at the end')
+                                    ->visible(fn(string $context): bool => $context === 'edit'),
+                                Forms\Components\DateTimePicker::make('check_in_time')
+                                    ->label('Check-in Time')
+                                    ->default(now()),
+                                Forms\Components\DateTimePicker::make('check_out_time')
+                                    ->label('Check-out Time')
+                                    ->default(now())
+                                    ->visible(fn(string $context): bool => $context === 'edit'),
+                            ])
+                            ->columns(2),
                     ])
-                    ->visible(fn(string $context): bool => $context === 'edit'),
-            ]);
+                    ->columnSpan(['lg' => 2]),
+                Forms\Components\Group::make()
+                    ->schema([
+                        Forms\Components\Section::make('Files')
+                            ->schema([
+                                Forms\Components\FileUpload::make('picture_visit_in')
+                                    ->image()
+                                    ->columnSpanFull()
+                                    ->required()
+                                    ->disk('public')
+                                    ->resize(30)
+                                    ->label('Picture at Start of Visit')
+                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                        $user = User::find($get('user_id'));
+                                        $username = $user ? $user->username : 'vacant';
+                                        return Carbon::now()->format('Y-m-d') . '-' . $username . '-IN-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $file->getClientOriginalExtension();
+                                    }),
+                                Forms\Components\FileUpload::make('picture_visit_out')
+                                    ->image()
+                                    ->columnSpanFull()
+                                    // ->required()
+                                    ->disk('public')
+                                    ->resize(30)
+                                    ->label('Picture at End of Visit')
+                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                        $user = User::find($get('user_id'));
+                                        $username = $user ? $user->username : 'vacant';
+                                        return Carbon::now()->format('Y-m-d') . '-' . $username . '-OUT-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $file->getClientOriginalExtension();
+                                    })
+                                    ->visible(fn(string $context): bool => $context === 'edit'),
+                            ]),
+                        Forms\Components\Section::make('Transaction Information')
+                            ->schema([
+                                Forms\Components\ToggleButtons::make('transaksi')
+                                    ->label('Transaksi')
+                                    ->required()
+                                    ->inline()
+                                    ->options([
+                                        'YES' => 'YES',
+                                        'NO' => 'NO',
+                                    ])
+                                    ->icons([
+                                        'YES' => 'heroicon-o-check-circle',
+                                        'NO' => 'heroicon-o-x-circle',
+                                    ])
+                                    ->colors([
+                                        'YES' => 'success',
+                                        'NO' => 'danger',
+                                    ])
+                                    ->default('NO'),
+                                Forms\Components\Textarea::make('laporan_visit')
+                                    ->columnSpanFull()
+                                    ->label('Laporan Visit'),
+                            ])
+                            ->visible(fn(string $context): bool => $context === 'edit'),
+                    ])
+                    ->columnSpan(['lg' => 1]),
+            ])
+            ->columns(3);
     }
 
     public static function table(Table $table): Table

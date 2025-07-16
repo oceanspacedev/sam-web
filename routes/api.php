@@ -7,6 +7,7 @@ use App\Http\Controllers\API\OutletController;
 use App\Http\Controllers\API\PlanVisitController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\VisitController;
+use App\Http\Controllers\API\SyncController;
 use App\Http\Controllers\SettingController;
 use Carbon\Carbon;
 use FFMpeg\FFMpeg;
@@ -81,9 +82,18 @@ Route::post('notif', [SendNotif::class, 'sendMessage']);
 Route::get('divisi', [SettingController::class, 'getdivisi']);
 Route::get('region', [SettingController::class, 'getregion']);
 
-// Route::get('tes', function (Request $request) {
-//     return '';
-// });
-
-// Route::get('/tes/outlet', [OutletController::class, 'all']);
-// Route::post('/outlet/delete', [outlet::class, 'deleteBulk']);
+// Sync API Routes - untuk sinkronisasi data
+Route::prefix('sync')->group(function () {
+    Route::get('badanusaha', [SyncController::class, 'getBadanUsaha']);
+    Route::get('division', [SyncController::class, 'getDivision']);
+    Route::get('region', [SyncController::class, 'getRegion']);
+    Route::get('cluster', [SyncController::class, 'getCluster']);
+    Route::get('role', [SyncController::class, 'getRole']);
+    Route::get('user', [SyncController::class, 'getUser']);
+    Route::get('outlet', [SyncController::class, 'getOutlet']);
+    Route::get('visit', [SyncController::class, 'getVisit']);
+    Route::get('planvisit', [SyncController::class, 'getPlanVisit']);
+    Route::post('visit/create', [SyncController::class, 'createVisit']);
+    // Route::get('all', [SyncController::class, 'getAllSyncData']);
+    // Route::get('by-badanusaha', [SyncController::class, 'getDataByBadanUsaha']);
+});

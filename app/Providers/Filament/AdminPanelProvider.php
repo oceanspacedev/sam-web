@@ -41,6 +41,12 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->navigationItems([
+                NavigationItem::make('Telescope')
+                    ->url(fn() => url(env('TELESCOPE_PATH', 'telescope')))
+                    ->icon('heroicon-o-magnifying-glass-circle')
+                    ->group('Developer')
+                    ->openUrlInNewTab()
+                    ->visible(fn() => auth()->user()?->role->name === 'SUPER ADMIN'),
                 NavigationItem::make('api-docs')
                     ->label('API Docs')
                     ->url('/docs/api', shouldOpenInNewTab: true)
@@ -53,7 +59,6 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-server-stack')
                     ->visible(fn() => auth()->user()?->role->name === 'SUPER ADMIN')
                     ->group('Developer'),
-
                 NavigationItem::make('old-dashboard')
                     ->label('Old Dashboard')
                     ->url('/dashboard', shouldOpenInNewTab: false)

@@ -90,7 +90,7 @@ class Outlet extends Model
             'id' => $this->id,
             'kode_outlet' => $this->kode_outlet,
             'nama_outlet' => $this->nama_outlet,
-            'alamat_outlet' => $this->alamat_outlet,
+            'alamat_outlet' => str_replace(["\r", "\n"], ' ', $this->alamat_outlet),
             'nama_pemilik_outlet' => $this->nama_pemilik_outlet,
             'nomer_tlp_outlet' => $this->nomer_tlp_outlet,
             'distric' => $this->distric,

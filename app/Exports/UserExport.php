@@ -36,15 +36,15 @@ class UserExport implements FromCollection, WithHeadings, WithMapping, ShouldAut
     public function map($user) : array
     {
         return [
-            $user->nama_lengkap,
-            $user->username,
-            $user->role->name,
-            $user->badanusaha->name,
-            $user->divisi->name,
-            $user->region->name,
-            $user->cluster->name,
-            $user->cluster2 ? $user->cluster2->name : '-',
-            $user->tm->nama_lengkap ?? '-',
+            $user->nama_lengkap ?? ' ',
+            $user->username ?? ' ',
+            $user->role->name ?? ' ',
+            $user->badanusaha->name ?? ' ',
+            $user->divisi->name ?? ' ',
+            $user->region->name ?? ' ',
+            $user->cluster->name ?? ' ',
+            $user->cluster2 ? $user->cluster2->name : ' ',
+            $user->tm->nama_lengkap ?? ' ',
         ];
     }
 }

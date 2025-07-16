@@ -5,6 +5,8 @@ namespace App\Filament\Resources\VisitResource\Pages;
 use App\Filament\Resources\VisitResource;
 use App\Models\Visit;
 use Filament\Actions;
+use Filament\Actions\ExportAction;
+use App\Filament\Exports\VisitExporter;
 use Filament\Forms\Components\DatePicker;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Resources\Components\Tab;
@@ -21,7 +23,7 @@ class ListVisits extends ListRecords
             Actions\CreateAction::make(),
         ];
 
-        // Check if the user is authorized to export
+        // // Check if the user is authorized to export
         if (Gate::allows('export', Visit::class)) {
             $actions[] = Actions\Action::make('export')
                 ->color("success")
@@ -47,6 +49,11 @@ class ListVisits extends ListRecords
                         'tanggal2' => $data['tanggal2'],
                     ]);
                 });
+            $actions[] = ExportAction::make()
+                ->exporter(VisitExporter::class)
+                ->label('Export Filament')
+                ->color('info')
+                ->icon('heroicon-o-document-arrow-down');
         }
 
         return $actions;

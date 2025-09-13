@@ -15,6 +15,7 @@ use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use App\Models\Outlet;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class LeadController extends Controller
@@ -39,7 +40,7 @@ class LeadController extends Controller
                 'fl' => $request->fl,
                 'latlong' => $request->latlong,
                 'created_by' => $user->nama_lengkap,
-                'tm_id' => $user->tm->id,
+                'tm_id' => optional($user->tm)->id ?? $user->id,
                 'keterangan' => "LEAD",
                 'poto_ktp' => "-",
             ];
@@ -72,24 +73,53 @@ class LeadController extends Controller
                     break;
             }
 
+            // Validasi dinamis untuk file foto/video jika ada
+            $rules = [];
             for ($i = 0; $i <= 3; $i++) {
-                $namaFoto = $request->file('photo' . $i)->getClientOriginalName();
-                if (Str::contains($namaFoto, 'fotodepan')) {
-                    $data['poto_depan'] = $namaFoto;
-                } else if (Str::contains($namaFoto, 'fotokanan')) {
-                    $data['poto_kanan'] = $namaFoto;
-                } else if (Str::contains($namaFoto, 'fotokiri')) {
-                    $data['poto_kiri'] = $namaFoto;
-                } else {
-                    $data['poto_shop_sign'] = $namaFoto;
+                if ($request->hasFile('photo' . $i)) {
+                    $rules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
                 }
-                $request->file('photo' . $i)->move(storage_path('app/public/'), $namaFoto);
+            }
+            if ($request->hasFile('video')) {
+                $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
+            }
+            if (!empty($rules)) {
+                $request->validate($rules);
+            }
+
+            $disk = Storage::disk('public');
+            // Proses foto 0..3 (kompatibel pola lama)
+            for ($i = 0; $i <= 3; $i++) {
+                $file = $request->file('photo' . $i);
+                if (!$file) continue;
+                if (!$file->isValid()) {
+                    return ResponseFormatter::error('File foto tidak valid', 'INVALID_FILE', 422);
+                }
+                $original = $file->getClientOriginalName();
+                if (Str::contains($original, 'fotodepan')) {
+                    $target = 'poto_depan';
+                } elseif (Str::contains($original, 'fotokanan')) {
+                    $target = 'poto_kanan';
+                } elseif (Str::contains($original, 'fotokiri')) {
+                    $target = 'poto_kiri';
+                } else {
+                    $target = 'poto_shop_sign';
+                }
+                $ext = $file->guessExtension() ?: $file->extension();
+                $name = (string) Str::uuid() . '.' . $ext;
+                $path = $disk->putFileAs('noo/photos', $file, $name);
+                $data[$target] = $path;
             }
 
             if ($request->hasFile('video')) {
-                $name = $request->file('video')->getClientOriginalName();
-                $data['video'] = 'noo-' . time() . $name;
-                $request->file('video')->move(storage_path('app/public/'), 'noo-' . time() . $name);
+                $video = $request->file('video');
+                if (!$video->isValid()) {
+                    return ResponseFormatter::error('File video tidak valid', 'INVALID_FILE', 422);
+                }
+                $vext = $video->guessExtension() ?: $video->extension();
+                $vname = (string) Str::uuid() . '.' . $vext;
+                $vpath = $disk->putFileAs('noo/videos', $video, $vname);
+                $data['video'] = $vpath;
             }
 
             $noo = Noo::create($data);
@@ -100,6 +130,7 @@ class LeadController extends Controller
                 'limit' => '0',
                 'radius' => '100',
                 'is_member' => '0',
+                'status_outlet' => 'MAINTAIN',
             ];
 
             // Gabungkan $data dengan $outletData dan buat Outlet
@@ -107,22 +138,34 @@ class LeadController extends Controller
             Outlet::create($outletCompleteData);
             return ResponseFormatter::success(null, 'berhasil menambahkan LEAD ' . $request->nama_outlet);
         } catch (Exception $e) {
-            return ResponseFormatter::error($e->getMessage(), $e->getMessage());
+            return ResponseFormatter::error(['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()], $e->getMessage());
         }
     }
 
     public function update(Request $request)
     {
         try {
-            $request->validate([
+            $baseRules = [
                 'id' => ['required'],
                 'noktp' => ['required'],
-            ]);
+            ];
+            $fileRules = [];
+            if ($request->hasFile('photo')) {
+                $fileRules['photo'] = ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+            }
+            $request->validate(array_merge($baseRules, $fileRules));
 
             $lead = Noo::find($request->id);
-            $namaFoto = $request->file('photo')->getClientOriginalName();
-            $request->file('photo')->move(storage_path('app/public/'), $namaFoto);
-            $lead['poto_ktp'] = $namaFoto;
+            if ($request->hasFile('photo')) {
+                $file = $request->file('photo');
+                if (!$file->isValid()) {
+                    return ResponseFormatter::error('File KTP tidak valid', 'INVALID_FILE', 422);
+                }
+                $ext = $file->guessExtension() ?: $file->extension();
+                $name = (string) Str::uuid() . '.' . $ext;
+                $path = Storage::disk('public')->putFileAs('noo/ktp', $file, $name);
+                $lead['poto_ktp'] = $path;
+            }
             $lead['ktp_outlet'] = $request->noktp;
             $lead['keterangan'] = NULL;
             $lead->update();

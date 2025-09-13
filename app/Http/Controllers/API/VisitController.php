@@ -7,12 +7,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Noo;
 use App\Models\Outlet;
 use App\Models\Visit;
-use App\Models\VisitNoo;
 use Carbon\Carbon;
 use DateTime;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
 class VisitController extends Controller
@@ -46,24 +46,7 @@ class VisitController extends Controller
                     ->latest()
                     ->get();
 
-                $visitnoo = VisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role',
-                ])->whereHas('user', function ($query) {
-                    $query->where('divisi_id', '8');
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
-                    ->latest()
-                    ->get();
-
-                $visit = $visit->merge($visitnoo);
+                // VisitNoo removed; only include regular visits
             }
             // Hendra Setia (GM Techno)
             else if ($user->id == 689 && $user->role_id == 8) {
@@ -84,24 +67,7 @@ class VisitController extends Controller
                     ->latest()
                     ->get();
 
-                $visitnoo = VisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role',
-                ])->whereHas('user', function ($query) {
-                    $query->where('divisi_id', '11');
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
-                    ->latest()
-                    ->get();
-
-                $visit = $visit->merge($visitnoo);
+                // VisitNoo removed
             }
             #ASM || RKAM
             else if ($user->role_id == 1 || $user->role_id == 9) {
@@ -122,24 +88,7 @@ class VisitController extends Controller
                     ->latest()
                     ->get();
 
-                $visitnoo = VisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role',
-                ])->whereHas('user', function ($query) {
-                    $query->where('tm_id', Auth::user()->id);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
-                    ->latest()
-                    ->get();
-
-                $visit = $visit->merge($visitnoo);
+                // VisitNoo removed
             }
             #COO
             else if ($user->role_id == 6) {
@@ -157,21 +106,7 @@ class VisitController extends Controller
                     ->latest()
                     ->get();
 
-                $visitnoo = VisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role',
-                ])->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
-                    ->latest()
-                    ->get();
-
-                $visit = $visit->merge($visitnoo);
+                // VisitNoo removed
             }
             #CSO
             else if ($user->role_id == 8) {
@@ -192,24 +127,7 @@ class VisitController extends Controller
                     ->latest()
                     ->get();
 
-                $visitnoo = VisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role',
-                ])->whereHas('outlet', function ($query) {
-                    $query->where('divisi_id', 4);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
-                    ->latest()
-                    ->get();
-
-                $visit = $visit->merge($visitnoo);
+                // VisitNoo removed
             }
             #CSO FAST EV
             else if ($user->role_id == 11) {
@@ -230,24 +148,7 @@ class VisitController extends Controller
                     ->latest()
                     ->get();
 
-                $visitnoo = VisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role',
-                ])->whereHas('outlet', function ($query) {
-                    $query->where('divisi_id', 7);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
-                    ->latest()
-                    ->get();
-
-                $visit = $visit->merge($visitnoo);
+                // VisitNoo removed
             } else {
                 $visit = Visit::with([
                     'outlet.badanusaha',
@@ -266,24 +167,7 @@ class VisitController extends Controller
                     ->latest()
                     ->get();
 
-                $visitnoo = VisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role',
-                ])->whereHas('user', function ($query) {
-                    $query->where('region_id', Auth::user()->region_id);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
-                    ->latest()
-                    ->get();
-
-                $visit = $visit->merge($visitnoo);
+                // VisitNoo removed
             }
 
             return ResponseFormatter::success(
@@ -303,39 +187,21 @@ class VisitController extends Controller
     public function fetch(Request $request)
     {
         try {
-            if ($request->isnoo) {
-                $visit = VisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role'
-                ])
-                    ->where('user_id', Auth::user()->id)
-                    ->whereDate('tanggal_visit', date('Y-m-d'))
-                    ->latest()
-                    ->get();
-            } else {
-                $visit = Visit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role'
-                ])
-                    ->where('user_id', Auth::user()->id)
-                    ->whereDate('tanggal_visit', date('Y-m-d'))
-                    ->latest()
-                    ->get();
-            }
+            $visit = Visit::with([
+                'outlet.badanusaha',
+                'outlet.region',
+                'outlet.divisi',
+                'outlet.cluster',
+                'user.badanusaha',
+                'user.region',
+                'user.divisi',
+                'user.cluster',
+                'user.role'
+            ])
+                ->where('user_id', Auth::user()->id)
+                ->whereDate('tanggal_visit', date('Y-m-d'))
+                ->latest()
+                ->get();
 
             return ResponseFormatter::success(
                 $visit->map->formatForAPI(),
@@ -451,12 +317,16 @@ class VisitController extends Controller
                 $outletId = $outlet->id;
                 $request->validate([
                     'kode_outlet' => ['required'],
-                    'picture_visit' => ['required', 'mimes:jpg,jpeg,png'],
+                    'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
                     'latlong_in' => ['required', 'string'],
                     'tipe_visit' => ['required'],
                 ]);
-                $imageName = date('Y-m-d') . '-' . Auth::user()->username . '-' . 'IN-' . Carbon::parse(time())->getPreciseTimestamp(3)  . '.' . $request->picture_visit->extension();
-                $request->picture_visit->move(storage_path('app/public/'), $imageName);
+                if (!$request->hasFile('picture_visit') || !$request->file('picture_visit')->isValid()) {
+                    return ResponseFormatter::error('File gambar tidak valid', 'INVALID_FILE', 422);
+                }
+                $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
+                $imageName = date('Y-m-d') . '-' . Auth::user()->username . '-' . 'IN-' . Carbon::now()->getPreciseTimestamp(3)  . '.' . $ext;
+                $path = Storage::disk('public')->putFileAs('visits/in', $request->file('picture_visit'), $imageName);
                 $visit = Visit::create([
                     'tanggal_visit' => date('Y-m-d'),
                     'user_id' => Auth::user()->id,
@@ -464,7 +334,7 @@ class VisitController extends Controller
                     'tipe_visit' => $request->tipe_visit,
                     'latlong_in' => $request->latlong_in,
                     'check_in_time' => Carbon::now(),
-                    'picture_visit_in' => $imageName,
+                    'picture_visit_in' => $path,
                 ]);
                 return ResponseFormatter::success([
                     'visit' => $visit
@@ -476,27 +346,33 @@ class VisitController extends Controller
                     $request->validate([
                         'latlong_out' => ['required'],
                         'laporan_visit' => ['required'],
-                        'picture_visit' => ['required', 'mimes:jpg,jpeg,png'],
+                        'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
                         'transaksi' => ['required'],
                     ]);
+                    if (!$request->hasFile('picture_visit') || !$request->file('picture_visit')->isValid()) {
+                        return ResponseFormatter::error('File gambar tidak valid', 'INVALID_FILE', 422);
+                    }
                     $awal = Carbon::parse($lastDataVisit->check_in_time);
                     $akhir = Carbon::now();
                     $durasi = $awal->diffInMinutes($akhir);
-                    $imageName = date('Y-m-d') . '-' . Auth::user()->username . '-' . 'OUT-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $request->picture_visit->extension();
-                    $request->picture_visit->move(storage_path('app/public/'), $imageName);
+                    $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
+                    $imageName = date('Y-m-d') . '-' . Auth::user()->username . '-' . 'OUT-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $ext;
+                    $path = Storage::disk('public')->putFileAs('visits/out', $request->file('picture_visit'), $imageName);
                     $data = [
                         'tanggal_visit' => date('Y-m-d'),
                         'latlong_out' => $request->latlong_out,
                         'check_out_time' => now(),
                         'laporan_visit' => $request->laporan_visit,
                         'durasi_visit' => $durasi,
-                        'picture_visit_out' => $imageName,
+                        'picture_visit_out' => $path,
                         'transaksi' => $request->transaksi,
                     ];
                     $lastDataVisit->update($data);
                     return ResponseFormatter::success([
                         'visit' => $data
                     ], 'berhasil check out');
+                } else {
+                    return ResponseFormatter::error('Belum ada check-in untuk di check-out', 'INVALID_STATE', 422);
                 }
             }
         } catch (Exception $error) {
@@ -506,94 +382,5 @@ class VisitController extends Controller
         }
     }
 
-    public function submitNoo(Request $request)
-    {
-        try {
-
-            $checkIn = $request->latlong_in;
-            $checkOut = $request->latlong_out;
-
-
-            #aturan checkin
-            if ($checkIn) {
-                $outlet = Noo::find($request->kode_outlet);
-                $outletId = $outlet->id;
-                #validasi data
-                $request->validate([
-                    'kode_outlet' => ['required'],
-                    'picture_visit' => ['required', 'mimes:jpg,jpeg,png'],
-                    'latlong_in' => ['required', 'string'],
-                    'tipe_visit' => ['required'],
-                ]);
-
-
-                ##buat nama gambar
-                $imageName = date('Y-m-d') . '-' . Auth::user()->username . '-' . 'IN-' . Carbon::parse(time())->getPreciseTimestamp(3)  . '.' . $request->picture_visit->extension();
-                ##simpan gambar di folder public/images
-                $request->picture_visit->move(storage_path('app/public/'), $imageName);
-                ##simpan ke database
-                $visit = VisitNoo::create([
-                    'tanggal_visit' => date('Y-m-d'),
-                    'user_id' => Auth::user()->id,
-                    'noo_id' => $outletId,
-                    'tipe_visit' => $request->tipe_visit,
-                    'latlong_in' => $request->latlong_in,
-                    'check_in_time' => Carbon::now(),
-                    'picture_visit_in' => $imageName,
-                ]);
-                ##API berhasil
-                return ResponseFormatter::success([
-                    'visit' => $visit
-                ], 'berhasil check in');
-            }
-
-            if ($checkOut) {
-                $lastDataVisit = VisitNoo::whereDate('tanggal_visit', date('Y-m-d'))->where('user_id', Auth::user()->id)->latest()->first();
-                if ($lastDataVisit != null) {
-                    #validasi data
-                    $request->validate([
-                        'latlong_out' => ['required'],
-                        'laporan_visit' => ['required'],
-                        'picture_visit' => ['required', 'mimes:jpg,jpeg,png'],
-                        'transaksi' => ['required'],
-
-                    ]);
-                    $timeStart = new DateTime();
-                    $TimeEnd = new DateTime();
-                    $start = $lastDataVisit->check_in_time;
-                    $end = time() * 1000;
-                    $timeStart->setTimestamp($start);
-                    $TimeEnd->setTimestamp($end);
-
-                    $awal = Carbon::parse($timeStart);
-                    $akhir = Carbon::parse($TimeEnd);
-
-                    $durasi = $awal->diffInMinutes($akhir);
-
-                    ##buat nama gambar
-                    $imageName = date('Y-m-d') . '-' . Auth::user()->username . '-' . 'OUT-' . Carbon::parse(time())->getPreciseTimestamp(3)  . '.' . $request->picture_visit->extension();
-
-                    ##simpan gambar di folder public/images
-                    $request->picture_visit->move(storage_path('app/public/'), $imageName);
-                    $data = [
-                        'tanggal_visit' => date('Y-m-d'),
-                        'latlong_out' => $request->latlong_out,
-                        'check_out_time' => now(),
-                        'laporan_visit' => $request->laporan_visit,
-                        'durasi_visit' => $durasi,
-                        'picture_visit_out' => $imageName,
-                        'transaksi' => $request->transaksi,
-                    ];
-                    $lastDataVisit->update($data);
-                    return ResponseFormatter::success([
-                        'visit' => $data
-                    ], 'berhasil check out');
-                }
-            }
-        } catch (Exception $error) {
-            return ResponseFormatter::error([
-                'error' => $error
-            ], 'error', 500);
-        }
-    }
+    // submitNoo removed
 }

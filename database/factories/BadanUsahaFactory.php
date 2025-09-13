@@ -22,7 +22,7 @@ class BadanUsahaFactory extends Factory
     public function definition()
     {
         return [
-            //
+            'name' => 'BU-'.$this->faker->unique()->word(),
         ];
     }
 }

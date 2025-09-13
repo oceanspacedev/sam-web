@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class NooController extends Controller
 {
@@ -217,26 +218,54 @@ class NooController extends Controller
                     break;
             }
 
+            // Validasi dinamis
+            $rules = [];
             for ($i = 0; $i <= 4; $i++) {
-                $namaFoto = $request->file('photo' . $i)->getClientOriginalName();
-                if (Str::contains($namaFoto, 'fotodepan')) {
-                    $data['poto_depan'] = $namaFoto;
-                } else if (Str::contains($namaFoto, 'fotokanan')) {
-                    $data['poto_kanan'] = $namaFoto;
-                } else if (Str::contains($namaFoto, 'fotokiri')) {
-                    $data['poto_kiri'] = $namaFoto;
-                } else if (Str::contains($namaFoto, 'fotoktp')) {
-                    $data['poto_ktp'] = $namaFoto;
-                } else {
-                    $data['poto_shop_sign'] = $namaFoto;
+                if ($request->hasFile('photo' . $i)) {
+                    $rules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
                 }
-                $request->file('photo' . $i)->move(storage_path('app/public/'), $namaFoto);
+            }
+            if ($request->hasFile('video')) {
+                $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200']; // 50MB
+            }
+            if (!empty($rules)) {
+                $request->validate($rules);
+            }
+
+            $disk = Storage::disk('public');
+            for ($i = 0; $i <= 4; $i++) {
+                $file = $request->file('photo' . $i);
+                if (!$file) continue;
+                if (!$file->isValid()) {
+                    return ResponseFormatter::error('File foto tidak valid', 'INVALID_FILE', 422);
+                }
+                $original = $file->getClientOriginalName();
+                if (Str::contains($original, 'fotodepan')) {
+                    $target = 'poto_depan';
+                } else if (Str::contains($original, 'fotokanan')) {
+                    $target = 'poto_kanan';
+                } else if (Str::contains($original, 'fotokiri')) {
+                    $target = 'poto_kiri';
+                } else if (Str::contains($original, 'fotoktp')) {
+                    $target = 'poto_ktp';
+                } else {
+                    $target = 'poto_shop_sign';
+                }
+                $ext = $file->guessExtension() ?: $file->extension();
+                $name = (string) Str::uuid() . '.' . $ext;
+                $path = $disk->putFileAs('noo/photos', $file, $name);
+                $data[$target] = $path;
             }
 
             if ($request->hasFile('video')) {
-                $name = $request->file('video')->getClientOriginalName();
-                $data['video'] = 'noo-' . time() . $name;
-                $request->file('video')->move(storage_path('app/public/'), 'noo-' . time() . $name);
+                $video = $request->file('video');
+                if (!$video->isValid()) {
+                    return ResponseFormatter::error('File video tidak valid', 'INVALID_FILE', 422);
+                }
+                $vext = $video->guessExtension() ?: $video->extension();
+                $vname = (string) Str::uuid() . '.' . $vext;
+                $vpath = $disk->putFileAs('noo/videos', $video, $vname);
+                $data['video'] = $vpath;
             }
 
             switch ($user->id) {

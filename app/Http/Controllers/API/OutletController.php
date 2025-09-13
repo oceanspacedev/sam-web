@@ -10,6 +10,7 @@ use App\Models\Region;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class OutletController extends Controller
@@ -151,73 +152,107 @@ class OutletController extends Controller
     public function updatefoto(Request $request)
     {
         try {
-            $request->validate([
+            // Validasi dasar field non-file
+            $baseRules = [
                 'kode_outlet' => ['required'],
                 'nama_pemilik_outlet' => ['required'],
                 'nomer_tlp_outlet' => ['required'],
                 'latlong' => ['required'],
-            ]);
+            ];
 
-            $data = Outlet::where('kode_outlet', $request->kode_outlet)->first();
-            if ((count($request->files) > 1) AND (count($request->files) <= 5)) {
-                for ($i = 0; $i <= 3; $i++) {
-                    $namaFoto = $request->file('photo' . $i)->getClientOriginalName();
-                    if (Str::contains($namaFoto, 'fotodepan')) {
-                        $data['poto_depan'] = $namaFoto;
-                    } else if (Str::contains($namaFoto, 'fotokanan')) {
-                        $data['poto_kanan'] = $namaFoto;
-                    } else if (Str::contains($namaFoto, 'fotokiri')) {
-                        $data['poto_kiri'] = $namaFoto;
-                    } else {
-                        $data['poto_shop_sign'] = $namaFoto;
-                    }
-                    $request->file('photo' . $i)->move(storage_path('app/public/'), $namaFoto);
-                }
-            //menambahkan else if karena tidak bisa upload jika hanya 1 file (video aja)
-            } else if (count($request->files) == 1) {
-                if ($request->hasFile('video')) {
-                    $name = $request->file('video')->getClientOriginalName();
-                    $data['video'] = 'update-' . now() . $name ;
-                    $request->file('video')->move(storage_path('app/public/'), 'update-' . now() . $name);
-                }
-                $data['nama_pemilik_outlet'] = strtoupper($request->nama_pemilik_outlet);
-                $data['nomer_tlp_outlet'] = $request->nomer_tlp_outlet;
-                $data['latlong'] = $request->latlong;
-                $data->save();
-
-                return ResponseFormatter::success(null, 'berhasil Update');
-            } else {
-                for ($i = 0; $i <= 4; $i++) {
-                    $namaFoto = $request->file('photo' . $i)->getClientOriginalName();
-                    if (Str::contains($namaFoto, 'fotodepan')) {
-                        $data['poto_depan'] = $namaFoto;
-                    } else if (Str::contains($namaFoto, 'fotokanan')) {
-                        $data['poto_kanan'] = $namaFoto;
-                    } else if (Str::contains($namaFoto, 'fotokiri')) {
-                        $data['poto_kiri'] = $namaFoto;
-                    } else if (Str::contains($namaFoto, 'fotoktp')) {
-                        $data['poto_ktp'] = $namaFoto;
-                    } else {
-                        $data['poto_shop_sign'] = $namaFoto;
-                    }
-                    $request->file('photo' . $i)->move(storage_path('app/public/'), $namaFoto);
+            // Kumpulkan file yang ada untuk validasi dinamis
+            $dynamicRules = [];
+            // Dukungan skema lama: photo0..photo4
+            for ($i = 0; $i <= 4; $i++) {
+                if ($request->hasFile('photo' . $i)) {
+                    $dynamicRules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120']; // 5MB
                 }
             }
-
+            // Dukungan skema baru: photos[]
+            if ($request->hasFile('photos')) {
+                $dynamicRules['photos'] = ['array'];
+                $dynamicRules['photos.*'] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+            }
+            // Video opsional
             if ($request->hasFile('video')) {
-                $name = $request->file('video')->getClientOriginalName();
-                $data['video'] = 'update-' . now() . $name;
-                $request->file('video')->move(storage_path('app/public/'), 'update-' . now() . $name);
+                $dynamicRules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200']; // 50MB
             }
-            $data['nama_pemilik_outlet'] = strtoupper($request->nama_pemilik_outlet);
-            $data['nomer_tlp_outlet'] = $request->nomer_tlp_outlet;
-            $data['latlong'] = $request->latlong;
-            $data->save();
+
+            $request->validate(array_merge($baseRules, $dynamicRules));
+
+            $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
+            if (!$outlet) {
+                return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
+            }
+
+            $disk = Storage::disk('public');
+            // Sanitasi kode outlet untuk path
+            $safeKode = preg_replace('/[^A-Za-z0-9._-]/', '_', $outlet->kode_outlet);
+            $baseDir = 'outlets/' . $safeKode;
+
+            // Proses foto (mendukung photo0..4 dan photos[])
+            $photoFiles = [];
+            for ($i = 0; $i <= 4; $i++) {
+                $f = $request->file('photo' . $i);
+                if ($f) {
+                    $photoFiles[] = $f;
+                }
+            }
+            if ($request->hasFile('photos')) {
+                foreach ((array) $request->file('photos') as $pf) {
+                    if ($pf) $photoFiles[] = $pf;
+                }
+            }
+
+            foreach ($photoFiles as $file) {
+                if (!$file->isValid()) {
+                    return ResponseFormatter::error(null, 'File foto tidak valid', 422);
+                }
+                $original = $file->getClientOriginalName();
+                // Tentukan kolom tujuan berdasarkan pola nama (kompatibel lama)
+                if (Str::contains($original, 'fotodepan')) {
+                    $targetField = 'poto_depan';
+                } elseif (Str::contains($original, 'fotokanan')) {
+                    $targetField = 'poto_kanan';
+                } elseif (Str::contains($original, 'fotokiri')) {
+                    $targetField = 'poto_kiri';
+                } elseif (Str::contains($original, 'fotoktp')) {
+                    $targetField = 'poto_ktp';
+                } else {
+                    $targetField = 'poto_shop_sign';
+                }
+
+                $ext = $file->guessExtension() ?: $file->extension();
+                $filename = (string) Str::uuid() . '.' . $ext;
+                $path = $disk->putFileAs($baseDir . '/photos', $file, $filename);
+                // Simpan path relatif pada kolom agar hook model bisa hapus file lama
+                $outlet->{$targetField} = $path;
+            }
+
+            // Proses video (opsional)
+            if ($request->hasFile('video')) {
+                $video = $request->file('video');
+                if (!$video->isValid()) {
+                    return ResponseFormatter::error(null, 'File video tidak valid', 422);
+                }
+                $vext = $video->guessExtension() ?: $video->extension();
+                $vname = (string) Str::uuid() . '.' . $vext;
+                $vpath = $disk->putFileAs($baseDir . '/videos', $video, $vname);
+                $outlet->video = $vpath;
+            }
+
+            // Update field teks
+            $outlet->nama_pemilik_outlet = strtoupper($request->nama_pemilik_outlet);
+            $outlet->nomer_tlp_outlet = $request->nomer_tlp_outlet;
+            $outlet->latlong = $request->latlong;
+            $outlet->save();
 
             return ResponseFormatter::success(null, 'berhasil Update');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseFormatter::error($e->errors(), 'VALIDATION_ERROR', 422);
         } catch (Exception $e) {
             error_log($e->getMessage());
-            return ResponseFormatter::error(null, $e->getMessage());
+            return ResponseFormatter::error(null, $e->getMessage(), 400);
         }
     }
 }

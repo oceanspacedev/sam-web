@@ -1,0 +1,54 @@
+config:
+  target: "{{ BASE_URL }}"
+  phases:
+    - duration: 60
+      arrivalRate: 2
+      name: warmup
+    - duration: 120
+      arrivalRate: 5
+      name: ramp
+  defaults:
+    headers:
+      Content-Type: application/json
+  processor: |
+    function setAuthToken(req, res, context, ee, next) {
+      const token = res.json?.data?.access_token;
+      if (token) {
+        context.vars.token = token;
+      }
+      return next();
+    }
+scenarios:
+  - name: Outlet update foto + video
+    flow:
+      - post:
+          url: "/api/user/login"
+          json:
+            version: "1.0.3"
+            username: "{{ USERNAME }}"
+            password: "{{ PASSWORD }}"
+            notif_id: "test-onesignal-id"
+          capture:
+            - json: "data.access_token"
+              as: token
+          afterResponse: setAuthToken
+      - think: 1
+      - post:
+          url: "/api/outlet"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          formData:
+            kode_outlet: "{{ OUTLET_CODE }}"
+            nama_pemilik_outlet: "BUDI"
+            nomer_tlp_outlet: "08123"
+            latlong: "0,0"
+            photo0:
+              - value: "@{{ PHOTO_PATH }}"
+                options:
+                  filename: "fotodepan.jpg"
+                  contentType: "image/jpeg"
+            video:
+              - value: "@{{ VIDEO_PATH }}"
+                options:
+                  filename: "vid.mp4"
+                  contentType: "video/mp4"

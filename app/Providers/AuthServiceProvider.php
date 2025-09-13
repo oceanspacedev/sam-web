@@ -6,6 +6,7 @@ use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -27,11 +28,14 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        $permissions = Permission::all();
-        foreach ($permissions as $permission) {
-            Gate::define($permission->name, function ($user) use ($permission) {
-                return $user->permissions->contains('id', $permission->id);
-            });
+        // Hindari error pada environment testing ketika tabel belum dimigrasi
+        if (Schema::hasTable('permissions')) {
+            $permissions = Permission::all();
+            foreach ($permissions as $permission) {
+                Gate::define($permission->name, function ($user) use ($permission) {
+                    return $user->permissions->contains('id', $permission->id);
+                });
+            }
         }
 
         Gate::define('viewPulse', function (User $user) {

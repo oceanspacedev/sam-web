@@ -42,7 +42,6 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::get('visit/check', [VisitController::class, 'check']);
     Route::post('visit', [VisitController::class, 'submit']);
     Route::get('visit/monitor', [VisitController::class, 'monitor']);
-    Route::post('visitNoo', [VisitController::class, 'submitNoo']);
 
 
     //PLANVISIT
@@ -51,8 +50,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::get('planvisit/filter', [PlanVisitController::class, 'bymonth']);
     Route::delete('planvisit', [PlanVisitController::class, 'delete']);
     Route::delete('planvisitrealme', [PlanVisitController::class, 'deleterealme']);
-    Route::get('planvisitnoo', [PlanVisitController::class, 'fetchnoo']);
-    Route::delete('planvisitnoo', [PlanVisitController::class, 'deletenoo']);
+    // PlanVisit NOO endpoints removed
 
     //NOO
     Route::get('noo/getbu', [NooController::class, 'getbu']);

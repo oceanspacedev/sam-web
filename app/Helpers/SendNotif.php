@@ -9,6 +9,10 @@ class SendNotif
 
     public static function sendMessage($content, array $id)
     {
+        // Skip external notification calls during tests to keep runs fast and deterministic
+        if (app()->environment('testing')) {
+            return;
+        }
         $content = array(
             "en" => $content,
         );

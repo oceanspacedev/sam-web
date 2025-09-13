@@ -4,8 +4,12 @@
 /storage/*.key
 /vendor
 .env
+.env.*
+!.env.example
+!.env.testing
 .env.backup
 .phpunit.result.cache
+/.phpunit.cache
 docker-compose.override.yml
 Homestead.json
 Homestead.yaml
@@ -20,3 +24,30 @@ yarn-error.log
 **/caddy
 frankenphp
 frankenphp-worker.php
+
+# Laravel storage and cache (keep required dirs)
+/storage/*
+!/storage/app
+!/storage/app/public
+!/storage/framework
+!/storage/framework/cache
+!/storage/framework/cache/data
+!/storage/framework/sessions
+!/storage/framework/testing
+!/storage/framework/views
+!/storage/logs
+/storage/logs/*
+
+# Laravel bootstrap cache (keep PHP files and .gitignore)
+/bootstrap/cache/*
+!/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
+
+# Coverage and perf outputs
+/coverage/
+/perf/out/
+
+# OS/Editor junk
+Thumbs.db
+.fleet/
+.vs/

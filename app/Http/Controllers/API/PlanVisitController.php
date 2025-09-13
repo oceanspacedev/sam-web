@@ -4,11 +4,8 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
-use App\Models\Noo;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
-use App\Models\PlanVisitNoo;
-use App\Models\VisitNoo;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -19,39 +16,19 @@ class PlanVisitController extends Controller
     public function fetch(Request $request)
     {
         try {
-            if ($request->isnoo) {
-                $planVisit = PlanVisitNoo::with(
-                [
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role'
-                ])
-                ->where('user_id',Auth::user()->id)
-                ->whereDate('tanggal_visit',date('Y-m-d'))
-                ->get();
-            } else {
-                $planVisit = PlanVisit::with(
-                    [
-                        'outlet.badanusaha',
-                        'outlet.region',
-                        'outlet.divisi',
-                        'outlet.cluster',
-                        'user.badanusaha',
-                        'user.region',
-                        'user.divisi',
-                        'user.cluster',
-                        'user.role'
-                    ])
-                    ->where('user_id',Auth::user()->id)
-                    ->whereDate('tanggal_visit',date('Y-m-d'))
-                    ->get();
-            }
+            $planVisit = PlanVisit::with([
+                'outlet.badanusaha',
+                'outlet.region',
+                'outlet.divisi',
+                'outlet.cluster',
+                'user.badanusaha',
+                'user.region',
+                'user.divisi',
+                'user.cluster',
+                'user.role'
+            ])->where('user_id', Auth::user()->id)
+              ->whereDate('tanggal_visit', date('Y-m-d'))
+              ->get();
 
             return ResponseFormatter::success(
                 $planVisit,'ok');
@@ -70,41 +47,21 @@ class PlanVisitController extends Controller
                 'tahun' => ['required','string'],
             ]);
 
-            if ($request->isnoo) {
-                $plan = PlanVisitNoo::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role'
-                ])
-                ->whereYear('tanggal_visit','=',$request->tahun)
-                ->whereMonth('tanggal_visit','=',$request->bulan)
-                ->where('user_id',Auth::user()->id)
-                ->orderBy('tanggal_visit')
-                ->get();
-            } else {
-                $plan = PlanVisit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
-                    'user.role'
-                ])
-                ->whereYear('tanggal_visit','=',$request->tahun)
-                ->whereMonth('tanggal_visit','=',$request->bulan)
-                ->where('user_id',Auth::user()->id)
-                ->orderBy('tanggal_visit')
-                ->get();
-            }
+            $plan = PlanVisit::with([
+                'outlet.badanusaha',
+                'outlet.region',
+                'outlet.divisi',
+                'outlet.cluster',
+                'user.badanusaha',
+                'user.region',
+                'user.divisi',
+                'user.cluster',
+                'user.role'
+            ])->whereYear('tanggal_visit', '=', $request->tahun)
+              ->whereMonth('tanggal_visit', '=', $request->bulan)
+              ->where('user_id', Auth::user()->id)
+              ->orderBy('tanggal_visit')
+              ->get();
             return ResponseFormatter::success($plan,'berhasil');
         } catch (Exception $e) {
             return ResponseFormatter::error(null,$e);
@@ -120,35 +77,7 @@ class PlanVisitController extends Controller
                 'kode_outlet' => ['required'],
             ]);
 
-            if ($request->isnoo) {
-                $idNoo = Noo::where('id',$request->kode_outlet)->first();
-
-                //return ResponseFormatter::error($idNoo,'masuk ke noo');
-
-                //VALIDASI
-                // if ((Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfMonth()) || (Carbon::now() < Carbon::parse($request->tanggal_visit)->startOfMonth()->subDay(5))){
-                // return ResponseFormatter::error(null,'Tidak bisa menambahkan plan visit kurang dari h-5 bulan visit dan lebih dari tanggal 1');
-                // }
-
-                ##cek apakah sudah ada data dengan user, outlet dan tanggal yang dikirim
-                $cekData = PlanVisitNoo::whereDate('tanggal_visit',Carbon::parse($request->tanggal_visit))
-                ->where('user_id',Auth::user()->id)
-                ->where('noo_id',$idNoo->id)
-                ->first();
-
-                if($cekData)
-                {
-                    return ResponseFormatter::error($cekData,'data sebelumnya sudah ada');
-                }
-
-                $addPlan = PlanVisitNoo::insert([
-                    'user_id' =>(string) Auth::user()->id,
-                    'noo_id' => $idNoo->id,
-                    'tanggal_visit' => Carbon::parse($request->tanggal_visit),
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
-            } else {
+            {
                 $idOutlet = Outlet::where('kode_outlet',$request->kode_outlet)->first();
 
                 //VALIDASI
@@ -287,51 +216,5 @@ class PlanVisitController extends Controller
         }
     }
 
-    public function deletenoo(Request $request)
-    {
-        try {
-            $validation = $request->validate([
-                'bulan' => 'required',
-                'tahun' => 'required',
-                'kode_outlet' => 'required',
-            ]);
-
-            $noo = Noo::where('id',$request->kode_outlet)->first();
-
-            //Untuk validasi pake first() berarti cuma keambil 1 data
-            $planVisit = PlanVisitNoo::where('noo_id',$noo->id)
-                            ->whereYear('tanggal_visit','=',$request->tahun)
-                            ->whereMonth('tanggal_visit','=',$request->bulan)
-                            ->where('user_id',Auth::user()->id)
-                            ->first();
-
-            if ((Carbon::now() > Carbon::createFromTimestamp($planVisit->tanggal_visit )->startOfMonth()) || (Carbon::now() < Carbon::createFromTimestamp($planVisit->tanggal_visit )->startOfMonth()->subDay(5))){
-                return ResponseFormatter::error(null,'Tidak bisa menghapus plan visit kurang dari h-5 bulan visit dan lebih dari tanggal 1');
-            }
-
-            if(!$validation)
-            {
-                return ResponseFormatter::error(null,$validation,400);
-            }
-
-            //sedangkan delete nya pake delete(), berarti semua PlanVisit yang id_outletnya sesuai akan terhapus
-            $delete = PlanVisitNoo::where('noo_id',$noo->id)
-                            ->whereYear('tanggal_visit',$request->tahun)
-                            ->whereMonth('tanggal_visit',$request->bulan)
-                            ->where('user_id',Auth::user()->id)
-                            ->delete();
-
-            if(!$delete)
-            {
-                return ResponseFormatter::error(null,$validation,422);
-            }
-
-            return ResponseFormatter::success($delete,'berhasil');
-        }
-        catch (Exception $e)
-        {
-            return ResponseFormatter::error(null,$e->getMessage(),500);
-        }
-    }
+    // deletenoo removed
 }
-

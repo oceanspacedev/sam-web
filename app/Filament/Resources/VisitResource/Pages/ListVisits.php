@@ -2,14 +2,14 @@
 
 namespace App\Filament\Resources\VisitResource\Pages;
 
+use App\Filament\Exports\VisitExporter;
 use App\Filament\Resources\VisitResource;
 use App\Models\Visit;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
-use App\Filament\Exports\VisitExporter;
 use Filament\Forms\Components\DatePicker;
-use Filament\Resources\Pages\ListRecords;
 use Filament\Resources\Components\Tab;
+use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 
@@ -68,12 +68,12 @@ class ListVisits extends ListRecords
             'all' => Tab::make(),
 
             'EXTRACALL' => Tab::make()
-                ->modifyQueryUsing(fn(Builder $query) => $query->where('tipe_visit', 'EXTRACALL'))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'EXTRACALL'))
                 ->badge($this->getStatusBadgeCount($query, 'EXTRACALL'))
                 ->badgeColor('warning'),
 
             'PLANNED' => Tab::make()
-                ->modifyQueryUsing(fn(Builder $query) => $query->where('tipe_visit', 'PLANNED'))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'PLANNED'))
                 ->badge($this->getStatusBadgeCount($query, 'PLANNED'))
                 ->badgeColor('info'),
         ];

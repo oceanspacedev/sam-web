@@ -16,7 +16,7 @@ class VisitSeeder extends Seeder
     {
         Visit::insert([
             [
-                'tanggal_visit'=> '2021-10-01',
+                'tanggal_visit' => '2021-10-01',
                 'user_id' => 1,
                 'outlet_id' => 1,
                 'tipe_visit' => 'PLANNED',
@@ -29,10 +29,10 @@ class VisitSeeder extends Seeder
                 'transaksi' => 'YES',
                 'picture_visit_in' => '1632886839000-usep-IN-2021-09-29.jpg',
                 'picture_visit_out' => '1632886839000-usep-IN-2021-09-29.jpg',
-                'created_at' => '2021-10-01 08:10'
+                'created_at' => '2021-10-01 08:10',
             ],
             [
-                'tanggal_visit'=> '2021-10-01',
+                'tanggal_visit' => '2021-10-01',
                 'user_id' => 1,
                 'outlet_id' => 2,
                 'tipe_visit' => 'EXTRACALL',
@@ -45,7 +45,7 @@ class VisitSeeder extends Seeder
                 'transaksi' => null,
                 'picture_visit_in' => '1632886839000-usep-IN-2021-09-29.jpg',
                 'picture_visit_out' => null,
-                'created_at' => '2021-10-01 09:10'
+                'created_at' => '2021-10-01 09:10',
 
             ],
         ]);

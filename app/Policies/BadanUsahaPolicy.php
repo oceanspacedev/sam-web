@@ -4,8 +4,6 @@ namespace App\Policies;
 
 use App\Models\BadanUsaha;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
-
 use Illuminate\Support\Facades\Gate;
 
 class BadanUsahaPolicy

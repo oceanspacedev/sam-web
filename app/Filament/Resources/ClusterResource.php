@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ClusterResource\Pages;
-use App\Filament\Resources\ClusterResource\RelationManagers;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Region;
@@ -14,13 +13,15 @@ use Filament\Tables;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ClusterResource extends Resource
 {
     protected static ?string $model = Cluster::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
+
     protected static ?string $navigationGroup = 'Settings';
+
     protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
@@ -33,20 +34,20 @@ class ClusterResource extends Resource
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
-                            ->options(function (callable $get) {
-                                $user = auth()->user();
-                                $role = $user->role;
+                    ->options(function (callable $get) {
+                        $user = auth()->user();
+                        $role = $user->role;
 
-                                if ($role->filter_type === 'badanusaha') {
-                                    return \App\Models\BadanUsaha::whereIn('id', $role->filter_data ?? [])
-                                        ->pluck('name', 'id');
-                                } elseif ($role->filter_type === 'all') {
-                                    return \App\Models\BadanUsaha::pluck('name', 'id');
-                                }
+                        if ($role->filter_type === 'badanusaha') {
+                            return \App\Models\BadanUsaha::whereIn('id', $role->filter_data ?? [])
+                                ->pluck('name', 'id');
+                        } elseif ($role->filter_type === 'all') {
+                            return \App\Models\BadanUsaha::pluck('name', 'id');
+                        }
 
-                                return \App\Models\BadanUsaha::where('id', $user->badanusaha_id)
-                                    ->pluck('name', 'id');
-                            })
+                        return \App\Models\BadanUsaha::where('id', $user->badanusaha_id)
+                            ->pluck('name', 'id');
+                    })
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('divisi_id', null);
                         $set('region_id', null);
@@ -60,9 +61,10 @@ class ClusterResource extends Resource
                     ->reactive()
                     ->options(function (callable $get) {
                         $badanusahaId = $get('badanusaha_id');
-                        if (!$badanusahaId) {
+                        if (! $badanusahaId) {
                             return [];
                         }
+
                         return Division::where('badanusaha_id', $badanusahaId)
                             ->pluck('name', 'id');
                     })
@@ -77,9 +79,10 @@ class ClusterResource extends Resource
                     ->reactive()
                     ->options(function (callable $get) {
                         $divisiId = $get('divisi_id');
-                        if (!$divisiId) {
+                        if (! $divisiId) {
                             return [];
                         }
+
                         return Region::where('divisi_id', $divisiId)
                             ->pluck('name', 'id');
                     }),
@@ -106,6 +109,8 @@ class ClusterResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('name', 'asc')
+            ->paginationPageOptions([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->groups([
                 Group::make('region.name')
                     ->label('Region')
@@ -146,7 +151,7 @@ class ClusterResource extends Resource
                         $query->whereIn('clusters.region_id', $role->filter_data ?? []);
                         break;
                     case 'cluster':
-                        $query->whereIn('clusters.cluster_id', $role->filter_data ?? []);
+                        $query->whereIn('clusters.id', $role->filter_data ?? []);
                         break;
                     case 'all':
                     default:

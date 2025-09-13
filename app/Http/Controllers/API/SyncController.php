@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
 use App\Helpers\ResponseFormatter;
+use App\Http\Controllers\Controller;
 use App\Models\BadanUsaha;
-use App\Models\Division;
-use App\Models\Region;
 use App\Models\Cluster;
+use App\Models\Division;
+use App\Models\Outlet;
+use App\Models\PlanVisit;
+use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\Outlet;
 use App\Models\Visit;
-use App\Models\PlanVisit;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -23,8 +23,10 @@ class SyncController extends Controller
      */
     private function formatDate($date)
     {
-        if (!$date) return null;
-        
+        if (! $date) {
+            return null;
+        }
+
         try {
             if (is_object($date)) {
                 // Handle Carbon/DateTime objects
@@ -44,8 +46,10 @@ class SyncController extends Controller
      */
     private function formatTanggalVisit($timestamp)
     {
-        if (!$timestamp) return null;
-        
+        if (! $timestamp) {
+            return null;
+        }
+
         try {
             if (is_numeric($timestamp)) {
                 // Convert milliseconds to seconds and create Carbon instance
@@ -62,6 +66,7 @@ class SyncController extends Controller
 
     /**
      * Get all Badan Usaha data
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getBadanUsaha()
@@ -81,12 +86,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($badanUsaha, 'Data Badan Usaha berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Badan Usaha: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data Badan Usaha: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Get all Division data with Badan Usaha relation
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getDivision()
@@ -109,12 +115,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($divisions, 'Data Divisi berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Divisi: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data Divisi: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Get all Region data with relations
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getRegion()
@@ -123,7 +130,7 @@ class SyncController extends Controller
             $regions = Region::select('id', 'name', 'badanusaha_id', 'divisi_id', 'created_at', 'updated_at')
                 ->with([
                     'badanusaha:id,name',
-                    'divisi:id,name'
+                    'divisi:id,name',
                 ])
                 ->orderBy('id')
                 ->get()
@@ -142,12 +149,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($regions, 'Data Region berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Region: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data Region: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Get all Cluster data with relations
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getCluster()
@@ -157,7 +165,7 @@ class SyncController extends Controller
                 ->with([
                     'badanusaha:id,name',
                     'divisi:id,name',
-                    'region:id,name'
+                    'region:id,name',
                 ])
                 ->orderBy('id')
                 ->get()
@@ -178,12 +186,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($clusters, 'Data Cluster berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Cluster: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data Cluster: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Get all Role data
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getRole()
@@ -204,12 +213,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($roles, 'Data Role berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Role: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data Role: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Get all User data with relations
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getUser()
@@ -224,7 +234,7 @@ class SyncController extends Controller
                     'region:id,name',
                     'cluster:id,name',
                     'cluster2:id,name',
-                    'tm:id,nama_lengkap'
+                    'tm:id,nama_lengkap',
                 ])
                 ->orderBy('id')
                 ->get()
@@ -255,12 +265,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($users, 'Data User berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data User: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data User: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Get all Outlet data with relations
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getOutlet()
@@ -292,12 +303,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($outlets, 'Data Outlet berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Outlet: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data Outlet: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Get all Visit data with relations
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getVisit()
@@ -306,11 +318,11 @@ class SyncController extends Controller
             // Get parameters from request with default current month and year
             $month = request('month', date('m'));
             $year = request('year', date('Y'));
-            
+
             // Build date range for the specified month
             $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth()->format('Y-m-d');
             $endDate = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('Y-m-d');
-            
+
             $visits = Visit::select('id', 'tanggal_visit', 'user_id', 'outlet_id', 'tipe_visit', 'picture_visit_in', 'picture_visit_out', 'latlong_in', 'latlong_out', 'check_in_time', 'check_out_time', 'durasi_visit', 'transaksi', 'laporan_visit', 'created_at', 'updated_at')
                 ->whereBetween('created_at', [$startDate, $endDate])
                 ->orderBy('id')
@@ -338,12 +350,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($visits, 'Data Visit berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Visit: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data Visit: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Get all Plan Visit data with relations
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getPlanVisit()
@@ -366,12 +379,13 @@ class SyncController extends Controller
 
             return ResponseFormatter::success($planVisits, 'Data Plan Visit berhasil diambil');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Plan Visit: ' . $e->getMessage(), 500);
+            return ResponseFormatter::error(null, 'Gagal mengambil data Plan Visit: '.$e->getMessage(), 500);
         }
     }
 
     /**
      * Create visit data from external system
+     *
      * @return \Illuminate\Http\JsonResponse
      */
     public function createVisit(Request $request)
@@ -396,7 +410,7 @@ class SyncController extends Controller
 
             // Hitung durasi visit jika tidak diberikan
             $durasi = $request->durasi_visit;
-            if (!$durasi) {
+            if (! $durasi) {
                 $checkInTime = Carbon::parse($request->check_in_time);
                 $checkOutTime = Carbon::parse($request->check_out_time);
                 $durasi = $checkInTime->diffInMinutes($checkOutTime);
@@ -410,13 +424,13 @@ class SyncController extends Controller
             $username = $user ? $user->username : $request->user_id;
 
             // Generate nama file foto check in
-            $imageNameIn = date('Y-m-d') . '-' . $username . '-' . 'IN-' . 
-                           Carbon::now()->getPreciseTimestamp(3) . '.' . 
+            $imageNameIn = date('Y-m-d').'-'.$username.'-'.'IN-'.
+                           Carbon::now()->getPreciseTimestamp(3).'.'.
                            $request->picture_visit_in->extension();
 
             // Generate nama file foto check out
-            $imageNameOut = date('Y-m-d') . '-' . $username . '-' . 'OUT-' . 
-                            Carbon::now()->getPreciseTimestamp(3) . '.' . 
+            $imageNameOut = date('Y-m-d').'-'.$username.'-'.'OUT-'.
+                            Carbon::now()->getPreciseTimestamp(3).'.'.
                             $request->picture_visit_out->extension();
 
             // Simpan foto ke storage
@@ -441,13 +455,13 @@ class SyncController extends Controller
             ]);
 
             return ResponseFormatter::success([
-                'visit' => $visit
+                'visit' => $visit,
             ], 'Visit berhasil dibuat');
 
         } catch (\Exception $e) {
             return ResponseFormatter::error([
-                'error' => $e->getMessage()
-            ], 'Gagal membuat visit: ' . $e->getMessage(), 500);
+                'error' => $e->getMessage(),
+            ], 'Gagal membuat visit: '.$e->getMessage(), 500);
         }
     }
 }

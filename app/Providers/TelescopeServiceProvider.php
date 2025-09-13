@@ -25,7 +25,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
         $this->hideSensitiveRequestDetails();
 
         // Disable Telescope completely in production if not explicitly enabled
-        if ($this->app->environment('production') && !env('TELESCOPE_ENABLED', false)) {
+        if ($this->app->environment('production') && ! env('TELESCOPE_ENABLED', false)) {
             return;
         }
 
@@ -72,6 +72,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
                 if (isset($content['time']) && $content['time'] >= 1000) {
                     return true;
                 }
+
                 return false;
             }
 

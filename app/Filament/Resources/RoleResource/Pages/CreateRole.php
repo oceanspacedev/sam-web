@@ -4,7 +4,6 @@ namespace App\Filament\Resources\RoleResource\Pages;
 
 use App\Filament\Resources\RoleResource;
 use App\Models\Permission;
-use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Arr;
 
@@ -15,9 +14,10 @@ class CreateRole extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $permissions = collect($data['permissions'] ?? [])
-            ->flatMap(fn($permission) => $permission)
+            ->flatMap(fn ($permission) => $permission)
             ->unique();
         session()->put('permissions_to_sync', $permissions);
+
         return Arr::only($data, ['name', 'can_access_web', 'filter_type', 'filter_data']);
     }
 
@@ -28,5 +28,4 @@ class CreateRole extends CreateRecord
             Permission::whereIn('name', $permissions)->pluck('id')->toArray()
         );
     }
-
 }

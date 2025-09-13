@@ -12,8 +12,6 @@ class LogRoute
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure  $next
      * @return mixed
      */
     public function handle(Request $request, Closure $next)
@@ -21,7 +19,7 @@ class LogRoute
         $response = $next($request);
         if (json_decode($response->getContent())->meta->code != 200) {
             $log = [
-                'REQUESTBY' =>Auth::user()->nama_lengkap,
+                'REQUESTBY' => Auth::user()->nama_lengkap,
                 'URI' => $request->getUri(),
                 'METHOD' => $request->getMethod(),
                 'REQUEST_BODY' => $request->all(),
@@ -31,7 +29,7 @@ class LogRoute
             ];
             Log::channel('custom')->info($log);
         }
-        
+
         return $response;
     }
 }

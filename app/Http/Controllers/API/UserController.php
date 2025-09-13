@@ -2,20 +2,18 @@
 
 namespace App\Http\Controllers\API;
 
-use Exception;
-use App\Models\User;
-use Illuminate\Http\Request;
+use App\Actions\Fortify\PasswordValidationRules;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use App\Actions\Fortify\PasswordValidationRules;
 
 class UserController extends Controller
 {
-
     use PasswordValidationRules;
-
 
     /**
      * User - Fetch profile ✅
@@ -23,6 +21,7 @@ class UserController extends Controller
     public function fetch(Request $request)
     {
         $user = User::with(['cluster', 'region', 'role', 'divisi', 'badanusaha'])->where('id', Auth::user()->id)->first();
+
         return ResponseFormatter::success(['user' => $user->formatForAPI(), 'message' => 'Data profile user berhasil diambil']);
     }
 
@@ -35,7 +34,7 @@ class UserController extends Controller
     {
         if ($request->version != '1.0.3') {
             return ResponseFormatter::error([
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 'Gagal login, Update versi aplikasi SAM anda ke V1.0.3.', 500);
         }
 
@@ -46,6 +45,7 @@ class UserController extends Controller
             'password' => 'required|string',
             /**
              * @var string
+             *
              * @example "68a4636e-c000-4dbf-bff9-c374e4a8c5ff"
              */
             'notif_id' => 'required|string',
@@ -53,9 +53,9 @@ class UserController extends Controller
 
         try {
             $credentials = request(['username', 'password']);
-            if (!Auth::attempt($credentials)) {
+            if (! Auth::attempt($credentials)) {
                 return ResponseFormatter::error([
-                    'message' => 'Unauthorized'
+                    'message' => 'Unauthorized',
                 ], 'Gagal login, cek kembali username dan password anda', 500);
             }
 
@@ -63,7 +63,7 @@ class UserController extends Controller
                 ->where('username', $request->username)
                 ->first();
 
-            if (!Hash::check($request->password, $user->password)) {
+            if (! Hash::check($request->password, $user->password)) {
                 throw new Exception('Invalid Credentials');
             }
 
@@ -75,7 +75,7 @@ class UserController extends Controller
             return ResponseFormatter::success([
                 'access_token' => $tokenResult,
                 'token_type' => 'Bearer',
-                'user' => $user
+                'user' => $user,
             ], 'Authenticated');
         } catch (Exception $error) {
             return ResponseFormatter::error([
@@ -135,6 +135,7 @@ class UserController extends Controller
     public function logout(Request $request)
     {
         $token = $request->user()->currentAccessToken()->delete();
+
         return ResponseFormatter::success($token, 'Token Revoked');
     }
 
@@ -156,8 +157,6 @@ class UserController extends Controller
     //             'cluster_id' => $request->cluster_id,
     //             'password' => Hash::make($request->password),
     //         ]);
-
-
 
     //         $user = User::where('username', $request->username)->first();
 

@@ -6,11 +6,11 @@ use App\Models\Outlet;
 use App\Models\User;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromQuery;
-use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
 
-class OutletExport implements FromQuery, WithMapping, WithHeadings, ShouldAutoSize
+class OutletExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping
 {
     /**
      * Mengambil data outlet dengan eager loading dan chunking
@@ -18,7 +18,7 @@ class OutletExport implements FromQuery, WithMapping, WithHeadings, ShouldAutoSi
     public function query()
     {
         return Outlet::with(['cluster', 'region', 'badanusaha'])
-                     ->orderBy('nama_outlet');
+            ->orderBy('nama_outlet');
     }
 
     /**
@@ -47,7 +47,7 @@ class OutletExport implements FromQuery, WithMapping, WithHeadings, ShouldAutoSi
         $mappedData = [];
 
         foreach ($fotoFields as $field) {
-            $mappedData[$field] = $outlet->$field ? $baseUrl . $outlet->$field : '-';
+            $mappedData[$field] = $outlet->$field ? $baseUrl.$outlet->$field : '-';
         }
 
         // Ambil data user untuk TM, ASC, DSF
@@ -69,8 +69,8 @@ class OutletExport implements FromQuery, WithMapping, WithHeadings, ShouldAutoSi
             $outlet->distric,
             $outlet->is_member ? 'MEMBER' : 'LEAD',
             $outlet->status_outlet,
-            $outlet->radius . ' Meter',
-            'Rp ' . number_format($outlet->limit, 0, ',', '.'),
+            $outlet->radius.' Meter',
+            'Rp '.number_format($outlet->limit, 0, ',', '.'),
             $outlet->latlong,
             $outlet->nama_pemilik_outlet,
             $outlet->nomer_tlp_outlet,
@@ -93,8 +93,8 @@ class OutletExport implements FromQuery, WithMapping, WithHeadings, ShouldAutoSi
     private function getUserByRole($outlet, $roleId, $relation = null)
     {
         $userQuery = User::where('divisi_id', $outlet->divisi_id)
-                         ->where('region_id', $outlet->region_id)
-                         ->where('role_id', $roleId);
+            ->where('region_id', $outlet->region_id)
+            ->where('role_id', $roleId);
 
         // Jika ada cluster_id untuk role_id 3
         if ($roleId == 3) {

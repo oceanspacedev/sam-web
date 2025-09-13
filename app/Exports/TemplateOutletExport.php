@@ -5,12 +5,11 @@ namespace App\Exports;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 
-class TemplateOutletExport implements WithHeadings, ShouldAutoSize
+class TemplateOutletExport implements ShouldAutoSize, WithHeadings
 {
     /**
-    * @return \Illuminate\Support\Collection
-    */
-
+     * @return \Illuminate\Support\Collection
+     */
     public function headings(): array
     {
         return [

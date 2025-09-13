@@ -25,7 +25,8 @@ class VisitMonitorTest extends TestCase
         $div = Division::factory()->create(['badanusaha_id' => $bu->id, 'id' => $divisiId]);
         $reg = Region::factory()->create(['badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'id' => $regionId]);
         $clus = Cluster::factory()->create(['badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-        return compact('bu','div','reg','clus');
+
+        return compact('bu', 'div', 'reg', 'clus');
     }
 
     public function test_monitor_for_special_user_id_2_merges_visits()
@@ -67,7 +68,7 @@ class VisitMonitorTest extends TestCase
             'region_id' => 63,
             'cluster_id' => $g['clus']->id,
         ]);
-        
+
         // Create Visit via API as sales to ensure date format compatibility
         \Laravel\Sanctum\Sanctum::actingAs($sales);
         $photoIn = \Illuminate\Http\UploadedFile::fake()->image('in.jpg');
@@ -96,7 +97,9 @@ class VisitMonitorTest extends TestCase
         $resp = $this->getJson('/api/visit/monitor');
         $resp->assertStatus(200);
         $data = $resp->json('data');
-        if (count($data) < 2) { $resp->dump(); }
+        if (count($data) < 2) {
+            $resp->dump();
+        }
         $this->assertGreaterThanOrEqual(2, count($data));
     }
 

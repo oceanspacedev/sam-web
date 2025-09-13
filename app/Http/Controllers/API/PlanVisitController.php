@@ -25,17 +25,17 @@ class PlanVisitController extends Controller
                 'user.region',
                 'user.divisi',
                 'user.cluster',
-                'user.role'
+                'user.role',
             ])->where('user_id', Auth::user()->id)
-              ->whereDate('tanggal_visit', date('Y-m-d'))
-              ->get();
+                ->whereDate('tanggal_visit', date('Y-m-d'))
+                ->get();
 
             return ResponseFormatter::success(
-                $planVisit,'ok');
+                $planVisit, 'ok');
         } catch (Exception $err) {
             return ResponseFormatter::error([
-                'message' => $err
-            ],$err,500);
+                'message' => $err,
+            ], $err, 500);
         }
     }
 
@@ -43,8 +43,8 @@ class PlanVisitController extends Controller
     {
         try {
             $request->validate([
-                'bulan' => ['required','string'],
-                'tahun' => ['required','string'],
+                'bulan' => ['required', 'string'],
+                'tahun' => ['required', 'string'],
             ]);
 
             $plan = PlanVisit::with([
@@ -56,15 +56,16 @@ class PlanVisitController extends Controller
                 'user.region',
                 'user.divisi',
                 'user.cluster',
-                'user.role'
+                'user.role',
             ])->whereYear('tanggal_visit', '=', $request->tahun)
-              ->whereMonth('tanggal_visit', '=', $request->bulan)
-              ->where('user_id', Auth::user()->id)
-              ->orderBy('tanggal_visit')
-              ->get();
-            return ResponseFormatter::success($plan,'berhasil');
+                ->whereMonth('tanggal_visit', '=', $request->bulan)
+                ->where('user_id', Auth::user()->id)
+                ->orderBy('tanggal_visit')
+                ->get();
+
+            return ResponseFormatter::success($plan, 'berhasil');
         } catch (Exception $e) {
-            return ResponseFormatter::error(null,$e);
+            return ResponseFormatter::error(null, $e);
         }
 
     }
@@ -73,58 +74,55 @@ class PlanVisitController extends Controller
     {
         try {
             $request->validate([
-                'tanggal_visit' => ['required','date'],
+                'tanggal_visit' => ['required', 'date'],
                 'kode_outlet' => ['required'],
             ]);
 
-            {
-                $idOutlet = Outlet::where('kode_outlet',$request->kode_outlet)->first();
+            $idOutlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
 
-                //VALIDASI
-                //Kalau Realme bisa input plan visit mingguan, mulai dari sabtu sampai maks selasa jam 10
-                // if ((Auth::user()->divisi_id == 4 || $idOutlet->divisi_id == 4) && (Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfWeek()->addDay(1)->addHour(10))) {
-                //    return ResponseFormatter::error(null,'Tidak bisa menambahkan plan visit kurang dari minggu yang berjalan');
-                // } else if ((Auth::user()->divisi_id != 4 && $idOutlet->divisi_id != 4) && ((Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfMonth()) || (Carbon::now() < Carbon::parse($request->tanggal_visit)->startOfMonth()->subDay(5)))){
-                //     return ResponseFormatter::error(null,'Tidak bisa menambahkan plan visit kurang dari h-5 bulan visit dan lebih dari tanggal 1');
-                // }
+            // VALIDASI
+            // Kalau Realme bisa input plan visit mingguan, mulai dari sabtu sampai maks selasa jam 10
+            // if ((Auth::user()->divisi_id == 4 || $idOutlet->divisi_id == 4) && (Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfWeek()->addDay(1)->addHour(10))) {
+            //    return ResponseFormatter::error(null,'Tidak bisa menambahkan plan visit kurang dari minggu yang berjalan');
+            // } else if ((Auth::user()->divisi_id != 4 && $idOutlet->divisi_id != 4) && ((Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfMonth()) || (Carbon::now() < Carbon::parse($request->tanggal_visit)->startOfMonth()->subDay(5)))){
+            //     return ResponseFormatter::error(null,'Tidak bisa menambahkan plan visit kurang dari h-5 bulan visit dan lebih dari tanggal 1');
+            // }
 
-                if ((Auth::user()->divisi_id == 4 || $idOutlet->divisi_id == 4) && (Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfWeek()->addDay(1)->addHour(10))) {
-                    return ResponseFormatter::error(null,'Tidak bisa menambahkan plan visit kurang dari minggu yang berjalan');
-                 } else if ((Auth::user()->divisi_id != 4 && $idOutlet->divisi_id != 4) && ((Carbon::now() > Carbon::parse($request->tanggal_visit)->addDay(3)))){
-                     return ResponseFormatter::error(null,'Tidak bisa menambahkan plan visit kurang dari h-3 visit');
-                 }
-
-                //tanggal skrg kurang dari tgl 1
-                //dd(Carbon::now() < Carbon::parse($request->tanggal_visit)->startOfMonth()); //true
-                //tanggal skrg lebih dari h-5
-                //dd(Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfMonth()->subDay(5)); //false
-
-                //tanggal skrg lebih dari tgl 1
-                // dd(Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfMonth()); //true
-                //tanggal skrg kurang dari h-5
-                // dd(Carbon::now() < Carbon::parse($request->tanggal_visit)->startOfMonth()->subDay(5)); //false
-
-                ##cek apakah sudah ada data dengan user, outlet dan tanggal yang dikirim
-                $cekData = PlanVisit::whereDate('tanggal_visit',Carbon::parse($request->tanggal_visit))
-                ->where('user_id',Auth::user()->id)
-                ->where('outlet_id',$idOutlet->id)
-                ->first();
-                if($cekData)
-                {
-                    return ResponseFormatter::error($cekData,'data sebelumnya sudah ada');
-                }
-                $addPlan = PlanVisit::insert([
-                    'user_id' =>(string) Auth::user()->id,
-                    'outlet_id' => $idOutlet->id,
-                    'tanggal_visit' => Carbon::parse($request->tanggal_visit),
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
+            if ((Auth::user()->divisi_id == 4 || $idOutlet->divisi_id == 4) && (Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfWeek()->addDay(1)->addHour(10))) {
+                return ResponseFormatter::error(null, 'Tidak bisa menambahkan plan visit kurang dari minggu yang berjalan');
+            } elseif ((Auth::user()->divisi_id != 4 && $idOutlet->divisi_id != 4) && ((Carbon::now() > Carbon::parse($request->tanggal_visit)->addDay(3)))) {
+                return ResponseFormatter::error(null, 'Tidak bisa menambahkan plan visit kurang dari h-3 visit');
             }
 
-            return ResponseFormatter::success($addPlan,'berhasil');
+            // tanggal skrg kurang dari tgl 1
+            // dd(Carbon::now() < Carbon::parse($request->tanggal_visit)->startOfMonth()); //true
+            // tanggal skrg lebih dari h-5
+            // dd(Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfMonth()->subDay(5)); //false
+
+            // tanggal skrg lebih dari tgl 1
+            // dd(Carbon::now() > Carbon::parse($request->tanggal_visit)->startOfMonth()); //true
+            // tanggal skrg kurang dari h-5
+            // dd(Carbon::now() < Carbon::parse($request->tanggal_visit)->startOfMonth()->subDay(5)); //false
+
+            // #cek apakah sudah ada data dengan user, outlet dan tanggal yang dikirim
+            $cekData = PlanVisit::whereDate('tanggal_visit', Carbon::parse($request->tanggal_visit))
+                ->where('user_id', Auth::user()->id)
+                ->where('outlet_id', $idOutlet->id)
+                ->first();
+            if ($cekData) {
+                return ResponseFormatter::error($cekData, 'data sebelumnya sudah ada');
+            }
+            $addPlan = PlanVisit::insert([
+                'user_id' => (string) Auth::user()->id,
+                'outlet_id' => $idOutlet->id,
+                'tanggal_visit' => Carbon::parse($request->tanggal_visit),
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+
+            return ResponseFormatter::success($addPlan, 'berhasil');
         } catch (Exception $e) {
-           return ResponseFormatter::error(null,$e->getMessage());
+            return ResponseFormatter::error(null, $e->getMessage());
         }
 
     }
@@ -138,42 +136,39 @@ class PlanVisitController extends Controller
                 'kode_outlet' => 'required',
             ]);
 
-            $outlet = Outlet::where('kode_outlet',$request->kode_outlet)->first();
+            $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
 
-            //Untuk validasi pake first() berarti cuma keambil 1 data
-            $planVisit = PlanVisit::where('outlet_id',$outlet->id)
-                            ->whereYear('tanggal_visit','=',$request->tahun)
-                            ->whereMonth('tanggal_visit','=',$request->bulan)
-                            ->where('user_id',Auth::user()->id)
-                            ->first();
+            // Untuk validasi pake first() berarti cuma keambil 1 data
+            $planVisit = PlanVisit::where('outlet_id', $outlet->id)
+                ->whereYear('tanggal_visit', '=', $request->tahun)
+                ->whereMonth('tanggal_visit', '=', $request->bulan)
+                ->where('user_id', Auth::user()->id)
+                ->first();
 
             // if ((Carbon::now() > Carbon::createFromTimestamp($planVisit->tanggal_visit )->startOfMonth()) || (Carbon::now() < Carbon::createFromTimestamp($planVisit->tanggal_visit )->startOfMonth()->subDay(5))){
             //     return ResponseFormatter::error(null,'Tidak bisa menghapus plan visit kurang dari h-5 bulan visit dan lebih dari tanggal 1');
             // }
 
-            if(!$validation)
-            {
-                return ResponseFormatter::error(null,$validation,422);
+            if (! $validation) {
+                return ResponseFormatter::error(null, $validation, 422);
             }
 
-            //sedangkan delete nya pake delete(), berarti semua PlanVisit yang id_outletnya sesuai akan terhapus
-            $delete = PlanVisit::where('outlet_id',$outlet->id)
-                            ->whereYear('tanggal_visit',$request->tahun)
-                            ->whereMonth('tanggal_visit',$request->bulan)
-                            ->where('user_id',Auth::user()->id)
-                            ->delete();
+            // sedangkan delete nya pake delete(), berarti semua PlanVisit yang id_outletnya sesuai akan terhapus
+            $delete = PlanVisit::where('outlet_id', $outlet->id)
+                ->whereYear('tanggal_visit', $request->tahun)
+                ->whereMonth('tanggal_visit', $request->bulan)
+                ->where('user_id', Auth::user()->id)
+                ->delete();
 
-            if(!$delete)
-            {
-                return ResponseFormatter::error(null,$validation,422);
+            if (! $delete) {
+                return ResponseFormatter::error(null, $validation, 422);
             }
 
-            return ResponseFormatter::success($delete,'berhasil');
-        }
-        catch (Exception $e)
-        {
+            return ResponseFormatter::success($delete, 'berhasil');
+        } catch (Exception $e) {
             error_log($e);
-            return ResponseFormatter::error(null,$e->getMessage(),422);
+
+            return ResponseFormatter::error(null, $e->getMessage(), 422);
         }
     }
 
@@ -184,33 +179,30 @@ class PlanVisitController extends Controller
                 'id' => 'required',
             ]);
 
-            $planVisit = PlanVisit::where('id',$request->id)
-                ->where('user_id',Auth::user()->id)
+            $planVisit = PlanVisit::where('id', $request->id)
+                ->where('user_id', Auth::user()->id)
                 ->first();
 
-            if ((Carbon::now() > Carbon::createFromTimestamp($planVisit->tanggal_visit )->startOfWeek()->addDay(1)->addHour(10))) {
-               return ResponseFormatter::error(null,'Tidak bisa menghapus plan visit kurang dari atau dalam minggu yang berjalan');
+            if ((Carbon::now() > Carbon::createFromTimestamp($planVisit->tanggal_visit)->startOfWeek()->addDay(1)->addHour(10))) {
+                return ResponseFormatter::error(null, 'Tidak bisa menghapus plan visit kurang dari atau dalam minggu yang berjalan');
             }
 
-            if(!$validation)
-            {
-                return ResponseFormatter::error(null,$validation,422);
+            if (! $validation) {
+                return ResponseFormatter::error(null, $validation, 422);
             }
 
-            $delete = PlanVisit::where('id',$request->id)
-                ->where('user_id',Auth::user()->id)
+            $delete = PlanVisit::where('id', $request->id)
+                ->where('user_id', Auth::user()->id)
                 ->delete();
 
-            if(!$delete)
-            {
-                return ResponseFormatter::error(null,$validation,422);
+            if (! $delete) {
+                return ResponseFormatter::error(null, $validation, 422);
             }
 
-            return ResponseFormatter::success($delete,'berhasil');
-        }
-        catch (Exception $e)
-        {
+            return ResponseFormatter::success($delete, 'berhasil');
+        } catch (Exception $e) {
             error_log($e);
+
             return ResponseFormatter::error(null,$e->getMessage(),422);
 
         }

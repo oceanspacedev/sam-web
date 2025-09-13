@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\PlanVisitResource\Pages;
-use App\Filament\Resources\PlanVisitResource\RelationManagers;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\User;
@@ -13,13 +12,14 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Routing\Route;
 
 class PlanVisitResource extends Resource
 {
     protected static ?string $model = PlanVisit::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-calendar-date-range';
+
     protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
@@ -29,37 +29,75 @@ class PlanVisitResource extends Resource
                 Forms\Components\Section::make('User Information')
                     ->schema([
                         Forms\Components\Select::make('user_id')
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->reactive()
-                        ->label('Pilih User')
-                        ->placeholder('Cari User berdasarkan nama lengkap')
-                        ->options(function () {
-                            $users = User::with(['badanusaha', 'divisi'])->get();
+                            ->searchable()
+                            ->required()
+                            ->reactive()
+                            ->label('Pilih User')
+                            ->placeholder('Cari User berdasarkan nama lengkap')
+                            ->getSearchResultsUsing(function (string $search) {
+                                return User::query()
+                                    ->with(['badanusaha:id,name', 'divisi:id,name'])
+                                    ->where('nama_lengkap', 'like', "%{$search}%")
+                                    ->orderBy('nama_lengkap')
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(function ($user) {
+                                        $badanusahaName = $user->badanusaha->name ?? 'Tidak ada badan usaha';
+                                        $divisiName = $user->divisi->name ?? 'Tidak ada divisi';
 
-                            return $users->mapWithKeys(function ($user) {
-                                $badanusahaName = $user->badanusaha ? $user->badanusaha->name : 'Tidak ada badan usaha';
-                                $divisiName = $user->divisi ? $user->divisi->name : 'Tidak ada divisi';
-                                return [$user->id => "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}"];
-                            });
-                        }),
-                    Forms\Components\Select::make('outlet_id')
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->label('Pilih Outlet')
-                        ->options(function () {
-                            // Eager load badanusaha dan divisi
-                            $outlets = Outlet::with(['badanusaha', 'divisi'])->get();
+                                        return [$user->id => "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}"];
+                                    })
+                                    ->toArray();
+                            })
+                            ->getOptionLabelUsing(function ($value) {
+                                if (! $value) {
+                                    return null;
+                                }
+                                $user = User::with(['badanusaha:id,name', 'divisi:id,name'])->find($value);
+                                if (! $user) {
+                                    return null;
+                                }
+                                $badanusahaName = $user->badanusaha->name ?? 'Tidak ada badan usaha';
+                                $divisiName = $user->divisi->name ?? 'Tidak ada divisi';
 
-                            return $outlets->mapWithKeys(function ($outlet) {
-                                // Menggabungkan nama outlet, badan usaha, dan divisi untuk label
-                                $badanusahaName = $outlet->badanusaha ? $outlet->badanusaha->name : 'Tidak ada badan usaha';
-                                $divisiName = $outlet->divisi ? $outlet->divisi->name : 'Tidak ada divisi';
-                                return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
-                            });
-                        }),
+                                return "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}";
+                            }),
+                        Forms\Components\Select::make('outlet_id')
+                            ->searchable()
+                            ->required()
+                            ->label('Pilih Outlet')
+                            ->placeholder('Cari Outlet berdasarkan nama/kode')
+                            ->getSearchResultsUsing(function (string $search) {
+                                return Outlet::query()
+                                    ->with(['badanusaha:id,name', 'divisi:id,name'])
+                                    ->where(function ($q) use ($search) {
+                                        $q->where('nama_outlet', 'like', "%{$search}%")
+                                            ->orWhere('kode_outlet', 'like', "%{$search}%");
+                                    })
+                                    ->orderBy('nama_outlet')
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(function ($outlet) {
+                                        $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
+                                        $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
+
+                                        return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
+                                    })
+                                    ->toArray();
+                            })
+                            ->getOptionLabelUsing(function ($value) {
+                                if (! $value) {
+                                    return null;
+                                }
+                                $outlet = Outlet::with(['badanusaha:id,name', 'divisi:id,name'])->find($value);
+                                if (! $outlet) {
+                                    return null;
+                                }
+                                $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
+                                $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
+
+                                return "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}";
+                            }),
                     ])
                     ->collapsible()
                     ->columns(2),
@@ -77,7 +115,6 @@ class PlanVisitResource extends Resource
             ]);
     }
 
-
     public static function table(Table $table): Table
     {
         return $table
@@ -90,7 +127,7 @@ class PlanVisitResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('outlet.kode_outlet'),
                 Tables\Columns\TextColumn::make('tanggal_visit')
-    ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::createFromTimestamp($state / 1000)->format('d M Y') : '-'),
+                    ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::createFromTimestamp($state / 1000)->format('d M Y') : '-'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -99,6 +136,8 @@ class PlanVisitResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('tanggal_visit', 'desc')
+            ->paginationPageOptions([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
                 //
@@ -148,16 +187,15 @@ class PlanVisitResource extends Resource
         return $query;
     }
 
-    public static function getRecordId(): null|string
+    public static function getRecordId(): ?string
     {
         return Route::current()->parameter('record');
     }
 
-    public static function resolveRecordRouteBinding(int | string $key): ?PlanVisit
+    public static function resolveRecordRouteBinding(int|string $key): ?PlanVisit
     {
         return self::getEloquentQuery()->first();
     }
-
 
     public static function getPages(): array
     {

@@ -50,12 +50,12 @@ class VisitPolicy
 
     public function restore(User $user, Visit $visit): bool
     {
-       return Gate::allows('view_any_visit');
+        return Gate::allows('view_any_visit');
     }
 
     public function forceDelete(User $user, Visit $visit): bool
     {
-       return Gate::allows('force_delete_visit');
+        return Gate::allows('force_delete_visit');
     }
 
     public function export(User $user): bool

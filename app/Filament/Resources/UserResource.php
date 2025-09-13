@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
-use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -19,14 +18,15 @@ use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
+
     protected static ?int $navigationSort = 0;
 
     public static function form(Form $form): Form
@@ -40,7 +40,7 @@ class UserResource extends Resource
                             ->maxLength(255)
                             ->label('Username')
                             ->unique(ignoreRecord: true)
-                            ->dehydrateStateUsing(fn($state) => strtolower($state))
+                            ->dehydrateStateUsing(fn ($state) => strtolower($state))
                             ->placeholder('Masukkan username yang unik')
                             ->regex('/^[\S]+$/', 'Username tidak boleh mengandung spasi')
                             ->helperText('Username tidak boleh mengandung spasi'),
@@ -49,7 +49,7 @@ class UserResource extends Resource
                             ->maxLength(255)
                             ->label('Nama Lengkap')
                             ->placeholder('Masukkan nama lengkap')
-                            ->dehydrateStateUsing(fn($state) => strtoupper($state))
+                            ->dehydrateStateUsing(fn ($state) => strtoupper($state)),
                     ])
                     ->columns(2),
                 Forms\Components\Section::make('Organization Information')
@@ -89,9 +89,10 @@ class UserResource extends Resource
                             ->placeholder('Pilih divisi')
                             ->options(function (callable $get) {
                                 $badanusahaId = $get('badanusaha_id');
-                                if (!$badanusahaId) {
+                                if (! $badanusahaId) {
                                     return [];
                                 }
+
                                 return Division::where('badanusaha_id', $badanusahaId)
                                     ->pluck('name', 'id');
                             })
@@ -109,9 +110,10 @@ class UserResource extends Resource
                             ->placeholder('Pilih region')
                             ->options(function (callable $get) {
                                 $divisiId = $get('divisi_id');
-                                if (!$divisiId) {
+                                if (! $divisiId) {
                                     return [];
                                 }
+
                                 return Region::where('divisi_id', $divisiId)
                                     ->pluck('name', 'id');
                             })
@@ -128,9 +130,10 @@ class UserResource extends Resource
                             ->placeholder('Pilih cluster')
                             ->options(function (callable $get) {
                                 $regionId = $get('region_id');
-                                if (!$regionId) {
+                                if (! $regionId) {
                                     return [];
                                 }
+
                                 return Cluster::where('region_id', $regionId)
                                     ->pluck('name', 'id');
                             }),
@@ -143,9 +146,10 @@ class UserResource extends Resource
                             ->placeholder('Pilih cluster 2')
                             ->options(function (callable $get) {
                                 $clusterId = $get('region_id');
-                                if (!$clusterId) {
+                                if (! $clusterId) {
                                     return [];
                                 }
+
                                 return Cluster::where('region_id', $clusterId)
                                     ->pluck('name', 'id');
                             }),
@@ -166,6 +170,7 @@ class UserResource extends Resource
                                     return \App\Models\Role::whereIn('name', ['AR', 'ASC', 'ASM', 'DSF/DM'])
                                         ->pluck('name', 'id')->toArray();
                                 }
+
                                 return \App\Models\Role::pluck('name', 'id')->toArray();
                             }),
                         Forms\Components\Select::make('tm_id')
@@ -181,12 +186,12 @@ class UserResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('password')
                             ->password()
-                            ->dehydrateStateUsing(fn($state) => Hash::make($state))
-                            ->dehydrated(fn($state) => filled($state))
+                            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
+                            ->dehydrated(fn ($state) => filled($state))
                             ->maxLength(255)
                             ->label('Password')
                             ->placeholder('Masukkan password')
-                            ->required(fn(string $context): bool => $context === 'create')
+                            ->required(fn (string $context): bool => $context === 'create')
                             ->revealable(),
                     ])
                     ->columns(1),
@@ -216,6 +221,8 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('nama_lengkap', 'asc')
+            ->paginationPageOptions([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->filters([
                 Filter::make('region')
                     ->form([
@@ -238,6 +245,7 @@ class UserResource extends Resource
                                         ->orderBy('name', 'asc')
                                         ->pluck('name', 'id');
                                 }
+
                                 return [];
                             })
                             ->reactive()
@@ -257,6 +265,7 @@ class UserResource extends Resource
                                         ->orderBy('name', 'asc')
                                         ->pluck('name', 'id');
                                 }
+
                                 return [];
                             })
                             ->reactive(),
@@ -271,11 +280,12 @@ class UserResource extends Resource
                         if ($data['region'] ?? null) {
                             $query->where('region_id', $data['region']);
                         }
+
                         return $query;
                     }),
 
                 Tables\Filters\TrashedFilter::make()
-                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], User::class)),
+                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], User::class)),
             ], layout: FiltersLayout::Modal)
             ->filtersFormWidth(MaxWidth::Large)
             ->actions([
@@ -322,7 +332,6 @@ class UserResource extends Resource
                 }
             });
     }
-
 
     public static function getPages(): array
     {

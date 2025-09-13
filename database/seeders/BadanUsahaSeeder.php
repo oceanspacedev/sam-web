@@ -16,13 +16,13 @@ class BadanUsahaSeeder extends Seeder
     {
         BadanUsaha::insert([
             [
-                'name' => 'PT.MSI'
+                'name' => 'PT.MSI',
             ],
             [
-                'name' => 'CV.TOP'
+                'name' => 'CV.TOP',
             ],
             [
-                'name' => '-'
+                'name' => '-',
             ],
         ]);
     }

@@ -22,6 +22,7 @@ class NooPolicy
     {
         return Gate::allows('force_delete_any_noo');
     }
+
     public function viewAny(User $user): bool
     {
         return Gate::allows('view_any_noo');

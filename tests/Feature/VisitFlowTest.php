@@ -33,7 +33,7 @@ class VisitFlowTest extends TestCase
         $clus = Cluster::create(['name' => 'CLUS', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
         $role = Role::create(['name' => 'DM', 'can_access_web' => 1]);
 
-        return compact('bu','div','reg','clus','role');
+        return compact('bu', 'div', 'reg', 'clus', 'role');
     }
 
     public function test_visit_checkin_and_checkout_flow()

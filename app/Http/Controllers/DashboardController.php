@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Noo;
-use App\Models\User;
-use App\Models\Visit;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
-use Illuminate\Http\Request;
+use App\Models\User;
+use App\Models\Visit;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -19,7 +18,7 @@ class DashboardController extends Controller
      */
     public function index()
     {
-        return view('dashboard.index',[
+        return view('dashboard.index', [
             'user' => count(User::all()),
             'outlet' => count(Outlet::all()),
             'noo' => count(Noo::all()),
@@ -33,6 +32,7 @@ class DashboardController extends Controller
     public function logout()
     {
         Auth::logout();
+
         return redirect('/masuk');
     }
 }

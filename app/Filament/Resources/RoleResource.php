@@ -3,11 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RoleResource\Pages;
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
 use App\Models\Permission;
-use App\Models\Region;
 use App\Models\Role;
 use Filament\Forms;
 use Filament\Forms\Components\Card;
@@ -19,9 +15,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Support\Collection;
 
 class RoleResource extends Resource
 {
@@ -53,7 +47,7 @@ class RoleResource extends Resource
                                 'cluster' => 'Cluster',
                                 'all' => 'All Data',
                             ])
-                            ->visible(fn($get) => $get('can_access_web') !== false)
+                            ->visible(fn ($get) => $get('can_access_web') !== false)
                             ->reactive()
                             ->label('Filter Type')
                             ->required(),
@@ -71,6 +65,7 @@ class RoleResource extends Resource
                                             ->get()
                                             ->mapWithKeys(function ($division) {
                                                 $badanusahaName = $division->badanusaha ? $division->badanusaha->name : 'Tidak ada badan usaha';
+
                                                 return [$division->id => "{$division->name} [{$badanusahaName}]"];
                                             });
 
@@ -80,6 +75,7 @@ class RoleResource extends Resource
                                             ->mapWithKeys(function ($region) {
                                                 $badanusahaName = $region->badanusaha ? $region->badanusaha->name : 'Tidak ada badan usaha';
                                                 $divisiName = $region->divisi ? $region->divisi->name : 'Tidak ada divisi';
+
                                                 return [$region->id => "{$region->name} [{$badanusahaName}/{$divisiName}]"];
                                             });
 
@@ -90,6 +86,7 @@ class RoleResource extends Resource
                                                 $badanusahaName = $cluster->badanusaha ? $cluster->badanusaha->name : 'Tidak ada badan usaha';
                                                 $divisiName = $cluster->divisi ? $cluster->divisi->name : 'Tidak ada divisi';
                                                 $regionName = $cluster->region ? $cluster->region->name : 'Tidak ada region';
+
                                                 return [$cluster->id => "{$cluster->name} - {$regionName} [{$badanusahaName}/{$divisiName}]"];
                                             });
 
@@ -99,15 +96,15 @@ class RoleResource extends Resource
                             })
                             ->placeholder('Pilih Data')
                             ->reactive()
-                            ->visible(fn($get) => $get('filter_type') && $get('filter_type') !== 'all' && $get('can_access_web') !== false)
-                            ->required(fn($get) => $get('filter_type') !== 'all')
+                            ->visible(fn ($get) => $get('filter_type') && $get('filter_type') !== 'all' && $get('can_access_web') !== false)
+                            ->required(fn ($get) => $get('filter_type') !== 'all')
                             ->multiple(),
                     ])
                     ->label('Role Settings')
                     ->columns(2),
                 Section::make('Permissions')
                     ->schema(static::getPermissionSchema())
-                    ->visible(fn($get) => $get('can_access_web') !== false)
+                    ->visible(fn ($get) => $get('can_access_web') !== false)
                     ->columnSpanFull(),
             ]);
     }
@@ -128,6 +125,8 @@ class RoleResource extends Resource
                     ->badge()
                     ->counts('permissions'),
             ])
+            ->paginationPageOptions([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->filters([])
             ->actions([
                 Tables\Actions\EditAction::make(),
@@ -142,10 +141,12 @@ class RoleResource extends Resource
         $permissions = Permission::all()
             ->groupBy(function ($permission) {
                 $lastUnderscorePosition = strrpos($permission->name, '_');
+
                 return $lastUnderscorePosition !== false
                     ? substr($permission->name, $lastUnderscorePosition + 1)
                     : $permission->name;
             });
+
         return [
             Forms\Components\Grid::make(3)
                 ->schema(
@@ -157,7 +158,7 @@ class RoleResource extends Resource
                                 Toggle::make("select_all_{$resource}")
                                     ->label('Select All')
                                     ->reactive()
-                                    ->afterStateHydrated(function ($component, $state) use ($operations, $resource) {
+                                    ->afterStateHydrated(function ($component, $state) use ($operations) {
                                         $record = $component->getRecord();
                                         if ($record) {
                                             $existingPermissions = $record->permissions()
@@ -179,7 +180,7 @@ class RoleResource extends Resource
                                     ->options(self::formatOptions($operations))
                                     ->dehydrated(true)
                                     ->reactive()
-                                    ->afterStateHydrated(function ($component, $state) use ($operations, $resource) {
+                                    ->afterStateHydrated(function ($component, $state) use ($operations) {
                                         $record = $component->getRecord();
                                         if ($record) {
                                             $existingPermissions = $record->permissions()
@@ -206,6 +207,7 @@ class RoleResource extends Resource
                 ->columnSpanFull(),
         ];
     }
+
     protected static function formatHeadline(string $resource): string
     {
         return Str::headline(str_replace('::', ' ', $resource));
@@ -220,11 +222,11 @@ class RoleResource extends Resource
                     ? substr($operation, 0, $lastUnderscorePosition)
                     : $operation;
                 $label = Str::headline(str_replace('_', ' ', $baseOperation));
+
                 return [$operation => $label];
             })
             ->toArray();
     }
-
 
     public static function getRelations(): array
     {

@@ -2,18 +2,18 @@
 
 namespace App\Http\Controllers\API;
 
-use Exception;
-use App\Models\Noo;
-use App\Models\User;
-use App\Models\Region;
+use App\Helpers\ResponseFormatter;
+use App\Helpers\SendNotif;
+use App\Http\Controllers\Controller;
+use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Helpers\SendNotif;
-use App\Models\BadanUsaha;
-use Illuminate\Http\Request;
-use App\Helpers\ResponseFormatter;
-use App\Http\Controllers\Controller;
+use App\Models\Noo;
 use App\Models\Outlet;
+use App\Models\Region;
+use App\Models\User;
+use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -41,8 +41,8 @@ class LeadController extends Controller
                 'latlong' => $request->latlong,
                 'created_by' => $user->nama_lengkap,
                 'tm_id' => optional($user->tm)->id ?? $user->id,
-                'keterangan' => "LEAD",
-                'poto_ktp' => "-",
+                'keterangan' => 'LEAD',
+                'poto_ktp' => '-',
             ];
 
             switch ($user->role_id) {
@@ -76,23 +76,25 @@ class LeadController extends Controller
             // Validasi dinamis untuk file foto/video jika ada
             $rules = [];
             for ($i = 0; $i <= 3; $i++) {
-                if ($request->hasFile('photo' . $i)) {
-                    $rules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+                if ($request->hasFile('photo'.$i)) {
+                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
                 }
             }
             if ($request->hasFile('video')) {
                 $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
             }
-            if (!empty($rules)) {
+            if (! empty($rules)) {
                 $request->validate($rules);
             }
 
             $disk = Storage::disk('public');
             // Proses foto 0..3 (kompatibel pola lama)
             for ($i = 0; $i <= 3; $i++) {
-                $file = $request->file('photo' . $i);
-                if (!$file) continue;
-                if (!$file->isValid()) {
+                $file = $request->file('photo'.$i);
+                if (! $file) {
+                    continue;
+                }
+                if (! $file->isValid()) {
                     return ResponseFormatter::error('File foto tidak valid', 'INVALID_FILE', 422);
                 }
                 $original = $file->getClientOriginalName();
@@ -106,18 +108,18 @@ class LeadController extends Controller
                     $target = 'poto_shop_sign';
                 }
                 $ext = $file->guessExtension() ?: $file->extension();
-                $name = (string) Str::uuid() . '.' . $ext;
+                $name = (string) Str::uuid().'.'.$ext;
                 $path = $disk->putFileAs('noo/photos', $file, $name);
                 $data[$target] = $path;
             }
 
             if ($request->hasFile('video')) {
                 $video = $request->file('video');
-                if (!$video->isValid()) {
+                if (! $video->isValid()) {
                     return ResponseFormatter::error('File video tidak valid', 'INVALID_FILE', 422);
                 }
                 $vext = $video->guessExtension() ?: $video->extension();
-                $vname = (string) Str::uuid() . '.' . $vext;
+                $vname = (string) Str::uuid().'.'.$vext;
                 $vpath = $disk->putFileAs('noo/videos', $video, $vname);
                 $data['video'] = $vpath;
             }
@@ -126,7 +128,7 @@ class LeadController extends Controller
 
             // Gabungkan $data dengan $outletData dan buat Outlet
             $outletData = [
-                'kode_outlet' => 'LEAD' . $noo->id,
+                'kode_outlet' => 'LEAD'.$noo->id,
                 'limit' => '0',
                 'radius' => '100',
                 'is_member' => '0',
@@ -136,7 +138,8 @@ class LeadController extends Controller
             // Gabungkan $data dengan $outletData dan buat Outlet
             $outletCompleteData = array_merge($data, $outletData);
             Outlet::create($outletCompleteData);
-            return ResponseFormatter::success(null, 'berhasil menambahkan LEAD ' . $request->nama_outlet);
+
+            return ResponseFormatter::success(null, 'berhasil menambahkan LEAD '.$request->nama_outlet);
         } catch (Exception $e) {
             return ResponseFormatter::error(['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()], $e->getMessage());
         }
@@ -158,19 +161,20 @@ class LeadController extends Controller
             $lead = Noo::find($request->id);
             if ($request->hasFile('photo')) {
                 $file = $request->file('photo');
-                if (!$file->isValid()) {
+                if (! $file->isValid()) {
                     return ResponseFormatter::error('File KTP tidak valid', 'INVALID_FILE', 422);
                 }
                 $ext = $file->guessExtension() ?: $file->extension();
-                $name = (string) Str::uuid() . '.' . $ext;
+                $name = (string) Str::uuid().'.'.$ext;
                 $path = Storage::disk('public')->putFileAs('noo/ktp', $file, $name);
                 $lead['poto_ktp'] = $path;
             }
             $lead['ktp_outlet'] = $request->noktp;
-            $lead['keterangan'] = NULL;
+            $lead['keterangan'] = null;
             $lead->update();
-            SendNotif::sendMessage('Noo baru ' . $lead->nama_outlet . ' ditambahkan oleh ' . Auth::user()->nama_lengkap, array(User::where('role_id', 4)->first()->id_notif));
-            return ResponseFormatter::success(null, 'berhasil menambahkan Lead ' . $request->nama_outlet);
+            SendNotif::sendMessage('Noo baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap, [User::where('role_id', 4)->first()->id_notif]);
+
+            return ResponseFormatter::success(null, 'berhasil menambahkan Lead '.$request->nama_outlet);
         } catch (Exception $e) {
             return ResponseFormatter::error($e->getMessage(), $e->getMessage());
         }

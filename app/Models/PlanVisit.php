@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PlanVisit extends Model
@@ -12,13 +12,13 @@ class PlanVisit extends Model
     use HasFactory;
 
     protected $guarded = [
-        'id'
+        'id',
     ];
 
     public function scopeFilter($query)
     {
-        if(request('search')){
-            $query->where('nama_lengkap',"like",'%'.request('search').'%');
+        if (request('search')) {
+            $query->where('nama_lengkap', 'like', '%'.request('search').'%');
         }
     }
 

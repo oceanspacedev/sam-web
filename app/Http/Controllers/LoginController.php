@@ -20,10 +20,10 @@ class LoginController extends Controller
     public function login(Request $request)
     {
         $credentials = request(['username', 'password']);
-        if (!Auth::attempt($credentials)) {
+        if (! Auth::attempt($credentials)) {
             return redirect('/masuk');
         }
-        
+
         return redirect('/dashboard');
     }
 }

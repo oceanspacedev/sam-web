@@ -42,22 +42,22 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->navigationItems([
                 NavigationItem::make('Telescope')
-                    ->url(fn() => url(env('TELESCOPE_PATH', 'telescope')))
+                    ->url(fn () => url(env('TELESCOPE_PATH', 'telescope')))
                     ->icon('heroicon-o-magnifying-glass-circle')
                     ->group('Developer')
                     ->openUrlInNewTab()
-                    ->visible(fn() => auth()->user()?->role->name === 'SUPER ADMIN'),
+                    ->visible(fn () => auth()->user()?->role->name === 'SUPER ADMIN'),
                 NavigationItem::make('api-docs')
                     ->label('API Docs')
                     ->url('/docs/api', shouldOpenInNewTab: true)
                     ->icon('heroicon-o-code-bracket-square')
-                    ->visible(fn() => auth()->user()?->role->name === 'SUPER ADMIN')
+                    ->visible(fn () => auth()->user()?->role->name === 'SUPER ADMIN')
                     ->group('Developer'),
                 NavigationItem::make('pulse')
                     ->label('Monitoring Server')
                     ->url('/pulse', shouldOpenInNewTab: true)
                     ->icon('heroicon-o-server-stack')
-                    ->visible(fn() => auth()->user()?->role->name === 'SUPER ADMIN')
+                    ->visible(fn () => auth()->user()?->role->name === 'SUPER ADMIN')
                     ->group('Developer'),
                 NavigationItem::make('old-dashboard')
                     ->label('Old Dashboard')
@@ -74,7 +74,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->plugin(
                 \Hasnayeen\Themes\ThemesPlugin::make()
-                    ->canViewThemesPage(fn() => auth()->user()?->role->name === 'SUPER ADMIN'),
+                    ->canViewThemesPage(fn () => auth()->user()?->role->name === 'SUPER ADMIN'),
             )
             ->middleware([
                 EncryptCookies::class,

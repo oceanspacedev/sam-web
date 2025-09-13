@@ -2,19 +2,18 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
 use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 use Filament\Models\Contracts\HasName;
-use Laravel\Sanctum\HasApiTokens;
-use Laravel\Jetstream\HasProfilePhoto;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Laravel\Fortify\TwoFactorAuthenticatable;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Jetstream\HasProfilePhoto;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements FilamentUser, HasName
 {
@@ -22,8 +21,8 @@ class User extends Authenticatable implements FilamentUser, HasName
     use HasFactory;
     use HasProfilePhoto;
     use Notifiable;
-    use TwoFactorAuthenticatable;
     use SoftDeletes;
+    use TwoFactorAuthenticatable;
 
     public function canImpersonate()
     {
@@ -43,7 +42,7 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function scopeFilter($query)
     {
         if (request('search')) {
-            $query->where('nama_lengkap', "like", '%' . request('search') . '%');
+            $query->where('nama_lengkap', 'like', '%'.request('search').'%');
         }
     }
 
@@ -92,7 +91,6 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->role->permissions();
     }
 
-
     public function divisi(): BelongsTo
     {
         return $this->belongsTo(Division::class);
@@ -127,8 +125,8 @@ class User extends Authenticatable implements FilamentUser, HasName
         'remember_token',
         'two_factor_recovery_codes',
         'two_factor_secret',
-        "created_at",
-        "updated_at",
+        'created_at',
+        'updated_at',
     ];
 
     /**

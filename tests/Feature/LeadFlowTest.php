@@ -36,7 +36,7 @@ class LeadFlowTest extends TestCase
         $role->id = 3; // avoid case 1/2/9/10 in controller
         $role->save();
 
-        return compact('bu','div','reg','clus','role');
+        return compact('bu', 'div', 'reg', 'clus', 'role');
     }
 
     public function test_lead_create_creates_noo_and_lead_outlet_and_saves_files()
@@ -99,7 +99,9 @@ class LeadFlowTest extends TestCase
         ];
 
         $resp = $this->post('/api/lead', $payload);
-        if ($resp->status() !== 200) { $resp->dump(); }
+        if ($resp->status() !== 200) {
+            $resp->dump();
+        }
         $resp->assertStatus(200);
 
         // Assert NOO created
@@ -118,7 +120,7 @@ class LeadFlowTest extends TestCase
         Storage::disk('public')->assertExists($noo->video);
 
         // Assert a lead outlet created with code LEAD{noo_id}
-        $leadOutlet = Outlet::where('kode_outlet', 'LEAD' . $noo->id)->first();
+        $leadOutlet = Outlet::where('kode_outlet', 'LEAD'.$noo->id)->first();
         $this->assertNotNull($leadOutlet);
         $this->assertEquals('Lead Outlet', $leadOutlet->nama_outlet);
     }

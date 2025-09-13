@@ -2,10 +2,6 @@
 
 namespace App\Policies;
 
-use App\Models\Cluster;
-use App\Models\User;
-use Illuminate\Auth\Access\Response;
-
 namespace App\Policies;
 
 use App\Models\Cluster;
@@ -44,4 +40,3 @@ class ClusterPolicy
         return Gate::allows('delete_cluster');
     }
 }
-

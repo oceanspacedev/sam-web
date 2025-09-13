@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\NooResource\Pages;
-use App\Filament\Resources\NooResource\RelationManagers;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -12,7 +11,6 @@ use App\Models\Outlet;
 use App\Models\Region;
 use Carbon\Carbon;
 use Filament\Forms;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -25,18 +23,19 @@ use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
 
 class NooResource extends Resource
 {
     protected static ?string $model = Noo::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
+
     protected static ?int $navigationSort = 2;
+
     public static function form(Form $form): Form
     {
         return $form
@@ -136,9 +135,10 @@ class NooResource extends Resource
                             ->reactive()
                             ->options(function (callable $get) {
                                 $badanusahaId = $get('badanusaha_id');
-                                if (!$badanusahaId) {
+                                if (! $badanusahaId) {
                                     return [];
                                 }
+
                                 return Division::where('badanusaha_id', $badanusahaId)
                                     ->pluck('name', 'id');
                             })
@@ -156,9 +156,10 @@ class NooResource extends Resource
                             ->reactive()
                             ->options(function (callable $get) {
                                 $divisiId = $get('divisi_id');
-                                if (!$divisiId) {
+                                if (! $divisiId) {
                                     return [];
                                 }
+
                                 return Region::where('divisi_id', $divisiId)
                                     ->pluck('name', 'id');
                             })
@@ -175,9 +176,10 @@ class NooResource extends Resource
                             ->reactive()
                             ->options(function (callable $get) {
                                 $regionId = $get('region_id');
-                                if (!$regionId) {
+                                if (! $regionId) {
                                     return [];
                                 }
+
                                 return Cluster::where('region_id', $regionId)
                                     ->pluck('name', 'id');
                             }),
@@ -195,7 +197,8 @@ class NooResource extends Resource
                             ->label('Foto Tanda Toko')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return 'noo-' . $outletName . '-fotoshopsign-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return 'noo-'.$outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_depan')
                             ->required()
@@ -205,7 +208,8 @@ class NooResource extends Resource
                             ->label('Foto Depan')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return 'noo-' . $outletName . '-fotodepan-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return 'noo-'.$outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_kiri')
                             ->required()
@@ -215,7 +219,8 @@ class NooResource extends Resource
                             ->label('Foto Kiri')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return 'noo-' . $outletName . '-fotokiri-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return 'noo-'.$outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_kanan')
                             ->required()
@@ -225,7 +230,8 @@ class NooResource extends Resource
                             ->label('Foto Kanan')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return 'noo-' . $outletName . '-fotokanan-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return 'noo-'.$outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_ktp')
                             ->required()
@@ -235,7 +241,8 @@ class NooResource extends Resource
                             ->label('Foto KTP Pemilik')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return 'noo-' . $outletName . '-fotoktp-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return 'noo-'.$outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('video')
                             ->required()
@@ -243,7 +250,8 @@ class NooResource extends Resource
                             ->label('Video Toko')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return 'noo-' . $outletName . '-video-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return 'noo-'.$outletName.'-video-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                     ])
                     ->columns(2),
@@ -380,33 +388,33 @@ class NooResource extends Resource
                 Tables\Columns\TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->color('primary')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('KTP'))
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true),
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('KTP'))
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
                 Tables\Columns\TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
                 Tables\Columns\TextColumn::make('poto_depan')
                     ->label('Foto Depan')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
                 Tables\Columns\TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
                 Tables\Columns\TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
                 Tables\Columns\TextColumn::make('video')
                     ->label('Video Outlet')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('VIDEO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
                     ->color('primary')
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
                 Tables\Columns\TextColumn::make('oppo')
                     ->label('Oppo'),
                 Tables\Columns\TextColumn::make('vivo')
@@ -421,9 +429,9 @@ class NooResource extends Resource
                     ->label('Frontliner'),
                 Tables\Columns\TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->color('primary')
-                    ->url(fn($state): string => 'https://www.google.com/maps/place/' . $state, shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
                 Tables\Columns\TextColumn::make('limit')
                     ->label('Limit'),
                 Tables\Columns\TextColumn::make('keterangan')
@@ -436,6 +444,8 @@ class NooResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
+            ->paginationPageOptions([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
                 Filter::make('region')
@@ -459,6 +469,7 @@ class NooResource extends Resource
                                         ->orderBy('name', 'asc')
                                         ->pluck('name', 'id');
                                 }
+
                                 return [];
                             })
                             ->reactive()
@@ -478,6 +489,7 @@ class NooResource extends Resource
                                         ->orderBy('name', 'asc')
                                         ->pluck('name', 'id');
                                 }
+
                                 return [];
                             })
                             ->reactive(),
@@ -492,10 +504,11 @@ class NooResource extends Resource
                         if ($data['region'] ?? null) {
                             $query->where('region_id', $data['region']);
                         }
+
                         return $query;
                     }),
                 Tables\Filters\TrashedFilter::make()
-                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], Noo::class)),
+                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Noo::class)),
             ], layout: FiltersLayout::Modal)
             ->filtersFormWidth(MaxWidth::Large)
             ->actions([
@@ -504,7 +517,7 @@ class NooResource extends Resource
                     ->label('Confirm')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
+                    ->visible(fn ($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
                     ->form([
                         TextInput::make('kode_outlet')
                             ->regex('/^[\S]+$/', 'Kode outlet tidak boleh mengandung spasi')
@@ -522,7 +535,7 @@ class NooResource extends Resource
                             'confirmed_by' => auth()->user()->nama_lengkap,
                             'status' => 'CONFIRMED',
                             Notification::make()
-                                ->title($record->nama_outlet . ' Confirm')
+                                ->title($record->nama_outlet.' Confirm')
                                 ->success()
                                 ->send(),
                         ]);
@@ -531,14 +544,14 @@ class NooResource extends Resource
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
+                    ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
                     ->action(function ($record, $data) {
                         $record->update([
                             'approved_at' => Carbon::now(),
                             'approved_by' => auth()->user()->nama_lengkap,
                             'status' => 'APPROVED',
                             Notification::make()
-                                ->title($record->nama_outlet . ' Approved')
+                                ->title($record->nama_outlet.' Approved')
                                 ->success()
                                 ->send(),
                         ]);
@@ -547,7 +560,7 @@ class NooResource extends Resource
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
+                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
                     ->form([
                         Textarea::make('alasan')
                             ->required(),
@@ -560,7 +573,7 @@ class NooResource extends Resource
                             'keterangan' => $data['alasan'],
                         ]);
                         Notification::make()
-                            ->title($record->nama_outlet . ' Rejected')
+                            ->title($record->nama_outlet.' Rejected')
                             ->success()
                             ->send();
                     }),
@@ -573,11 +586,11 @@ class NooResource extends Resource
                     Tables\Actions\BulkAction::make('createOutlets')
                         ->label('Create Outlets')
                         ->icon('heroicon-o-plus-circle')
-                        ->visible(fn() => Auth::user()->role->name === 'SUPER ADMIN')
+                        ->visible(fn () => Auth::user()->role->name === 'SUPER ADMIN')
                         ->action(function ($records) { // Removed $request here
                             foreach ($records as $record) {
                                 $data = [
-                                    'kode_outlet' => 'LEAD' . $record->id,
+                                    'kode_outlet' => 'LEAD'.$record->id,
                                     'nama_outlet' => $record->nama_outlet,
                                     'alamat_outlet' => $record->alamat_outlet,
                                     'nama_pemilik_outlet' => $record->nama_pemilik_outlet,
@@ -610,7 +623,6 @@ class NooResource extends Resource
                 ]),
             ]);
     }
-
 
     public static function getRelations(): array
     {

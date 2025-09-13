@@ -8,7 +8,7 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
-class NooExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
+class NooExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
 {
     /**
      * @return \Illuminate\Support\Collection
@@ -62,13 +62,13 @@ class NooExport implements FromCollection, WithHeadings, WithMapping, ShouldAuto
             $noo->nomer_wakil_outlet,
             $noo->region->name ?? '-',
             $noo->cluster->name ?? '-',
-            'Rp ' . number_format($noo->limit, 0, ',', '.'),
+            'Rp '.number_format($noo->limit, 0, ',', '.'),
             $noo->status,
             $noo->approved_at == null ? '-' : date('d M Y', strtotime($noo->approved_at)),
             $noo->approved_by ?? '-',
             $noo->rejected_at == null ? '-' : date('d M Y', strtotime($noo->rejected_at)),
             $noo->rejected_by ?? '-',
-            $noo->keterangan ?? '-'
+            $noo->keterangan ?? '-',
         ];
     }
 }

@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Exception;
 use App\Exports\VisitExport;
-use App\Models\Visit;
 use App\Models\Division;
+use App\Models\Visit;
+use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
-use Carbon\Carbon;
 
 class VisitController extends Controller
 {
@@ -31,10 +31,12 @@ class VisitController extends Controller
                 ->get();
 
             $this->deleteBulk($visit);
+
             return redirect('visit')->with(['success' => 'berhasil hapus data visit secara bulk']);
         }
 
         $visits = Visit::with(['user', 'outlet.divisi', 'outlet.cluster', 'outlet.region'])->latest()->simplePaginate(100);
+
         return view('visit.index', [
             'visits' => $visits,
             'title' => 'Visit',
@@ -49,6 +51,7 @@ class VisitController extends Controller
             return Excel::download(new VisitExport($request->tanggal1, $request->tanggal2), 'visit.xlsx');
         } else {
             $visits = Visit::with(['user', 'outlet'])->get();
+
             return view('visit.index', [
                 'visits' => $visits,
                 'title' => 'Visit',
@@ -63,17 +66,17 @@ class VisitController extends Controller
             return false;
         }
 
-        return (file_exists(storage_path('app/public/' . $path)));
+        return file_exists(storage_path('app/public/'.$path));
     }
 
     private function deleteAssets($visit)
     {
         if ($this->checkAssets($visit->picture_visit_in)) {
-            unlink(storage_path('app/public/' . $visit->picture_visit_in));
+            unlink(storage_path('app/public/'.$visit->picture_visit_in));
         }
 
         if ($this->checkAssets($visit->picture_visit_out)) {
-            unlink(storage_path('app/public/' . $visit->picture_visit_out));
+            unlink(storage_path('app/public/'.$visit->picture_visit_out));
         }
     }
 
@@ -84,6 +87,7 @@ class VisitController extends Controller
                 $this->deleteAssets($item);
                 $item->forceDelete($item);
             }
+
             return redirect('visit')->with(['success' => 'berhasil hapus media visit secara bulk']);
         } catch (Exception $e) {
             return redirect('outlet')->with(['error' => $e->getMessage()]);

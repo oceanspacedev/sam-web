@@ -1,19 +1,16 @@
 <?php
 
 use App\Helpers\SendNotif;
-use App\Http\Controllers\API\NooController;
 use App\Http\Controllers\API\LeadController;
+use App\Http\Controllers\API\NooController;
 use App\Http\Controllers\API\OutletController;
 use App\Http\Controllers\API\PlanVisitController;
+use App\Http\Controllers\API\SyncController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\VisitController;
-use App\Http\Controllers\API\SyncController;
-use App\Http\Controllers\SettingController;
-use Carbon\Carbon;
-use FFMpeg\FFMpeg;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\OutletController as outlet;
+use App\Http\Controllers\SettingController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,24 +24,22 @@ use App\Http\Controllers\OutletController as outlet;
 */
 
 Route::middleware(['auth:sanctum', 'logku'])->group(function () {
-    //USER
+    // USER
     Route::get('user', [UserController::class, 'fetch']);
     Route::post('logout', [UserController::class, 'logout']);
 
-    //OUTLET
+    // OUTLET
     Route::get('outlet', [OutletController::class, 'fetch']);
     Route::get('outlet/{nama}', [OutletController::class, 'singleOutlet']);
     Route::post('outlet', [OutletController::class, 'updatefoto']);
 
-
-    //VISIT
+    // VISIT
     Route::get('visit', [VisitController::class, 'fetch']);
     Route::get('visit/check', [VisitController::class, 'check']);
     Route::post('visit', [VisitController::class, 'submit']);
     Route::get('visit/monitor', [VisitController::class, 'monitor']);
 
-
-    //PLANVISIT
+    // PLANVISIT
     Route::get('planvisit', [PlanVisitController::class, 'fetch']);
     Route::post('planvisit', [PlanVisitController::class, 'add']);
     Route::get('planvisit/filter', [PlanVisitController::class, 'bymonth']);
@@ -52,7 +47,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::delete('planvisitrealme', [PlanVisitController::class, 'deleterealme']);
     // PlanVisit NOO endpoints removed
 
-    //NOO
+    // NOO
     Route::get('noo/getbu', [NooController::class, 'getbu']);
     Route::get('noo/getdiv', [NooController::class, 'getdiv']);
     Route::get('noo/getreg', [NooController::class, 'getreg']);
@@ -67,7 +62,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::post('noo/approved', [NooController::class, 'approved']);
     Route::post('noo/reject', [NooController::class, 'reject']);
 
-    //LEAD
+    // LEAD
     Route::post('lead', [LeadController::class, 'create']);
     Route::post('lead/update', [LeadController::class, 'update']);
 });

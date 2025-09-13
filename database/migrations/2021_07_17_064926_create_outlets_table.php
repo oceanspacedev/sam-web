@@ -34,7 +34,7 @@ class CreateOutletsTable extends Migration
             $table->integer('limit')->nullable();
             $table->integer('radius')->nullable();
             $table->string('latlong')->nullable();
-            $table->enum('status_outlet',['MAINTAIN','UNMAINTAIN','UNPRODUCTIVE']);
+            $table->enum('status_outlet', ['MAINTAIN', 'UNMAINTAIN', 'UNPRODUCTIVE']);
             $table->softDeletes();
             $table->timestamps();
         });

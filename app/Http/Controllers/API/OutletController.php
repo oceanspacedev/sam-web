@@ -28,7 +28,7 @@ class OutletController extends Controller
         } catch (Exception $e) {
             return ResponseFormatter::error([
                 'message' => 'ada yang salah',
-                'error' => $e
+                'error' => $e,
             ], 'ERROR', 500);
         }
     }
@@ -39,7 +39,7 @@ class OutletController extends Controller
             $user = Auth::user();
             $query = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi']);
             switch ($user->role_id) {
-                #ASM
+                // ASM
                 case 1:
                     $divisi = Division::where('name', $request->divisi)->first()->id;
                     $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
@@ -49,7 +49,7 @@ class OutletController extends Controller
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
-                #ASC
+                    // ASC
                 case 2:
                     $outlet = $query
                         ->where('badanusaha_id', $user->badanusaha_id)
@@ -59,7 +59,7 @@ class OutletController extends Controller
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
-                #DSF/DM
+                    // DSF/DM
                 case 3:
                     $outlet = $query
                         ->where('badanusaha_id', $user->badanusaha_id)
@@ -69,7 +69,7 @@ class OutletController extends Controller
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
-                #COO
+                    // COO
                 case 6:
                     $divisi = Division::where('name', $request->divisi)->first()->id;
                     $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
@@ -79,7 +79,7 @@ class OutletController extends Controller
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
-                #CSO
+                    // CSO
                 case 8:
                     $divisi = Division::where('name', $request->divisi)->first()->id;
                     $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
@@ -89,7 +89,7 @@ class OutletController extends Controller
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
-                #RKAM
+                    // RKAM
                 case 9:
                     $divisi = Division::where('name', $request->divisi)->first()->id;
                     $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
@@ -99,7 +99,7 @@ class OutletController extends Controller
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
-                #KAM
+                    // KAM
                 case 10:
                     $outlet = $query
                         ->where('badanusaha_id', $user->badanusaha_id)
@@ -108,7 +108,7 @@ class OutletController extends Controller
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
-                #CSO FAST EV
+                    // CSO FAST EV
                 case 11:
                     $divisi = Division::where('name', $request->divisi)->first()->id;
                     $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
@@ -123,7 +123,6 @@ class OutletController extends Controller
                     break;
             }
 
-
             return ResponseFormatter::success(
                 $outlet->map->formatForAPI(),
                 count($outlet),
@@ -132,7 +131,7 @@ class OutletController extends Controller
 
             return ResponseFormatter::error([
                 'message' => 'ada yang salah',
-                'error' => $e
+                'error' => $e,
             ], 'ERROR', 500);
         }
     }
@@ -143,6 +142,7 @@ class OutletController extends Controller
             $outlet = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi'])
                 ->where('kode_outlet', $nama)
                 ->get();
+
             return ResponseFormatter::success($outlet->map->formatForAPI(), 'berhasil');
         } catch (Exception $err) {
             return ResponseFormatter::error(null, 'ada kesalahan');
@@ -164,8 +164,8 @@ class OutletController extends Controller
             $dynamicRules = [];
             // Dukungan skema lama: photo0..photo4
             for ($i = 0; $i <= 4; $i++) {
-                if ($request->hasFile('photo' . $i)) {
-                    $dynamicRules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120']; // 5MB
+                if ($request->hasFile('photo'.$i)) {
+                    $dynamicRules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120']; // 5MB
                 }
             }
             // Dukungan skema baru: photos[]
@@ -181,31 +181,33 @@ class OutletController extends Controller
             $request->validate(array_merge($baseRules, $dynamicRules));
 
             $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
-            if (!$outlet) {
+            if (! $outlet) {
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
             $disk = Storage::disk('public');
             // Sanitasi kode outlet untuk path
             $safeKode = preg_replace('/[^A-Za-z0-9._-]/', '_', $outlet->kode_outlet);
-            $baseDir = 'outlets/' . $safeKode;
+            $baseDir = 'outlets/'.$safeKode;
 
             // Proses foto (mendukung photo0..4 dan photos[])
             $photoFiles = [];
             for ($i = 0; $i <= 4; $i++) {
-                $f = $request->file('photo' . $i);
+                $f = $request->file('photo'.$i);
                 if ($f) {
                     $photoFiles[] = $f;
                 }
             }
             if ($request->hasFile('photos')) {
                 foreach ((array) $request->file('photos') as $pf) {
-                    if ($pf) $photoFiles[] = $pf;
+                    if ($pf) {
+                        $photoFiles[] = $pf;
+                    }
                 }
             }
 
             foreach ($photoFiles as $file) {
-                if (!$file->isValid()) {
+                if (! $file->isValid()) {
                     return ResponseFormatter::error(null, 'File foto tidak valid', 422);
                 }
                 $original = $file->getClientOriginalName();
@@ -223,8 +225,8 @@ class OutletController extends Controller
                 }
 
                 $ext = $file->guessExtension() ?: $file->extension();
-                $filename = (string) Str::uuid() . '.' . $ext;
-                $path = $disk->putFileAs($baseDir . '/photos', $file, $filename);
+                $filename = (string) Str::uuid().'.'.$ext;
+                $path = $disk->putFileAs($baseDir.'/photos', $file, $filename);
                 // Simpan path relatif pada kolom agar hook model bisa hapus file lama
                 $outlet->{$targetField} = $path;
             }
@@ -232,12 +234,12 @@ class OutletController extends Controller
             // Proses video (opsional)
             if ($request->hasFile('video')) {
                 $video = $request->file('video');
-                if (!$video->isValid()) {
+                if (! $video->isValid()) {
                     return ResponseFormatter::error(null, 'File video tidak valid', 422);
                 }
                 $vext = $video->guessExtension() ?: $video->extension();
-                $vname = (string) Str::uuid() . '.' . $vext;
-                $vpath = $disk->putFileAs($baseDir . '/videos', $video, $vname);
+                $vname = (string) Str::uuid().'.'.$vext;
+                $vpath = $disk->putFileAs($baseDir.'/videos', $video, $vname);
                 $outlet->video = $vpath;
             }
 
@@ -252,6 +254,7 @@ class OutletController extends Controller
             return ResponseFormatter::error($e->errors(), 'VALIDATION_ERROR', 422);
         } catch (Exception $e) {
             error_log($e->getMessage());
+
             return ResponseFormatter::error(null, $e->getMessage(), 400);
         }
     }

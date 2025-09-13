@@ -24,7 +24,7 @@ class CreateVisitsTable extends Migration
             $table->timestamp('check_in_time')->nullable();
             $table->timestamp('check_out_time')->nullable();
             $table->text('laporan_visit')->nullable();
-            $table->enum('transaksi',['YES','NO'])->nullable();
+            $table->enum('transaksi', ['YES', 'NO'])->nullable();
             $table->integer('durasi_visit')->nullable();
             $table->text('picture_visit_in')->nullable();
             $table->text('picture_visit_out')->nullable();

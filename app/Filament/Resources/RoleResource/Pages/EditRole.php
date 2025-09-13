@@ -7,7 +7,6 @@ use App\Models\Permission;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 
 class EditRole extends EditRecord
 {
@@ -23,9 +22,10 @@ class EditRole extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $permissions = collect($data['permissions'] ?? [])
-            ->flatMap(fn($permission) => $permission)
+            ->flatMap(fn ($permission) => $permission)
             ->unique();
         session()->put('permissions_to_sync', $permissions);
+
         return Arr::only($data, ['name', 'can_access_web', 'filter_type', 'filter_data']);
     }
 

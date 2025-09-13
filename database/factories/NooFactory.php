@@ -17,6 +17,7 @@ class NooFactory extends Factory
     public function definition(): array
     {
         $name = 'NOO-'.$this->faker->unique()->numerify('###');
+
         return [
             'kode_outlet' => null,
             'badanusaha_id' => BadanUsaha::factory(),

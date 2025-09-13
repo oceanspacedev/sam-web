@@ -4,16 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Exports\PlanVisitExport;
 use App\Exports\TemplatePlanVisiExport;
-use App\Exports\TemplatePlanVisitExport;
 use App\Imports\PlanVisitImport;
-use App\Models\PlanVisit;
 use App\Models\Division;
 use App\Models\Outlet;
+use App\Models\PlanVisit;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PlanVisitController extends Controller
 {
@@ -30,16 +29,17 @@ class PlanVisitController extends Controller
             $date2 = Carbon::parse($data[1])->addDay(1)->format('Y-m-d');
             $divisi = $request->divisi_id;
 
-            $planvisit = PlanVisit::whereHas('outlet',function ($q) use ($divisi){
-                $q->where('divisi_id',$divisi)->withTrashed();
+            $planvisit = PlanVisit::whereHas('outlet', function ($q) use ($divisi) {
+                $q->where('divisi_id', $divisi)->withTrashed();
             })->whereBetween('tanggal_visit', [$date1, $date2])->get();
 
             $this->delete($planvisit);
+
             return redirect('planvisit')->with(['success' => 'berhasil hapus plan visit secara bulk']);
         }
 
         $outlets = Outlet::with('divisi')
-        ->orderBy('nama_outlet')->get();
+            ->orderBy('nama_outlet')->get();
 
         $planVisits = PlanVisit::with(['user', 'outlet'])->orderBy('tanggal_visit', 'desc')->paginate(10);
 
@@ -59,12 +59,12 @@ class PlanVisitController extends Controller
             PlanVisit::create([
                 'user_id' => $request->user_id,
                 'outlet_id' => $request->outlet_id,
-                'tanggal_visit' =>$request->tanggal_visit,
+                'tanggal_visit' => $request->tanggal_visit,
             ]);
 
             return redirect('planvisit')->with(['success' => 'Berhasil menambahkan plan visit']);
         } catch (Exception $e) {
-            return redirect('planvisit')->with(['error' => 'Gagal menambahkan plan visit,' . $e->getMessage()]);
+            return redirect('planvisit')->with(['error' => 'Gagal menambahkan plan visit,'.$e->getMessage()]);
         }
     }
 
@@ -79,7 +79,7 @@ class PlanVisitController extends Controller
             //     'title' => 'Plan Visit',
             //     'active' => 'planvisit',
             // ]);
-            //$this->index();
+            // $this->index();
             return redirect('planvisit')->with(['error']);
         }
     }
@@ -91,7 +91,8 @@ class PlanVisitController extends Controller
             $namaFile = $file->getClientOriginalName();
             $file->move('import', $namaFile);
 
-            Excel::import(new PlanVisitImport, public_path('/import/' . $namaFile));
+            Excel::import(new PlanVisitImport, public_path('/import/'.$namaFile));
+
             return redirect('planvisit')->with(['success' => 'berhasil import plan visit']);
         } catch (Exception $e) {
             return redirect('planvisit')->with(['error' => $e->getMessage()]);
@@ -110,6 +111,7 @@ class PlanVisitController extends Controller
             foreach ($planvisit as $item) {
                 $item->forceDelete($item);
             }
+
             return redirect('planvisit')->with(['success' => 'berhasil hapus data plan visit secara bulk']);
         } catch (Exception $e) {
             return redirect('planvisit')->with(['error' => $e->getMessage()]);

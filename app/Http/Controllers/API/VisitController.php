@@ -4,20 +4,16 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
-use App\Models\Noo;
 use App\Models\Outlet;
 use App\Models\Visit;
 use Carbon\Carbon;
-use DateTime;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 
 class VisitController extends Controller
 {
-
     /**
      * Visit - Monitoring visiting sales ✅
      */
@@ -42,14 +38,14 @@ class VisitController extends Controller
                     $query->where('divisi_id', '8')
                         ->whereIn('region_id', [63, 64, 66, 67, 68, 78, 79, 80, 81]);
                 })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
+                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
                     ->get();
 
                 // VisitNoo removed; only include regular visits
             }
             // Hendra Setia (GM Techno)
-            else if ($user->id == 689 && $user->role_id == 8) {
+            elseif ($user->id == 689 && $user->role_id == 8) {
                 $visit = Visit::with([
                     'outlet.badanusaha',
                     'outlet.region',
@@ -63,14 +59,14 @@ class VisitController extends Controller
                 ])->whereHas('user', function ($query) {
                     $query->where('divisi_id', '11');
                 })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
+                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
                     ->get();
 
                 // VisitNoo removed
             }
-            #ASM || RKAM
-            else if ($user->role_id == 1 || $user->role_id == 9) {
+            // ASM || RKAM
+            elseif ($user->role_id == 1 || $user->role_id == 9) {
                 $visit = Visit::with([
                     'outlet.badanusaha',
                     'outlet.region',
@@ -84,14 +80,14 @@ class VisitController extends Controller
                 ])->whereHas('user', function ($query) {
                     $query->where('tm_id', Auth::user()->id);
                 })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
+                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
                     ->get();
 
                 // VisitNoo removed
             }
-            #COO
-            else if ($user->role_id == 6) {
+            // COO
+            elseif ($user->role_id == 6) {
                 $visit = Visit::with([
                     'outlet.badanusaha',
                     'outlet.region',
@@ -102,14 +98,14 @@ class VisitController extends Controller
                     'user.divisi',
                     'user.cluster',
                     'user.role',
-                ])->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
+                ])->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
                     ->get();
 
                 // VisitNoo removed
             }
-            #CSO
-            else if ($user->role_id == 8) {
+            // CSO
+            elseif ($user->role_id == 8) {
                 $visit = Visit::with([
                     'outlet.badanusaha',
                     'outlet.region',
@@ -123,14 +119,14 @@ class VisitController extends Controller
                 ])->whereHas('outlet', function ($query) {
                     $query->where('divisi_id', 4);
                 })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
+                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
                     ->get();
 
                 // VisitNoo removed
             }
-            #CSO FAST EV
-            else if ($user->role_id == 11) {
+            // CSO FAST EV
+            elseif ($user->role_id == 11) {
                 $visit = Visit::with([
                     'outlet.badanusaha',
                     'outlet.region',
@@ -144,7 +140,7 @@ class VisitController extends Controller
                 ])->whereHas('outlet', function ($query) {
                     $query->where('divisi_id', 7);
                 })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
+                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
                     ->get();
 
@@ -163,7 +159,7 @@ class VisitController extends Controller
                 ])->whereHas('user', function ($query) {
                     $query->where('region_id', Auth::user()->region_id);
                 })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date))  : date('Y-m-d'))
+                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
                     ->get();
 
@@ -196,7 +192,7 @@ class VisitController extends Controller
                 'user.region',
                 'user.divisi',
                 'user.cluster',
-                'user.role'
+                'user.role',
             ])
                 ->where('user_id', Auth::user()->id)
                 ->whereDate('tanggal_visit', date('Y-m-d'))
@@ -213,22 +209,23 @@ class VisitController extends Controller
             ], $err, 500);
         }
     }
+
     public function check(Request $request)
     {
         $request->validate([
             'kode_outlet' => ['required'],
         ]);
 
-        ##cek database terkahir dari tanggal sekarang dan user tersebut
+        // #cek database terkahir dari tanggal sekarang dan user tersebut
         $lastDataVisit = Visit::whereDate('tanggal_visit', date('Y-m-d'))->where('user_id', Auth::user()->id)->latest()->first();
-        ##cek data terkahir durasi
+        // #cek data terkahir durasi
 
-        ##cek table dengan outlet yang dikirim dan tanggal hari ini
+        // #cek table dengan outlet yang dikirim dan tanggal hari ini
         // $lastDataSelectedOutletVisit = Visit::with(['outlet.cluster','outlet.user.cluster'])->whereDate('tanggal_visit',date('Y-m-d'))->where('user_id',Auth::user()->id)->where('outlet_id',$outletId)->first();
 
-        ##kalo mode ci
+        // #kalo mode ci
         if ($request->check_in) {
-            //cek apa ada data terakhir kosong ?
+            // cek apa ada data terakhir kosong ?
             if ($lastDataVisit) {
                 // if($lastDataSelectedOutletVisit)
                 // {
@@ -238,16 +235,16 @@ class VisitController extends Controller
                 if ($lastDataVisit->check_out_time) {
                     return ResponseFormatter::success(null, 'ok');
                 } else {
-                    //notif error
+                    // notif error
                     return ResponseFormatter::error([
-                        'message' => 'error'
-                    ], "Belum check out dari outlet " . $lastDataVisit->outlet->kode_outlet, 400);
+                        'message' => 'error',
+                    ], 'Belum check out dari outlet '.$lastDataVisit->outlet->kode_outlet, 400);
                 }
             } else {
                 return ResponseFormatter::success(null, 'ok');
             }
         }
-        ##disini co
+        // #disini co
         else {
             // $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
             // $outletId = $outlet->id;
@@ -309,8 +306,8 @@ class VisitController extends Controller
                 $user = Auth::user();
                 if ($user->role->name === 'DSF/DM' || $user->role->name === 'ASC') {
                     $outlet = Outlet::where('kode_outlet', $request->kode_outlet)
-                                    ->where('divisi_id', $user->divisi_id)
-                                    ->first();
+                        ->where('divisi_id', $user->divisi_id)
+                        ->first();
                 } else {
                     $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
                 }
@@ -321,11 +318,11 @@ class VisitController extends Controller
                     'latlong_in' => ['required', 'string'],
                     'tipe_visit' => ['required'],
                 ]);
-                if (!$request->hasFile('picture_visit') || !$request->file('picture_visit')->isValid()) {
+                if (! $request->hasFile('picture_visit') || ! $request->file('picture_visit')->isValid()) {
                     return ResponseFormatter::error('File gambar tidak valid', 'INVALID_FILE', 422);
                 }
                 $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
-                $imageName = date('Y-m-d') . '-' . Auth::user()->username . '-' . 'IN-' . Carbon::now()->getPreciseTimestamp(3)  . '.' . $ext;
+                $imageName = date('Y-m-d').'-'.Auth::user()->username.'-'.'IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
                 $path = Storage::disk('public')->putFileAs('visits/in', $request->file('picture_visit'), $imageName);
                 $visit = Visit::create([
                     'tanggal_visit' => date('Y-m-d'),
@@ -336,8 +333,9 @@ class VisitController extends Controller
                     'check_in_time' => Carbon::now(),
                     'picture_visit_in' => $path,
                 ]);
+
                 return ResponseFormatter::success([
-                    'visit' => $visit
+                    'visit' => $visit,
                 ], 'berhasil check in');
             }
             if ($checkOut) {
@@ -349,14 +347,14 @@ class VisitController extends Controller
                         'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
                         'transaksi' => ['required'],
                     ]);
-                    if (!$request->hasFile('picture_visit') || !$request->file('picture_visit')->isValid()) {
+                    if (! $request->hasFile('picture_visit') || ! $request->file('picture_visit')->isValid()) {
                         return ResponseFormatter::error('File gambar tidak valid', 'INVALID_FILE', 422);
                     }
                     $awal = Carbon::parse($lastDataVisit->check_in_time);
                     $akhir = Carbon::now();
                     $durasi = $awal->diffInMinutes($akhir);
                     $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
-                    $imageName = date('Y-m-d') . '-' . Auth::user()->username . '-' . 'OUT-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $ext;
+                    $imageName = date('Y-m-d').'-'.Auth::user()->username.'-'.'OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
                     $path = Storage::disk('public')->putFileAs('visits/out', $request->file('picture_visit'), $imageName);
                     $data = [
                         'tanggal_visit' => date('Y-m-d'),
@@ -368,8 +366,9 @@ class VisitController extends Controller
                         'transaksi' => $request->transaksi,
                     ];
                     $lastDataVisit->update($data);
+
                     return ResponseFormatter::success([
-                        'visit' => $data
+                        'visit' => $data,
                     ], 'berhasil check out');
                 } else {
                     return ResponseFormatter::error('Belum ada check-in untuk di check-out', 'INVALID_STATE', 422);
@@ -377,7 +376,7 @@ class VisitController extends Controller
             }
         } catch (Exception $error) {
             return ResponseFormatter::error([
-                'error' => $error
+                'error' => $error,
             ], 'error', 500);
         }
     }

@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\OutletResource\Pages;
-use App\Filament\Resources\OutletResource\RelationManagers;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -11,7 +10,6 @@ use App\Models\Outlet;
 use App\Models\Region;
 use Carbon\Carbon;
 use Filament\Forms;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -23,7 +21,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -32,7 +29,9 @@ use Illuminate\Support\HtmlString;
 class OutletResource extends Resource
 {
     protected static ?string $model = Outlet::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
+
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
@@ -106,7 +105,8 @@ class OutletResource extends Resource
                             ->label('Foto Tanda Toko')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return $outletName . '-fotoshopsign-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return $outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_depan')
                             ->image()
@@ -115,7 +115,8 @@ class OutletResource extends Resource
                             ->label('Foto Depan')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return $outletName . '-fotodepan-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return $outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_kiri')
                             ->image()
@@ -124,7 +125,8 @@ class OutletResource extends Resource
                             ->label('Foto Kiri')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return $outletName . '-fotokiri-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return $outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_kanan')
                             ->image()
@@ -133,7 +135,8 @@ class OutletResource extends Resource
                             ->label('Foto Kanan')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return $outletName . '-fotokanan-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return $outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_ktp')
                             ->image()
@@ -142,7 +145,8 @@ class OutletResource extends Resource
                             ->label('Foto KTP Pemilik')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return $outletName . '-fotoktp-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return $outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('video')
                             ->disk('public')
@@ -150,7 +154,8 @@ class OutletResource extends Resource
                             ->label('Video Toko')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-                                return $outletName . '-video-' . Carbon::now()->format('dmYHis') .  '.' . $file->getClientOriginalExtension();
+
+                                return $outletName.'-video-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                     ])
                     ->columns(2),
@@ -191,9 +196,10 @@ class OutletResource extends Resource
                             ->reactive()
                             ->options(function (callable $get) {
                                 $badanusahaId = $get('badanusaha_id');
-                                if (!$badanusahaId) {
+                                if (! $badanusahaId) {
                                     return [];
                                 }
+
                                 return Division::where('badanusaha_id', $badanusahaId)
                                     ->pluck('name', 'id');
                             })
@@ -211,9 +217,10 @@ class OutletResource extends Resource
                             ->reactive()
                             ->options(function (callable $get) {
                                 $divisiId = $get('divisi_id');
-                                if (!$divisiId) {
+                                if (! $divisiId) {
                                     return [];
                                 }
+
                                 return Region::where('divisi_id', $divisiId)
                                     ->pluck('name', 'id');
                             })
@@ -230,9 +237,10 @@ class OutletResource extends Resource
                             ->reactive()
                             ->options(function (callable $get) {
                                 $regionId = $get('region_id');
-                                if (!$regionId) {
+                                if (! $regionId) {
                                     return [];
                                 }
+
                                 return Cluster::where('region_id', $regionId)
                                     ->pluck('name', 'id');
                             }),
@@ -304,33 +312,33 @@ class OutletResource extends Resource
                     ->label('Distrik'),
                 Tables\Columns\TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 Tables\Columns\TextColumn::make('poto_depan')
                     ->label('Foto Depan')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 Tables\Columns\TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 Tables\Columns\TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 Tables\Columns\TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO KTP'))
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 Tables\Columns\TextColumn::make('video')
                     ->label('Video Outlet')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('VIDEO'))
-                    ->url(fn($state): string => asset('storage/' . $state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
+                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 Tables\Columns\TextColumn::make('limit')
                     ->label('Limit'),
@@ -338,8 +346,8 @@ class OutletResource extends Resource
                     ->label('Radius'),
                 Tables\Columns\TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn($state): string => 'https://www.google.com/maps/place/' . $state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
                     ->color('primary'),
                 Tables\Columns\TextColumn::make('status_outlet')
                     ->label('Status Outlet'),
@@ -354,6 +362,8 @@ class OutletResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('kode_outlet', 'asc')
+            ->paginationPageOptions([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
                 Filter::make('region')
@@ -377,6 +387,7 @@ class OutletResource extends Resource
                                         ->orderBy('name', 'asc')
                                         ->pluck('name', 'id');
                                 }
+
                                 return [];
                             })
                             ->reactive()
@@ -396,6 +407,7 @@ class OutletResource extends Resource
                                         ->orderBy('name', 'asc')
                                         ->pluck('name', 'id');
                                 }
+
                                 return [];
                             })
                             ->reactive(),
@@ -410,10 +422,11 @@ class OutletResource extends Resource
                         if ($data['region'] ?? null) {
                             $query->where('region_id', $data['region']);
                         }
+
                         return $query;
                     }),
                 Tables\Filters\TrashedFilter::make()
-                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
+                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
 
             ], layout: FiltersLayout::Modal)
             ->filtersFormWidth(MaxWidth::Large)
@@ -464,7 +477,7 @@ class OutletResource extends Resource
                                 ]);
                             }
                         })
-                        ->authorize(fn() => Gate::allows('reset_any_outlet')),
+                        ->authorize(fn () => Gate::allows('reset_any_outlet')),
                 ]),
             ]);
     }

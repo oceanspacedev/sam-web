@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
-    public function nooMounth(Request $request) {
+    public function nooMounth(Request $request)
+    {
         if ($request->daterangesearch) {
             $daterange = $request->daterangesearch;
             $month = date('m', strtotime($daterange));
@@ -21,7 +21,6 @@ class ReportController extends Controller
             $month = $lastMonth->format('m');
             $year = $lastMonth->year;
         }
-
 
         // mendapatkan jumlah hari dalam satu bulan
         $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
@@ -38,21 +37,21 @@ class ReportController extends Controller
         $remainingDays = $daysInMonth - $sundaysCount;
 
         $jumlahDataNoo = DB::table('noos')
-                        ->whereYear('created_at', $year)
-                        ->whereMonth('created_at', $month)
-                        ->count();
+            ->whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->count();
 
-        $rataTambahNooPerHari = ceil(($jumlahDataNoo/$remainingDays) * 100) / 100;
+        $rataTambahNooPerHari = ceil(($jumlahDataNoo / $remainingDays) * 100) / 100;
 
         $jumlahDataPerPembuatNoo = DB::table('noos')
-                        ->select('created_by', DB::raw('COUNT(*) as total'))
-                        ->whereYear('created_at', $year)
-                        ->whereMonth('created_at', $month)
-                        ->groupBy('created_by')
-                        ->orderBy('total', 'desc')
-                        ->get();
+            ->select('created_by', DB::raw('COUNT(*) as total'))
+            ->whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->groupBy('created_by')
+            ->orderBy('total', 'desc')
+            ->get();
 
-        return view('report.noomounth',[
+        return view('report.noomounth', [
             'title' => 'Noo',
             'active' => 'report',
             'noomounth' => $jumlahDataNoo,

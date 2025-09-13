@@ -163,7 +163,6 @@ return [
         Illuminate\View\ViewServiceProvider::class,
         ProtoneMedia\LaravelFFMpeg\Support\ServiceProvider::class,
 
-
         /*
          * Package Service Providers...
          */

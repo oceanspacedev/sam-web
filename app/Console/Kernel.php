@@ -19,17 +19,16 @@ class Kernel extends ConsoleKernel
     /**
      * Define the application's command schedule.
      *
-     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
      * @return void
      */
     protected function schedule(Schedule $schedule)
     {
         // Jalankan optimasi media setiap jam 11 malam
         $schedule->command('media:optimize --path=public')
-                 ->dailyAt('23:00')
-                 ->withoutOverlapping()
-                 ->runInBackground()
-                 ->appendOutputTo(storage_path('logs/media-optimization.log'));
+            ->dailyAt('23:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/media-optimization.log'));
     }
 
     /**

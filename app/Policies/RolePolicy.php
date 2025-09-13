@@ -10,22 +10,22 @@ class RolePolicy
 {
     public function viewAny(User $user): bool
     {
-         return Gate::allows('view_any_role');
+        return Gate::allows('view_any_role');
     }
 
     public function view(User $user, Role $role): bool
     {
-         return Gate::allows('view_role');
+        return Gate::allows('view_role');
     }
 
     public function create(User $user): bool
     {
-         return Gate::allows('create_role');
+        return Gate::allows('create_role');
     }
 
     public function update(User $user, Role $role): bool
     {
-         return Gate::allows('update_role');
+        return Gate::allows('update_role');
     }
 
     public function deleteAny(User $user): bool
@@ -35,6 +35,6 @@ class RolePolicy
 
     public function delete(User $user, Role $role): bool
     {
-         return Gate::allows('delete_role');
+        return Gate::allows('delete_role');
     }
 }

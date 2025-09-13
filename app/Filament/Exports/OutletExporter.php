@@ -38,6 +38,7 @@ class OutletExporter extends Exporter
                         ->where('region_id', $record->region_id)
                         ->where('role_id', 2)
                         ->first();
+
                     return $tm->tm->nama_lengkap ?? 'VACANT';
                 }),
             ExportColumn::make('asc')
@@ -47,6 +48,7 @@ class OutletExporter extends Exporter
                         ->where('region_id', $record->region_id)
                         ->where('role_id', 2)
                         ->first();
+
                     return $asc->nama_lengkap ?? 'VACANT';
                 }),
             ExportColumn::make('dsf')
@@ -57,6 +59,7 @@ class OutletExporter extends Exporter
                         ->where('cluster_id', $record->cluster_id)
                         ->where('role_id', 3)
                         ->first();
+
                     return $dsf->nama_lengkap ?? 'VACANT';
                 }),
             ExportColumn::make('created_at')
@@ -66,32 +69,32 @@ class OutletExporter extends Exporter
                 ->label('Tanggal Registrasi'),
             ExportColumn::make('poto_shop_sign')
                 ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl . $state : '-';
+                    return $state ? $baseUrl.$state : '-';
                 })
                 ->label('Foto Shop Sign'),
             ExportColumn::make('poto_depan')
                 ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl . $state : '-';
+                    return $state ? $baseUrl.$state : '-';
                 })
                 ->label('Foto Depan'),
             ExportColumn::make('poto_kiri')
                 ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl . $state : '-';
+                    return $state ? $baseUrl.$state : '-';
                 })
                 ->label('Foto Kiri'),
             ExportColumn::make('poto_kanan')
                 ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl . $state : '-';
+                    return $state ? $baseUrl.$state : '-';
                 })
                 ->label('Foto Kanan'),
             ExportColumn::make('poto_ktp')
                 ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl . $state : '-';
+                    return $state ? $baseUrl.$state : '-';
                 })
                 ->label('Foto KTP'),
             ExportColumn::make('video')
                 ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl . $state : '-';
+                    return $state ? $baseUrl.$state : '-';
                 })
                 ->label('Video'),
             ExportColumn::make('is_member')
@@ -109,10 +112,10 @@ class OutletExporter extends Exporter
 
     public static function getCompletedNotificationBody(Export $export): string
     {
-        $body = 'Ekspor data outlet Anda telah selesai. Sebanyak ' . number_format($export->successful_rows) . ' ' . str('baris')->plural($export->successful_rows) . ' berhasil diekspor.';
+        $body = 'Ekspor data outlet Anda telah selesai. Sebanyak '.number_format($export->successful_rows).' '.str('baris')->plural($export->successful_rows).' berhasil diekspor.';
 
         if ($failedRowsCount = $export->getFailedRowsCount()) {
-            $body .= ' Namun, ' . number_format($failedRowsCount) . ' ' . str('baris')->plural($failedRowsCount) . ' gagal diekspor.';
+            $body .= ' Namun, '.number_format($failedRowsCount).' '.str('baris')->plural($failedRowsCount).' gagal diekspor.';
         }
 
         return $body;

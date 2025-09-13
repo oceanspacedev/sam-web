@@ -41,7 +41,7 @@ class CreateNoosTable extends Migration
             $table->string('fl');
             $table->string('latlong');
             $table->bigInteger('limit')->nullable();
-            $table->enum('status',['PENDING','CONFIRMED','APPROVED','REJECTED'])->default('PENDING');
+            $table->enum('status', ['PENDING', 'CONFIRMED', 'APPROVED', 'REJECTED'])->default('PENDING');
             $table->string('created_by');
             $table->timestamp('rejected_at')->nullable();
             $table->string('rejected_by')->nullable();

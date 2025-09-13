@@ -3,25 +3,24 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RegionResource\Pages;
-use App\Filament\Resources\RegionResource\RelationManagers;
 use App\Models\Division;
 use App\Models\Region;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class RegionResource extends Resource
 {
     protected static ?string $model = Region::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-flag';
+
     protected static ?string $navigationGroup = 'Settings';
+
     protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
@@ -34,20 +33,20 @@ class RegionResource extends Resource
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
-                            ->options(function (callable $get) {
-                                $user = auth()->user();
-                                $role = $user->role;
+                    ->options(function (callable $get) {
+                        $user = auth()->user();
+                        $role = $user->role;
 
-                                if ($role->filter_type === 'badanusaha') {
-                                    return \App\Models\BadanUsaha::whereIn('id', $role->filter_data ?? [])
-                                        ->pluck('name', 'id');
-                                } elseif ($role->filter_type === 'all') {
-                                    return \App\Models\BadanUsaha::pluck('name', 'id');
-                                }
+                        if ($role->filter_type === 'badanusaha') {
+                            return \App\Models\BadanUsaha::whereIn('id', $role->filter_data ?? [])
+                                ->pluck('name', 'id');
+                        } elseif ($role->filter_type === 'all') {
+                            return \App\Models\BadanUsaha::pluck('name', 'id');
+                        }
 
-                                return \App\Models\BadanUsaha::where('id', $user->badanusaha_id)
-                                    ->pluck('name', 'id');
-                            })
+                        return \App\Models\BadanUsaha::where('id', $user->badanusaha_id)
+                            ->pluck('name', 'id');
+                    })
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('divisi_id', null);
                     }),
@@ -59,9 +58,10 @@ class RegionResource extends Resource
                     ->reactive()
                     ->options(function (callable $get) {
                         $badanusahaId = $get('badanusaha_id');
-                        if (!$badanusahaId) {
+                        if (! $badanusahaId) {
                             return [];
                         }
+
                         return Division::where('badanusaha_id', $badanusahaId)
                             ->pluck('name', 'id');
                     }),
@@ -88,6 +88,8 @@ class RegionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('name', 'asc')
+            ->paginationPageOptions([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->groups([
                 Group::make('divisi.name')
                     ->label('Divisi')

@@ -95,7 +95,7 @@ class NooFlowTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        return compact('bu','div','reg','clus','role','tm','user');
+        return compact('bu', 'div', 'reg', 'clus', 'role', 'tm', 'user');
     }
 
     public function test_noo_submit_confirm_approve_creates_outlet()
@@ -104,10 +104,10 @@ class NooFlowTest extends TestCase
 
         $photoFront = UploadedFile::fake()->image('fotodepan.jpg');
         $photoRight = UploadedFile::fake()->image('fotokanan.jpg');
-        $photoLeft  = UploadedFile::fake()->image('fotokiri.jpg');
-        $photoKtp   = UploadedFile::fake()->image('fotoktp.jpg');
-        $photoSign  = UploadedFile::fake()->image('sign.jpg');
-        $video      = UploadedFile::fake()->create('vid.mp4', 1000, 'video/mp4');
+        $photoLeft = UploadedFile::fake()->image('fotokiri.jpg');
+        $photoKtp = UploadedFile::fake()->image('fotoktp.jpg');
+        $photoSign = UploadedFile::fake()->image('sign.jpg');
+        $video = UploadedFile::fake()->create('vid.mp4', 1000, 'video/mp4');
 
         $payload = [
             'nama_outlet' => 'NOO Test',
@@ -167,10 +167,10 @@ class NooFlowTest extends TestCase
 
         $photoFront = UploadedFile::fake()->image('fotodepan.jpg');
         $photoRight = UploadedFile::fake()->image('fotokanan.jpg');
-        $photoLeft  = UploadedFile::fake()->image('fotokiri.jpg');
-        $photoKtp   = UploadedFile::fake()->image('fotoktp.jpg');
-        $photoSign  = UploadedFile::fake()->image('sign.jpg');
-        $video      = UploadedFile::fake()->create('vid.mp4', 1000, 'video/mp4');
+        $photoLeft = UploadedFile::fake()->image('fotokiri.jpg');
+        $photoKtp = UploadedFile::fake()->image('fotoktp.jpg');
+        $photoSign = UploadedFile::fake()->image('sign.jpg');
+        $video = UploadedFile::fake()->create('vid.mp4', 1000, 'video/mp4');
 
         $payload = [
             'nama_outlet' => 'NOO Test 2',

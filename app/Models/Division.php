@@ -12,26 +12,26 @@ class Division extends Model
     use HasFactory;
 
     protected $guarded = [
-        'id'
+        'id',
     ];
 
     protected $hidden = [
-        "created_at", "updated_at"
+        'created_at', 'updated_at',
     ];
 
     public function user(): HasMany
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(User::class, 'divisi_id');
     }
 
     public function outlet(): HasMany
     {
-        return $this->hasMany(Outlet::class);
+        return $this->hasMany(Outlet::class, 'divisi_id');
     }
 
     public function noo(): HasMany
     {
-        return $this->hasMany(Noo::class);
+        return $this->hasMany(Noo::class, 'divisi_id');
     }
 
     public function badanusaha(): BelongsTo
@@ -41,11 +41,11 @@ class Division extends Model
 
     public function region(): HasMany
     {
-        return $this->hasMany(Region::class);
+        return $this->hasMany(Region::class, 'divisi_id');
     }
 
     public function cluster(): HasMany
     {
-        return $this->hasMany(Cluster::class);
+        return $this->hasMany(Cluster::class, 'divisi_id');
     }
 }

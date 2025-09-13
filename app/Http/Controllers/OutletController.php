@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use Exception;
-use App\Models\User;
-use App\Models\Outlet;
-use App\Models\Region;
-use App\Models\Cluster;
-use App\Models\Division;
-use App\Models\BadanUsaha;
-use Illuminate\Http\Request;
 use App\Exports\OutletExport;
 use App\Exports\TemplateOutletExport;
 use App\Imports\OutletImport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Models\BadanUsaha;
+use App\Models\Cluster;
+use App\Models\Division;
+use App\Models\Outlet;
+use App\Models\Region;
+use App\Models\User;
+use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class OutletController extends Controller
 {
@@ -63,7 +63,6 @@ class OutletController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
@@ -80,9 +79,10 @@ class OutletController extends Controller
     public function show($id)
     {
         $outlet = Outlet::find($id);
+
         return view('outlet.show', [
             'outlet' => $outlet,
-            'title' => 'Detail'
+            'title' => 'Detail',
         ]);
     }
 
@@ -99,6 +99,7 @@ class OutletController extends Controller
         $divisis = Division::all();
         $regions = Region::orderBy('name')->get();
         $clusters = Cluster::orderBy('name')->get();
+
         return view('outlet.edit', [
             'title' => 'Outlet',
             'active' => 'outlet',
@@ -113,7 +114,6 @@ class OutletController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
@@ -123,7 +123,7 @@ class OutletController extends Controller
         try {
             $outlet = Outlet::findOrFail($id);
             $request->validate([
-                'kode_outlet' => ['required', 'string', 'max:255','unique:outlets,kode_outlet,'.$outlet->id],
+                'kode_outlet' => ['required', 'string', 'max:255', 'unique:outlets,kode_outlet,'.$outlet->id],
                 'nama_outlet' => ['required', 'string'],
                 'alamat_outlet' => ['required', 'string'],
                 'radius' => ['required'],
@@ -140,9 +140,11 @@ class OutletController extends Controller
             $data['nama_pemilik_outlet'] = strtoupper($request->nama_pemilik_outlet);
             $data['alamat_outlet'] = strtoupper($request->alamat_outlet);
             $outlet->update($data);
+
             return redirect('outlet')->with(['success' => 'berhasil edit outlet']);
         } catch (Exception $e) {
             error_log($e);
+
             return redirect('outlet')->with(['error' => $e->getMessage()]);
         }
     }
@@ -156,10 +158,11 @@ class OutletController extends Controller
     public function destroyall()
     {
         try {
-            $outlets = Outlet::where('divisi_id',4)->get();
+            $outlets = Outlet::where('divisi_id', 4)->get();
             foreach ($outlets as $outlet) {
                 $outlet->delete();
             }
+
             return 'berhasil';
         } catch (Exception $e) {
             return $e->getMessage();
@@ -178,7 +181,8 @@ class OutletController extends Controller
             $namaFile = $file->getClientOriginalName();
             $file->move('import', $namaFile);
 
-            Excel::import(new OutletImport, public_path('/import/' . $namaFile));
+            Excel::import(new OutletImport, public_path('/import/'.$namaFile));
+
             return redirect('outlet')->with(['success' => 'berhasil import outlet']);
         } catch (Exception $e) {
             return redirect('outlet')->with(['error' => $e->getMessage()]);
@@ -197,33 +201,33 @@ class OutletController extends Controller
             return false;
         }
 
-        return (file_exists(storage_path('app/public/' . $path)));
+        return file_exists(storage_path('app/public/'.$path));
     }
 
     private function deleteAssets($outlet)
     {
         if ($this->checkAssets($outlet->poto_shop_sign)) {
-            unlink(storage_path('app/public/' . $outlet->poto_shop_sign));
+            unlink(storage_path('app/public/'.$outlet->poto_shop_sign));
         }
 
         if ($this->checkAssets($outlet->poto_depan)) {
-            unlink(storage_path('app/public/' . $outlet->poto_depan));
+            unlink(storage_path('app/public/'.$outlet->poto_depan));
         }
 
         if ($this->checkAssets($outlet->poto_kanan)) {
-            unlink(storage_path('app/public/' . $outlet->poto_kanan));
+            unlink(storage_path('app/public/'.$outlet->poto_kanan));
         }
 
         if ($this->checkAssets($outlet->poto_kiri)) {
-            unlink(storage_path('app/public/' . $outlet->poto_kiri));
+            unlink(storage_path('app/public/'.$outlet->poto_kiri));
         }
 
         if ($this->checkAssets($outlet->poto_ktp)) {
-            unlink(storage_path('app/public/' . $outlet->poto_ktp));
+            unlink(storage_path('app/public/'.$outlet->poto_ktp));
         }
 
         if ($this->checkAssets($outlet->video)) {
-            unlink(storage_path('app/public/' . $outlet->video));
+            unlink(storage_path('app/public/'.$outlet->video));
         }
     }
 
@@ -235,6 +239,7 @@ class OutletController extends Controller
             $this->deleteAssets($outlet);
 
             $outlet->forceDelete();
+
             return redirect('outlet')->with(['success' => 'berhasil hapus media outlet']);
 
         } catch (Exception $e) {
@@ -245,15 +250,15 @@ class OutletController extends Controller
     public function deleteBulk($outlet)
     {
         try {
-            foreach($outlet as $item){
+            foreach ($outlet as $item) {
                 $this->deleteAssets($item);
                 $item->forceDelete($item);
             }
+
             return redirect('outlet')->with(['success' => 'berhasil hapus media outlet secara bulk']);
 
         } catch (Exception $e) {
             return redirect('outlet')->with(['error' => $e->getMessage()]);
         }
     }
-
 }

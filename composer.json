@@ -11,7 +11,6 @@
         "filament/filament": "^3.2",
         "guzzlehttp/guzzle": "^7.0.1",
         "hasnayeen/themes": "^3.0",
-        "inertiajs/inertia-laravel": "^0.6.0",
         "joshembling/image-optimizer": "^1.4",
         "laravel/framework": "^10.0",
         "laravel/jetstream": "^2.3",
@@ -23,13 +22,13 @@
         "maatwebsite/excel": "^3.1",
         "nesbot/carbon": "^2.72",
         "pbmedia/laravel-ffmpeg": "^8.0",
-        "stechstudio/filament-impersonate": "^3.15",
-        "tightenco/ziggy": "^1.0"
+        "stechstudio/filament-impersonate": "^3.15"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^3.15",
         "fakerphp/faker": "^1.9.1",
         "laravel/boost": "^1.1",
+        "laravel/pint": "^1.24",
         "laravel/sail": "^1.0.1",
         "mockery/mockery": "^1.4.2",
         "nunomaduro/collision": "^7.7",
@@ -53,6 +52,9 @@
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi",
             "@php artisan filament:upgrade"
+        ],
+        "pint": [
+            "@php vendor/bin/pint"
         ],
         "test": [
             "@php -d detect_unicode=0 vendor/bin/phpunit"

@@ -19,82 +19,82 @@ class RegionSeeder extends Seeder
                 [
                     'badanusaha_id' => 1,
                     'divisi_id' => 1,
-                    'name' => 'SWJ'
+                    'name' => 'SWJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 2,
-                    'name' => 'SWJ'
+                    'name' => 'SWJ',
                 ],
                 [
                     'badanusaha_id' => 1,
                     'divisi_id' => 1,
-                    'name' => 'NWJ'
+                    'name' => 'NWJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 2,
-                    'name' => 'NWJ'
+                    'name' => 'NWJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 3,
-                    'name' => 'NWJ'
+                    'name' => 'NWJ',
                 ],
                 [
                     'badanusaha_id' => 1,
                     'divisi_id' => 1,
-                    'name' => 'NCJ'
+                    'name' => 'NCJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 2,
-                    'name' => 'NCJ'
+                    'name' => 'NCJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 3,
-                    'name' => 'NCJ'
+                    'name' => 'NCJ',
                 ],
                 [
                     'badanusaha_id' => 1,
                     'divisi_id' => 1,
-                    'name' => 'SCJ'
+                    'name' => 'SCJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 2,
-                    'name' => 'SCJ'
+                    'name' => 'SCJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 3,
-                    'name' => 'SCJ'
+                    'name' => 'SCJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 2,
-                    'name' => 'EJ'
+                    'name' => 'EJ',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 4,
-                    'name' => 'BIGCIREBON'
+                    'name' => 'BIGCIREBON',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 4,
-                    'name' => 'BIGTEGALA'
+                    'name' => 'BIGTEGALA',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 4,
-                    'name' => 'BIGTEGALB'
+                    'name' => 'BIGTEGALB',
                 ],
                 [
                     'badanusaha_id' => 2,
                     'divisi_id' => 4,
-                    'name' => 'BIGSEMARANG'
+                    'name' => 'BIGSEMARANG',
                 ],
                 [
                     'badanusaha_id' => 3,

@@ -3,10 +3,10 @@
 namespace App\Models;
 
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
 class Visit extends Model
@@ -15,14 +15,13 @@ class Visit extends Model
     use SoftDeletes;
 
     protected $guarded = [
-        'id'
+        'id',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withTrashed();
     }
-
 
     public function outlet(): BelongsTo
     {
@@ -56,7 +55,7 @@ class Visit extends Model
 
     protected function calculateDurasiVisit(): void
     {
-        if (!empty($this->check_in_time) && !empty($this->check_out_time)) {
+        if (! empty($this->check_in_time) && ! empty($this->check_out_time)) {
             try {
                 $checkIn = Carbon::parse($this->check_in_time);
                 $checkOut = Carbon::parse($this->check_out_time);

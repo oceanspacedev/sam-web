@@ -7,16 +7,14 @@ use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
-use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class OutletImport implements ToModel, WithHeadingRow
 {
     /**
-     * @param array $row
-     *
      * @return \Illuminate\Database\Eloquent\Model|null
      */
     public function model(array $row)
@@ -53,6 +51,7 @@ class OutletImport implements ToModel, WithHeadingRow
                     // 'radius' => $row['radius'] ?? $outlet->radius,
                     // 'limit' => $row['limit'] ?? $outlet->limit,
                 ]);
+
                 return null;
             } else {
                 return new Outlet([
@@ -71,8 +70,9 @@ class OutletImport implements ToModel, WithHeadingRow
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('Error importing row: ' . json_encode($row) . ' - ' . $e->getMessage());
-            Session::flash('error', 'Error importing row: ' . json_encode($row) . ' - ' . $e->getMessage());
+            Log::error('Error importing row: '.json_encode($row).' - '.$e->getMessage());
+            Session::flash('error', 'Error importing row: '.json_encode($row).' - '.$e->getMessage());
+
             return null;
         }
     }
@@ -112,9 +112,10 @@ class OutletImport implements ToModel, WithHeadingRow
             $newRegion = Region::create([
                 'name' => strtoupper($name),
                 'divisi_id' => $divisi_id,
-                'badanusaha_id' => $badanusaha_id
+                'badanusaha_id' => $badanusaha_id,
             ]);
             Log::info("Region created: {$name}");
+
             return $newRegion->id;
         }
     }
@@ -135,14 +136,14 @@ class OutletImport implements ToModel, WithHeadingRow
                 'name' => strtoupper($name),
                 'badanusaha_id' => $badanusaha_id,
                 'divisi_id' => $divisi_id,
-                'region_id' => $region_id
+                'region_id' => $region_id,
             ]);
             Log::info("Cluster created: {$name}");
+
             return $newCluster->id;
         }
     }
 }
-
 
 // <?php
 

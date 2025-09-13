@@ -28,4 +28,3 @@ class OutletFactory extends Factory
         ];
     }
 }
-

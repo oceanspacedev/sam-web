@@ -8,14 +8,14 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
-class UserExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
+class UserExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
 {
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
-        return User::with(['role','region','cluster','divisi','badanusaha'])->orderBy('nama_lengkap')->get();
+        return User::with(['role', 'region', 'cluster', 'divisi', 'badanusaha'])->orderBy('nama_lengkap')->get();
     }
 
     public function headings(): array
@@ -33,7 +33,7 @@ class UserExport implements FromCollection, WithHeadings, WithMapping, ShouldAut
         ];
     }
 
-    public function map($user) : array
+    public function map($user): array
     {
         return [
             $user->nama_lengkap ?? ' ',

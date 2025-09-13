@@ -19,97 +19,97 @@ class ClusterSeeder extends Seeder
                 'badanusaha_id' => 1,
                 'divisi_id' => 1,
                 'region_id' => 1,
-                'name' => 'CSW1'
+                'name' => 'CSW1',
             ],
             [
                 'badanusaha_id' => 1,
                 'divisi_id' => 1,
                 'region_id' => 1,
-                'name' => 'CSW2'
+                'name' => 'CSW2',
             ],
             [
                 'badanusaha_id' => 1,
                 'divisi_id' => 1,
                 'region_id' => 1,
-                'name' => 'CSW3'
+                'name' => 'CSW3',
             ],
             [
                 'badanusaha_id' => 1,
                 'divisi_id' => 1,
                 'region_id' => 1,
-                'name' => 'CSW4'
+                'name' => 'CSW4',
             ],
             [
                 'badanusaha_id' => 1,
                 'divisi_id' => 1,
                 'region_id' => 1,
-                'name' => 'CSW5'
+                'name' => 'CSW5',
             ],
             [
                 'badanusaha_id' => 1,
                 'divisi_id' => 1,
                 'region_id' => 1,
-                'name' => 'CSW6'
-            ],
-            [
-                'badanusaha_id' => 2,
-                'divisi_id' => 2,
-                'region_id' => 2,   
-                'name' => 'CWO1'
+                'name' => 'CSW6',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO2'
+                'name' => 'CWO1',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO3'
+                'name' => 'CWO2',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO4'
+                'name' => 'CWO3',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO5'
+                'name' => 'CWO4',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO6'
+                'name' => 'CWO5',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO7'
+                'name' => 'CWO6',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO8'
+                'name' => 'CWO7',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO9'
+                'name' => 'CWO8',
             ],
             [
                 'badanusaha_id' => 2,
                 'divisi_id' => 2,
                 'region_id' => 2,
-                'name' => 'CWO10'
+                'name' => 'CWO9',
+            ],
+            [
+                'badanusaha_id' => 2,
+                'divisi_id' => 2,
+                'region_id' => 2,
+                'name' => 'CWO10',
             ],
             [
                 'badanusaha_id' => 1,
@@ -329,7 +329,7 @@ class ClusterSeeder extends Seeder
             ],
             [
                 'badanusaha_id' => 2,
-                'divisi_id' => 3,               
+                'divisi_id' => 3,
                 'region_id' => 8,
                 'name' => 'CJT2',
             ],
@@ -365,7 +365,7 @@ class ClusterSeeder extends Seeder
             ],
             [
                 'badanusaha_id' => 2,
-                'divisi_id' => 2,               
+                'divisi_id' => 2,
                 'region_id' => 7,
                 'name' => 'CJO2',
             ],
@@ -475,7 +475,7 @@ class ClusterSeeder extends Seeder
                 'badanusaha_id' => 1,
                 'divisi_id' => 1,
                 'region_id' => 18,
-                'name' => 'JBO'
+                'name' => 'JBO',
             ],
         ]);
     }

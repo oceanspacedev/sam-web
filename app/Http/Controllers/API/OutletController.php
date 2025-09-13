@@ -64,7 +64,7 @@ class OutletController extends Controller
                         ->where('badanusaha_id', $user->badanusaha_id)
                         ->where('divisi_id', $user->divisi_id)
                         ->where('region_id', $user->region_id)
-                        ->where('cluster_id', $user->cluster_id)
+                        ->whereIn('cluster_id', [$user->cluster_id, $user->cluster_id2])
                         ->orderBy('nama_outlet')
                         ->get();
                     break;

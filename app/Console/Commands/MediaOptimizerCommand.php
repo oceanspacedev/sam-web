@@ -11,23 +11,23 @@ use FFMpeg\Format\Video\X264;
 class MediaOptimizerCommand extends Command
 {
     /**
-     * The name and signature of the console command.
+     * Nama dan tanda tangan dari perintah konsol.
      *
      * @var string
      */
     protected $signature = 'media:optimize 
-                           {--path=public : The storage disk path to optimize}
-                           {--images : Only optimize images}
-                           {--videos : Only optimize videos}
-                           {--force : Force optimization even if file is already optimized}
-                           {--dry-run : Show what would be optimized without actually doing it}';
+                           {--path=public : Path disk storage yang akan dioptimasi}
+                           {--images : Hanya optimasi gambar}
+                           {--videos : Hanya optimasi video}
+                           {--force : Paksa optimasi meskipun file sudah dioptimasi}
+                           {--dry-run : Tampilkan apa yang akan dioptimasi tanpa benar-benar melakukannya}';
 
     /**
-     * The console command description.
+     * Deskripsi perintah konsol.
      *
      * @var string
      */
-    protected $description = 'Optimize media files (images: 70-150KB, videos: max 1MB)';
+    protected $description = 'Optimasi file media (gambar: 70-150KB, video: maks 1MB)';
 
     private $stats = [
         'images_processed' => 0,
@@ -40,7 +40,7 @@ class MediaOptimizerCommand extends Command
     ];
 
     /**
-     * Execute the console command.
+     * Jalankan perintah konsol.
      */
     public function handle()
     {
@@ -50,19 +50,19 @@ class MediaOptimizerCommand extends Command
         $force = $this->option('force');
         $dryRun = $this->option('dry-run');
         
-        $this->info("🚀 Starting media optimization for storage disk: {$path}");
+        $this->info("🚀 Memulai optimasi media untuk disk storage: {$path}");
         
         if ($dryRun) {
-            $this->warn("🔍 DRY RUN MODE - No files will be modified");
+            $this->warn("🔍 MODE UJI COBA - Tidak ada file yang akan dimodifikasi");
         }
         
-        // Get all files from storage
+        // Dapatkan semua file dari storage
         $files = Storage::disk($path)->allFiles();
         
         $imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
         $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv'];
         
-        $this->info("📁 Found " . count($files) . " files to analyze");
+        $this->info("📁 Ditemukan " . count($files) . " file untuk dianalisis");
         
         $progressBar = $this->output->createProgressBar(count($files));
         $progressBar->start();
@@ -83,7 +83,7 @@ class MediaOptimizerCommand extends Command
             } catch (\Exception $e) {
                 $this->stats['errors']++;
                 $this->newLine();
-                $this->error("❌ Error processing {$file}: " . $e->getMessage());
+                $this->error("❌ Error memproses {$file}: " . $e->getMessage());
             }
             
             $progressBar->advance();
@@ -96,20 +96,20 @@ class MediaOptimizerCommand extends Command
     }
     
     /**
-     * Process image file
+     * Proses file gambar
      */
     private function processImage($file, $filePath, $currentSize, $force, $dryRun)
     {
         $targetMin = 70 * 1024;  // 70KB
         $targetMax = 150 * 1024; // 150KB
         
-        // Skip if already within target range and not forcing
+        // Lewati jika sudah dalam rentang target dan tidak dipaksa
         if (!$force && $currentSize >= $targetMin && $currentSize <= $targetMax) {
             $this->stats['images_skipped']++;
             return;
         }
         
-        // Skip if already smaller than minimum target
+        // Lewati jika sudah lebih kecil dari target minimum
         if ($currentSize < $targetMin) {
             $this->stats['images_skipped']++;
             return;
@@ -117,7 +117,7 @@ class MediaOptimizerCommand extends Command
         
         if ($dryRun) {
             $this->newLine();
-            $this->info("🖼️  Would optimize image: {$file} (" . $this->formatBytes($currentSize) . ")");
+            $this->info("🖼️  Akan mengoptimasi gambar: {$file} (" . $this->formatBytes($currentSize) . ")");
             return;
         }
         
@@ -127,7 +127,7 @@ class MediaOptimizerCommand extends Command
             $this->stats['images_processed']++;
             $this->stats['total_size_after'] += $newSize;
             $this->newLine();
-            $this->info("✅ Optimized image: {$file} (" . $this->formatBytes($currentSize) . " → " . $this->formatBytes($newSize) . ")");
+            $this->info("✅ Gambar dioptimasi: {$file} (" . $this->formatBytes($currentSize) . " → " . $this->formatBytes($newSize) . ")");
         } else {
             $this->stats['images_skipped']++;
             $this->stats['total_size_after'] += $currentSize;
@@ -135,13 +135,13 @@ class MediaOptimizerCommand extends Command
     }
     
     /**
-     * Process video file
+     * Proses file video
      */
     private function processVideo($file, $filePath, $currentSize, $force, $dryRun)
     {
         $targetMax = 1024 * 1024; // 1MB
         
-        // Skip if already within target and not forcing
+        // Lewati jika sudah dalam target dan tidak dipaksa
         if (!$force && $currentSize <= $targetMax) {
             $this->stats['videos_skipped']++;
             return;
@@ -149,7 +149,7 @@ class MediaOptimizerCommand extends Command
         
         if ($dryRun) {
             $this->newLine();
-            $this->info("🎥 Would optimize video: {$file} (" . $this->formatBytes($currentSize) . ")");
+            $this->info("🎥 Akan mengoptimasi video: {$file} (" . $this->formatBytes($currentSize) . ")");
             return;
         }
         
@@ -159,7 +159,7 @@ class MediaOptimizerCommand extends Command
             $this->stats['videos_processed']++;
             $this->stats['total_size_after'] += $newSize;
             $this->newLine();
-            $this->info("✅ Optimized video: {$file} (" . $this->formatBytes($currentSize) . " → " . $this->formatBytes($newSize) . ")");
+            $this->info("✅ Video dioptimasi: {$file} (" . $this->formatBytes($currentSize) . " → " . $this->formatBytes($newSize) . ")");
         } else {
             $this->stats['videos_skipped']++;
             $this->stats['total_size_after'] += $currentSize;
@@ -167,39 +167,40 @@ class MediaOptimizerCommand extends Command
     }
     
     /**
-     * Optimize image file
+     * Optimasi file gambar
      */
     private function optimizeImage($filePath, $currentSize, $targetMin, $targetMax)
     {
         try {
-            // Check if file exists and is readable
+            // Periksa apakah file ada dan dapat dibaca
             if (!file_exists($filePath) || !is_readable($filePath)) {
-                throw new \Exception("File not found or not readable: {$filePath}");
+                throw new \Exception("File tidak ditemukan atau tidak dapat dibaca: {$filePath}");
             }
             
-            // Start with quality 85
+            // Mulai dengan kualitas 85
             $quality = 85;
             $originalWidth = null;
             $originalHeight = null;
             
-            // Try different compression levels
+            // Coba tingkat kompresi yang berbeda
             for ($attempt = 0; $attempt < 10; $attempt++) {
-                // Create temporary file with unique name
-                $tempPath = $filePath . '.temp.' . time() . $attempt;
+                // Buat file sementara dengan nama unik dan ekstensi yang benar
+                $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+                $tempPath = $filePath . '.temp.' . time() . $attempt . '.' . $extension;
                 
                 try {
-                    // Create fresh image instance each time
+                    // Buat instance gambar baru setiap kali
                     $image = Image::make($filePath);
                     
-                    // Get original dimensions on first attempt
+                    // Dapatkan dimensi asli pada percobaan pertama
                     if ($originalWidth === null) {
                         $originalWidth = $image->width();
                         $originalHeight = $image->height();
                     }
                     
-                    // Calculate resize dimensions if needed
+                    // Hitung dimensi resize jika diperlukan
                     if ($quality <= 60) {
-                        // Reduce dimensions by 10% each time we go below quality 60
+                        // Kurangi dimensi 10% setiap kali kualitas di bawah 60
                         $reductionFactor = 0.9 - (($attempt - 5) * 0.1);
                         $newWidth = intval($originalWidth * $reductionFactor);
                         $newHeight = intval($originalHeight * $reductionFactor);
@@ -212,54 +213,54 @@ class MediaOptimizerCommand extends Command
                         }
                     }
                     
-                    // Save with current quality (keep original format)
-                    $image->save($tempPath, $quality);
+                    // Simpan dengan kualitas saat ini, secara eksplisit mengatur format untuk keamanan
+                    $image->save($tempPath, $quality, $extension);
                     
-                    // Check if temp file was created successfully
+                    // Periksa apakah file temp berhasil dibuat
                     if (!file_exists($tempPath)) {
-                        throw new \Exception("Failed to create temporary file: {$tempPath}");
+                        throw new \Exception("Gagal membuat file sementara: {$tempPath}");
                     }
                     
                     $newSize = filesize($tempPath);
                     
-                    // Check if we hit the target
+                    // Periksa apakah kita mencapai target
                     if ($newSize <= $targetMax && $newSize >= $targetMin) {
-                        // Perfect! Replace original
+                        // Sempurna! Ganti file asli
                         if (rename($tempPath, $filePath)) {
                             return $newSize;
                         } else {
                             unlink($tempPath);
-                            throw new \Exception("Failed to replace original file");
+                            throw new \Exception("Gagal mengganti file asli");
                         }
                     } elseif ($newSize > $targetMax) {
-                        // Still too large, reduce quality
+                        // Masih terlalu besar, kurangi kualitas
                         if ($quality > 60) {
                             $quality -= 10;
                         } else {
-                            $quality = 60; // Keep at minimum
+                            $quality = 60; // Pertahankan minimum
                         }
                     } else {
-                        // Too small, increase quality
+                        // Terlalu kecil, tingkatkan kualitas
                         if ($quality < 95) {
                             $quality += 5;
                         } else {
-                            // Accept this result
+                            // Terima hasil ini
                             if (rename($tempPath, $filePath)) {
                                 return $newSize;
                             } else {
                                 unlink($tempPath);
-                                throw new \Exception("Failed to replace original file");
+                                throw new \Exception("Gagal mengganti file asli");
                             }
                         }
                     }
                     
-                    // Clean up temp file
+                    // Bersihkan file temp
                     if (file_exists($tempPath)) {
                         unlink($tempPath);
                     }
                     
                 } catch (\Exception $e) {
-                    // Clean up temp file on any exception
+                    // Bersihkan file temp pada pengecualian apa pun
                     if (file_exists($tempPath)) {
                         unlink($tempPath);
                     }
@@ -270,7 +271,7 @@ class MediaOptimizerCommand extends Command
             return false;
             
         } catch (\Exception $e) {
-            // Clean up any temp files
+            // Bersihkan file temp apa pun
             $pattern = $filePath . '.temp.*';
             foreach (glob($pattern) as $tempFile) {
                 if (file_exists($tempFile)) {
@@ -282,35 +283,35 @@ class MediaOptimizerCommand extends Command
     }
     
     /**
-     * Optimize video file
+     * Optimasi file video
      */
     private function optimizeVideo($filePath, $currentSize, $targetMax)
     {
         try {
-            // Check if ffmpeg is available
+            // Periksa apakah ffmpeg tersedia
             if (!$this->checkFFmpegAvailable()) {
-                throw new \Exception('FFmpeg is not available on this system');
+                throw new \Exception('FFmpeg tidak tersedia pada sistem ini');
             }
             
             $ffmpeg = FFMpeg::create();
             $video = $ffmpeg->open($filePath);
             
-            // Get video information
+            // Dapatkan informasi video
             $probe = $ffmpeg->getFFProbe();
             $duration = $probe->format($filePath)->get('duration');
             
-            // Calculate target bitrate
-            $targetBitrate = intval(($targetMax * 8) / $duration / 1024 * 0.8); // 80% of theoretical max
+            // Hitung target bitrate
+            $targetBitrate = intval(($targetMax * 8) / $duration / 1024 * 0.8); // 80% dari maksimum teoritis
             
             if ($targetBitrate < 200) {
-                $targetBitrate = 200; // Minimum quality
+                $targetBitrate = 200; // Kualitas minimum
             }
             
-            // Create format with compression settings
+            // Buat format dengan pengaturan kompresi
             $format = new X264('libmp3lame');
             $format->setKiloBitrate($targetBitrate);
             
-            // Set video codec options for better compression
+            // Atur opsi codec video untuk kompresi yang lebih baik
             $format->setAdditionalParameters([
                 '-preset', 'medium',
                 '-crf', '28',
@@ -318,7 +319,7 @@ class MediaOptimizerCommand extends Command
                 '-r', '24' // 24 fps
             ]);
             
-            // Create temporary output file
+            // Buat file output sementara
             $tempPath = $filePath . '.temp.mp4';
             
             $video->save($format, $tempPath);
@@ -326,17 +327,17 @@ class MediaOptimizerCommand extends Command
             $newSize = filesize($tempPath);
             
             if ($newSize <= $targetMax) {
-                // Success! Replace original
+                // Berhasil! Ganti file asli
                 rename($tempPath, $filePath);
                 return $newSize;
             } else {
-                // Still too large, clean up
+                // Masih terlalu besar, bersihkan
                 unlink($tempPath);
                 return false;
             }
             
         } catch (\Exception $e) {
-            // Clean up temp file if exists
+            // Bersihkan file temp jika ada
             $tempPath = $filePath . '.temp.mp4';
             if (file_exists($tempPath)) {
                 unlink($tempPath);
@@ -346,7 +347,7 @@ class MediaOptimizerCommand extends Command
     }
     
     /**
-     * Check if FFmpeg is available
+     * Periksa apakah FFmpeg tersedia
      */
     private function checkFFmpegAvailable()
     {
@@ -355,7 +356,7 @@ class MediaOptimizerCommand extends Command
     }
     
     /**
-     * Format bytes to human readable format
+     * Format bytes ke format yang dapat dibaca manusia
      */
     private function formatBytes($bytes, $precision = 2)
     {
@@ -369,18 +370,18 @@ class MediaOptimizerCommand extends Command
     }
     
     /**
-     * Show optimization summary
+     * Tampilkan ringkasan optimasi
      */
     private function showSummary()
     {
         $this->newLine(2);
-        $this->info("📊 OPTIMIZATION SUMMARY");
+        $this->info("📊 RINGKASAN OPTIMASI");
         $this->info("========================");
-        $this->info("🖼️  Images processed: " . $this->stats['images_processed']);
-        $this->info("🎥 Videos processed: " . $this->stats['videos_processed']);
-        $this->info("⏭️  Images skipped: " . $this->stats['images_skipped']);
-        $this->info("⏭️  Videos skipped: " . $this->stats['videos_skipped']);
-        $this->info("❌ Errors: " . $this->stats['errors']);
+        $this->info("🖼️  Gambar diproses: " . $this->stats['images_processed']);
+        $this->info("🎥 Video diproses: " . $this->stats['videos_processed']);
+        $this->info("⏭️  Gambar dilewati: " . $this->stats['images_skipped']);
+        $this->info("⏭️  Video dilewati: " . $this->stats['videos_skipped']);
+        $this->info("❌ Error: " . $this->stats['errors']);
         
         $sizeBefore = $this->formatBytes($this->stats['total_size_before']);
         $sizeAfter = $this->formatBytes($this->stats['total_size_after']);
@@ -388,9 +389,9 @@ class MediaOptimizerCommand extends Command
         $percentage = $this->stats['total_size_before'] > 0 ? 
             round((($this->stats['total_size_before'] - $this->stats['total_size_after']) / $this->stats['total_size_before']) * 100, 2) : 0;
         
-        $this->info("💾 Total size before: {$sizeBefore}");
-        $this->info("💾 Total size after: {$sizeAfter}");
-        $this->info("🎯 Space saved: {$saved} ({$percentage}%)");
+        $this->info("💾 Total ukuran sebelum: {$sizeBefore}");
+        $this->info("💾 Total ukuran sesudah: {$sizeAfter}");
+        $this->info("🎯 Ruang tersimpan: {$saved} ({$percentage}%)");
         $this->newLine();
     }
 }

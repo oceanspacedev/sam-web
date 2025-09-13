@@ -24,7 +24,12 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Jalankan optimasi media setiap jam 11 malam
+        $schedule->command('media:optimize --path=public')
+                 ->dailyAt('23:00')
+                 ->withoutOverlapping()
+                 ->runInBackground()
+                 ->appendOutputTo(storage_path('logs/media-optimization.log'));
     }
 
     /**

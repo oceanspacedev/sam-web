@@ -92,25 +92,34 @@ class QuickMediaCompressCommand extends Command
         }
         
         try {
+            // Try to load image with error handling
             $image = Image::make($filePath);
-            $quality = 85;
-            $width = $image->width();
-            $height = $image->height();
             
-            // Try to compress
-            for ($i = 0; $i < 5; $i++) {
-                $tempPath = $filePath . '.temp.' . uniqid();
-                
+            // Convert to RGB if needed (fixes some encoding issues)
+            if ($image->mime() !== 'image/jpeg' && $image->mime() !== 'image/png') {
+                $image->encode('jpg', 85);
+            }
+            
+            $quality = 85;
+            
+            // Try to compress for a maximum of 10 attempts
+            for ($i = 0; $i < 10; $i++) {
+                // Work on a clone to avoid reloading the original file
+                $tempImage = clone $image;
+                $tempPath = $filePath . '.temp.' . uniqid() . '.jpg';
+
                 try {
-                    // Resize if needed
-                    if ($currentSize > $targetMax * 2) {
-                        $image->resize($width, $height, function ($constraint) {
+                    // Adjust dimensions progressively if quality reduction is not enough
+                    if ($quality < 70 && $i > 2) {
+                        $scale = 1 - (($i - 2) * 0.05); // Reduce size by 5% each step after 2 attempts
+                        $tempImage->resize(intval($tempImage->width() * $scale), null, function ($constraint) {
                             $constraint->aspectRatio();
                             $constraint->upsize();
                         });
                     }
-                    
-                    $image->save($tempPath, $quality);
+
+                    // Save the image with the current quality
+                    $tempImage->save($tempPath, $quality);
                     
                     if (!file_exists($tempPath)) {
                         throw new \Exception("Failed to create temporary file: {$tempPath}");
@@ -118,24 +127,18 @@ class QuickMediaCompressCommand extends Command
                     
                     $newSize = filesize($tempPath);
                     
-                    if ($newSize <= $targetMax && $newSize >= $targetMin) {
+                    if ($newSize <= $targetMax) {
+                        // If it's within range or smaller than min, we accept it
                         if (rename($tempPath, $filePath)) {
                             return true;
                         } else {
                             unlink($tempPath);
                             throw new \Exception("Failed to replace original file");
                         }
-                    } elseif ($newSize > $targetMax) {
-                        $quality -= 15;
-                        $width = intval($width * 0.9);
-                        $height = intval($height * 0.9);
                     } else {
-                        if (rename($tempPath, $filePath)) {
-                            return true;
-                        } else {
-                            unlink($tempPath);
-                            throw new \Exception("Failed to replace original file");
-                        }
+                        // Still too large, reduce quality for the next iteration
+                        $quality -= 5; 
+                        if ($quality < 40) $quality = 40; // Set a minimum quality
                     }
                     
                     if (file_exists($tempPath)) {
@@ -146,17 +149,116 @@ class QuickMediaCompressCommand extends Command
                     if (file_exists($tempPath)) {
                         unlink($tempPath);
                     }
-                    throw $e;
+                    throw $e; // Re-throw to be caught by the outer catch block
                 }
             }
             
-            return false;
+            return false; // Return false if target size not met after all attempts
             
         } catch (\Exception $e) {
-            throw $e;
+            // Fallback: Try with GD library directly
+            return $this->compressImageWithGD($filePath, $currentSize, $targetMin, $targetMax);
         }
     }
     
+    /**
+     * Fallback image compression using GD library
+     */
+    private function compressImageWithGD($filePath, $currentSize, $targetMin, $targetMax)
+    {
+        try {
+            $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+            
+            // Create image resource based on extension
+            switch ($extension) {
+                case 'jpg':
+                case 'jpeg':
+                    $image = imagecreatefromjpeg($filePath);
+                    break;
+                case 'png':
+                    $image = imagecreatefrompng($filePath);
+                    break;
+                case 'gif':
+                    $image = imagecreatefromgif($filePath);
+                    break;
+                case 'webp':
+                    $image = imagecreatefromwebp($filePath);
+                    break;
+                default:
+                    return false;
+            }
+            
+            if (!$image) {
+                return false;
+            }
+            
+            $width = imagesx($image);
+            $height = imagesy($image);
+            $quality = 85;
+            
+            // Try to compress
+            for ($i = 0; $i < 5; $i++) {
+                $tempPath = $filePath . '.temp.' . uniqid() . '.jpg';
+                
+                // Resize if needed
+                if ($currentSize > $targetMax * 2) {
+                    $newWidth = intval($width * 0.9);
+                    $newHeight = intval($height * 0.9);
+                    $resized = imagecreatetruecolor($newWidth, $newHeight);
+                    
+                    // Preserve transparency for PNG
+                    if ($extension === 'png') {
+                        imagealphablending($resized, false);
+                        imagesavealpha($resized, true);
+                    }
+                    
+                    imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                    imagedestroy($image);
+                    $image = $resized;
+                    $width = $newWidth;
+                    $height = $newHeight;
+                }
+                
+                // Save as JPEG
+                if (imagejpeg($image, $tempPath, $quality)) {
+                    $newSize = filesize($tempPath);
+                    
+                    if ($newSize <= $targetMax && $newSize >= $targetMin) {
+                        imagedestroy($image);
+                        if (rename($tempPath, $filePath)) {
+                            return true;
+                        } else {
+                            unlink($tempPath);
+                            return false;
+                        }
+                    } elseif ($newSize > $targetMax) {
+                        $quality -= 15;
+                        if ($quality < 10) $quality = 10;
+                    } else {
+                        imagedestroy($image);
+                        if (rename($tempPath, $filePath)) {
+                            return true;
+                        } else {
+                            unlink($tempPath);
+                            return false;
+                        }
+                    }
+                    
+                    unlink($tempPath);
+                } else {
+                    imagedestroy($image);
+                    return false;
+                }
+            }
+            
+            imagedestroy($image);
+            return false;
+            
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
     /**
      * Compress video to max 1MB
      */

@@ -16,7 +16,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
      * - URL Path: env('TELESCOPE_PATH', 'telescope')
      * - Current: /admin-monitoring (configured in .env)
      * - Access: SUPER ADMIN role only
-     * - Filters: Show only slow requests (>500ms) and errors in production
+     * - Filters: Show slow requests (≥1s), all errors (4xx, 5xx), exceptions & failed jobs
      */
     public function register(): void
     {
@@ -46,32 +46,36 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
                 return true;
             }
 
-            // For request entries, only show 200 OK responses with slow queries (>500ms)
+            // For request entries
             if ($entry->type === 'request') {
                 $content = $entry->content;
+                $statusCode = $content['response_status'] ?? 0;
+                $duration = $content['duration'] ?? 0;
 
-                // Check if it's a 200 OK response
-                if (isset($content['response_status']) && $content['response_status'] === 200) {
-                    // Check if duration is over 500ms
-                    if (isset($content['duration']) && $content['duration'] > 500) {
-                        return true;
-                    }
+                // Show all error responses (4xx, 5xx) regardless of duration
+                if ($statusCode >= 400) {
+                    return true;
                 }
 
-                // Don't show other 200 OK requests
+                // Show successful responses (2xx, 3xx) ONLY if they're slow (≥1000ms)
+                if ($statusCode >= 200 && $statusCode < 400) {
+                    return $duration >= 1000; // Must be 1 second or more
+                }
+
+                // Don't show anything else
                 return false;
             }
 
-            // For query entries, only show slow queries (>500ms)
+            // For query entries, only show slow queries (≥1 second)
             if ($entry->type === 'query') {
                 $content = $entry->content;
-                if (isset($content['time']) && $content['time'] > 500) {
+                if (isset($content['time']) && $content['time'] >= 1000) {
                     return true;
                 }
                 return false;
             }
 
-            // Show other types of entries
+            // Show other types of entries (logs, cache, etc.)
             return true;
         });
     }

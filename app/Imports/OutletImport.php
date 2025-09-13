@@ -48,7 +48,7 @@ class OutletImport implements ToModel, WithHeadingRow
                     'kode_outlet' => preg_replace('/\s+/', '', strtoupper($row['kode_outlet'])),
                     'nama_outlet' => strtoupper($row['nama_outlet']),
                     // 'alamat_outlet' => strtoupper($row['alamat_outlet']),
-                    'distric' => strtoupper($row['distric']),
+                    // 'distric' => strtoupper($row['distric']),
                     'status_outlet' => strtoupper($row['status']),
                     // 'radius' => $row['radius'] ?? $outlet->radius,
                     // 'limit' => $row['limit'] ?? $outlet->limit,

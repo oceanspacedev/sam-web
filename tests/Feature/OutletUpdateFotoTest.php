@@ -9,32 +9,15 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\Feature\FeatureTestCase;
+use Tests\Concerns\SeedsMasterData;
 
-class OutletUpdateFotoTest extends TestCase
+class OutletUpdateFotoTest extends FeatureTestCase
 {
-    use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Storage::fake('public');
-    }
-
-    private function seedMasterData(): array
-    {
-        $bu = BadanUsaha::create(['name' => 'BU']);
-        $div = Division::create(['name' => 'DIV', 'badanusaha_id' => $bu->id]);
-        $reg = Region::create(['name' => 'REG', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-        $clus = Cluster::create(['name' => 'CLUS', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-        $role = Role::create(['name' => 'DM', 'can_access_web' => 1]);
-
-        return compact('bu', 'div', 'reg', 'clus', 'role');
-    }
+    use SeedsMasterData;
 
     public function test_update_outlet_single_photo_and_video_succeeds()
     {
@@ -96,10 +79,10 @@ class OutletUpdateFotoTest extends TestCase
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_depan);
         $this->assertStringStartsWith('outlets/OUT001/photos/', $outlet->poto_depan);
-        Storage::disk('public')->assertExists($outlet->poto_depan);
+    $this->assertTrue(Storage::disk('public')->exists($outlet->poto_depan));
 
         $this->assertNotNull($outlet->video);
         $this->assertStringStartsWith('outlets/OUT001/videos/', $outlet->video);
-        Storage::disk('public')->assertExists($outlet->video);
+    $this->assertTrue(Storage::disk('public')->exists($outlet->video));
     }
 }

@@ -9,21 +9,15 @@ use App\Models\Noo;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\Feature\FeatureTestCase;
+use Tests\Concerns\SeedsMasterData;
 
-class NooFlowTest extends TestCase
+class NooFlowTest extends FeatureTestCase
 {
-    use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Storage::fake('public');
-    }
+    use SeedsMasterData;
 
     private function seedGraph(): array
     {

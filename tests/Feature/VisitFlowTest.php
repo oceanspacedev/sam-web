@@ -9,32 +9,17 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\Feature\FeatureTestCase;
+use Tests\Concerns\SeedsMasterData;
 
-class VisitFlowTest extends TestCase
+class VisitFlowTest extends FeatureTestCase
 {
-    use RefreshDatabase;
+    use SeedsMasterData;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Storage::fake('public');
-    }
-
-    private function seedMasterData(): array
-    {
-        $bu = BadanUsaha::create(['name' => 'BU']);
-        $div = Division::create(['name' => 'DIV', 'badanusaha_id' => $bu->id]);
-        $reg = Region::create(['name' => 'REG', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-        $clus = Cluster::create(['name' => 'CLUS', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-        $role = Role::create(['name' => 'DM', 'can_access_web' => 1]);
-
-        return compact('bu', 'div', 'reg', 'clus', 'role');
-    }
+    // Storage is already faked in FeatureTestCase.
 
     public function test_visit_checkin_and_checkout_flow()
     {
@@ -103,7 +88,7 @@ class VisitFlowTest extends TestCase
         $outPath = $respOut->json('data.visit.picture_visit_out');
         $this->assertNotEmpty($inPath);
         $this->assertNotEmpty($outPath);
-        Storage::disk('public')->assertExists($inPath);
-        Storage::disk('public')->assertExists($outPath);
+    $this->assertTrue(Storage::disk('public')->exists($inPath));
+    $this->assertTrue(Storage::disk('public')->exists($outPath));
     }
 }

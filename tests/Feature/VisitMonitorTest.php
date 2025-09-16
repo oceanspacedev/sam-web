@@ -13,9 +13,9 @@ use App\Models\Visit;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\Feature\FeatureTestCase;
 
-class VisitMonitorTest extends TestCase
+class VisitMonitorTest extends FeatureTestCase
 {
     use RefreshDatabase;
 

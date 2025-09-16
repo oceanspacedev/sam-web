@@ -8,21 +8,14 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\Feature\FeatureTestCase;
 
-class VisitCheckoutWithoutCheckinTest extends TestCase
+class VisitCheckoutWithoutCheckinTest extends FeatureTestCase
 {
-    use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Storage::fake('public');
-    }
+    // Uses base FeatureTestCase setup.
 
     public function test_checkout_without_checkin_returns_422()
     {

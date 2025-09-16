@@ -9,32 +9,17 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\Feature\FeatureTestCase;
+use Tests\Concerns\SeedsMasterData;
 
-class OutletUpdateEdgeCasesTest extends TestCase
+class OutletUpdateEdgeCasesTest extends FeatureTestCase
 {
-    use RefreshDatabase;
+    use SeedsMasterData;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Storage::fake('public');
-    }
-
-    private function seedMasterData(): array
-    {
-        $bu = BadanUsaha::create(['name' => 'BU']);
-        $div = Division::create(['name' => 'DIV', 'badanusaha_id' => $bu->id]);
-        $reg = Region::create(['name' => 'REG', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-        $clus = Cluster::create(['name' => 'CLUS', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-        $role = Role::create(['name' => 'DM', 'can_access_web' => 1]);
-
-        return compact('bu', 'div', 'reg', 'clus', 'role');
-    }
+    // Uses SeedsMasterData::seedMasterData().
 
     private function actingUser(array $seed)
     {
@@ -109,7 +94,7 @@ class OutletUpdateEdgeCasesTest extends TestCase
         $resp->assertStatus(200);
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_shop_sign);
-        Storage::disk('public')->assertExists($outlet->poto_shop_sign);
+    $this->assertTrue(Storage::disk('public')->exists($outlet->poto_shop_sign));
     }
 
     public function test_reject_invalid_mime_photo()
@@ -169,7 +154,7 @@ class OutletUpdateEdgeCasesTest extends TestCase
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_depan);
         $this->assertNotNull($outlet->poto_kanan);
-        Storage::disk('public')->assertExists($outlet->poto_depan);
-        Storage::disk('public')->assertExists($outlet->poto_kanan);
+    $this->assertTrue(Storage::disk('public')->exists($outlet->poto_depan));
+    $this->assertTrue(Storage::disk('public')->exists($outlet->poto_kanan));
     }
 }

@@ -34,36 +34,36 @@ Route::get('/login', [LoginController::class, 'index'])->name('login');
 
 // #LOGIN
 Route::get('/masuk', [LoginController::class, 'index'])->name('masuk');
-Route::post('/masuk', [LoginController::class, 'login']);
+Route::post('/masuk', [LoginController::class, 'login'])->middleware('throttle:login');
 
 // #EXPORT
 // #USER
-Route::get('/user/export', [UserController::class, 'export'])->name('user.export');
+Route::get('/user/export', [UserController::class, 'export'])->name('user.export')->middleware('throttle:expensive');
 Route::get('/user/export/template', [UserController::class, 'template'])->name('user.template');
 
 // #OUTLET
-Route::get('/outlet/export', [OutletController::class, 'export'])->name('outlet.export');
+Route::get('/outlet/export', [OutletController::class, 'export'])->name('outlet.export')->middleware('throttle:expensive');
 Route::get('/outlet/export/template', [OutletController::class, 'template']);
 
 // #NOO
-Route::get('/noo/export', [NooController::class, 'export'])->name('noo.export');
+Route::get('/noo/export', [NooController::class, 'export'])->name('noo.export')->middleware('throttle:expensive');
 
 // #VISIT
-Route::get('/visit/export', [VisitController::class, 'export'])->name('visit.export');
+Route::get('/visit/export', [VisitController::class, 'export'])->name('visit.export')->middleware('throttle:expensive');
 
 // #PLANVISIT
-Route::get('/planvisit/export', [PlanVisitController::class, 'export'])->name('planvisit.export');
+Route::get('/planvisit/export', [PlanVisitController::class, 'export'])->name('planvisit.export')->middleware('throttle:expensive');
 Route::get('/planvisit/export/template', [PlanVisitController::class, 'template']);
 
 // IMPORT
 // #USER
-Route::post('/user/import', [UserController::class, 'import'])->name('user.import');
+Route::post('/user/import', [UserController::class, 'import'])->name('user.import')->middleware('throttle:expensive');
 
 // #OUTLET
-Route::post('/outlet/import', [OutletController::class, 'import']);
+Route::post('/outlet/import', [OutletController::class, 'import'])->middleware('throttle:expensive');
 
 // #PLAN VISIT
-Route::post('/planvisit/import', [PlanVisitController::class, 'import']);
+Route::post('/planvisit/import', [PlanVisitController::class, 'import'])->middleware('throttle:expensive');
 
 // #MIDDLEWARE
 Route::middleware(['auth', 'isAdmin'])->group(function () {
@@ -136,7 +136,7 @@ Route::middleware(['auth', 'isAdmin'])->group(function () {
     Route::get('/setting/getregion', [SettingController::class, 'getregion']);
 });
 
-Route::get('download/app', [SettingController::class, 'download']);
+Route::get('download/app', [SettingController::class, 'download'])->middleware('throttle:expensive');
 
 Route::get('terms-and-conditions', function () {
     return view('terms_and_conditions');

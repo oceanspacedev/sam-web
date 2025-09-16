@@ -39,6 +39,8 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            // Apply a global web throttle to reduce crawling / DoS impact
+            'throttle:global-web',
             // Inertia removed; Blade-only frontend
         ],
 

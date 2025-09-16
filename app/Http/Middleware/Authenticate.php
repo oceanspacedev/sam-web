@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
+use Illuminate\Support\Facades\Route;
 
 class Authenticate extends Middleware
 {
@@ -14,8 +15,17 @@ class Authenticate extends Middleware
      */
     protected function redirectTo($request)
     {
-        if (! $request->expectsJson()) {
-            return route('masuk');
+        // Jangan redirect untuk API; biarkan 401 JSON dikembalikan
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return null;
         }
+
+        // Arahkan ke halaman login admin (Filament) untuk request web
+        if (Route::has('filament.admin.auth.login')) {
+            return route('filament.admin.auth.login');
+        }
+
+        // Fallback ke path standar
+        return url('/admin/login');
     }
 }

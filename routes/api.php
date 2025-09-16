@@ -68,7 +68,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
 });
 
 // Route::post('user/register', [UserController::class, 'register']);
-Route::post('user/login', [UserController::class, 'login']);
+Route::post('user/login', [UserController::class, 'login'])->middleware('throttle:login');
 
 Route::post('notif', [SendNotif::class, 'sendMessage']);
 
@@ -76,7 +76,7 @@ Route::get('divisi', [SettingController::class, 'getdivisi']);
 Route::get('region', [SettingController::class, 'getregion']);
 
 // Sync API Routes - untuk sinkronisasi data
-Route::prefix('sync')->group(function () {
+Route::prefix('sync')->middleware('throttle:expensive')->group(function () {
     Route::get('badanusaha', [SyncController::class, 'getBadanUsaha']);
     Route::get('division', [SyncController::class, 'getDivision']);
     Route::get('region', [SyncController::class, 'getRegion']);

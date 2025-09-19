@@ -190,9 +190,14 @@ class OutletController extends Controller
 
     }
 
-    public function template()
+    public function template(Request $request)
     {
-        return Excel::download(new TemplateOutletExport, 'outlet_template.xlsx');
+        $mode = $request->query('mode');
+
+        return Excel::download(
+            new TemplateOutletExport($mode),
+            'outlet_template'.($mode ? '_'.$mode : '').'.xlsx'
+        );
     }
 
     private function checkAssets($path)

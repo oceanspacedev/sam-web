@@ -4,13 +4,19 @@ namespace App\Filament\Resources\OutletResource\Pages;
 
 use App\Filament\Exports\OutletExporter;
 use App\Filament\Resources\OutletResource;
+use App\Imports\OutletImport;
 use App\Models\Outlet;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
+use Filament\Forms\Components\Actions\Action as FormAction;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\ToggleButtons;
+use Filament\Notifications\Notification;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ListOutlets extends ListRecords
 {
@@ -29,6 +35,64 @@ class ListOutlets extends ListRecords
                 ->color('success')
                 ->icon('heroicon-o-document-arrow-down')
                 ->label('Export');
+        }
+
+        // Import using Maatwebsite/Excel - single action with inline button group for mode
+        if (Gate::allows('create', Outlet::class)) {
+            $actions[] = Actions\Action::make('import')
+                ->label('Import')
+                ->color('success')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->form([
+                    ToggleButtons::make('mode')
+                        ->label('Mode Import')
+                        ->inline()
+                        ->live()
+                        ->options([
+                            'create_new' => 'Created',
+                            'update_cluster' => 'Update',
+                        ])
+                        ->default('create_new')
+                        ->required(),
+                    FileUpload::make('file')
+                        ->label('File (.xlsx/.csv)')
+                        ->disk('public')
+                        ->directory('import')
+                        ->preserveFilenames()
+                        ->acceptedFileTypes([
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'application/vnd.ms-excel',
+                            'text/csv',
+                            'application/csv',
+                        ])
+                        ->required()
+                        ->hintActions([
+                            FormAction::make('download_template')
+                                ->label('Download Template')
+                                ->url(fn (callable $get) => '/outlet/export/template?mode='.urlencode((string) $get('mode'))),
+                        ]),
+                ])
+                ->modalWidth('md')
+                ->modalHeading('Import Data Outlet')
+                ->modalButton('Import')
+                ->action(function (array $data) {
+                    $relativePath = $data['file'];
+                    $fullPath = storage_path('app/public/'.ltrim($relativePath, '/'));
+
+                    try {
+                        Excel::import(new OutletImport($data['mode']), $fullPath);
+                        Notification::make()
+                            ->title('Import berhasil')
+                            ->success()
+                            ->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->title('Import gagal')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                });
         }
 
         return $actions;

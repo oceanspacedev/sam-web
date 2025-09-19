@@ -72,7 +72,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 Widgets\AccountWidget::class,
             ])
-            
+
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -83,10 +83,11 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
-                
+
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->viteTheme('resources/css/filament/admin/theme.css');
     }
 }

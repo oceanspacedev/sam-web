@@ -28,9 +28,19 @@ class DivisionResource extends Resource
             ->schema([
                 Forms\Components\Select::make('badanusaha_id')
                     ->label('Badan Usaha')
+                    ->relationship('badanUsaha', 'name')
                     ->searchable()
                     ->required()
                     ->placeholder('Pilih badan usaha')
+                    ->createOptionForm([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->unique()
+                            ->maxLength(255)
+                            ->helperText('Auto-format ke UPPERCASE tanpa spasi')
+                            ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                    ])
+                    ->helperText('Pilih Badan Usaha atau tambah baru jika belum ada.')
                     ->options(function (callable $get) {
                         $user = auth()->user();
                         $role = $user->role;
@@ -47,7 +57,10 @@ class DivisionResource extends Resource
                     }),
                 Forms\Components\TextInput::make('name')
                     ->required()
-                    ->maxLength(255),
+                    ->unique(ignoreRecord: true)
+                    ->maxLength(255)
+                    ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: divisi a → DIVISI_A')
+                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
             ]);
     }
 
@@ -56,8 +69,23 @@ class DivisionResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->searchable()
+                    ->sortable()
+                    ->weight('bold'),
+                Tables\Columns\BadgeColumn::make('badanusaha.name')
+                    ->label('Badan Usaha')
+                    ->color('primary')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('badanusaha.name'),
+                Tables\Columns\TextColumn::make('regions_count')
+                    ->label('Regions')
+                    ->counts('regions')
+                    ->badge()
+                    ->color('success'),
+                Tables\Columns\TextColumn::make('clusters_count')
+                    ->label('Clusters')
+                    ->counts('clusters')
+                    ->badge()
+                    ->color('warning'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -73,11 +101,21 @@ class DivisionResource extends Resource
                     ->label('Badan Usaha'),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('badanusaha')
+                    ->relationship('badanUsaha', 'name')
+                    ->searchable()
+                    ->preload(),
+                Tables\Filters\Filter::make('has_regions')
+                    ->label('Has Regions')
+                    ->query(fn (Builder $query) => $query->has('regions')),
+                Tables\Filters\Filter::make('empty')
+                    ->label('Empty (No Regions)')
+                    ->query(fn (Builder $query) => $query->doesntHave('regions')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->requiresConfirmation(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

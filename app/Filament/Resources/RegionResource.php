@@ -29,10 +29,20 @@ class RegionResource extends Resource
             ->schema([
                 Forms\Components\Select::make('badanusaha_id')
                     ->label('Badan Usaha')
+                    ->relationship('badanUsaha', 'name')
                     ->searchable()
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
+                    ->createOptionForm([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->unique()
+                            ->maxLength(255)
+                            ->helperText('Auto-format ke UPPERCASE tanpa spasi')
+                            ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                    ])
+                    ->helperText('Pilih Badan Usaha atau tambah baru.')
                     ->options(function (callable $get) {
                         $user = auth()->user();
                         $role = $user->role;
@@ -56,6 +66,8 @@ class RegionResource extends Resource
                     ->preload()
                     ->required()
                     ->reactive()
+                    ->placeholder('Pilih divisi')
+                    ->helperText('Divisi akan muncul setelah Badan Usaha dipilih.')
                     ->options(function (callable $get) {
                         $badanusahaId = $get('badanusaha_id');
                         if (! $badanusahaId) {
@@ -67,7 +79,10 @@ class RegionResource extends Resource
                     }),
                 Forms\Components\TextInput::make('name')
                     ->required()
+                    ->unique(ignoreRecord: true)
                     ->maxLength(255)
+                    ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: region jakarta → REGION_JAKARTA')
+                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state))))
                     ->columnSpanFull(),
             ]);
     }
@@ -77,9 +92,22 @@ class RegionResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->searchable()
+                    ->sortable()
+                    ->weight('bold'),
+                Tables\Columns\BadgeColumn::make('badanusaha.name')
+                    ->label('Badan Usaha')
+                    ->color('primary')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('badanusaha.name'),
-                Tables\Columns\TextColumn::make('divisi.name'),
+                Tables\Columns\BadgeColumn::make('divisi.name')
+                    ->label('Divisi')
+                    ->color('success')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('clusters_count')
+                    ->label('Clusters')
+                    ->counts('clusters')
+                    ->badge()
+                    ->color('warning'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -96,15 +124,27 @@ class RegionResource extends Resource
                     ->collapsible(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('badanusaha.name')
+                Tables\Filters\SelectFilter::make('badanusaha')
                     ->relationship('badanusaha', 'name')
                     ->searchable()
                     ->preload()
                     ->label('Badan Usaha'),
+                Tables\Filters\SelectFilter::make('divisi')
+                    ->relationship('divisi', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->label('Divisi'),
+                Tables\Filters\Filter::make('has_clusters')
+                    ->label('Has Clusters')
+                    ->query(fn (Builder $query) => $query->has('clusters')),
+                Tables\Filters\Filter::make('empty')
+                    ->label('Empty (No Clusters)')
+                    ->query(fn (Builder $query) => $query->doesntHave('clusters')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->requiresConfirmation(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

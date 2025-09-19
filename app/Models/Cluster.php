@@ -29,6 +29,12 @@ class Cluster extends Model
         return $this->hasMany(Outlet::class);
     }
 
+    // Alias untuk compatibility dengan Filament
+    public function outlets(): HasMany
+    {
+        return $this->outlet();
+    }
+
     public function noo(): HasMany
     {
         return $this->hasMany(Noo::class);

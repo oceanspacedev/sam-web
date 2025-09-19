@@ -30,10 +30,20 @@ class ClusterResource extends Resource
             ->schema([
                 Forms\Components\Select::make('badanusaha_id')
                     ->label('Badan Usaha')
+                    ->relationship('badanUsaha', 'name')
                     ->searchable()
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
+                    ->createOptionForm([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->unique()
+                            ->maxLength(255)
+                            ->helperText('Auto-format ke UPPERCASE tanpa spasi')
+                            ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                    ])
+                    ->helperText('Pilih Badan Usaha atau tambah baru.')
                     ->options(function (callable $get) {
                         $user = auth()->user();
                         $role = $user->role;
@@ -59,6 +69,8 @@ class ClusterResource extends Resource
                     ->preload()
                     ->required()
                     ->reactive()
+                    ->placeholder('Pilih divisi')
+                    ->helperText('Divisi akan muncul setelah Badan Usaha dipilih.')
                     ->options(function (callable $get) {
                         $badanusahaId = $get('badanusaha_id');
                         if (! $badanusahaId) {
@@ -77,6 +89,8 @@ class ClusterResource extends Resource
                     ->preload()
                     ->required()
                     ->reactive()
+                    ->placeholder('Pilih region')
+                    ->helperText('Region akan muncul setelah Divisi dipilih.')
                     ->options(function (callable $get) {
                         $divisiId = $get('divisi_id');
                         if (! $divisiId) {
@@ -88,7 +102,10 @@ class ClusterResource extends Resource
                     }),
                 Forms\Components\TextInput::make('name')
                     ->required()
-                    ->maxLength(255),
+                    ->unique(ignoreRecord: true)
+                    ->maxLength(255)
+                    ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: cluster 1 → CLUSTER_1')
+                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
             ]);
     }
 
@@ -97,10 +114,26 @@ class ClusterResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->searchable()
+                    ->sortable()
+                    ->weight('bold'),
+                Tables\Columns\BadgeColumn::make('badanusaha.name')
+                    ->label('Badan Usaha')
+                    ->color('primary')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('badanusaha.name'),
-                Tables\Columns\TextColumn::make('divisi.name'),
-                Tables\Columns\TextColumn::make('region.name'),
+                Tables\Columns\BadgeColumn::make('divisi.name')
+                    ->label('Divisi')
+                    ->color('success')
+                    ->searchable(),
+                Tables\Columns\BadgeColumn::make('region.name')
+                    ->label('Region')
+                    ->color('warning')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('outlets_count')
+                    ->label('Outlets')
+                    ->counts('outlets')
+                    ->badge()
+                    ->color('info'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -117,15 +150,32 @@ class ClusterResource extends Resource
                     ->collapsible(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('divisi.name')
+                Tables\Filters\SelectFilter::make('badanusaha')
+                    ->relationship('badanUsaha', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->label('Badan Usaha'),
+                Tables\Filters\SelectFilter::make('divisi')
                     ->relationship('divisi', 'name')
                     ->searchable()
                     ->preload()
                     ->label('Divisi'),
+                Tables\Filters\SelectFilter::make('region')
+                    ->relationship('region', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->label('Region'),
+                Tables\Filters\Filter::make('has_outlets')
+                    ->label('Has Outlets')
+                    ->query(fn (Builder $query) => $query->has('outlets')),
+                Tables\Filters\Filter::make('empty')
+                    ->label('Empty (No Outlets)')
+                    ->query(fn (Builder $query) => $query->doesntHave('outlets')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->requiresConfirmation(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

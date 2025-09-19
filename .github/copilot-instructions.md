@@ -10,7 +10,6 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 - php - 8.2.29
 - filament/filament (FILAMENT) - v3
-- inertiajs/inertia-laravel (INERTIA) - v0
 - laravel/fortify (FORTIFY) - v1
 - laravel/framework (LARAVEL) - v10
 - laravel/octane (OCTANE) - v2
@@ -19,11 +18,10 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - laravel/sanctum (SANCTUM) - v3
 - laravel/telescope (TELESCOPE) - v5
 - livewire/livewire (LIVEWIRE) - v3
-- tightenco/ziggy (ZIGGY) - v1
+- laravel/pint (PINT) - v1
 - laravel/sail (SAIL) - v1
-- phpunit/phpunit (PHPUNIT) - v9
+- phpunit/phpunit (PHPUNIT) - v10
 - tailwindcss (TAILWINDCSS) - v2
-- vue (VUE) - v3
 
 
 ## Conventions
@@ -115,14 +113,6 @@ protected function isAccessible(User $user, ?string $path = null): bool
 
 ## Enums
 - Typically, keys in an Enum should be TitleCase. For example: `FavoritePerson`, `BestLake`, `Monthly`.
-
-
-=== herd rules ===
-
-## Laravel Herd
-
-- The application is served by Laravel Herd and will be available at: https?://[kebab-case-project-dir].test. Use the `get-absolute-url` tool to generate URLs for the user to ensure valid URLs.
-- You must not run any commands to make the site available via HTTP(s). It is _always_ available through Laravel Herd.
 
 
 === filament/core rules ===
@@ -223,24 +213,6 @@ Forms\Components\Select::make('user_id')
 - Requires implementing `FilamentUser` contract for production access control.
 
 
-=== inertia-laravel/core rules ===
-
-## Inertia Core
-
-- Inertia.js components should be placed in the `resources/js/Pages` directory unless specified differently in the JS bundler (vite.config.js).
-- Use `Inertia::render()` for server-side routing instead of traditional Blade views.
-- Use `search-docs` for accurate guidance on all things Inertia.
-
-<code-snippet lang="php" name="Inertia::render Example">
-// routes/web.php example
-Route::get('/users', function () {
-    return Inertia::render('Users/Index', [
-        'users' => User::all()
-    ]);
-});
-</code-snippet>
-
-
 === laravel/core rules ===
 
 ## Do Things the Laravel Way
@@ -305,7 +277,7 @@ Route::get('/users', function () {
 
 ## Livewire Core
 - Use the `search-docs` tool to find exact version specific documentation for how to write Livewire & Livewire tests.
-- Use the `php artisan make:livewire [Posts\\CreatePost]` artisan command to create new components
+- Use the `php artisan make:livewire [Posts\CreatePost]` artisan command to create new components
 - State should live on the server, with the UI reflecting it.
 - All Livewire requests hit the Laravel backend, they're like regular HTTP requests. Always validate form data, and run authorization checks in Livewire actions.
 
@@ -384,6 +356,14 @@ document.addEventListener('livewire:init', function () {
 </code-snippet>
 
 
+=== pint/core rules ===
+
+## Laravel Pint Code Formatter
+
+- You must run `vendor/bin/pint --dirty` before finalizing changes to ensure your code matches the project's expected style.
+- Do not run `vendor/bin/pint --test`, simply run `vendor/bin/pint` to fix any formatting issues.
+
+
 === phpunit/core rules ===
 
 ## PHPUnit Core
@@ -425,4 +405,12 @@ document.addEventListener('livewire:init', function () {
 
 ### Dark Mode
 - If existing pages and components support dark mode, new pages and components must support dark mode in a similar way, typically using `dark:`.
+
+
+=== tests rules ===
+
+## Test Enforcement
+
+- Every change must be programmatically tested. Write a new test or update an existing test, then run the affected tests to make sure they pass.
+- Run the minimum number of tests needed to ensure code quality and speed. Use `php artisan test` with a specific filename or filter.
 </laravel-boost-guidelines>

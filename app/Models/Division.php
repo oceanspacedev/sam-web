@@ -44,8 +44,20 @@ class Division extends Model
         return $this->hasMany(Region::class, 'divisi_id');
     }
 
+    // Alias untuk compatibility dengan Filament
+    public function regions(): HasMany
+    {
+        return $this->region();
+    }
+
     public function cluster(): HasMany
     {
         return $this->hasMany(Cluster::class, 'divisi_id');
+    }
+
+    // Alias untuk compatibility dengan Filament
+    public function clusters(): HasMany
+    {
+        return $this->cluster();
     }
 }

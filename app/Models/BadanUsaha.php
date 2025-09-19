@@ -40,13 +40,31 @@ class BadanUsaha extends Model
         return $this->hasMany(Division::class, 'badanusaha_id');
     }
 
+    // Alias untuk compatibility dengan Filament
+    public function divisions(): HasMany
+    {
+        return $this->divisi();
+    }
+
     public function region(): HasMany
     {
         return $this->hasMany(Region::class, 'badanusaha_id');
     }
 
+    // Alias untuk compatibility dengan Filament
+    public function regions(): HasMany
+    {
+        return $this->region();
+    }
+
     public function cluster(): HasMany
     {
         return $this->hasMany(Cluster::class, 'badanusaha_id');
+    }
+
+    // Alias untuk compatibility dengan Filament
+    public function clusters(): HasMany
+    {
+        return $this->cluster();
     }
 }

@@ -48,4 +48,10 @@ class Region extends Model
     {
         return $this->hasMany(Cluster::class);
     }
+
+    // Alias untuk compatibility dengan Filament
+    public function clusters(): HasMany
+    {
+        return $this->cluster();
+    }
 }

@@ -8,7 +8,7 @@ The Laravel Boost guidelines are specifically curated by Laravel maintainers for
 ## Foundational Context
 This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
 
-- php - 8.2.29
+- php - 8.4.12
 - filament/filament (FILAMENT) - v3
 - laravel/fortify (FORTIFY) - v1
 - laravel/framework (LARAVEL) - v10
@@ -21,7 +21,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - laravel/pint (PINT) - v1
 - laravel/sail (SAIL) - v1
 - phpunit/phpunit (PHPUNIT) - v10
-- tailwindcss (TAILWINDCSS) - v2
+- tailwindcss (TAILWINDCSS) - v3
 
 
 ## Conventions
@@ -113,6 +113,14 @@ protected function isAccessible(User $user, ?string $path = null): bool
 
 ## Enums
 - Typically, keys in an Enum should be TitleCase. For example: `FavoritePerson`, `BestLake`, `Monthly`.
+
+
+=== herd rules ===
+
+## Laravel Herd
+
+- The application is served by Laravel Herd and will be available at: https?://[kebab-case-project-dir].test. Use the `get-absolute-url` tool to generate URLs for the user to ensure valid URLs.
+- You must not run any commands to make the site available via HTTP(s). It is _always_ available through Laravel Herd.
 
 
 === filament/core rules ===
@@ -405,6 +413,13 @@ document.addEventListener('livewire:init', function () {
 
 ### Dark Mode
 - If existing pages and components support dark mode, new pages and components must support dark mode in a similar way, typically using `dark:`.
+
+
+=== tailwindcss/v3 rules ===
+
+## Tailwind 3
+
+- Always use Tailwind CSS v3 - verify you're using only classes supported by this version.
 
 
 === tests rules ===

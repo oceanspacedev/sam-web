@@ -42,7 +42,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->navigationItems([
                 NavigationItem::make('Telescope')
-                    ->url(fn () => url(env('TELESCOPE_PATH', 'telescope')))
+                    ->url(fn () => url(config('telescope.path', 'telescope')))
                     ->icon('heroicon-o-magnifying-glass-circle')
                     ->group('Developer')
                     ->openUrlInNewTab()
@@ -72,7 +72,6 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 Widgets\AccountWidget::class,
             ])
-
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

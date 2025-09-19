@@ -1,4 +1,5 @@
 import preset from '../../../../vendor/filament/filament/tailwind.config.preset'
+import tailwindScrollbar from 'tailwind-scrollbar'
 
 export default {
     presets: [preset],
@@ -7,4 +8,5 @@ export default {
         './resources/views/filament/**/*.blade.php',
         './vendor/filament/**/*.blade.php',
     ],
+    plugins: [tailwindScrollbar],
 }

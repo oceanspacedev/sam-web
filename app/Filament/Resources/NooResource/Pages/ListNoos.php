@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\NooResource\Pages;
 
+use App\Filament\Exports\NooExporter;
 use App\Filament\Resources\NooResource;
 use App\Models\Noo;
 use Filament\Actions;
+use Filament\Actions\ExportAction;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,12 +24,11 @@ class ListNoos extends ListRecords
 
         // Check if the user is authorized to export
         if (Gate::allows('export', Noo::class)) {
-            $actions[] = Actions\Action::make('export')
+            $actions[] = ExportAction::make()
+                ->exporter(NooExporter::class)
                 ->color('success')
-                ->icon('heroicon-o-arrow-up-tray')
-                ->action(function () {
-                    return redirect()->route('noo.export');
-                });
+                ->icon('heroicon-o-document-arrow-down')
+                ->label('Export');
         }
 
         return $actions;

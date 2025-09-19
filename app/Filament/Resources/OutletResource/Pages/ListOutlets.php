@@ -27,7 +27,7 @@ class ListOutlets extends ListRecords
             $actions[] = ExportAction::make()
                 ->exporter(OutletExporter::class)
                 ->color('success')
-                ->icon('heroicon-o-arrow-up-tray')
+                ->icon('heroicon-o-document-arrow-down')
                 ->label('Export');
         }
 

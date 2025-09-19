@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Filament\Exports;
+
+use App\Models\Noo;
+use Filament\Actions\Exports\ExportColumn;
+use Filament\Actions\Exports\Exporter;
+use Filament\Actions\Exports\Models\Export;
+
+class NooExporter extends Exporter
+{
+    protected static ?string $model = Noo::class;
+
+    public static function getColumns(): array
+    {
+        $storageBase = 'https://grosir.mediaselularindonesia.com/storage/';
+
+        return [
+            ExportColumn::make('kode_outlet')->label('Kode Outlet')->default('-'),
+            ExportColumn::make('nama_outlet')->label('Nama Outlet')->default('-'),
+            ExportColumn::make('alamat_outlet')->label('Alamat')->default('-'),
+            ExportColumn::make('distric')->label('Distrik')->default('-'),
+            ExportColumn::make('badanusaha.name')->label('Badan Usaha')->default('-'),
+            ExportColumn::make('divisi.name')->label('Divisi')->default('-'),
+            ExportColumn::make('region.name')->label('Region')->default('-'),
+            ExportColumn::make('cluster.name')->label('Cluster')->default('-'),
+            ExportColumn::make('tm.nama_lengkap')->label('TM')->default('-'),
+            ExportColumn::make('latlong')->label('Latlong')->default('-'),
+            ExportColumn::make('limit')->label('Limit')->default('-'),
+            ExportColumn::make('status')->label('Status')->default('-'),
+            ExportColumn::make('poto_shop_sign')->label('Foto Shop Sign')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
+            ExportColumn::make('poto_depan')->label('Foto Depan')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
+            ExportColumn::make('poto_kiri')->label('Foto Kiri')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
+            ExportColumn::make('poto_kanan')->label('Foto Kanan')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
+            ExportColumn::make('poto_ktp')->label('Foto KTP')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
+            ExportColumn::make('video')->label('Video')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
+            ExportColumn::make('created_at')->label('Dibuat pada')->formatStateUsing(fn ($s) => $s ? date('d M Y', strtotime($s)) : '-'),
+            ExportColumn::make('updated_at')->label('Diperbarui pada')->formatStateUsing(fn ($s) => $s ? date('d M Y', strtotime($s)) : '-'),
+        ];
+    }
+
+    public static function getCompletedNotificationBody(Export $export): string
+    {
+        $body = 'Ekspor data NOO selesai. '.number_format($export->successful_rows).' '.str('baris')->plural($export->successful_rows).' berhasil diekspor.';
+
+        if ($failedRowsCount = $export->getFailedRowsCount()) {
+            $body .= ' Namun, '.number_format($failedRowsCount).' '.str('baris')->plural($failedRowsCount).' gagal diekspor.';
+        }
+
+        return $body;
+    }
+}

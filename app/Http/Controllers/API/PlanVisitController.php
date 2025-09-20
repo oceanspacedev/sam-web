@@ -8,12 +8,16 @@ use App\Models\Outlet;
 use App\Models\PlanVisit;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class PlanVisitController extends Controller
 {
-    public function fetch(Request $request)
+    /**
+     * Return today's plan visits for the authenticated user.
+     */
+    public function fetch(Request $request): JsonResponse
     {
         try {
             $planVisit = PlanVisit::with([
@@ -31,7 +35,9 @@ class PlanVisitController extends Controller
                 ->get();
 
             return ResponseFormatter::success(
-                $planVisit, 'ok');
+                $planVisit->map->formatForAPI(),
+                'ok'
+            );
         } catch (Exception $err) {
             return ResponseFormatter::error([
                 'message' => $err,
@@ -39,7 +45,10 @@ class PlanVisitController extends Controller
         }
     }
 
-    public function bymonth(Request $request)
+    /**
+     * Return plan visits for the given month/year for the authenticated user.
+     */
+    public function bymonth(Request $request): JsonResponse
     {
         try {
             $request->validate([
@@ -63,14 +72,20 @@ class PlanVisitController extends Controller
                 ->orderBy('tanggal_visit')
                 ->get();
 
-            return ResponseFormatter::success($plan, 'berhasil');
+            return ResponseFormatter::success(
+                $plan->map->formatForAPI(),
+                'berhasil'
+            );
         } catch (Exception $e) {
             return ResponseFormatter::error(null, $e);
         }
 
     }
 
-    public function add(Request $request)
+    /**
+     * Add a new plan visit for the authenticated user.
+     */
+    public function add(Request $request): JsonResponse
     {
         try {
             $request->validate([
@@ -79,6 +94,10 @@ class PlanVisitController extends Controller
             ]);
 
             $idOutlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
+
+            if (! $idOutlet) {
+                return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
+            }
 
             // VALIDASI
             // Kalau Realme bisa input plan visit mingguan, mulai dari sabtu sampai maks selasa jam 10
@@ -112,22 +131,36 @@ class PlanVisitController extends Controller
             if ($cekData) {
                 return ResponseFormatter::error($cekData, 'data sebelumnya sudah ada');
             }
-            $addPlan = PlanVisit::insert([
-                'user_id' => (string) Auth::user()->id,
+            $addPlan = PlanVisit::create([
+                'user_id' => Auth::id(),
                 'outlet_id' => $idOutlet->id,
                 'tanggal_visit' => Carbon::parse($request->tanggal_visit),
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
             ]);
 
-            return ResponseFormatter::success($addPlan, 'berhasil');
+            // Load relations to match fetch/bymonth payload shape
+            $addPlan->load([
+                'outlet.badanusaha',
+                'outlet.region',
+                'outlet.divisi',
+                'outlet.cluster',
+                'user.badanusaha',
+                'user.region',
+                'user.divisi',
+                'user.cluster',
+                'user.role',
+            ]);
+
+            return ResponseFormatter::success($addPlan->formatForAPI(), 'berhasil');
         } catch (Exception $e) {
             return ResponseFormatter::error(null, $e->getMessage());
         }
 
     }
 
-    public function delete(Request $request)
+    /**
+     * Delete plan visits by month/year and outlet for the authenticated user.
+     */
+    public function delete(Request $request): JsonResponse
     {
         try {
             $validation = $request->validate([
@@ -172,7 +205,10 @@ class PlanVisitController extends Controller
         }
     }
 
-    public function deleterealme(Request $request)
+    /**
+     * Delete a single plan visit by id for Realme flow.
+     */
+    public function deleterealme(Request $request): JsonResponse
     {
         try {
             $validation = $request->validate([
@@ -203,10 +239,12 @@ class PlanVisitController extends Controller
         } catch (Exception $e) {
             error_log($e);
 
-            return ResponseFormatter::error(null,$e->getMessage(),422);
+            return ResponseFormatter::error(null, $e->getMessage(), 422);
 
         }
     }
 
     // deletenoo removed
+
+    // No transformer required; models expose formatForAPI().
 }

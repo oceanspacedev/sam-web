@@ -32,18 +32,18 @@ class PlanVisit extends Model
         return $this->belongsTo(Outlet::class);
     }
 
-    public function getTanggalVisitAttribute($value)
+    public function formatForAPI()
     {
-        return Carbon::parse($value)->timestamp * 1000;
-    }
-
-    public function getCreatedAtAttribute($value)
-    {
-        return Carbon::parse($value)->timestamp;
-    }
-
-    public function getUpdatedAtAttribute($value)
-    {
-        return Carbon::parse($value)->timestamp;
+        return [
+            'id' => $this->id,
+            'tanggal_visit' => $this->tanggal_visit ? Carbon::parse($this->tanggal_visit)->getPreciseTimestamp(3) : null,
+            'user_id' => $this->user_id,
+            'outlet_id' => $this->outlet_id,
+            'created_at' => $this->created_at ? Carbon::parse($this->created_at)->getPreciseTimestamp(3) : null,
+            'updated_at' => $this->updated_at ? Carbon::parse($this->updated_at)->getPreciseTimestamp(3) : null,
+            // Include loaded relations minimally to be consistent with other APIs
+            'user' => $this->relationLoaded('user') ? $this->user : null,
+            'outlet' => $this->relationLoaded('outlet') ? $this->outlet : null,
+        ];
     }
 }

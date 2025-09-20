@@ -52,3 +52,6 @@ Thumbs.db
 .fleet/
 .vs/
 .traycer/
+CLAUDE.md
+AGENTS.md
+.mcp.json

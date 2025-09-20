@@ -22,12 +22,8 @@ class UserExporter extends Exporter
             ExportColumn::make('cluster.name')->label('Cluster')->default('-'),
             ExportColumn::make('badanusaha.name')->label('Badan Usaha')->default('-'),
             ExportColumn::make('tm.nama_lengkap')->label('TM')->default('-'),
-            ExportColumn::make('id_notif')->label('ID Notif')->default('-'),
             ExportColumn::make('created_at')
                 ->label('Dibuat pada')
-                ->formatStateUsing(fn ($state) => $state ? date('d M Y', strtotime($state)) : '-'),
-            ExportColumn::make('deleted_at')
-                ->label('Dihapus pada')
                 ->formatStateUsing(fn ($state) => $state ? date('d M Y', strtotime($state)) : '-'),
         ];
     }

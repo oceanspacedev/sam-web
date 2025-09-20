@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -59,6 +60,32 @@ class Outlet extends Model
     public function divisi(): BelongsTo
     {
         return $this->belongsTo(Division::class);
+    }
+
+    public function scopeWithTmAscDsf(Builder $query): Builder
+    {
+        return $query
+            ->leftJoin('users as tm_users', function ($join) {
+                $join->on('tm_users.divisi_id', '=', 'outlets.divisi_id')
+                    ->on('tm_users.region_id', '=', 'outlets.region_id')
+                    ->where('tm_users.role_id', 2);
+            })
+            ->leftJoin('users as asc_users', function ($join) {
+                $join->on('asc_users.divisi_id', '=', 'outlets.divisi_id')
+                    ->on('asc_users.region_id', '=', 'outlets.region_id')
+                    ->where('asc_users.role_id', 2);
+            })
+            ->leftJoin('users as dsf_users', function ($join) {
+                $join->on('dsf_users.divisi_id', '=', 'outlets.divisi_id')
+                    ->on('dsf_users.region_id', '=', 'outlets.region_id')
+                    ->on('dsf_users.cluster_id', '=', 'outlets.cluster_id')
+                    ->where('dsf_users.role_id', 3);
+            })
+            ->select('outlets.*',
+                'tm_users.nama_lengkap as tm_nama_lengkap',
+                'asc_users.nama_lengkap as asc_nama_lengkap',
+                'dsf_users.nama_lengkap as dsf_nama_lengkap'
+            );
     }
 
     protected static function booted()

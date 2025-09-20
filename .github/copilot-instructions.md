@@ -12,12 +12,14 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - filament/filament (FILAMENT) - v3
 - laravel/fortify (FORTIFY) - v1
 - laravel/framework (LARAVEL) - v10
+- laravel/nightwatch (NIGHTWATCH) - v1
 - laravel/octane (OCTANE) - v2
 - laravel/prompts (PROMPTS) - v0
 - laravel/pulse (PULSE) - v1
 - laravel/sanctum (SANCTUM) - v3
 - laravel/telescope (TELESCOPE) - v5
 - livewire/livewire (LIVEWIRE) - v3
+- laravel/mcp (MCP) - v0
 - laravel/pint (PINT) - v1
 - laravel/sail (SAIL) - v1
 - phpunit/phpunit (PHPUNIT) - v10
@@ -302,7 +304,7 @@ Forms\Components\Select::make('user_id')
     @endforeach
     ```
 
-- Prefer lifecycle hooks like `mount()`, `updatedFoo()`) for initialization and reactive side effects:
+- Prefer lifecycle hooks like `mount()`, `updatedFoo()` for initialization and reactive side effects:
 
 <code-snippet name="Lifecycle hook examples" lang="php">
     public function mount(User $user) { $this->user = $user; }

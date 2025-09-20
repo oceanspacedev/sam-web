@@ -444,7 +444,7 @@ class NooResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
-            ->paginationPageOptions([10, 25, 50, 100])
+            ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([

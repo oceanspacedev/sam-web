@@ -125,7 +125,7 @@ class RoleResource extends Resource
                     ->badge()
                     ->counts('permissions'),
             ])
-            ->paginationPageOptions([10, 25, 50, 100])
+            ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->filters([])
             ->actions([

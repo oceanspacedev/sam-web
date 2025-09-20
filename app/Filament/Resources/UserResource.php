@@ -221,7 +221,7 @@ class UserResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('nama_lengkap', 'asc')
-            ->paginationPageOptions([10, 25, 50, 100])
+            ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->filters([
                 Filter::make('region')

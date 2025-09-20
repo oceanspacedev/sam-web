@@ -116,7 +116,7 @@ class RegionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('name', 'asc')
-            ->paginationPageOptions([10, 25, 50, 100])
+            ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->groups([
                 Group::make('divisi.name')

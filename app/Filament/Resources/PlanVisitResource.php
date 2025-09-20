@@ -137,7 +137,7 @@ class PlanVisitResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('tanggal_visit', 'desc')
-            ->paginationPageOptions([10, 25, 50, 100])
+            ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([

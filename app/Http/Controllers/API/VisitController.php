@@ -15,7 +15,52 @@ use Illuminate\Support\Facades\Storage;
 class VisitController extends Controller
 {
     /**
-     * Visit - Monitoring visiting sales ✅
+     * Retrieve role-based visit monitoring data
+     *
+     * Returns visit records filtered by user role with specific access patterns.
+     * Includes detailed relationship data for outlet, user, and organizational hierarchies.
+     * Supports special user cases with custom filtering rules.
+     *
+     * **Special user access patterns:**
+     * - **Robby (GM ZTE)**: User ID 2, Role ID 8 - Filters ZTE division visits (divisi_id: 8) in specific regions
+     * - **Hendra Setia (GM Techno)**: User ID 689, Role ID 8 - Filters Techno division visits (divisi_id: 11)
+     *
+     * **Role-based filtering:**
+     * - **ASM/RKAM (role_id: 1, 9)**: Monitors users under their TM hierarchy
+     * - **COO (role_id: 6)**: Global access to all visits
+     * - **CSO (role_id: 8)**: Limited to division_id: 4 visits
+     * - **CSO FAST EV (role_id: 11)**: Limited to division_id: 7 visits
+     * - **Default**: Region-based filtering matching user's region
+     *
+     * @queryParam date string optional Filter visits by specific date. Format: YYYY-MM-DD. Example: "2024-01-15"
+     *
+     * @response array{
+     *   data: array{
+     *     id: int,
+     *     tanggal_visit: int,
+     *     user_id: int,
+     *     outlet_id: int,
+     *     tipe_visit: string,
+     *     latlong_in: string,
+     *     latlong_out: string,
+     *     check_in_time: int,
+     *     check_out_time: int|null,
+     *     laporan_visit: string,
+     *     durasi_visit: int|null,
+     *     picture_visit_in: string,
+     *     picture_visit_out: string,
+     *     outlet: object,
+     *     user: object,
+     *     transaksi: string
+     *   }[],
+     *   message: string
+     * }
+     * @response 500 array{
+     *   data: array{
+     *     message: string
+     *   },
+     *   message: string
+     * }
      */
     public function monitor(Request $request)
     {
@@ -178,7 +223,39 @@ class VisitController extends Controller
     }
 
     /**
-     * Visit - Fetch data visit ✅
+     * Retrieve authenticated user's visits for today
+     *
+     * Returns all visit records for the currently authenticated user,
+     * automatically filtered for today's date. Includes complete relationship
+     * data for outlet, user, and organizational hierarchy.
+     *
+     * @response array{
+     *   data: array{
+     *     id: int,
+     *     tanggal_visit: int,
+     *     user_id: int,
+     *     outlet_id: int,
+     *     tipe_visit: string,
+     *     latlong_in: string,
+     *     latlong_out: string,
+     *     check_in_time: int,
+     *     check_out_time: int|null,
+     *     laporan_visit: string,
+     *     durasi_visit: int|null,
+     *     picture_visit_in: string,
+     *     picture_visit_out: string,
+     *     outlet: object,
+     *     user: object,
+     *     transaksi: string
+     *   }[],
+     *   message: string
+     * }
+     * @response 500 array{
+     *   data: array{
+     *     message: string
+     *   },
+     *   message: string
+     * }
      */
     public function fetch(Request $request)
     {
@@ -210,6 +287,41 @@ class VisitController extends Controller
         }
     }
 
+    /**
+     * Validate check-in/check-out eligibility for visits
+     *
+     * Validates whether a user can perform check-in or check-out operations
+     * based on their current visit status. Ensures proper visit workflow by
+     * preventing multiple check-ins and ensuring check-out sequence.
+     *
+     * **Check-in validation:**
+     * - User must not have an active visit without check-out
+     * - Prevents multiple active check-ins
+     *
+     * **Check-out validation:**
+     * - Currently allows check-out without additional restrictions
+     * - Future validation may include ensuring check-out follows check-in
+     *
+     * @bodyParam kode_outlet string required Outlet code to validate visit eligibility. Example: "OUTLET001"
+     * @bodyParam check_in boolean optional Indicates if this is a check-in validation request. Example: true
+     *
+     * @response array{
+     *   data: null,
+     *   message: string
+     * }
+     * @response 400 array{
+     *   data: array{
+     *     message: string
+     *   },
+     *   message: string
+     * }
+     * @response 422 array{
+     *   data: array{
+     *     kode_outlet: string[]
+     *   },
+     *   message: string
+     * }
+     */
     public function check(Request $request)
     {
         $request->validate([
@@ -297,6 +409,71 @@ class VisitController extends Controller
         }
     }
 
+    /**
+     * Submit visit check-in or check-out with photo requirements
+     *
+     * Handles both check-in and check-out operations for visits with automatic
+     * photo storage, duration calculation, and role-based outlet filtering.
+     * Photos are stored with timestamp-based naming for easy identification.
+     *
+     * **Check-in Requirements:**
+     * - DSF/DM and ASC roles can only check in to outlets matching their division
+     * - Other roles have access to all outlets
+     * - Requires check-in photo, coordinates, and visit type
+     * - Photos stored in visits/in directory with format: YYYY-MM-DD-username-IN-timestamp.ext
+     *
+     * **Check-out Requirements:**
+     * - Must have an existing check-in for today
+     * - Calculates visit duration automatically
+     * - Requires check-out photo, report, and transaction info
+     * - Photos stored in visits/out directory with format: YYYY-MM-DD-username-OUT-timestamp.ext
+     *
+     * @bodyParam kode_outlet string required Outlet code for visit submission. Example: "OUTLET001"
+     * @bodyParam picture_visit file required Visit photo (check-in or check-out). Max 5MB, formats: jpg,jpeg,png
+     * @bodyParam latlong_in string required for check-in Check-in coordinates. Example: "-6.2088,106.8456"
+     * @bodyParam latlong_out string required for check-out Check-out coordinates. Example: "-6.2088,106.8456"
+     * @bodyParam tipe_visit string required for check-in Type of visit. Example: "routine"
+     * @bodyParam laporan_visit string required for check-out Visit report summary. Example: "Successful sales visit"
+     * @bodyParam transaksi string required for check-out Transaction information. Example: "Sold 5 units"
+     *
+     * @response array{
+     *   data: array{
+     *     visit: array{
+     *       id: int,
+     *       tanggal_visit: string,
+     *       user_id: int,
+     *       outlet_id: int,
+     *       tipe_visit: string,
+     *       latlong_in: string,
+     *       check_in_time: string,
+     *       picture_visit_in: string
+     *     }|array{
+     *       tanggal_visit: string,
+     *       latlong_out: string,
+     *       check_out_time: string,
+     *       laporan_visit: string,
+     *       durasi_visit: int,
+     *       picture_visit_out: string,
+     *       transaksi: string
+     *     },
+     *   },
+     *   message: string
+     * }
+     * @response 422 array{
+     *   data: string|array,
+     *   message: string
+     * }
+     * @response 404 array{
+     *   data: null,
+     *   message: string
+     * }
+     * @response 500 array{
+     *   data: array{
+     *     error: object
+     *   },
+     *   message: string
+     * }
+     */
     public function submit(Request $request)
     {
         try {
@@ -311,6 +488,11 @@ class VisitController extends Controller
                 } else {
                     $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
                 }
+
+                if (! $outlet) {
+                    return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
+                }
+
                 $outletId = $outlet->id;
                 $request->validate([
                     'kode_outlet' => ['required'],

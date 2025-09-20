@@ -18,8 +18,140 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * @group Lead Management
+ *
+ * API endpoints for managing Lead creation and updates with automatic outlet generation.
+ * Leads are simplified NOO (New Outlet Opening) requests that automatically create
+ * outlet records with LEAD prefix and default values for streamlined processing.
+ *
+ * ## Lead vs NOO Differences:
+ * - **Automatic Outlet Creation**: Leads immediately create outlet records with LEAD prefix
+ * - **Simplified Workflow**: No 3-stage approval process required
+ * - **Default Values**: Pre-configured with business defaults (limit=0, radius=100, status=MAINTAIN)
+ * - **KTP Management**: Separate update flow for KTP photo and information
+ * - **Status Tracking**: Uses keterangan field with 'LEAD' status that can be converted to regular NOO
+ *
+ * ## File Upload System:
+ * - **Photos**: Supports up to 4 photos (photo0-photo3) with intelligent categorization:
+ *   - Files containing "fotodepan" → poto_depan (front photo)
+ *   - Files containing "fotokanan" → poto_kanan (right photo)
+ *   - Files containing "fotokiri" → poto_kiri (left photo)
+ *   - All other photos → poto_shop_sign (shop sign photo)
+ * - **Videos**: Single video upload support with validation
+ * - **Validation**: Photos max 5MB (JPG/JPEG/PNG), videos max 50MB (MP4/QuickTime/WebM)
+ *
+ * @authenticated
+ *
+ * @header Authorization Bearer {token}
+ */
 class LeadController extends Controller
 {
+    /**
+     * Create New Lead with Automatic Outlet Generation
+     *
+     * Creates a new Lead record and automatically generates a corresponding Outlet record
+     * with LEAD prefix and default business values. This streamlined process bypasses
+     * the traditional NOO approval workflow.
+     *
+     * **Business Logic:**
+     * - Creates NOO record with keterangan='LEAD' status
+     * - Automatically generates Outlet record with 'LEAD{noo_id}' format
+     * - Sets default business values: limit=0, radius=100, status_outlet='MAINTAIN', is_member=0
+     * - Supports role-based hierarchical data assignment similar to NOO system
+     * - No approval workflow required - immediate outlet creation
+     *
+     * **Role-Based Data Assignment:**
+     * - **ASM (ID: 1)**: Allows complete hierarchy selection (business unit, division, region, cluster)
+     * - **ASC (ID: 2)**: Uses user's business unit, division, and region, with cluster selection
+     * - **Other roles**: Uses user's complete hierarchical data
+     *
+     * **File Upload System:**
+     * - **Photos**: Supports up to 4 photos (photo0-photo3) with intelligent categorization:
+     *   - Files containing "fotodepan" → poto_depan (front photo)
+     *   - Files containing "fotokanan" → poto_kanan (right photo)
+     *   - Files containing "fotokiri" → poto_kiri (left photo)
+     *   - All other photos → poto_shop_sign (shop sign photo)
+     * - **Videos**: Single video upload support
+     * - **Validation**: Photos max 5MB (JPG/JPEG/PNG), videos max 50MB (MP4/QuickTime/WebM)
+     *
+     * **Default Values:**
+     * - ktp_outlet: '-' (placeholder for KTP information)
+     * - poto_ktp: '-' (placeholder for KTP photo)
+     * - keterangan: 'LEAD' (status identifier)
+     * - TM assignment: Uses user's TM or falls back to user ID
+     *
+     * **Outlet Generation:**
+     * - Automatic outlet creation with format 'LEAD{noo_id}'
+     * - Inherits all hierarchical and outlet data from lead
+     * - Applies business defaults for immediate operational use
+     *
+     * @authenticated
+     *
+     * @bodyParam nama_outlet string required Outlet name (max: 255). Example: "Toko Maju Jaya"
+     * @bodyParam alamat_outlet string required Outlet address (max: 255). Example: "Jl. Raya No. 123, Jakarta"
+     * @bodyParam nama_pemilik string required Owner name (max: 255). Example: "Budi Santoso"
+     * @bodyParam nomer_pemilik string required Owner phone number (max: 255). Example: "081234567890"
+     * @bodyParam nomer_perwakilan string required Representative phone number (max: 255). Example: "081234567891"
+     * @bodyParam distric string required District name (max: 255). Example: "Jakarta Pusat"
+     * @bodyParam oppo boolean required Oppo brand presence. Example: true
+     * @bodyParam vivo boolean required Vivo brand presence. Example: false
+     * @bodyParam samsung boolean required Samsung brand presence. Example: true
+     * @bodyParam xiaomi boolean required Xiaomi brand presence. Example: false
+     * @bodyParam realme boolean required Realme brand presence. Example: true
+     * @bodyParam fl boolean required FL brand presence. Example: false
+     * @bodyParam latlong string required Latitude and longitude coordinates. Example: "-6.2088,106.8456"
+     * @bodyParam bu string required Business unit name (for ASM role). Example: "PT. Maju Bersama"
+     * @bodyParam div string required Division name (for ASM role). Example: "Realme"
+     * @bodyParam reg string required Region name (for ASM role). Example: "Jakarta"
+     * @bodyParam clus string required Cluster name (for ASM/ASC roles). Example: "Jakarta Pusat"
+     * @bodyParam photo0 file optional Front photo (max 5MB, JPG/JPEG/PNG). Example: "fotodepan_outlet.jpg"
+     * @bodyParam photo1 file optional Right photo (max 5MB, JPG/JPEG/PNG). Example: "fotokanan_outlet.jpg"
+     * @bodyParam photo2 file optional Left photo (max 5MB, JPG/JPEG/PNG). Example: "fotokiri_outlet.jpg"
+     * @bodyParam photo3 file optional Shop sign photo (max 5MB, JPG/JPEG/PNG). Example: "shop_sign_outlet.jpg"
+     * @bodyParam video file optional Video file (max 50MB, MP4/QuickTime/WebM). Example: "outlet_tour.mp4"
+     *
+     * @response 200 {
+     *   "meta": {
+     *     "code": 200,
+     *     "status": "success",
+     *     "message": "berhasil menambahkan LEAD Toko Maju Jaya"
+     *   },
+     *   "data": null
+     * }
+     * @response 422 {
+     *   "meta": {
+     *     "code": 422,
+     *     "status": "error",
+     *     "message": "The given data was invalid."
+     *   },
+     *   "data": {
+     *     "nama_outlet": ["The nama outlet field is required."]
+     *   }
+     * }
+     * @response 422 {
+     *   "meta": {
+     *     "code": 422,
+     *     "status": "error",
+     *     "message": "INVALID_FILE"
+     *   },
+     *   "data": "File foto tidak valid"
+     * }
+     * @response 500 {
+     *   "meta": {
+     *     "code": 500,
+     *     "status": "error",
+     *     "message": "[Error message]"
+     *   },
+     *   "data": {
+     *     "message": "[Exception details]",
+     *     "trace": "[Stack trace]"
+     *   }
+     * }
+     *
+     * @param  Request  $request  HTTP request with lead data and files
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function create(Request $request)
     {
         try {
@@ -145,6 +277,95 @@ class LeadController extends Controller
         }
     }
 
+    /**
+     * Update Lead with KTP Information and Status Change
+     *
+     * Updates an existing Lead record by adding KTP information and optional KTP photo.
+     * This endpoint transitions the Lead from initial 'LEAD' status to a more complete state,
+     * preparing it for potential conversion to a regular NOO or enhanced outlet operations.
+     *
+     * **Business Logic:**
+     * - Updates KTP information (noktp) in the ktp_outlet field
+     * - Optionally uploads and stores KTP photo in dedicated 'noo/ktp' directory
+     * - Clears keterangan field (removes 'LEAD' status)
+     * - Sends notification to AR (Area Representative) about the update
+     * - Prepares lead for potential conversion to regular outlet status
+     *
+     * **KTP Photo Management:**
+     * - KTP photos are stored in dedicated 'noo/ktp' directory (separate from other photos)
+     * - Uses UUID-based filename generation for security and uniqueness
+     * - Supports JPG/JPEG/PNG formats with 5MB size limit
+     * - Updates poto_ktp field with the stored file path
+     *
+     * **Status Transition:**
+     * - Clears keterangan field (removes 'LEAD' identifier)
+     * - This prepares the record for potential conversion to regular NOO status
+     * - Enables enhanced business operations with complete documentation
+     *
+     * **Notification System:**
+     * Automatically sends update notification to AR (role_id 4) to inform about:
+     * - Lead update completion
+     * - KTP information availability
+     * - Readiness for next processing stage
+     *
+     * **Use Cases:**
+     * - Completing lead documentation after initial creation
+     * - Adding mandatory KTP information for regulatory compliance
+     * - Preparing leads for conversion to regular outlets
+     * - Updating lead status for enhanced business operations
+     *
+     * @authenticated
+     *
+     * @bodyParam id integer required Lead record ID to update. Example: 123
+     * @bodyParam noktp string required KTP/NPWP number for regulatory compliance. Example: "1234567890123456"
+     * @bodyParam photo file optional KTP photo (max 5MB, JPG/JPEG/PNG). Example: "ktp_pemilik.jpg"
+     *
+     * @response 200 {
+     *   "meta": {
+     *     "code": 200,
+     *     "status": "success",
+     *     "message": "berhasil menambahkan Lead Toko Maju Jaya"
+     *   },
+     *   "data": null
+     * }
+     * @response 422 {
+     *   "meta": {
+     *     "code": 422,
+     *     "status": "error",
+     *     "message": "The given data was invalid."
+     *   },
+     *   "data": {
+     *     "id": ["The id field is required."],
+     *     "noktp": ["The noktp field is required."]
+     *   }
+     * }
+     * @response 422 {
+     *   "meta": {
+     *     "code": 422,
+     *     "status": "error",
+     *     "message": "INVALID_FILE"
+     *   },
+     *   "data": "File KTP tidak valid"
+     * }
+     * @response 404 {
+     *   "meta": {
+     *     "code": 404,
+     *     "status": "error",
+     *     "message": "No query results for model [App\\Models\\Noo] 123"
+     *   }
+     * }
+     * @response 500 {
+     *   "meta": {
+     *     "code": 500,
+     *     "status": "error",
+     *     "message": "[Error message]"
+     *   },
+     *   "data": "[Error message]"
+     * }
+     *
+     * @param  Request  $request  HTTP request with update data
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request)
     {
         try {

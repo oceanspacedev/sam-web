@@ -15,6 +15,47 @@ use Illuminate\Support\Str;
 
 class OutletController extends Controller
 {
+    /**
+     * Retrieve all outlets with complete relationship data
+     *
+     * Returns a comprehensive list of all outlets in the system including their business entity,
+     * cluster, region, and division relationships. This endpoint is typically used for
+     * administrative purposes and complete data synchronization.
+     *
+     * @response array{
+     *   data: array{
+     *     id: int,
+     *     kode_outlet: string,
+     *     nama_outlet: string,
+     *     alamat_outlet: string,
+     *     nama_pemilik_outlet: string,
+     *     nomer_tlp_outlet: string,
+     *     distric: string,
+     *     badanusaha: array{id: int, name: string}|null,
+     *     poto_shop_sign: string|null,
+     *     poto_depan: string|null,
+     *     poto_kiri: string|null,
+     *     poto_kanan: string|null,
+     *     poto_ktp: string|null,
+     *     video: string|null,
+     *     limit: string,
+     *     radius: string,
+     *     latlong: string,
+     *     status_outlet: string,
+     *     region: array{id: int, name: string}|null,
+     *     cluster: array{id: int, name: string}|null,
+     *     divisi: array{id: int, name: string}|null
+     *   }[],
+     *   message: string
+     * }
+     * @response 500 array{
+     *   data: array{
+     *     message: string,
+     *     error: string
+     *   },
+     *   message: string
+     * }
+     */
     public function all()
     {
         try {
@@ -33,6 +74,59 @@ class OutletController extends Controller
         }
     }
 
+    /**
+     * Retrieve role-based outlet access with filtered results
+     *
+     * Returns outlets filtered based on the authenticated user's role and permissions.
+     * Each role has specific filtering criteria to ensure users only access authorized outlets.
+     *
+     * **Role-based access patterns:**
+     * - **ASM (role_id: 1)**: Requires divisi and region parameters
+     * - **ASC (role_id: 2)**: Filtered by user's badanusaha, divisi, region, and cluster IDs
+     * - **DSF/DM (role_id: 3)**: Same filtering as ASC role
+     * - **COO (role_id: 6)**: Requires divisi and region parameters
+     * - **CSO (role_id: 8)**: Requires divisi and region parameters
+     * - **RKAM (role_id: 9)**: Requires divisi and region parameters
+     * - **KAM (role_id: 10)**: Filtered by user's badanusaha, divisi, and region IDs
+     * - **CSO FAST EV (role_id: 11)**: Requires divisi and region parameters
+     *
+     * @queryParam divisi string Required for roles: ASM, COO, CSO, RKAM, CSO FAST EV. Division name to filter outlets. Example: "Realme"
+     * @queryParam region string Required for roles: ASM, COO, CSO, RKAM, CSO FAST EV. Region name to filter outlets. Example: "Jakarta"
+     *
+     * @response array{
+     *   data: array{
+     *     id: int,
+     *     kode_outlet: string,
+     *     nama_outlet: string,
+     *     alamat_outlet: string,
+     *     nama_pemilik_outlet: string,
+     *     nomer_tlp_outlet: string,
+     *     distric: string,
+     *     badanusaha: array{id: int, name: string}|null,
+     *     poto_shop_sign: string|null,
+     *     poto_depan: string|null,
+     *     poto_kiri: string|null,
+     *     poto_kanan: string|null,
+     *     poto_ktp: string|null,
+     *     video: string|null,
+     *     limit: string,
+     *     radius: string,
+     *     latlong: string,
+     *     status_outlet: string,
+     *     region: array{id: int, name: string}|null,
+     *     cluster: array{id: int, name: string}|null,
+     *     divisi: array{id: int, name: string}|null
+     *   }[],
+     *   message: int
+     * }
+     * @response 500 array{
+     *   data: array{
+     *     message: string,
+     *     error: string
+     *   },
+     *   message: string
+     * }
+     */
     public function fetch(Request $request)
     {
         try {
@@ -41,11 +135,17 @@ class OutletController extends Controller
             switch ($user->role_id) {
                 // ASM
                 case 1:
-                    $divisi = Division::where('name', $request->divisi)->first()->id;
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
+                    $divisi = Division::where('name', $request->divisi)->first();
+                    if (! $divisi) {
+                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
+                    }
+                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
+                    if (! $region) {
+                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
+                    }
                     $outlet = $query
-                        ->where('divisi_id', $divisi)
-                        ->where('region_id', $region)
+                        ->where('divisi_id', $divisi->id)
+                        ->where('region_id', $region->id)
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
@@ -71,31 +171,49 @@ class OutletController extends Controller
                     break;
                     // COO
                 case 6:
-                    $divisi = Division::where('name', $request->divisi)->first()->id;
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
+                    $divisi = Division::where('name', $request->divisi)->first();
+                    if (! $divisi) {
+                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
+                    }
+                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
+                    if (! $region) {
+                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
+                    }
                     $outlet = $query
-                        ->where('divisi_id', $divisi)
-                        ->where('region_id', $region)
+                        ->where('divisi_id', $divisi->id)
+                        ->where('region_id', $region->id)
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
                     // CSO
                 case 8:
-                    $divisi = Division::where('name', $request->divisi)->first()->id;
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
+                    $divisi = Division::where('name', $request->divisi)->first();
+                    if (! $divisi) {
+                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
+                    }
+                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
+                    if (! $region) {
+                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
+                    }
                     $outlet = $query
-                        ->where('divisi_id', $divisi)
-                        ->where('region_id', $region)
+                        ->where('divisi_id', $divisi->id)
+                        ->where('region_id', $region->id)
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
                     // RKAM
                 case 9:
-                    $divisi = Division::where('name', $request->divisi)->first()->id;
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
+                    $divisi = Division::where('name', $request->divisi)->first();
+                    if (! $divisi) {
+                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
+                    }
+                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
+                    if (! $region) {
+                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
+                    }
                     $outlet = $query
-                        ->where('divisi_id', $divisi)
-                        ->where('region_id', $region)
+                        ->where('divisi_id', $divisi->id)
+                        ->where('region_id', $region->id)
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
@@ -110,11 +228,17 @@ class OutletController extends Controller
                     break;
                     // CSO FAST EV
                 case 11:
-                    $divisi = Division::where('name', $request->divisi)->first()->id;
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi)->first()->id;
+                    $divisi = Division::where('name', $request->divisi)->first();
+                    if (! $divisi) {
+                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
+                    }
+                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
+                    if (! $region) {
+                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
+                    }
                     $outlet = $query
-                        ->where('divisi_id', $divisi)
-                        ->where('region_id', $region)
+                        ->where('divisi_id', $divisi->id)
+                        ->where('region_id', $region->id)
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
@@ -136,19 +260,104 @@ class OutletController extends Controller
         }
     }
 
+    /**
+     * Retrieve single outlet by outlet code
+     *
+     * Returns detailed information about a specific outlet using its unique kode_outlet identifier.
+     * Includes all relationships such as business entity, cluster, region, and division data.
+     *
+     * @param  Request  $request  The HTTP request instance
+     * @param  string  $nama  The outlet code (kode_outlet) to retrieve
+     *
+     * @response array{
+     *   data: array{
+     *     id: int,
+     *     kode_outlet: string,
+     *     nama_outlet: string,
+     *     alamat_outlet: string,
+     *     nama_pemilik_outlet: string,
+     *     nomer_tlp_outlet: string,
+     *     distric: string,
+     *     badanusaha: array{id: int, name: string}|null,
+     *     poto_shop_sign: string|null,
+     *     poto_depan: string|null,
+     *     poto_kiri: string|null,
+     *     poto_kanan: string|null,
+     *     poto_ktp: string|null,
+     *     video: string|null,
+     *     limit: string,
+     *     radius: string,
+     *     latlong: string,
+     *     status_outlet: string,
+     *     region: array{id: int, name: string}|null,
+     *     cluster: array{id: int, name: string}|null,
+     *     divisi: array{id: int, name: string}|null
+     *   }[],
+     *   message: string
+     * }
+     * @response 404 array{
+     *   data: null,
+     *   message: string
+     * }
+     */
     public function singleOutlet(Request $request, $nama)
     {
         try {
             $outlet = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi'])
                 ->where('kode_outlet', $nama)
-                ->get();
+                ->first();
 
-            return ResponseFormatter::success($outlet->map->formatForAPI(), 'berhasil');
+            if (! $outlet) {
+                return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
+            }
+
+            return ResponseFormatter::success([$outlet->formatForAPI()], 'berhasil');
         } catch (Exception $err) {
             return ResponseFormatter::error(null, 'ada kesalahan');
         }
     }
 
+    /**
+     * Update outlet photos and owner information
+     *
+     * Updates outlet data including owner information and uploads photos/videos.
+     * Supports both legacy (photo0-photo4) and modern (photos[]) upload schemes.
+     * Files are automatically categorized based on naming patterns and stored with UUID names.
+     *
+     * **File categorization patterns:**
+     * - Files containing "fotodepan" → poto_depan
+     * - Files containing "fotokanan" → poto_kanan
+     * - Files containing "fotokiri" → poto_kiri
+     * - Files containing "fotoktp" → poto_ktp
+     * - All other files → poto_shop_sign
+     *
+     * @bodyParam kode_outlet string required Outlet unique identifier. Example: "OUTLET001"
+     * @bodyParam nama_pemilik_outlet string required Outlet owner name. Example: "John Doe"
+     * @bodyParam nomer_tlp_outlet string required Outlet phone number. Example: "081234567890"
+     * @bodyParam latlong string required Outlet coordinates. Example: "-6.2088,106.8456"
+     * @bodyParam photo0 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
+     * @bodyParam photo1 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
+     * @bodyParam photo2 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
+     * @bodyParam photo3 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
+     * @bodyParam photo4 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
+     * @bodyParam photos file[] optional Array of outlet photos (modern format). Max 5MB each, formats: jpg,jpeg,png
+     * @bodyParam video file optional Outlet video file. Max 50MB, formats: mp4,mov,webm
+     *
+     * @response array{
+     *   data: null,
+     *   message: string
+     * }
+     * @response 422 array{
+     *   data: array{
+     *     field: string[]
+     *   },
+     *   message: string
+     * }
+     * @response 404 array{
+     *   data: null,
+     *   message: string
+     * }
+     */
     public function updatefoto(Request $request)
     {
         try {

@@ -2,6 +2,8 @@
 
 use Dedoc\Scramble\Http\Middleware\RestrictedDocsAccess;
 
+$appUrl = env('APP_URL', 'http://localhost');
+
 return [
     /*
      * Your API path. By default, all routes starting with this path will be added to the docs.
@@ -22,6 +24,11 @@ return [
 
     'info' => [
         /*
+         * API title.
+         */
+        'title' => 'SAM API',
+
+        /*
          * API version.
          */
         'version' => env('API_VERSION', '1.0.0'),
@@ -29,7 +36,7 @@ return [
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
          */
-        'description' => '',
+        'description' => 'SAM (Sales Assistant Mobile) API provides comprehensive endpoints for managing sales activities, user authentication, outlet management, visits, NOO (New Outlet Opening), and data synchronization. This API enables seamless integration with external systems and supports real-time data synchronization across multiple devices and platforms.',
     ],
 
     /*
@@ -39,7 +46,7 @@ return [
         /*
          * Define the title of the documentation's website. App name is used when this config is `null`.
          */
-        'title' => null,
+        'title' => 'SAM API Documentation',
 
         /*
          * Define the theme of the documentation. Available options are `light` and `dark`.
@@ -54,12 +61,12 @@ return [
         /*
          * URL to an image that displays as a small square logo next to the title, above the table of contents.
          */
-        'logo' => '',
+        'logo' => env('SCRAMBLE_LOGO', rtrim($appUrl, '/').'/icon/samsam.png'),
 
         /*
          * Use to fetch the credential policy for the Try It feature. Options are: omit, include (default), and same-origin
          */
-        'try_it_credentials_policy' => 'include',
+        'try_it_credentials_policy' => 'same-origin',
     ],
 
     /*
@@ -77,7 +84,6 @@ return [
      * ```
      */
     'servers' => null,
-
     'middleware' => [
         'web',
         RestrictedDocsAccess::class,

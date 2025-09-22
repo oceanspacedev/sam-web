@@ -11,6 +11,8 @@ use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
@@ -198,6 +200,24 @@ class UserResource extends Resource
             ]);
     }
 
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Infolists\Components\Section::make('Informasi User')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('nama_lengkap')->label('Nama Lengkap'),
+                        Infolists\Components\TextEntry::make('username')->label('Username'),
+                        Infolists\Components\TextEntry::make('role.name')->label('Role'),
+                        Infolists\Components\TextEntry::make('badanusaha.name')->label('Badan Usaha'),
+                        Infolists\Components\TextEntry::make('divisi.name')->label('Divisi'),
+                        Infolists\Components\TextEntry::make('region.name')->label('Region'),
+                        Infolists\Components\TextEntry::make('cluster.name')->label('Cluster'),
+                        Infolists\Components\TextEntry::make('tm.nama_lengkap')->label('TM'),
+                    ])->columns(2),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -289,6 +309,7 @@ class UserResource extends Resource
             ], layout: FiltersLayout::Modal)
             ->filtersFormWidth(MaxWidth::Large)
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -303,7 +324,9 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            UserResource\RelationManagers\OutletsRelationManager::class,
+            UserResource\RelationManagers\PlanVisitsRelationManager::class,
+            UserResource\RelationManagers\VisitsRelationManager::class,
         ];
     }
 
@@ -339,6 +362,7 @@ class UserResource extends Resource
             'index' => Pages\ListUsers::route('/'),
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
+            'view' => Pages\ViewUser::route('/{record}'),
         ];
     }
 }

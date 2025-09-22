@@ -48,7 +48,39 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function outlet(): HasMany
     {
-        return $this->hasMany(Outlet::class);
+        // Outlets are linked via organizational hierarchy, not a direct user_id.
+        // Role-specific scopes:
+        // - ASM: semua outlet di divisi & badan usaha yang sama
+        // - ASC: semua outlet di region & divisi & badan usaha yang sama
+        // - DSF/DM: semua outlet di cluster (termasuk cluster_id2) & region & divisi & badan usaha yang sama
+        // - Default: ketat (region + cluster utama)
+
+        $relation = $this->hasMany(Outlet::class, 'divisi_id', 'divisi_id')
+            ->where('badanusaha_id', $this->badanusaha_id);
+
+        $roleName = $this->role?->name;
+
+        switch ($roleName) {
+            case 'ASM':
+                return $relation;
+
+            case 'ASC':
+                return $relation->where('region_id', $this->region_id);
+
+            case 'DSF/DM':
+                $clusterIds = array_values(array_filter([$this->cluster_id, $this->cluster_id2]));
+
+                return $relation
+                    ->where('region_id', $this->region_id)
+                    ->when(! empty($clusterIds), function ($q) use ($clusterIds) {
+                        $q->whereIn('cluster_id', $clusterIds);
+                    });
+
+            default:
+                return $relation
+                    ->where('region_id', $this->region_id)
+                    ->where('cluster_id', $this->cluster_id);
+        }
     }
 
     public function nootm(): HasMany
@@ -63,7 +95,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function planvisit(): HasMany
     {
-        return $this->hasMany(Planvisit::class);
+        return $this->hasMany(PlanVisit::class);
     }
 
     public function cluster(): BelongsTo

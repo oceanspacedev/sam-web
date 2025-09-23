@@ -31,6 +31,48 @@ use Illuminate\Support\Facades\Storage;
 class SyncController extends Controller
 {
     /**
+     * Normalize kode_outlet to a standard ###.### format, padding with zeros.
+     */
+    private function normalizeKodeOutlet(mixed $kode): ?string
+    {
+        if ($kode === null) {
+            return null;
+        }
+
+        $raw = trim((string) $kode);
+        if ($raw === '') {
+            return null;
+        }
+
+        // Remove spaces
+        $raw = preg_replace('/\s+/', '', $raw);
+
+        if (str_contains($raw, '.')) {
+            [$left, $right] = explode('.', $raw, 2);
+            $left = preg_replace('/\D/', '', (string) $left);
+            $right = preg_replace('/\D/', '', (string) $right);
+            $left = str_pad($left, 3, '0', STR_PAD_LEFT);
+            $right = str_pad(substr($right, 0, 3), 3, '0', STR_PAD_LEFT);
+            return $left.'.'.$right;
+        }
+
+        // No dot, treat last 3 digits as right segment
+        $digits = preg_replace('/\D/', '', $raw);
+        if ($digits === '') {
+            return null;
+        }
+        if (strlen($digits) <= 3) {
+            $left = '0';
+            $right = $digits;
+        } else {
+            $left = substr($digits, 0, -3);
+            $right = substr($digits, -3);
+        }
+        $left = str_pad($left, 3, '0', STR_PAD_LEFT);
+        $right = str_pad($right, 3, '0', STR_PAD_LEFT);
+        return $left.'.'.$right;
+    }
+    /**
      * Normalize transaksi input to match DB enum values (YES/NO).
      */
     private function normalizeTransaksi(mixed $value): ?string
@@ -769,22 +811,38 @@ class SyncController extends Controller
     {
         try {
             $request->validate([
-                'kode_outlet' => ['required'],
+                'kode_outlet' => ['required', 'string'],
                 'username' => ['required', 'string'],
             ]);
             // Resolve user and outlet by kode_outlet within user's division
-            $username = (string) $request->string('username');
+            $username = trim((string) $request->input('username'));
             $user = User::where('username', $username)->first();
             if (! $user) {
                 return ResponseFormatter::error(null, 'User not found', 404);
             }
 
-            $kode = (string) $request->string('kode_outlet');
+            // Normalize kode_outlet to ###.### so 5.081 matches 005.081
+            $kode = $this->normalizeKodeOutlet($request->input('kode_outlet'));
+            if (! $kode) {
+                return ResponseFormatter::error(null, 'Outlet not found', 404);
+            }
             $outlet = Outlet::query()
                 ->where('kode_outlet', $kode)
                 ->where('divisi_id', $user->divisi_id)
-                ->orderBy('id')
+                ->orderBy('id') 
                 ->first();
+
+            // Fallback: try unnormalized raw input trimmed if exact normalized not found (defensive)
+            if (! $outlet) {
+                $rawKode = trim((string) $request->input('kode_outlet'));
+                if ($rawKode !== '') {
+                    $outlet = Outlet::query()
+                        ->whereRaw('TRIM(kode_outlet) = ?', [trim($rawKode)])
+                        ->where('divisi_id', $user->divisi_id)
+                        ->orderBy('id')
+                        ->first();
+                }
+            }
 
             if (! $outlet) {
                 return ResponseFormatter::error(null, 'Outlet not found', 404);

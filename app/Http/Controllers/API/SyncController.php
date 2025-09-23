@@ -769,7 +769,7 @@ class SyncController extends Controller
     {
         try {
             $request->validate([
-                'kode_outlet' => ['required', 'string'],
+                'kode_outlet' => ['required'],
                 'username' => ['required', 'string'],
             ]);
             // Resolve user and outlet by kode_outlet within user's division

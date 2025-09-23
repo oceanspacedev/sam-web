@@ -8,13 +8,13 @@ use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Outlet;
-use App\Models\PlanVisit;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Visit;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Sync Controller for Data Synchronization
@@ -30,6 +30,46 @@ use Illuminate\Http\Request;
  */
 class SyncController extends Controller
 {
+    /**
+     * Normalize transaksi input to match DB enum values (YES/NO).
+     */
+    private function normalizeTransaksi(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        // Handle booleans and numbers quickly
+        if (is_bool($value)) {
+            return $value ? 'YES' : 'NO';
+        }
+
+        if (is_numeric($value)) {
+            return ((int) $value) > 0 ? 'YES' : 'NO';
+        }
+
+        // String mapping (case-insensitive)
+        $v = strtoupper(trim((string) $value));
+
+        $truthy = [
+            'YES', 'Y', 'TRUE', 'OK', 'SUCCESS', 'SUCCEED', 'BERHASIL', 'YA', 'DONE', 'SUKSES',
+        ];
+        $falsy = [
+            'NO', 'N', 'FALSE', 'FAIL', 'FAILED', 'TIDAK', 'GA', 'NOK', 'CANCEL', 'BATAL',
+        ];
+
+        if (in_array($v, $truthy, true)) {
+            return 'YES';
+        }
+
+        if (in_array($v, $falsy, true)) {
+            return 'NO';
+        }
+
+        // Default: map any non-empty string to YES to be permissive
+        return $v === '' ? null : 'YES';
+    }
+
     /**
      * Format date safely from database datetime
      *
@@ -503,144 +543,284 @@ class SyncController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getPlanVisit()
+    public function deleteInstantDuplicateVisit(Request $request)
     {
         try {
-            // Get parameters from request with default current month and year
-            $month = request('month', date('m'));
-            $year = request('year', date('Y'));
+            $request->validate([
+                'username' => ['required', 'string'],
+            ]);
 
-            // Build date range for the specified month
-            $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth()->format('Y-m-d');
-            $endDate = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('Y-m-d');
+            $username = trim((string) $request->string('username'));
+            $user = User::query()->where('username', $username)->first();
+            if (! $user) {
+                return ResponseFormatter::error(null, 'User not found', 404);
+            }
 
-            $planVisits = PlanVisit::select('id', 'tanggal_visit', 'user_id', 'outlet_id', 'created_at', 'updated_at')
-                ->whereBetween('tanggal_visit', [$startDate, $endDate])
+            $today = Carbon::now()->toDateString();
+
+            // Fetch today's visits for this user
+            $visits = Visit::query()
+                ->where('user_id', $user->id)
+                ->whereDate('tanggal_visit', $today)
                 ->orderBy('id')
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'tanggal_visit' => $this->formatTanggalVisit($item->tanggal_visit),
-                        'user_id' => $item->user_id,
-                        'outlet_id' => $item->outlet_id,
-                        'created_at' => $this->formatDate($item->created_at),
-                        'updated_at' => $this->formatDate($item->updated_at),
-                    ];
+                ->get();
+
+            if ($visits->isEmpty()) {
+                return ResponseFormatter::success([
+                    'username' => $username,
+                    'user_id' => $user->id,
+                    'date' => $today,
+                    'deleted_total' => 0,
+                    'deleted_ids' => [],
+                ], 'No visits to clean today');
+            }
+
+            $deletedIds = [];
+
+            // Group by outlet and prune duplicates
+            $visits->groupBy('outlet_id')->each(function ($group) use (&$deletedIds) {
+                if ($group->count() <= 1) {
+                    return; // nothing to delete
+                }
+
+                // Always keep one; candidates to delete are the rest
+                // Prefer to keep the first with both IN and OUT present
+                $keep = $group->first(function ($v) {
+                    return ! empty($v->latlong_out) && ! empty($v->check_out_time);
+                }) ?? $group->first();
+
+                $toConsider = $group->filter(fn ($v) => $v->id !== $keep->id);
+
+                // First pass: delete those with missing OUT info
+                $missingOut = $toConsider->filter(function ($v) {
+                    return empty($v->latlong_out) || empty($v->check_out_time);
                 });
 
-            return ResponseFormatter::success($planVisits, 'Data Plan Visit berhasil diambil');
+                foreach ($missingOut as $v) {
+                    $v->delete();
+                    $deletedIds[] = $v->id;
+                }
+            });
+
+            // Re-query to finish pruning arbitrarily if needed
+            $remainingGroups = Visit::query()
+                ->whereDate('tanggal_visit', $today)
+                ->where('user_id', $user->id)
+                ->get()
+                ->groupBy('outlet_id');
+
+            foreach ($remainingGroups as $outletId => $group) {
+                if ($group->count() <= 1) {
+                    continue;
+                }
+                // Keep the earliest (smallest id), delete the rest
+                $sorted = $group->sortBy('id')->values();
+                $keep = $sorted->shift();
+                foreach ($sorted as $v) {
+                    $v->delete();
+                    $deletedIds[] = $v->id;
+                }
+            }
+
+            return ResponseFormatter::success([
+                'username' => $username,
+                'user_id' => $user->id,
+                'date' => $today,
+                'deleted_total' => count($deletedIds),
+                'deleted_ids' => array_values($deletedIds),
+            ], 'Duplicate visits cleaned');
         } catch (\Exception $e) {
-            return ResponseFormatter::error(null, 'Gagal mengambil data Plan Visit: '.$e->getMessage(), 500);
+            return ResponseFormatter::error([
+                'error' => $e->getMessage(),
+            ], 'Failed to clean duplicate visits: '.$e->getMessage(), 500);
         }
     }
 
     /**
-     * Create visit data from external system
+     * Create an instant visit (check-in and check-out in one request)
      *
-     * Creates a new visit record from external system data with dual photo uploads
-     * and automatic duration calculation. Handles file storage with intelligent naming
-     * conventions and validates all required visit information including coordinates,
-     * transaction data, and visit reports.
+     * This endpoint mirrors the behavior in VisitController but performs both check-in and
+     * check-out at once. It stores both photos, calculates duration automatically, and enforces
+     * the business rule: only 1 visit per user for the same outlet on the same day.
+     *
+     * Notes:
+     * - If `tanggal_visit` is not provided, today is assumed.
+     * - If `check_in_time` / `check_out_time` are not provided, both default to now() and duration is 0.
+     * - Photos are stored in `storage/app/public/visits/in` and `storage/app/public/visits/out`.
      *
      * @unauthenticated
      *
      * @group Sync
      *
-     * @bodyParam mixed tanggal_visit required Visit date in timestamp (ms/sec), datetime, or string format. Example: 1640995200000 or "2024-01-01T10:00:00Z"
-     * @bodyParam int user_id required User ID who performed the visit. Must exist in users table. Example: 123
-     * @bodyParam int outlet_id required Outlet ID that was visited. Must exist in outlets table. Example: 456
-     * @bodyParam string tipe_visit required Type of visit performed. Max 255 characters. Example: "Sales Call"
-     * @bodyParam string latlong_in required Check-in coordinates in "lat,lng" format. Example: "-6.2088,106.8456"
-     * @bodyParam string latlong_out required Check-out coordinates in "lat,lng" format. Example: "-6.2088,106.8456"
-     * @bodyParam mixed check_in_time required Check-in time in ISO 8601, datetime, or timestamp format. Example: "2024-01-01T10:00:00Z"
-     * @bodyParam mixed check_out_time required Check-out time in ISO 8601, datetime, or timestamp format. Example: "2024-01-01T11:30:00Z"
-     * @bodyParam string laporan_visit required Visit report/notes. Max 65535 characters. Example: "Customer interested in new product"
-     * @bodyParam string transaksi required Transaction details or status. Max 65535 characters. Example: "Successful sale"
-     * @bodyParam file picture_visit_in required Check-in photo file (image/*, mimes: jpg,jpeg,png, max 2048KB). Example: photo_in.jpg
-     * @bodyParam file picture_visit_out required Check-out photo file (image/*, mimes: jpg,jpeg,png, max 2048KB). Example: photo_out.jpg
-     * @bodyParam int durasi_visit optional Visit duration in minutes. Calculated automatically if not provided. Example: 90
+     * @bodyParam int user_id required User ID who performed the visit. Must exist in users table.
+     * @bodyParam int outlet_id required Outlet ID that was visited. Must exist in outlets table.
+     * @bodyParam string tipe_visit required Type of visit performed. Example: "Sales Call"
+     * @bodyParam string latlong_in required Check-in coordinates ("lat,lng").
+     * @bodyParam string latlong_out required Check-out coordinates ("lat,lng").
+     * @bodyParam string laporan_visit required Visit report/notes.
+     * @bodyParam string transaksi required Transaction details or status.
+     * @bodyParam file picture_visit_in required Check-in photo (jpg,jpeg,png; max 5MB).
+     * @bodyParam file picture_visit_out required Check-out photo (jpg,jpeg,png; max 5MB).
+     * @bodyParam mixed tanggal_visit optional Visit date (ms/sec timestamp, datetime, or string). Defaults to today.
+     * @bodyParam mixed check_in_time optional Check-in time (ISO 8601 / datetime / timestamp). Defaults to now.
+     * @bodyParam mixed check_out_time optional Check-out time (ISO 8601 / datetime / timestamp). Defaults to now.
      *
-     * @response 201 {"meta":{"code":201,"status":"success","message":"Visit berhasil dibuat"},"data":{"visit":{"id":1,"tanggal_visit":"2024-01-01 10:00:00","user_id":123,"outlet_id":456,"tipe_visit":"Sales Call","picture_visit_in":"2024-01-01-username-IN-1234567890123.jpg","picture_visit_out":"2024-01-01-username-OUT-1234567890123.jpg","latlong_in":"-6.2088,106.8456","latlong_out":"-6.2088,106.8456","check_in_time":"2024-01-01 10:00:00","check_out_time":"2024-01-01 11:30:00","durasi_visit":90,"laporan_visit":"Good visit","transaksi":"Success","created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}}}
-     * @response 422 {"meta":{"code":422,"status":"error","message":"The given data was invalid."},"data":{"message":"The given data was invalid.","errors":{"tanggal_visit":["The tanggal visit field is required."],"user_id":["The user id field is required."],"outlet_id":["The outlet id field is required."],"tipe_visit":["The tipe visit field is required."],"latlong_in":["The latlong in field is required."],"latlong_out":["The latlong out field is required."],"check_in_time":["The check in time field is required."],"check_out_time":["The check out time field is required."],"laporan_visit":["The laporan visit field is required."],"transaksi":["The transaksi field is required."],"picture_visit_in":["The picture visit in field is required."],"picture_visit_out":["The picture visit out field is required."]}}}
-     * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal membuat visit"},"data":{"error":"Error message"}}
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * @response 201 {"meta":{"code":201,"status":"success","message":"Visit berhasil dibuat"},"data":{"visit":{...}}}
+     * @response 422 {"meta":{"code":422,"status":"error","message":"Visit untuk outlet ini sudah dibuat hari ini"},"data":null}
      */
-    public function createVisit(Request $request)
+    public function createInstantVisit(Request $request)
     {
         try {
-            // Validasi input sesuai struktur tabel visit
+            // Validate inputs
             $request->validate([
-                'tanggal_visit' => ['required'],
                 'user_id' => ['required', 'exists:users,id'],
                 'outlet_id' => ['required', 'exists:outlets,id'],
-                'tipe_visit' => ['required'],
+                'tipe_visit' => ['required', 'string'],
                 'latlong_in' => ['required', 'string'],
                 'latlong_out' => ['required', 'string'],
-                'check_in_time' => ['required'],
-                'check_out_time' => ['required'],
-                'laporan_visit' => ['required'],
-                'transaksi' => ['required'],
-                'picture_visit_in' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
-                'picture_visit_out' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
-                'durasi_visit' => ['nullable', 'integer'],
+                'laporan_visit' => ['required', 'string'],
+                'transaksi' => ['required', 'string'],
+                'picture_visit_in' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+                'picture_visit_out' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+                'tanggal_visit' => ['nullable'],
+                'check_in_time' => ['nullable'],
+                'check_out_time' => ['nullable'],
             ]);
 
-            // Hitung durasi visit jika tidak diberikan
-            $durasi = $request->durasi_visit;
-            if (! $durasi) {
-                $checkInTime = Carbon::parse($request->check_in_time);
-                $checkOutTime = Carbon::parse($request->check_out_time);
-                $durasi = $checkInTime->diffInMinutes($checkOutTime);
+            // Determine tanggal_visit (default: today)
+            $tanggalVisit = $request->filled('tanggal_visit')
+                ? $this->formatTanggalVisit($request->tanggal_visit)
+                : Carbon::now()->format('Y-m-d H:i:s');
+            $tanggalVisitDate = Carbon::parse($tanggalVisit)->toDateString();
+
+            // Enforce: only 1x visit per user per outlet per day
+            $isDuplicate = Visit::query()
+                ->where('user_id', $request->user_id)
+                ->where('outlet_id', $request->outlet_id)
+                ->whereDate('tanggal_visit', $tanggalVisitDate)
+                ->exists();
+
+            if ($isDuplicate) {
+                return ResponseFormatter::error(null, 'Visit untuk outlet ini sudah dibuat hari ini', 422);
             }
 
-            // Format tanggal visit
-            $tanggalVisit = $this->formatTanggalVisit($request->tanggal_visit);
+            // Resolve username for file naming
+            $username = optional(User::find($request->user_id))->username ?? (string) $request->user_id;
 
-            // Get username from user_id
-            $user = User::find($request->user_id);
-            $username = $user ? $user->username : $request->user_id;
+            // Store images (IN / OUT)
+            $inExt = $request->file('picture_visit_in')->guessExtension() ?: $request->file('picture_visit_in')->extension();
+            $outExt = $request->file('picture_visit_out')->guessExtension() ?: $request->file('picture_visit_out')->extension();
 
-            // Generate nama file foto check in
-            $imageNameIn = date('Y-m-d').'-'.$username.'-'.'IN-'.
-                           Carbon::now()->getPreciseTimestamp(3).'.'.
-                           $request->picture_visit_in->extension();
+            $imageNameIn = date('Y-m-d').'-'.$username.'-'.'IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$inExt;
+            $imageNameOut = date('Y-m-d').'-'.$username.'-'.'OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$outExt;
 
-            // Generate nama file foto check out
-            $imageNameOut = date('Y-m-d').'-'.$username.'-'.'OUT-'.
-                            Carbon::now()->getPreciseTimestamp(3).'.'.
-                            $request->picture_visit_out->extension();
+            $pathIn = $request->file('picture_visit_in')->storeAs('visits/in', $imageNameIn, 'public');
+            $pathOut = $request->file('picture_visit_out')->storeAs('visits/out', $imageNameOut, 'public');
 
-            // Simpan foto ke storage
-            $request->picture_visit_in->move(storage_path('app/public/'), $imageNameIn);
-            $request->picture_visit_out->move(storage_path('app/public/'), $imageNameOut);
+            // Determine times and duration
+            $checkInTime = $request->filled('check_in_time') ? Carbon::parse($request->check_in_time) : Carbon::now();
+            $checkOutTime = $request->filled('check_out_time') ? Carbon::parse($request->check_out_time) : Carbon::now();
+            $durasi = $checkInTime->diffInMinutes($checkOutTime);
 
-            // Buat data visit sesuai struktur tabel
+            // Create visit
             $visit = Visit::create([
                 'tanggal_visit' => $tanggalVisit,
                 'user_id' => $request->user_id,
                 'outlet_id' => $request->outlet_id,
                 'tipe_visit' => $request->tipe_visit,
-                'picture_visit_in' => $imageNameIn,
-                'picture_visit_out' => $imageNameOut,
+                'picture_visit_in' => $pathIn,
+                'picture_visit_out' => $pathOut,
                 'latlong_in' => $request->latlong_in,
                 'latlong_out' => $request->latlong_out,
-                'check_in_time' => $request->check_in_time,
-                'check_out_time' => $request->check_out_time,
+                'check_in_time' => $checkInTime,
+                'check_out_time' => $checkOutTime,
                 'durasi_visit' => $durasi,
                 'laporan_visit' => $request->laporan_visit,
-                'transaksi' => $request->transaksi,
+                'transaksi' => $this->normalizeTransaksi($request->transaksi),
             ]);
 
             return ResponseFormatter::success([
                 'visit' => $visit,
-            ], 'Visit berhasil dibuat');
-
+            ], 'Visit berhasil dibuat', 201);
         } catch (\Exception $e) {
             return ResponseFormatter::error([
                 'error' => $e->getMessage(),
             ], 'Gagal membuat visit: '.$e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Reset an outlet's media and specific fields via Sync API.
+     *
+     * Mirrors the Filament OutletResource bulk "Reset Data Outlet" behavior.
+     * Identify outlet by `kode_outlet` combined with the user's division inferred from `username`.
+     *
+     * @unauthenticated
+     *
+     * @group Sync
+     *
+     * @bodyParam string kode_outlet required The outlet code to reset.
+     * @bodyParam string username required Username used to disambiguate the outlet by the user's `divisi_id` when `kode_outlet` exists across divisions.
+     *
+     * @response 200 {"meta":{"code":200,"status":"success","message":"Outlet reset successfully"},"data":{"outlet_id":123,"kode_outlet":"OUT-001"}}
+     * @response 404 {"meta":{"code":404,"status":"error","message":"User not found or outlet not found"},"data":null}
+     */
+    public function resetOutlet(Request $request)
+    {
+        try {
+            $request->validate([
+                'kode_outlet' => ['required', 'string'],
+                'username' => ['required', 'string'],
+            ]);
+            // Resolve user and outlet by kode_outlet within user's division
+            $username = (string) $request->string('username');
+            $user = User::where('username', $username)->first();
+            if (! $user) {
+                return ResponseFormatter::error(null, 'User not found', 404);
+            }
+
+            $kode = (string) $request->string('kode_outlet');
+            $outlet = Outlet::query()
+                ->where('kode_outlet', $kode)
+                ->where('divisi_id', $user->divisi_id)
+                ->orderBy('id')
+                ->first();
+
+            if (! $outlet) {
+                return ResponseFormatter::error(null, 'Outlet not found', 404);
+            }
+
+            // Delete related public files if present
+            foreach (['poto_shop_sign', 'poto_depan', 'poto_kiri', 'poto_kanan', 'poto_ktp', 'video'] as $mediaField) {
+                $path = $outlet->{$mediaField} ?? null;
+                if ($path && Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+
+            // Reset fields to null like in the Filament bulk action
+            $outlet->update([
+                'nama_pemilik_outlet' => null,
+                'nomer_tlp_outlet' => null,
+                'latlong' => null,
+                'poto_shop_sign' => null,
+                'poto_depan' => null,
+                'poto_kiri' => null,
+                'poto_kanan' => null,
+                'poto_ktp' => null,
+                'video' => null,
+            ]);
+
+            return ResponseFormatter::success([
+                'outlet_id' => $outlet->id,
+                'kode_outlet' => $outlet->kode_outlet,
+            ], 'Outlet reset successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e; // let Laravel handle 422 response
+        } catch (\Exception $e) {
+            return ResponseFormatter::error([
+                'error' => $e->getMessage(),
+            ], 'Failed to reset outlet: '.$e->getMessage(), 500);
         }
     }
 }

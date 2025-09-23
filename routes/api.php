@@ -84,9 +84,12 @@ Route::prefix('sync')->middleware('throttle:expensive')->group(function () {
     Route::get('role', [SyncController::class, 'getRole']);
     Route::get('user', [SyncController::class, 'getUser']);
     Route::get('outlet', [SyncController::class, 'getOutlet']);
+    Route::post('outlet/reset', [SyncController::class, 'resetOutlet']);
     Route::get('visit', [SyncController::class, 'getVisit']);
     Route::get('planvisit', [SyncController::class, 'getPlanVisit']);
     Route::post('visit/create', [SyncController::class, 'createVisit']);
+    Route::post('visit/instant', [SyncController::class, 'createInstantVisit']);
+    Route::post('visit/instant-delete', [SyncController::class, 'deleteInstantDuplicateVisit']);
     // Route::get('all', [SyncController::class, 'getAllSyncData']);
     // Route::get('by-badanusaha', [SyncController::class, 'getDataByBadanUsaha']);
 });

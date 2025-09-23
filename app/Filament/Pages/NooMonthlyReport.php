@@ -34,13 +34,29 @@ class NooMonthlyReport extends Page implements HasForms, HasTable
 
     protected static ?string $title = 'NOO Monthly Report';
 
-    public int $month; // 1..12
+    /**
+     * 1..12
+     *
+     * @var int
+     */
+    public $month;
 
-    public int $year; // yyyy
+    /**
+     * yyyy
+     *
+     * @var int
+     */
+    public $year;
 
-    public ?int $badanusahaId = null;
+    /**
+     * @var int|null
+     */
+    public $badanusahaId = null;
 
-    public ?int $divisionId = null;
+    /**
+     * @var int|null
+     */
+    public $divisionId = null;
 
     public function mount(): void
     {

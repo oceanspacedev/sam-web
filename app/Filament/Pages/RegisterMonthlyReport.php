@@ -4,7 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\BadanUsaha;
 use App\Models\Division;
-use App\Models\Noo;
+use App\Models\Register;
 use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Forms;
@@ -19,7 +19,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
-class NooMonthlyReport extends Page implements HasForms, HasTable
+class RegisterMonthlyReport extends Page implements HasForms, HasTable
 {
     use InteractsWithForms;
     use InteractsWithTable;
@@ -28,11 +28,11 @@ class NooMonthlyReport extends Page implements HasForms, HasTable
 
     protected static ?string $navigationGroup = 'Reports';
 
-    protected static string $view = 'filament.pages.noo-monthly-report';
+    protected static string $view = 'filament.pages.register-monthly-report';
 
-    protected static ?string $navigationLabel = 'NOO Monthly Report';
+    protected static ?string $navigationLabel = 'Register Monthly Report';
 
-    protected static ?string $title = 'NOO Monthly Report';
+    protected static ?string $title = 'Register Monthly Report';
 
     /**
      * 1..12
@@ -154,15 +154,15 @@ class NooMonthlyReport extends Page implements HasForms, HasTable
                         Forms\Components\Placeholder::make('month_name')
                             ->label('Bulan')
                             ->content(fn (): string => $this->getMonthName()),
-                        Forms\Components\Placeholder::make('noo_total')
-                            ->label('Total NOO Bulan Ini')
-                            ->content(fn (): string => number_format($this->getJumlahDataNoo())),
+                        Forms\Components\Placeholder::make('register_total')
+                            ->label('Total Register Bulan Ini')
+                            ->content(fn (): string => number_format($this->getRegisterCount())),
                         Forms\Components\Placeholder::make('workdays')
                             ->label('Hari Kerja (tanpa Minggu)')
                             ->content(fn (): string => (string) $this->getRemainingDays()),
                         Forms\Components\Placeholder::make('avg_per_day')
-                            ->label('Rata-rata NOO / Hari')
-                            ->content(fn (): string => number_format($this->getRataTambahNooPerHari(), 2)),
+                            ->label('Rata-rata Register / Hari')
+                            ->content(fn (): string => number_format($this->getRegisterAveragePerDay(), 2)),
                     ])
                     ->columns(4),
             ]);
@@ -178,7 +178,7 @@ class NooMonthlyReport extends Page implements HasForms, HasTable
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('total')
-                    ->label('Total NOO')
+                    ->label('Total Register')
                     ->sortable(),
             ])
             ->defaultSort('total', 'desc')
@@ -188,7 +188,7 @@ class NooMonthlyReport extends Page implements HasForms, HasTable
     protected function getAggregatedQuery(): Builder
     {
         // Build an aggregate query grouped by created_by for the selected month/year
-        return Noo::query()
+    return Register::query()
             ->withTrashed()
             ->select([
                 DB::raw('users.nama_lengkap as user_name'),
@@ -212,10 +212,10 @@ class NooMonthlyReport extends Page implements HasForms, HasTable
                 ->color('success')
                 ->action(function () {
                     $rows = $this->getAggregatedQuery()->get(['user_name', 'total']);
-                    $filename = 'noo-report-'.$this->year.'-'.str_pad((string) $this->month, 2, '0', STR_PAD_LEFT).'.csv';
+                    $filename = 'register-report-'.$this->year.'-'.str_pad((string) $this->month, 2, '0', STR_PAD_LEFT).'.csv';
 
                     $handle = fopen('php://temp', 'r+');
-                    fputcsv($handle, ['Pembuat', 'Total NOO']);
+                    fputcsv($handle, ['Pembuat', 'Total Register']);
                     foreach ($rows as $row) {
                         fputcsv($handle, [$row->user_name, $row->total]);
                     }
@@ -259,9 +259,9 @@ class NooMonthlyReport extends Page implements HasForms, HasTable
         return $this->getDaysInMonth() - $this->getSundaysCount();
     }
 
-    public function getJumlahDataNoo(): int
+    public function getRegisterCount(): int
     {
-        return Noo::query()
+    return Register::query()
             ->withTrashed()
             ->whereYear('created_at', $this->year)
             ->whereMonth('created_at', $this->month)
@@ -270,11 +270,11 @@ class NooMonthlyReport extends Page implements HasForms, HasTable
             ->count();
     }
 
-    public function getRataTambahNooPerHari(): float
+    public function getRegisterAveragePerDay(): float
     {
         $remainingDays = max(1, $this->getRemainingDays());
 
-        return ceil(($this->getJumlahDataNoo() / $remainingDays) * 100) / 100;
+    return ceil(($this->getRegisterCount() / $remainingDays) * 100) / 100;
     }
 
     /**

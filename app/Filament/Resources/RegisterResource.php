@@ -2,11 +2,11 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\NooResource\Pages;
+use App\Filament\Resources\RegisterResource\Pages;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Noo;
+use App\Models\Register;
 use App\Models\Outlet;
 use App\Models\Region;
 use Carbon\Carbon;
@@ -26,11 +26,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
 
-class NooResource extends Resource
+class RegisterResource extends Resource
 {
-    protected static ?string $model = Noo::class;
+    protected static ?string $model = Register::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
 
@@ -52,7 +53,7 @@ class NooResource extends Resource
                                     $divisiId = $get('divisi_id'); // Retrieve badanusaha_id using $get
                                     $outletId = $get('id'); // Ambil id outlet untuk proses edit (pastikan field ini tersedia)
                                     // Cek apakah kode_outlet sudah digunakan di divisi yang sama, kecuali oleh outlet ini sendiri
-                                    $exists = \DB::table('outlets')
+                                    $exists = DB::table('outlets')
                                         ->where('kode_outlet', $value)
                                         ->where('divisi_id', $divisiId)
                                         ->where('id', '!=', $outletId) // Abaikan data ini sendiri jika dalam mode edit
@@ -198,7 +199,7 @@ class NooResource extends Resource
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
-                                return 'noo-'.$outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                return 'register-'.$outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_depan')
                             ->required()
@@ -209,7 +210,7 @@ class NooResource extends Resource
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
-                                return 'noo-'.$outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                return 'register-'.$outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_kiri')
                             ->required()
@@ -220,7 +221,7 @@ class NooResource extends Resource
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
-                                return 'noo-'.$outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                return 'register-'.$outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_kanan')
                             ->required()
@@ -231,7 +232,7 @@ class NooResource extends Resource
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
-                                return 'noo-'.$outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                return 'register-'.$outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('poto_ktp')
                             ->required()
@@ -242,7 +243,7 @@ class NooResource extends Resource
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
-                                return 'noo-'.$outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                return 'register-'.$outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('video')
                             ->required()
@@ -251,7 +252,7 @@ class NooResource extends Resource
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
-                                return 'noo-'.$outletName.'-video-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                return 'register-'.$outletName.'-video-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                     ])
                     ->columns(2),
@@ -508,7 +509,7 @@ class NooResource extends Resource
                         return $query;
                     }),
                 Tables\Filters\TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Noo::class)),
+                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Register::class)),
             ], layout: FiltersLayout::Modal)
             ->filtersFormWidth(MaxWidth::Large)
             ->actions([
@@ -664,9 +665,9 @@ class NooResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListNoos::route('/'),
-            'create' => Pages\CreateNoo::route('/create'),
-            'edit' => Pages\EditNoo::route('/{record}/edit'),
+            'index' => Pages\ListRegisters::route('/'),
+            'create' => Pages\CreateRegister::route('/create'),
+            'edit' => Pages\EditRegister::route('/{record}/edit'),
         ];
     }
 }

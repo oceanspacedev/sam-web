@@ -2,9 +2,9 @@
 
 use App\Helpers\SendNotif;
 use App\Http\Controllers\API\LeadController;
-use App\Http\Controllers\API\NooController;
 use App\Http\Controllers\API\OutletController;
 use App\Http\Controllers\API\PlanVisitController;
+use App\Http\Controllers\API\RegisterController;
 use App\Http\Controllers\API\SyncController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\VisitController;
@@ -47,20 +47,20 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::delete('planvisitrealme', [PlanVisitController::class, 'deleterealme']);
     // PlanVisit NOO endpoints removed
 
-    // NOO
-    Route::get('noo/getbu', [NooController::class, 'getbu']);
-    Route::get('noo/getdiv', [NooController::class, 'getdiv']);
-    Route::get('noo/getreg', [NooController::class, 'getreg']);
-    Route::get('noo/getclus', [NooController::class, 'getclus']);
-    Route::post('noo', [NooController::class, 'submit']);
-    Route::get('noo/all', [NooController::class, 'all']);
-    Route::get('noo', [NooController::class, 'fetch']);
-    Route::get('noo/{kodeOutlet}', [NooController::class, 'singleOutlet']);
-    Route::get('nooOutlet', [NooController::class, 'getnoooutlet']);
+    // Register
+    Route::get('register/getbu', [RegisterController::class, 'getbu']);
+    Route::get('register/getdiv', [RegisterController::class, 'getdiv']);
+    Route::get('register/getreg', [RegisterController::class, 'getreg']);
+    Route::get('register/getclus', [RegisterController::class, 'getclus']);
+    Route::post('register', [RegisterController::class, 'submit']);
+    Route::get('register/all', [RegisterController::class, 'all']);
+    Route::get('register', [RegisterController::class, 'fetch']);
+    Route::get('register/{kodeOutlet}', [RegisterController::class, 'singleOutlet']);
+    Route::get('register/outlet-options', [RegisterController::class, 'getRegisterOutlet']);
 
-    Route::post('noo/confirm', [NooController::class, 'confirm']);
-    Route::post('noo/approved', [NooController::class, 'approved']);
-    Route::post('noo/reject', [NooController::class, 'reject']);
+    Route::post('register/confirm', [RegisterController::class, 'confirm']);
+    Route::post('register/approved', [RegisterController::class, 'approved']);
+    Route::post('register/reject', [RegisterController::class, 'reject']);
 
     // LEAD
     Route::post('lead', [LeadController::class, 'create']);

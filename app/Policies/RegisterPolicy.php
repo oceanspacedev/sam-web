@@ -2,11 +2,11 @@
 
 namespace App\Policies;
 
-use App\Models\Noo;
+use App\Models\Register;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 
-class NooPolicy
+class RegisterPolicy
 {
     public function restoreAny(User $user): bool
     {
@@ -28,7 +28,7 @@ class NooPolicy
         return Gate::allows('view_any_noo');
     }
 
-    public function view(User $user, Noo $noo): bool
+    public function view(User $user, Register $register): bool
     {
         return Gate::allows('view_noo');
     }
@@ -38,22 +38,22 @@ class NooPolicy
         return Gate::allows('create_noo');
     }
 
-    public function update(User $user, Noo $noo): bool
+    public function update(User $user, Register $register): bool
     {
         return Gate::allows('update_noo');
     }
 
-    public function delete(User $user, Noo $noo): bool
+    public function delete(User $user, Register $register): bool
     {
         return Gate::allows('delete_noo');
     }
 
-    public function restore(User $user, Noo $noo): bool
+    public function restore(User $user, Register $register): bool
     {
         return Gate::allows('restore_noo');
     }
 
-    public function forceDelete(User $user, Noo $noo): bool
+    public function forceDelete(User $user, Register $register): bool
     {
         return Gate::allows('force_delete_noo');
     }
@@ -63,17 +63,17 @@ class NooPolicy
         return Gate::allows('export_noo');
     }
 
-    public function confirm(User $user, Noo $noo)
+    public function confirm(User $user, Register $register)
     {
         return Gate::allows('confirm_noo');
     }
 
-    public function approve(User $user, Noo $noo)
+    public function approve(User $user, Register $register)
     {
         return Gate::allows('approve_noo');
     }
 
-    public function reject(User $user, Noo $noo)
+    public function reject(User $user, Register $register)
     {
         return Gate::allows('reject_noo');
     }

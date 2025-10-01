@@ -29,9 +29,17 @@ class Region extends Model
         return $this->hasMany(Outlet::class);
     }
 
+    public function registers(): HasMany
+    {
+        return $this->hasMany(Register::class);
+    }
+
+    /**
+     * @deprecated Use registers() instead.
+     */
     public function noo(): HasMany
     {
-        return $this->hasMany(Noo::class);
+        return $this->registers();
     }
 
     public function badanusaha(): BelongsTo

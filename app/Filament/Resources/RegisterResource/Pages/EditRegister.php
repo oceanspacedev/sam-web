@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\NooResource\Pages;
+namespace App\Filament\Resources\RegisterResource\Pages;
 
-use App\Filament\Resources\NooResource;
+use App\Filament\Resources\RegisterResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
-class EditNoo extends EditRecord
+class EditRegister extends EditRecord
 {
-    protected static string $resource = NooResource::class;
+    protected static string $resource = RegisterResource::class;
 
     protected function getHeaderActions(): array
     {

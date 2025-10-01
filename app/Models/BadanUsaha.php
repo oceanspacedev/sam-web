@@ -30,9 +30,17 @@ class BadanUsaha extends Model
         return $this->hasMany(Outlet::class, 'badanusaha_id');
     }
 
+    public function registers(): HasMany
+    {
+        return $this->hasMany(Register::class, 'badanusaha_id');
+    }
+
+    /**
+     * @deprecated Use registers() instead.
+     */
     public function noo(): HasMany
     {
-        return $this->hasMany(Noo::class, 'badanusaha_id');
+        return $this->registers();
     }
 
     public function divisi(): HasMany

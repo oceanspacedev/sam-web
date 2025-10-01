@@ -5,18 +5,18 @@ namespace Database\Factories;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Noo;
+use App\Models\Register;
 use App\Models\Region;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-class NooFactory extends Factory
+class RegisterFactory extends Factory
 {
-    protected $model = Noo::class;
+    protected $model = Register::class;
 
     public function definition(): array
     {
-        $name = 'NOO-'.$this->faker->unique()->numerify('###');
+        $name = 'REGISTER-'.$this->faker->unique()->numerify('###');
 
         return [
             'kode_outlet' => null,
@@ -31,12 +31,12 @@ class NooFactory extends Factory
             'distric' => 'D01',
             'region_id' => Region::factory(),
             'cluster_id' => Cluster::factory(),
-            'poto_shop_sign' => 'noo/photos/sign.jpg',
-            'poto_depan' => 'noo/photos/front.jpg',
-            'poto_kiri' => 'noo/photos/left.jpg',
-            'poto_kanan' => 'noo/photos/right.jpg',
-            'poto_ktp' => 'noo/ktp/ktp.jpg',
-            'video' => 'noo/videos/vid.mp4',
+            'poto_shop_sign' => 'register/photos/sign.jpg',
+            'poto_depan' => 'register/photos/front.jpg',
+            'poto_kiri' => 'register/photos/left.jpg',
+            'poto_kanan' => 'register/photos/right.jpg',
+            'poto_ktp' => 'register/ktp/ktp.jpg',
+            'video' => 'register/videos/vid.mp4',
             'oppo' => '0',
             'vivo' => '0',
             'realme' => '0',

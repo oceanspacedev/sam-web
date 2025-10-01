@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
-class Noo extends Model
+class Register extends Model
 {
     use HasFactory;
     use SoftDeletes;
+
+    protected $table = 'noos';
 
     protected $guarded = [
         'id',

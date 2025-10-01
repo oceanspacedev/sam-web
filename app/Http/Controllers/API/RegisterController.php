@@ -8,7 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Noo;
+use App\Models\Register;
 use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\User;
@@ -54,7 +54,7 @@ use Illuminate\Support\Str;
  *
  * @header Authorization Bearer {token}
  */
-class NooController extends Controller
+class RegisterController extends Controller
 {
     /**
      * Fetch NOOs with Role-Based Access Control
@@ -152,27 +152,27 @@ class NooController extends Controller
             $clusterId = $user->cluster_id;
             $roleId = $user->role_id;
 
-            $query = Noo::with(['badanusaha', 'cluster', 'region', 'divisi']);
+            $query = Register::with(['badanusaha', 'cluster', 'region', 'divisi']);
 
             switch ($roleId) {
                 // ASM
                 case 1:
                     // Cek jika akunnya adalah sodikc maka ambil data dari region Bigtasik, Bigcrb, Bigpwt, Bigbdg, Bigkarawang dengan divisi realme
                     if ($user->id === 158) {
-                        $noos = $query
+                        $registers = $query
                             ->whereIn('region_id', [13, 27, 26, 23, 24])
                             ->where('divisi_id', 4)
                             ->latest()
                             ->get();
                     } else {
-                        $noos = $query
+                        $registers = $query
                             ->where('tm_id', $user->id)
                             ->latest()
                             ->get();
                     }
 
                     // Rule lama
-                    // $noos = $query
+                    // $registers = $query
                     // ->where('tm_id', $user->id)
                     // ->latest()
                     // ->get();
@@ -180,7 +180,7 @@ class NooController extends Controller
                     break;
                     // ASC
                 case 2:
-                    $noos = $query
+                    $registers = $query
                         ->where('badanusaha_id', $badanusahaId)
                         ->where('divisi_id', $divisiId)
                         ->where('region_id', $regionId)
@@ -189,7 +189,7 @@ class NooController extends Controller
                     break;
                     // DSF/DM
                 case 3:
-                    $noos = $query
+                    $registers = $query
                         ->where('badanusaha_id', $badanusahaId)
                         ->where('divisi_id', $divisiId)
                         ->where('region_id', $regionId)
@@ -199,27 +199,27 @@ class NooController extends Controller
                     break;
                     // COO
                 case 6:
-                    $noos = $query
+                    $registers = $query
                         ->latest()
                         ->get();
                     break;
                     // CSO
                 case 8:
-                    $noos = $query
+                    $registers = $query
                         ->where('divisi_id', 4)
                         ->latest()
                         ->get();
                     break;
                     // RKAM
                 case 9:
-                    $noos = $query
+                    $registers = $query
                         ->where('tm_id', $user->id)
                         ->latest()
                         ->get();
                     break;
                     // KAM
                 case 10:
-                    $noos = $query
+                    $registers = $query
                         ->where('badanusaha_id', $badanusahaId)
                         ->where('divisi_id', $divisiId)
                         ->where('region_id', $regionId)
@@ -229,20 +229,20 @@ class NooController extends Controller
 
                     // CSO FAST EV
                 case 11:
-                    $noos = $query
+                    $registers = $query
                         ->where('divisi_id', 7)
                         ->latest()
                         ->get();
                     break;
 
                 default:
-                    $noos = Noo::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('badanusaha_id', 2)->orWhere('badanusaha_id', 4)->whereIn('status', ['PENDING', 'CONFIRMED', 'REJECTED'])->latest()->get();
+                    $registers = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('badanusaha_id', 2)->orWhere('badanusaha_id', 4)->whereIn('status', ['PENDING', 'CONFIRMED', 'REJECTED'])->latest()->get();
                     break;
             }
 
             return ResponseFormatter::success(
-                $noos->map->formatForAPI(),
-                'fetch noo success',
+                $registers->map->formatForAPI(),
+                'fetch register success',
             );
         } catch (Exception $err) {
             return ResponseFormatter::error([
@@ -378,11 +378,11 @@ class NooController extends Controller
     public function all(Request $request)
     {
         try {
-            $noos = Noo::with(['badanusaha', 'cluster', 'region', 'divisi'])->get();
+            $registers = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->get();
 
             return ResponseFormatter::success(
-                $noos->map->formatForAPI(),
-                'fetch noo success',
+                $registers->map->formatForAPI(),
+                'fetch register success',
             );
         } catch (Exception $err) {
             return ResponseFormatter::error([
@@ -595,7 +595,7 @@ class NooController extends Controller
                 }
                 $ext = $file->guessExtension() ?: $file->extension();
                 $name = (string) Str::uuid().'.'.$ext;
-                $path = $disk->putFileAs('noo/photos', $file, $name);
+                $path = $disk->putFileAs('register/photos', $file, $name);
                 $data[$target] = $path;
             }
 
@@ -606,7 +606,7 @@ class NooController extends Controller
                 }
                 $vext = $video->guessExtension() ?: $video->extension();
                 $vname = (string) Str::uuid().'.'.$vext;
-                $vpath = $disk->putFileAs('noo/videos', $video, $vname);
+                $vpath = $disk->putFileAs('register/videos', $video, $vname);
                 $data['video'] = $vpath;
             }
 
@@ -650,12 +650,12 @@ class NooController extends Controller
                     }
                     break;
             }
-            $insert = Noo::create($data);
+            $insert = Register::create($data);
             if ($insert && count($notifId) != 0) {
-                SendNotif::sendMessage('Noo baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap, $notifId);
+                SendNotif::sendMessage('Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap, $notifId);
             }
 
-            return ResponseFormatter::success(null, 'berhasil menambahkan NOO '.$request->nama_outlet);
+            return ResponseFormatter::success(null, 'berhasil menambahkan register '.$request->nama_outlet);
         } catch (Exception $e) {
             error_log($e);
 
@@ -746,22 +746,22 @@ class NooController extends Controller
                 'kode_outlet' => ['required'],
             ]);
 
-            $noo = Noo::findOrFail($request->id);
-            $noo->status = $request->status;
-            $noo->limit = $request->limit;
-            $noo->kode_outlet = $request->kode_outlet;
-            $noo->confirmed_by = Auth::user()->nama_lengkap;
-            $noo->confirmed_at = now();
-            $noo->update();
+            $register = Register::findOrFail($request->id);
+            $register->status = $request->status;
+            $register->limit = $request->limit;
+            $register->kode_outlet = $request->kode_outlet;
+            $register->confirmed_by = Auth::user()->nama_lengkap;
+            $register->confirmed_at = now();
+            $register->update();
             SendNotif::sendMessage(
-                'Noo '.$noo->nama_outlet.' sudah di konfirmasi oleh '.
+                'Register '.$register->nama_outlet.' sudah dikonfirmasi oleh '.
                     Auth::user()->nama_lengkap.PHP_EOL.
                     'Dengan limit : Rp '.number_format($request->limit, 0, ',', '.'),
-                [User::where('nama_lengkap', $noo->created_by)->first()->id_notif ?? '-', $noo->tm->id_notif]
+                [User::where('nama_lengkap', $register->created_by)->first()->id_notif ?? '-', $register->tm->id_notif]
 
             );
 
-            return ResponseFormatter::success($noo, 'berhasil update');
+            return ResponseFormatter::success($register, 'berhasil update');
         } catch (Exception $e) {
             error_log($e);
 
@@ -867,59 +867,59 @@ class NooController extends Controller
                 'status' => ['required'],
             ]);
 
-            $noo = Noo::find($request->id);
-            $noo->status = $request->status;
-            $noo->approved_by = Auth::user()->nama_lengkap;
-            $noo->approved_at = now();
-            $noo->update();
+            $register = Register::find($request->id);
+            $register->status = $request->status;
+            $register->approved_by = Auth::user()->nama_lengkap;
+            $register->approved_at = now();
+            $register->update();
 
             $notif = [];
-            $register = User::where('nama_lengkap', $noo->created_by)->first()->id_notif;
-            if ($register) {
-                array_push($notif, $register);
+            $creatorNotifId = User::where('nama_lengkap', $register->created_by)->first()->id_notif;
+            if ($creatorNotifId) {
+                array_push($notif, $creatorNotifId);
             }
 
             $data = [
-                'kode_outlet' => $noo->kode_outlet,
-                'badanusaha_id' => $noo->badanusaha_id,
-                'nama_outlet' => $noo->nama_outlet,
-                'divisi_id' => $noo->divisi_id,
-                'alamat_outlet' => $noo->alamat_outlet,
-                'nama_pemilik_outlet' => $noo->nama_pemilik_outlet,
-                'nomer_tlp_outlet' => $noo->nomer_tlp_outlet,
-                'distric' => $noo->distric,
-                'region_id' => $noo->region_id,
-                'cluster_id' => $noo->cluster_id,
-                'poto_shop_sign' => $noo->poto_shop_sign,
-                'poto_depan' => $noo->poto_depan,
-                'poto_kanan' => $noo->poto_kanan,
-                'poto_kiri' => $noo->poto_kiri,
-                'poto_ktp' => $noo->poto_ktp,
-                'video' => $noo->video,
+                'kode_outlet' => $register->kode_outlet,
+                'badanusaha_id' => $register->badanusaha_id,
+                'nama_outlet' => $register->nama_outlet,
+                'divisi_id' => $register->divisi_id,
+                'alamat_outlet' => $register->alamat_outlet,
+                'nama_pemilik_outlet' => $register->nama_pemilik_outlet,
+                'nomer_tlp_outlet' => $register->nomer_tlp_outlet,
+                'distric' => $register->distric,
+                'region_id' => $register->region_id,
+                'cluster_id' => $register->cluster_id,
+                'poto_shop_sign' => $register->poto_shop_sign,
+                'poto_depan' => $register->poto_depan,
+                'poto_kanan' => $register->poto_kanan,
+                'poto_kiri' => $register->poto_kiri,
+                'poto_ktp' => $register->poto_ktp,
+                'video' => $register->video,
                 'radius' => 0,
-                'latlong' => $noo->latlong,
+                'latlong' => $register->latlong,
                 'status_outlet' => 'MAINTAIN',
-                'limit' => $noo->limit,
+                'limit' => $register->limit,
             ];
-            $outletExisting = Outlet::where('badanusaha_id', $noo->badanusaha_id)
-                ->where('divisi_id', $noo->divisi_id)
-                ->where('region_id', $noo->region_id)
-                ->where('cluster_id', $noo->cluster_id)
-                ->where('kode_outlet', $noo->kode_outlet)->first();
+            $outletExisting = Outlet::where('badanusaha_id', $register->badanusaha_id)
+                ->where('divisi_id', $register->divisi_id)
+                ->where('region_id', $register->region_id)
+                ->where('cluster_id', $register->cluster_id)
+                ->where('kode_outlet', $register->kode_outlet)->first();
             if ($outletExisting) {
-                return ResponseFormatter::success($noo, 'berhasil update');
+                return ResponseFormatter::success($register, 'berhasil update');
             } else {
                 $insert = Outlet::create($data);
             }
             if (count($notif) != 0 && $insert) {
                 SendNotif::sendMessage(
-                    'Noo '.$noo->nama_outlet.' sudah di setujui oleh '.
+                    'Register '.$register->nama_outlet.' sudah disetujui oleh '.
                         Auth::user()->nama_lengkap,
                     $notif
                 );
             }
 
-            return ResponseFormatter::success($noo, 'berhasil update');
+            return ResponseFormatter::success($register, 'berhasil update');
         } catch (Exception $e) {
             error_log($e);
 
@@ -1015,17 +1015,17 @@ class NooController extends Controller
                 'alasan' => ['required'],
             ]);
 
-            $noo = Noo::findOrFail($request->id);
-            $noo->status = $request->status;
-            $noo->keterangan = $request->alasan;
-            $noo->rejected_by = Auth::user()->nama_lengkap;
-            $noo->rejected_at = now();
+            $register = Register::findOrFail($request->id);
+            $register->status = $request->status;
+            $register->keterangan = $request->alasan;
+            $register->rejected_by = Auth::user()->nama_lengkap;
+            $register->rejected_at = now();
 
-            $noo->update();
+            $register->update();
 
-            SendNotif::sendMessage('Noo '.$noo->nama_outlet.' ditolak oleh '.Auth::user()->nama_lengkap.PHP_EOL.'Alasan : '.$request->alasan, [$noo->tm->id_notif]);
+            SendNotif::sendMessage('Register '.$register->nama_outlet.' ditolak oleh '.Auth::user()->nama_lengkap.PHP_EOL.'Alasan : '.$request->alasan, [$register->tm->id_notif]);
 
-            return ResponseFormatter::success($noo, 'berhasil update');
+            return ResponseFormatter::success($register, 'berhasil update');
         } catch (Exception $e) {
             return ResponseFormatter::error($e, 'gagal');
         }
@@ -1401,7 +1401,7 @@ class NooController extends Controller
      * @param  Request  $request  HTTP request instance
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getnoooutlet(Request $request)
+    public function getRegisterOutlet(Request $request)
     {
         try {
             $user = Auth::user();
@@ -1411,19 +1411,19 @@ class NooController extends Controller
             $clusterId = $user->cluster_id;
             $roleId = $user->role_id;
 
-            $query = Noo::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('approved_by', null);
+            $query = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('approved_by', null);
 
             switch ($roleId) {
                 // ASM
                 case 1:
-                    $noos = $query
+                    $registers = $query
                         ->where('tm_id', $user->id)
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
                     // ASC
                 case 2:
-                    $noos = $query
+                    $registers = $query
                         ->where('badanusaha_id', $badanusahaId)
                         ->where('divisi_id', $divisiId)
                         ->where('region_id', $regionId)
@@ -1432,7 +1432,7 @@ class NooController extends Controller
                     break;
                     // DSF/DM
                 case 3:
-                    $noos = $query
+                    $registers = $query
                         ->where('badanusaha_id', $badanusahaId)
                         ->where('divisi_id', $divisiId)
                         ->where('region_id', $regionId)
@@ -1442,13 +1442,13 @@ class NooController extends Controller
                     break;
 
                 default:
-                    $noos = Noo::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('badanusaha_id', 2)->orWhere('badanusaha_id', 4)->whereIn('status', ['PENDING', 'CONFIRMED', 'REJECTED'])->latest()->get();
+                    $registers = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('badanusaha_id', 2)->orWhere('badanusaha_id', 4)->whereIn('status', ['PENDING', 'CONFIRMED', 'REJECTED'])->latest()->get();
                     break;
             }
 
             return ResponseFormatter::success(
-                $noos,
-                'fetch noo success',
+                $registers,
+                'fetch register success',
             );
         } catch (Exception $err) {
             return ResponseFormatter::error([
@@ -1538,11 +1538,11 @@ class NooController extends Controller
     {
         // dd($request->all());
         try {
-            $noo = Noo::with(['badanusaha', 'cluster', 'region', 'divisi'])
+            $register = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])
                 ->where('id', $kodeOutlet)
                 ->get();
 
-            return ResponseFormatter::success($noo, 'berhasil');
+            return ResponseFormatter::success($register, 'berhasil');
         } catch (Exception $err) {
             return ResponseFormatter::error(null, 'ada kesalahan');
         }

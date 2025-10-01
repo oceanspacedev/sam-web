@@ -2,18 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
-use App\Models\Noo;
 use App\Models\Outlet;
-use App\Models\Region;
+use App\Models\Register;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\Feature\FeatureTestCase;
 use Tests\Concerns\SeedsMasterData;
 
 class LeadFlowTest extends FeatureTestCase
@@ -22,7 +17,7 @@ class LeadFlowTest extends FeatureTestCase
 
     // Storage faked and RefreshDatabase handled by FeatureTestCase.
 
-    public function test_lead_create_creates_noo_and_lead_outlet_and_saves_files()
+    public function test_lead_create_creates_register_and_lead_outlet_and_saves_files()
     {
         // Force role id to 3 to avoid controller special cases 1/2/9/10.
         $seed = $this->seedMasterData(3);
@@ -88,23 +83,23 @@ class LeadFlowTest extends FeatureTestCase
         }
         $resp->assertStatus(200);
 
-        // Assert NOO created
-        $noo = Noo::latest()->first();
-        $this->assertNotNull($noo);
-        $this->assertNotEmpty($noo->poto_depan);
-        $this->assertNotEmpty($noo->poto_kanan);
-        $this->assertNotEmpty($noo->poto_kiri);
-        $this->assertNotEmpty($noo->poto_shop_sign);
-        $this->assertNotEmpty($noo->video);
+        // Assert Register created
+        $register = Register::latest()->first();
+        $this->assertNotNull($register);
+        $this->assertNotEmpty($register->poto_depan);
+        $this->assertNotEmpty($register->poto_kanan);
+        $this->assertNotEmpty($register->poto_kiri);
+        $this->assertNotEmpty($register->poto_shop_sign);
+        $this->assertNotEmpty($register->video);
 
-    $this->assertTrue(Storage::disk('public')->exists($noo->poto_depan));
-    $this->assertTrue(Storage::disk('public')->exists($noo->poto_kanan));
-    $this->assertTrue(Storage::disk('public')->exists($noo->poto_kiri));
-    $this->assertTrue(Storage::disk('public')->exists($noo->poto_shop_sign));
-    $this->assertTrue(Storage::disk('public')->exists($noo->video));
+        $this->assertTrue(Storage::disk('public')->exists($register->poto_depan));
+        $this->assertTrue(Storage::disk('public')->exists($register->poto_kanan));
+        $this->assertTrue(Storage::disk('public')->exists($register->poto_kiri));
+        $this->assertTrue(Storage::disk('public')->exists($register->poto_shop_sign));
+        $this->assertTrue(Storage::disk('public')->exists($register->video));
 
-        // Assert a lead outlet created with code LEAD{noo_id}
-        $leadOutlet = Outlet::where('kode_outlet', 'LEAD'.$noo->id)->first();
+        // Assert a lead outlet created with code LEAD{register_id}
+        $leadOutlet = Outlet::where('kode_outlet', 'LEAD'.$register->id)->first();
         $this->assertNotNull($leadOutlet);
         $this->assertEquals('Lead Outlet', $leadOutlet->nama_outlet);
     }

@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Noo;
+use App\Models\Register;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
@@ -15,7 +15,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\Feature\FeatureTestCase;
 use Tests\Concerns\SeedsMasterData;
 
-class NooFlowTest extends FeatureTestCase
+class RegisterFlowTest extends FeatureTestCase
 {
     use SeedsMasterData;
 
@@ -92,7 +92,7 @@ class NooFlowTest extends FeatureTestCase
         return compact('bu', 'div', 'reg', 'clus', 'role', 'tm', 'user');
     }
 
-    public function test_noo_submit_confirm_approve_creates_outlet()
+    public function test_register_submit_confirm_approve_creates_outlet()
     {
         $g = $this->seedGraph();
 
@@ -104,7 +104,7 @@ class NooFlowTest extends FeatureTestCase
         $video = UploadedFile::fake()->create('vid.mp4', 1000, 'video/mp4');
 
         $payload = [
-            'nama_outlet' => 'NOO Test',
+            'nama_outlet' => 'Register Test',
             'alamat_outlet' => 'Alamat X',
             'nama_pemilik' => 'Budi',
             'nomer_pemilik' => '08123',
@@ -126,36 +126,36 @@ class NooFlowTest extends FeatureTestCase
             'video' => $video,
         ];
 
-        $resp = $this->post('/api/noo', $payload);
+    $resp = $this->post('/api/register', $payload);
         $resp->assertStatus(200);
 
-        $noo = Noo::latest()->first();
-        $this->assertNotNull($noo);
+    $register = Register::latest()->first();
+    $this->assertNotNull($register);
 
         // Confirm
-        $confirm = $this->postJson('/api/noo/confirm', [
-            'id' => $noo->id,
+        $confirm = $this->postJson('/api/register/confirm', [
+            'id' => $register->id,
             'status' => 'CONFIRMED',
             'limit' => 1000000,
-            'kode_outlet' => 'NOO-001',
+            'kode_outlet' => 'REG-001',
         ]);
         $confirm->assertStatus(200);
 
         // Approve
-        $approve = $this->postJson('/api/noo/approved', [
-            'id' => $noo->id,
+        $approve = $this->postJson('/api/register/approved', [
+            'id' => $register->id,
             'status' => 'APPROVED',
         ]);
         $approve->assertStatus(200);
 
         $this->assertDatabaseHas('outlets', [
-            'kode_outlet' => 'NOO-001',
-            'nama_outlet' => $noo->nama_outlet,
+            'kode_outlet' => 'REG-001',
+            'nama_outlet' => $register->nama_outlet,
             'status_outlet' => 'MAINTAIN',
         ]);
     }
 
-    public function test_noo_submit_and_reject_sets_status()
+    public function test_register_submit_and_reject_sets_status()
     {
         $g = $this->seedGraph();
 
@@ -167,7 +167,7 @@ class NooFlowTest extends FeatureTestCase
         $video = UploadedFile::fake()->create('vid.mp4', 1000, 'video/mp4');
 
         $payload = [
-            'nama_outlet' => 'NOO Test 2',
+            'nama_outlet' => 'Register Test 2',
             'alamat_outlet' => 'Alamat Y',
             'nama_pemilik' => 'Susi',
             'nomer_pemilik' => '08123',
@@ -189,19 +189,19 @@ class NooFlowTest extends FeatureTestCase
             'video' => $video,
         ];
 
-        $resp = $this->post('/api/noo', $payload);
+    $resp = $this->post('/api/register', $payload);
         $resp->assertStatus(200);
 
-        $noo = Noo::latest()->first();
-        $reject = $this->postJson('/api/noo/reject', [
-            'id' => $noo->id,
+        $register = Register::latest()->first();
+        $reject = $this->postJson('/api/register/reject', [
+            'id' => $register->id,
             'status' => 'REJECTED',
             'alasan' => 'Tidak memenuhi syarat',
         ]);
         $reject->assertStatus(200);
 
         $this->assertDatabaseHas('noos', [
-            'id' => $noo->id,
+            'id' => $register->id,
             'status' => 'REJECTED',
         ]);
     }

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Filament\Resources\NooResource\Pages;
+namespace App\Filament\Resources\RegisterResource\Pages;
 
-use App\Filament\Exports\NooExporter;
-use App\Filament\Resources\NooResource;
-use App\Models\Noo;
+use App\Filament\Exports\RegisterExporter;
+use App\Filament\Resources\RegisterResource;
+use App\Models\Register;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
 use Filament\Resources\Components\Tab;
@@ -12,9 +12,9 @@ use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 
-class ListNoos extends ListRecords
+class ListRegisters extends ListRecords
 {
-    protected static string $resource = NooResource::class;
+    protected static string $resource = RegisterResource::class;
 
     protected function getHeaderActions(): array
     {
@@ -23,9 +23,9 @@ class ListNoos extends ListRecords
         ];
 
         // Check if the user is authorized to export
-        if (Gate::allows('export', Noo::class)) {
+    if (Gate::allows('export', Register::class)) {
             $actions[] = ExportAction::make()
-                ->exporter(NooExporter::class)
+        ->exporter(RegisterExporter::class)
                 ->color('success')
                 ->icon('heroicon-o-document-arrow-down')
                 ->label('Export');
@@ -37,7 +37,7 @@ class ListNoos extends ListRecords
     public function getTabs(): array
     {
         // Ambil query yang sudah difilter berdasarkan role
-        $query = NooResource::getEloquentQuery(); // Panggil getEloquentQuery() dari Resource
+    $query = RegisterResource::getEloquentQuery(); // Panggil getEloquentQuery() dari Resource
 
         return [
             'pending' => Tab::make()

@@ -8,14 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Noo;
 use App\Models\Outlet;
 use App\Models\Region;
+use App\Models\Register;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -119,7 +118,7 @@ class LeadController extends Controller
      *   },
      *   "data": null
      * }
-     * @response 422 {
+     *   "message": "No query results for model [App\\Models\\Register] 123"
      *   "meta": {
      *     "code": 422,
      *     "status": "error",
@@ -219,7 +218,6 @@ class LeadController extends Controller
                 $request->validate($rules);
             }
 
-            $disk = Storage::disk('public');
             // Proses foto 0..3 (kompatibel pola lama)
             for ($i = 0; $i <= 3; $i++) {
                 $file = $request->file('photo'.$i);
@@ -241,7 +239,7 @@ class LeadController extends Controller
                 }
                 $ext = $file->guessExtension() ?: $file->extension();
                 $name = (string) Str::uuid().'.'.$ext;
-                $path = $disk->putFileAs('noo/photos', $file, $name);
+                $path = $file->storeAs('register/photos', $name, 'public');
                 $data[$target] = $path;
             }
 
@@ -252,15 +250,15 @@ class LeadController extends Controller
                 }
                 $vext = $video->guessExtension() ?: $video->extension();
                 $vname = (string) Str::uuid().'.'.$vext;
-                $vpath = $disk->putFileAs('noo/videos', $video, $vname);
+                $vpath = $video->storeAs('register/videos', $vname, 'public');
                 $data['video'] = $vpath;
             }
 
-            $noo = Noo::create($data);
+            $register = Register::create($data);
 
             // Gabungkan $data dengan $outletData dan buat Outlet
             $outletData = [
-                'kode_outlet' => 'LEAD'.$noo->id,
+                'kode_outlet' => 'LEAD'.$register->id,
                 'limit' => '0',
                 'radius' => '100',
                 'is_member' => '0',
@@ -286,13 +284,13 @@ class LeadController extends Controller
      *
      * **Business Logic:**
      * - Updates KTP information (noktp) in the ktp_outlet field
-     * - Optionally uploads and stores KTP photo in dedicated 'noo/ktp' directory
+     * - Optionally uploads and stores KTP photo in dedicated 'register/ktp' directory
      * - Clears keterangan field (removes 'LEAD' status)
      * - Sends notification to AR (Area Representative) about the update
      * - Prepares lead for potential conversion to regular outlet status
      *
      * **KTP Photo Management:**
-     * - KTP photos are stored in dedicated 'noo/ktp' directory (separate from other photos)
+     * - KTP photos are stored in dedicated 'register/ktp' directory (separate from other photos)
      * - Uses UUID-based filename generation for security and uniqueness
      * - Supports JPG/JPEG/PNG formats with 5MB size limit
      * - Updates poto_ktp field with the stored file path
@@ -351,7 +349,7 @@ class LeadController extends Controller
      *   "meta": {
      *     "code": 404,
      *     "status": "error",
-     *     "message": "No query results for model [App\\Models\\Noo] 123"
+     *     "message": "No query results for model [App\\Models\\Register] 123"
      *   }
      * }
      * @response 500 {
@@ -379,7 +377,7 @@ class LeadController extends Controller
             }
             $request->validate(array_merge($baseRules, $fileRules));
 
-            $lead = Noo::find($request->id);
+            $lead = Register::find($request->id);
             if ($request->hasFile('photo')) {
                 $file = $request->file('photo');
                 if (! $file->isValid()) {
@@ -387,13 +385,13 @@ class LeadController extends Controller
                 }
                 $ext = $file->guessExtension() ?: $file->extension();
                 $name = (string) Str::uuid().'.'.$ext;
-                $path = Storage::disk('public')->putFileAs('noo/ktp', $file, $name);
+                $path = $file->storeAs('register/ktp', $name, 'public');
                 $lead['poto_ktp'] = $path;
             }
             $lead['ktp_outlet'] = $request->noktp;
             $lead['keterangan'] = null;
             $lead->update();
-            SendNotif::sendMessage('Noo baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap, [User::where('role_id', 4)->first()->id_notif]);
+            SendNotif::sendMessage('Register baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap, [User::where('role_id', 4)->first()->id_notif]);
 
             return ResponseFormatter::success(null, 'berhasil menambahkan Lead '.$request->nama_outlet);
         } catch (Exception $e) {

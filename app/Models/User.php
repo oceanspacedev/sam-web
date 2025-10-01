@@ -83,9 +83,17 @@ class User extends Authenticatable implements FilamentUser, HasName
         }
     }
 
+    public function registerTm(): HasMany
+    {
+        return $this->hasMany(Register::class, 'tm_id');
+    }
+
+    /**
+     * @deprecated Use registerTm() instead.
+     */
     public function nootm(): HasMany
     {
-        return $this->hasMany(Noo::class, 'tm_id');
+        return $this->registerTm();
     }
 
     public function visit(): HasMany

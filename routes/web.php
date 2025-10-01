@@ -2,9 +2,9 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LoginController;
-use App\Http\Controllers\NooController;
 use App\Http\Controllers\OutletController;
 use App\Http\Controllers\PlanVisitController;
+use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\UserController;
@@ -45,8 +45,8 @@ Route::get('/', function () {
 // Route::get('/outlet/export', [OutletController::class, 'export'])->name('outlet.export')->middleware('throttle:expensive');
 // Route::get('/outlet/export/template', [OutletController::class, 'template']);
 
-// // #NOO
-// Route::get('/noo/export', [NooController::class, 'export'])->name('noo.export')->middleware('throttle:expensive');
+// // #REGISTER
+// Route::get('/register/export', [RegisterController::class, 'export'])->name('register.export')->middleware('throttle:expensive');
 
 // // #VISIT
 // Route::get('/visit/export', [VisitController::class, 'export'])->name('visit.export')->middleware('throttle:expensive');

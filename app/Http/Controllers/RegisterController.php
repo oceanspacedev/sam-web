@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\NooExport;
+use App\Exports\RegisterExport;
 use App\Models\Division;
-use App\Models\Noo;
+use App\Models\Register;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
-class NooController extends Controller
+class RegisterController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -24,11 +24,11 @@ class NooController extends Controller
             $date1 = Carbon::parse($data[0])->format('Y-m-d');
             $date2 = Carbon::parse($data[1])->addDay(1)->format('Y-m-d');
             $divisi = $request->divisi_id;
-            $noos = Noo::whereBetween('created_at', [$date1, $date2])
+            $registers = Register::whereBetween('created_at', [$date1, $date2])
                 ->where('divisi_id', $divisi)
                 ->get();
 
-            $this->deleteBulk($noos);
+            $this->deleteBulk($registers);
         }
 
         // Cek apakah ada inputan dari daterangesearch
@@ -37,61 +37,61 @@ class NooController extends Controller
             $date1 = Carbon::parse($data[0])->format('Y-m-d');
             $date2 = Carbon::parse($data[1])->format('Y-m-d');
             $date2 = date('Y-m-d', strtotime('+ 1 day', strtotime($date2)));
-            $noos = Noo::with(['badanusaha', 'cluster', 'region', 'divisi'])
+            $registers = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])
                 ->whereBetween('created_at', [$date1, $date2])
                 ->orderBy('created_at')
                 ->simplePaginate(100);
         } else {
-            $noos = Noo::with(['badanusaha', 'cluster', 'region', 'divisi'])->latest()->filter()->simplePaginate(100);
+            $registers = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->latest()->filter()->simplePaginate(100);
         }
 
-        return view('noo.index', [
-            'noos' => $noos,
-            'title' => 'NOO',
-            'active' => 'noo',
+        return view('register.index', [
+            'registers' => $registers,
+            'title' => 'Register',
+            'active' => 'register',
             'divisis' => Division::all()->except(5),
         ]);
     }
 
     public function show(Request $request, $id)
     {
-        $noo = Noo::findOrFail($id);
+        $register = Register::findOrFail($id);
 
-        return view('noo.edit', [
-            'noo' => $noo,
-            'title' => 'NOO',
-            'active' => 'noo',
+        return view('register.edit', [
+            'register' => $register,
+            'title' => 'Register',
+            'active' => 'register',
         ]);
     }
 
     public function update(Request $request, $id)
     {
         try {
-            $noo = Noo::findOrFail($id);
+            $register = Register::findOrFail($id);
             if ($request->status == 'PENDING') {
-                $noo['status'] = $request->status;
-                $noo['confirmed_by'] = null;
-                $noo['confirmed_at'] = null;
-                $noo['rejected_at'] = null;
-                $noo['rejected_by'] = null;
-                $noo['limit'] = null;
+                $register['status'] = $request->status;
+                $register['confirmed_by'] = null;
+                $register['confirmed_at'] = null;
+                $register['rejected_at'] = null;
+                $register['rejected_by'] = null;
+                $register['limit'] = null;
             } else {
-                $noo['status'] = $request->status;
-                $noo['rejected_at'] = null;
-                $noo['rejected_by'] = null;
+                $register['status'] = $request->status;
+                $register['rejected_at'] = null;
+                $register['rejected_by'] = null;
             }
-            $noo['keterangan'] = null;
-            $noo->save();
+            $register['keterangan'] = null;
+            $register->save();
 
-            return redirect('noo')->with(['success' => 'berhasil edit status noo']);
+            return redirect('register')->with(['success' => 'berhasil mengubah status register']);
         } catch (Exception $e) {
-            return redirect('noo')->with(['error' => $e->getMessage()]);
+            return redirect('register')->with(['error' => $e->getMessage()]);
         }
     }
 
     public function export()
     {
-        return Excel::download(new NooExport, 'noo.xlsx');
+        return Excel::download(new RegisterExport, 'register.xlsx');
     }
 
     private function checkAssets($path)
@@ -103,45 +103,45 @@ class NooController extends Controller
         return file_exists(storage_path('app/public/'.$path));
     }
 
-    private function deleteAssets($noos)
+    private function deleteAssets($register)
     {
-        if ($this->checkAssets($noos->poto_shop_sign)) {
-            unlink(storage_path('app/public/'.$noos->poto_shop_sign));
+        if ($this->checkAssets($register->poto_shop_sign)) {
+            unlink(storage_path('app/public/'.$register->poto_shop_sign));
         }
 
-        if ($this->checkAssets($noos->poto_depan)) {
-            unlink(storage_path('app/public/'.$noos->poto_depan));
+        if ($this->checkAssets($register->poto_depan)) {
+            unlink(storage_path('app/public/'.$register->poto_depan));
         }
 
-        if ($this->checkAssets($noos->poto_kanan)) {
-            unlink(storage_path('app/public/'.$noos->poto_kanan));
+        if ($this->checkAssets($register->poto_kanan)) {
+            unlink(storage_path('app/public/'.$register->poto_kanan));
         }
 
-        if ($this->checkAssets($noos->poto_kiri)) {
-            unlink(storage_path('app/public/'.$noos->poto_kiri));
+        if ($this->checkAssets($register->poto_kiri)) {
+            unlink(storage_path('app/public/'.$register->poto_kiri));
         }
 
-        if ($this->checkAssets($noos->poto_ktp)) {
-            unlink(storage_path('app/public/'.$noos->poto_ktp));
+        if ($this->checkAssets($register->poto_ktp)) {
+            unlink(storage_path('app/public/'.$register->poto_ktp));
         }
 
-        if ($this->checkAssets($noos->video)) {
-            unlink(storage_path('app/public/'.$noos->video));
+        if ($this->checkAssets($register->video)) {
+            unlink(storage_path('app/public/'.$register->video));
         }
     }
 
-    public function deleteBulk($noos)
+    public function deleteBulk($registers)
     {
         try {
-            foreach ($noos as $item) {
+            foreach ($registers as $item) {
                 $this->deleteAssets($item);
                 $item->forceDelete($item);
             }
 
-            return redirect('noo')->with(['success' => 'berhasil hapus media Noo secara bulk']);
+            return redirect('register')->with(['success' => 'berhasil hapus media register secara bulk']);
 
         } catch (Exception $e) {
-            return redirect('noo')->with(['error' => $e->getMessage()]);
+            return redirect('register')->with(['error' => $e->getMessage()]);
         }
     }
 }

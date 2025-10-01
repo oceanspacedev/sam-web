@@ -2,20 +2,20 @@
 
 namespace App\Exports;
 
-use App\Models\Noo;
+use App\Models\Register;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
-class NooExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
+class RegisterExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
 {
     /**
      * @return \Illuminate\Support\Collection
      */
     public function collection()
     {
-        return Noo::with(['cluster', 'region', 'badanusaha'])->get();
+    return Register::with(['cluster', 'region', 'badanusaha'])->get();
     }
 
     public function headings(): array
@@ -45,30 +45,30 @@ class NooExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMap
         ];
     }
 
-    public function map($noo): array
+    public function map($register): array
     {
         return [
-            date('d M Y', strtotime($noo->created_at)),
-            $noo->created_by ?? '-',
-            $noo->kode_outlet ?? '-',
-            $noo->badanusaha->name,
-            $noo->divisi->name,
-            $noo->nama_outlet,
-            $noo->nama_pemilik_outlet,
-            $noo->ktp_outlet,
-            $noo->alamat_outlet,
-            $noo->distric,
-            $noo->nomer_tlp_outlet,
-            $noo->nomer_wakil_outlet,
-            $noo->region->name ?? '-',
-            $noo->cluster->name ?? '-',
-            'Rp '.number_format($noo->limit, 0, ',', '.'),
-            $noo->status,
-            $noo->approved_at == null ? '-' : date('d M Y', strtotime($noo->approved_at)),
-            $noo->approved_by ?? '-',
-            $noo->rejected_at == null ? '-' : date('d M Y', strtotime($noo->rejected_at)),
-            $noo->rejected_by ?? '-',
-            $noo->keterangan ?? '-',
+            date('d M Y', strtotime($register->created_at)),
+            $register->created_by ?? '-',
+            $register->kode_outlet ?? '-',
+            $register->badanusaha->name,
+            $register->divisi->name,
+            $register->nama_outlet,
+            $register->nama_pemilik_outlet,
+            $register->ktp_outlet,
+            $register->alamat_outlet,
+            $register->distric,
+            $register->nomer_tlp_outlet,
+            $register->nomer_wakil_outlet,
+            $register->region->name ?? '-',
+            $register->cluster->name ?? '-',
+            'Rp '.number_format($register->limit, 0, ',', '.'),
+            $register->status,
+            $register->approved_at == null ? '-' : date('d M Y', strtotime($register->approved_at)),
+            $register->approved_by ?? '-',
+            $register->rejected_at == null ? '-' : date('d M Y', strtotime($register->rejected_at)),
+            $register->rejected_by ?? '-',
+            $register->keterangan ?? '-',
         ];
     }
 }

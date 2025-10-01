@@ -22,5 +22,7 @@ abstract class FeatureTestCase extends TestCase
         if ($defaultDisk !== 'public') {
             Storage::fake('public');
         }
+
+        Storage::fake('local');
     }
 }

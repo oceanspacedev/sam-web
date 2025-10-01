@@ -105,5 +105,7 @@ class LeadFlowTest extends FeatureTestCase
         $leadOutlet = Outlet::where('kode_outlet', 'LEAD'.$register->id)->first();
         $this->assertNotNull($leadOutlet);
         $this->assertEquals('Lead Outlet', $leadOutlet->nama_outlet);
+        $this->assertEquals($register->poto_depan, $leadOutlet->poto_depan);
+        $this->assertTrue(Storage::disk($disk)->exists($leadOutlet->poto_depan));
     }
 }

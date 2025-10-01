@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessVisitMedia;
 use App\Models\Outlet;
 use App\Models\Visit;
 use App\Services\FileUploadService;
@@ -11,6 +12,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class VisitController extends Controller
 {
@@ -478,10 +480,15 @@ class VisitController extends Controller
      */
     public function submit(Request $request)
     {
+        $temporaryFiles = [];
+        $mediaQueue = [];
+        $mediaDispatched = false;
+
         try {
             $checkIn = $request->latlong_in;
             $checkOut = $request->latlong_out;
             if ($checkIn) {
+                $mediaQueue = [];
                 $user = Auth::user();
                 if ($user->role->name === 'DSF/DM' || $user->role->name === 'ASC') {
                     $outlet = Outlet::where('kode_outlet', $request->kode_outlet)
@@ -508,12 +515,21 @@ class VisitController extends Controller
                 $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
                 $imageName = date('Y-m-d').'-'.Auth::user()->username.'-'.'IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
                 try {
-                    $path = $this->fileUpload->uploadImage(
+                    $temporaryPath = $this->fileUpload->storeTemporary(
                         $request->file('picture_visit'),
-                        'visits/in',
+                        'visits/tmp/in',
                         ['filename' => $imageName]
                     );
+                    $temporaryFiles[] = $temporaryPath;
+                    $mediaQueue[] = [
+                        'field' => 'picture_visit_in',
+                        'tmp_path' => $temporaryPath,
+                        'final_directory' => 'visits/in',
+                        'filename' => $imageName,
+                    ];
                 } catch (\RuntimeException $e) {
+                    $this->cleanupTemporaryFiles($temporaryFiles);
+
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
                 }
                 $visit = Visit::create([
@@ -523,14 +539,26 @@ class VisitController extends Controller
                     'tipe_visit' => $request->tipe_visit,
                     'latlong_in' => $request->latlong_in,
                     'check_in_time' => Carbon::now(),
-                    'picture_visit_in' => $path,
+                    'picture_visit_in' => $temporaryPath,
                 ]);
+
+                if ($mediaQueue !== []) {
+                    ProcessVisitMedia::dispatch(
+                        $visit->id,
+                        $mediaQueue,
+                        $this->fileUpload->disk(),
+                        $this->fileUpload->temporaryDisk()
+                    );
+                    $mediaDispatched = true;
+                    $visit->refresh();
+                }
 
                 return ResponseFormatter::success([
                     'visit' => $visit,
                 ], 'berhasil check in');
             }
             if ($checkOut) {
+                $mediaQueue = [];
                 $lastDataVisit = Visit::whereDate('tanggal_visit', date('Y-m-d'))->where('user_id', Auth::user()->id)->latest()->first();
                 if ($lastDataVisit != null) {
                     $request->validate([
@@ -548,12 +576,21 @@ class VisitController extends Controller
                     $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
                     $imageName = date('Y-m-d').'-'.Auth::user()->username.'-'.'OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
                     try {
-                        $path = $this->fileUpload->uploadImage(
+                        $temporaryPath = $this->fileUpload->storeTemporary(
                             $request->file('picture_visit'),
-                            'visits/out',
+                            'visits/tmp/out',
                             ['filename' => $imageName]
                         );
+                        $temporaryFiles[] = $temporaryPath;
+                        $mediaQueue[] = [
+                            'field' => 'picture_visit_out',
+                            'tmp_path' => $temporaryPath,
+                            'final_directory' => 'visits/out',
+                            'filename' => $imageName,
+                        ];
                     } catch (\RuntimeException $e) {
+                        $this->cleanupTemporaryFiles($temporaryFiles);
+
                         return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
                     }
                     $data = [
@@ -562,10 +599,23 @@ class VisitController extends Controller
                         'check_out_time' => now(),
                         'laporan_visit' => $request->laporan_visit,
                         'durasi_visit' => $durasi,
-                        'picture_visit_out' => $path,
+                        'picture_visit_out' => $temporaryPath,
                         'transaksi' => $request->transaksi,
                     ];
-                    $lastDataVisit->update($data);
+                    $lastDataVisit->forceFill($data)->save();
+
+                    if ($mediaQueue !== []) {
+                        ProcessVisitMedia::dispatch(
+                            $lastDataVisit->id,
+                            $mediaQueue,
+                            $this->fileUpload->disk(),
+                            $this->fileUpload->temporaryDisk()
+                        );
+                        $mediaDispatched = true;
+                        $lastDataVisit->refresh();
+                    }
+
+                    $data['picture_visit_out'] = $lastDataVisit->picture_visit_out;
 
                     return ResponseFormatter::success([
                         'visit' => $data,
@@ -575,9 +625,33 @@ class VisitController extends Controller
                 }
             }
         } catch (Exception $error) {
+            if (! $mediaDispatched) {
+                $this->cleanupTemporaryFiles($temporaryFiles);
+            }
+
             return ResponseFormatter::error([
                 'error' => $error,
             ], 'error', 500);
+        }
+    }
+
+    /**
+     * @param  array<int, string|null>  $paths
+     */
+    private function cleanupTemporaryFiles(array $paths): void
+    {
+        if ($paths === []) {
+            return;
+        }
+
+        $disk = Storage::disk($this->fileUpload->temporaryDisk());
+
+        foreach ($paths as $path) {
+            if (! $path) {
+                continue;
+            }
+
+            $disk->delete($path);
         }
     }
 

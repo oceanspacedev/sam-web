@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessRegisterMedia;
 use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -12,10 +13,12 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Register;
 use App\Models\User;
+use App\Services\FileUploadService;
 use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -47,6 +50,8 @@ use Illuminate\Support\Str;
  */
 class LeadController extends Controller
 {
+    public function __construct(protected FileUploadService $fileUpload) {}
+
     /**
      * Create New Lead with Automatic Outlet Generation
      *
@@ -154,6 +159,10 @@ class LeadController extends Controller
      */
     public function create(Request $request)
     {
+        $temporaryFiles = [];
+        $mediaQueue = [];
+        $mediaDispatched = false;
+
         try {
             $user = Auth::user();
             $data = [
@@ -205,8 +214,6 @@ class LeadController extends Controller
                     break;
             }
 
-            $disk = StorageDisk::default();
-
             // Validasi dinamis untuk file foto/video jika ada
             $rules = [];
             for ($i = 0; $i <= 3; $i++) {
@@ -227,9 +234,6 @@ class LeadController extends Controller
                 if (! $file) {
                     continue;
                 }
-                if (! $file->isValid()) {
-                    return ResponseFormatter::error('File foto tidak valid', 'INVALID_FILE', 422);
-                }
                 $original = $file->getClientOriginalName();
                 if (Str::contains($original, 'fotodepan')) {
                     $target = 'poto_depan';
@@ -240,21 +244,40 @@ class LeadController extends Controller
                 } else {
                     $target = 'poto_shop_sign';
                 }
-                $ext = $file->guessExtension() ?: $file->extension();
-                $name = (string) Str::uuid().'.'.$ext;
-                $path = $file->storeAs('register/photos', $name, $disk);
-                $data[$target] = $path;
+                try {
+                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'register/tmp/photos');
+                } catch (\RuntimeException $exception) {
+                    $this->cleanupTemporaryFiles($temporaryFiles);
+
+                    return ResponseFormatter::error($exception->getMessage(), 'INVALID_FILE', 422);
+                }
+
+                $temporaryFiles[] = $temporaryPath;
+                $data[$target] = $temporaryPath;
+                $mediaQueue[] = [
+                    'field' => $target,
+                    'tmp_path' => $temporaryPath,
+                    'final_directory' => 'register/photos',
+                ];
             }
 
             if ($request->hasFile('video')) {
                 $video = $request->file('video');
-                if (! $video->isValid()) {
-                    return ResponseFormatter::error('File video tidak valid', 'INVALID_FILE', 422);
+                try {
+                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'register/tmp/videos');
+                } catch (\RuntimeException $exception) {
+                    $this->cleanupTemporaryFiles($temporaryFiles);
+
+                    return ResponseFormatter::error($exception->getMessage(), 'INVALID_FILE', 422);
                 }
-                $vext = $video->guessExtension() ?: $video->extension();
-                $vname = (string) Str::uuid().'.'.$vext;
-                $vpath = $video->storeAs('register/videos', $vname, $disk);
-                $data['video'] = $vpath;
+
+                $temporaryFiles[] = $temporaryPath;
+                $data['video'] = $temporaryPath;
+                $mediaQueue[] = [
+                    'field' => 'video',
+                    'tmp_path' => $temporaryPath,
+                    'final_directory' => 'register/videos',
+                ];
             }
 
             $register = Register::create($data);
@@ -272,8 +295,22 @@ class LeadController extends Controller
             $outletCompleteData = array_merge($data, $outletData);
             Outlet::create($outletCompleteData);
 
+            if ($mediaQueue !== []) {
+                ProcessRegisterMedia::dispatch(
+                    $register->id,
+                    $mediaQueue,
+                    $this->fileUpload->disk(),
+                    $this->fileUpload->temporaryDisk()
+                );
+                $mediaDispatched = true;
+            }
+
             return ResponseFormatter::success(null, 'berhasil menambahkan LEAD '.$request->nama_outlet);
         } catch (Exception $e) {
+            if (! $mediaDispatched) {
+                $this->cleanupTemporaryFiles($temporaryFiles);
+            }
+
             return ResponseFormatter::error(['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()], $e->getMessage());
         }
     }
@@ -404,6 +441,26 @@ class LeadController extends Controller
             return ResponseFormatter::success(null, 'berhasil menambahkan Lead '.$request->nama_outlet);
         } catch (Exception $e) {
             return ResponseFormatter::error($e->getMessage(), $e->getMessage());
+        }
+    }
+
+    /**
+     * @param  array<int, string|null>  $paths
+     */
+    private function cleanupTemporaryFiles(array $paths): void
+    {
+        if ($paths === []) {
+            return;
+        }
+
+        $disk = Storage::disk($this->fileUpload->temporaryDisk());
+
+        foreach ($paths as $path) {
+            if (! $path) {
+                continue;
+            }
+
+            $disk->delete($path);
         }
     }
 }

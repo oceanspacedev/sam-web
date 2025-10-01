@@ -12,13 +12,14 @@ class FileUploadService
 {
     protected string $defaultDisk = 'public';
 
-    public function __construct(protected ?string $disk = null)
+    public function __construct(protected ?string $disk = null, protected ?string $temporaryDisk = null)
     {
         // Resolve default disk from configuration so .env FILESYSTEM_DISK is respected.
         // Fallback to the class default ('public') when config is unavailable.
         $this->defaultDisk = StorageDisk::default();
 
         $this->disk = $disk ?? $this->defaultDisk;
+        $this->temporaryDisk = $temporaryDisk ?? 'local';
     }
 
     /**
@@ -27,6 +28,40 @@ class FileUploadService
     protected function storage(): FilesystemAdapter
     {
         return Storage::disk($this->disk);
+    }
+
+    /**
+     * Resolve the filesystem adapter for the temporary disk.
+     */
+    protected function temporaryStorage(): FilesystemAdapter
+    {
+        return Storage::disk($this->temporaryDisk);
+    }
+
+    public function disk(): string
+    {
+        return (string) $this->disk;
+    }
+
+    public function temporaryDisk(): string
+    {
+        return (string) $this->temporaryDisk;
+    }
+
+    public function withDisk(string $disk): self
+    {
+        $clone = clone $this;
+        $clone->disk = $disk;
+
+        return $clone;
+    }
+
+    public function withTemporaryDisk(string $disk): self
+    {
+        $clone = clone $this;
+        $clone->temporaryDisk = $disk;
+
+        return $clone;
     }
 
     /**
@@ -52,7 +87,7 @@ class FileUploadService
             $putOptions['visibility'] = $options['visibility'];
         }
 
-        return $this->storage()->putFileAs($directory, $file, $filename, $putOptions);
+        return $this->storage()->putFileAs(trim($directory, '/'), $file, $filename, $putOptions);
     }
 
     /**
@@ -78,7 +113,70 @@ class FileUploadService
             $putOptions['visibility'] = $options['visibility'];
         }
 
-        return $this->storage()->putFileAs($directory, $file, $filename, $putOptions);
+        return $this->storage()->putFileAs(trim($directory, '/'), $file, $filename, $putOptions);
+    }
+
+    /**
+     * Store file temporarily before deferred processing.
+     */
+    public function storeTemporary(UploadedFile $file, string $directory, array $options = []): string
+    {
+        if (! $file->isValid()) {
+            throw new \RuntimeException('Invalid temporary file upload');
+        }
+
+        $ext = $file->guessExtension() ?: $file->extension();
+        $filename = $options['filename'] ?? ((string) Str::uuid().'.'.$ext);
+
+        $putOptions = [];
+        if (isset($options['visibility'])) {
+            $putOptions['visibility'] = $options['visibility'];
+        }
+
+        return $this->temporaryStorage()->putFileAs(trim($directory, '/'), $file, $filename, $putOptions);
+    }
+
+    /**
+     * Move a temporarily stored file to the configured disk using streaming I/O.
+     */
+    public function transferFromTemporary(string $temporaryPath, string $directory, array $options = []): string
+    {
+        $tempStorage = $this->temporaryStorage();
+
+        if (! $tempStorage->exists($temporaryPath)) {
+            throw new \RuntimeException("Temporary file {$temporaryPath} does not exist");
+        }
+
+        $stream = $tempStorage->readStream($temporaryPath);
+
+        if ($stream === false) {
+            throw new \RuntimeException("Unable to read temporary file {$temporaryPath}");
+        }
+
+        $filename = $options['filename'] ?? ($options['preserve_name'] ?? false
+            ? basename($temporaryPath)
+            : ((string) Str::uuid().'.'.(pathinfo($temporaryPath, PATHINFO_EXTENSION) ?: 'bin')));
+
+        $targetDisk = $options['disk'] ?? $this->disk;
+        $visibility = $options['visibility'] ?? null;
+
+        $putOptions = [];
+        if ($visibility) {
+            $putOptions['visibility'] = $visibility;
+        }
+
+        $path = trim($directory, '/').'/'.$filename;
+
+        $storage = Storage::disk($targetDisk);
+        $storage->writeStream($path, $stream, $putOptions);
+
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
+
+        $tempStorage->delete($temporaryPath);
+
+        return $path;
     }
 
     /**

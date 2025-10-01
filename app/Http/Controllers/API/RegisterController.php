@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessRegisterMedia;
 use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -17,6 +18,7 @@ use App\Services\OrganizationalCacheService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -430,6 +432,10 @@ class RegisterController extends Controller
      */
     public function submit(Request $request)
     {
+        $temporaryFiles = [];
+        $mediaQueue = [];
+        $mediaDispatched = false;
+
         try {
             $user = Auth::user();
             $data = [
@@ -515,40 +521,56 @@ class RegisterController extends Controller
                 $request->validate($rules);
             }
 
-            // Process photo uploads using FileUploadService
+            // Queue photo uploads for background processing
             for ($i = 0; $i <= 4; $i++) {
                 $file = $request->file('photo'.$i);
                 if (! $file) {
                     continue;
                 }
 
-                try {
-                    $original = $file->getClientOriginalName();
-                    if (Str::contains($original, 'fotodepan')) {
-                        $target = 'poto_depan';
-                    } elseif (Str::contains($original, 'fotokanan')) {
-                        $target = 'poto_kanan';
-                    } elseif (Str::contains($original, 'fotokiri')) {
-                        $target = 'poto_kiri';
-                    } elseif (Str::contains($original, 'fotoktp')) {
-                        $target = 'poto_ktp';
-                    } else {
-                        $target = 'poto_shop_sign';
-                    }
+                $original = $file->getClientOriginalName();
+                if (Str::contains($original, 'fotodepan')) {
+                    $target = 'poto_depan';
+                } elseif (Str::contains($original, 'fotokanan')) {
+                    $target = 'poto_kanan';
+                } elseif (Str::contains($original, 'fotokiri')) {
+                    $target = 'poto_kiri';
+                } elseif (Str::contains($original, 'fotoktp')) {
+                    $target = 'poto_ktp';
+                } else {
+                    $target = 'poto_shop_sign';
+                }
 
-                    $path = $this->fileUpload->uploadImage($file, 'register/photos');
-                    $data[$target] = $path;
+                try {
+                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'register/tmp/photos');
+                    $temporaryFiles[] = $temporaryPath;
+                    $mediaQueue[] = [
+                        'field' => $target,
+                        'tmp_path' => $temporaryPath,
+                        'final_directory' => 'register/photos',
+                    ];
+                    $data[$target] = $temporaryPath;
                 } catch (\RuntimeException $e) {
+                    $this->cleanupTemporaryFiles($temporaryFiles);
+
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
                 }
             }
 
-            // Process video upload using FileUploadService
+            // Queue video upload for background processing
             if ($request->hasFile('video')) {
                 try {
-                    $path = $this->fileUpload->uploadVideo($request->file('video'), 'register/videos');
-                    $data['video'] = $path;
+                    $temporaryPath = $this->fileUpload->storeTemporary($request->file('video'), 'register/tmp/videos');
+                    $temporaryFiles[] = $temporaryPath;
+                    $mediaQueue[] = [
+                        'field' => 'video',
+                        'tmp_path' => $temporaryPath,
+                        'final_directory' => 'register/videos',
+                    ];
+                    $data['video'] = $temporaryPath;
                 } catch (\RuntimeException $e) {
+                    $this->cleanupTemporaryFiles($temporaryFiles);
+
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);
                 }
             }
@@ -593,16 +615,29 @@ class RegisterController extends Controller
                     }
                     break;
             }
-            $insert = Register::create($data);
-            if ($insert && $notifId !== []) {
+            $register = Register::create($data);
+            if ($register && $notifId !== []) {
                 SendNotificationJob::dispatch(
                     'Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
                     $notifId
                 );
             }
 
+            if ($register && $mediaQueue !== []) {
+                ProcessRegisterMedia::dispatch(
+                    $register->id,
+                    $mediaQueue,
+                    $this->fileUpload->disk(),
+                    $this->fileUpload->temporaryDisk()
+                );
+                $mediaDispatched = true;
+            }
+
             return ResponseFormatter::success(null, 'berhasil menambahkan register '.$request->nama_outlet);
         } catch (Exception $e) {
+            if (! $mediaDispatched) {
+                $this->cleanupTemporaryFiles($temporaryFiles);
+            }
             error_log($e);
 
             return ResponseFormatter::error($e, 'gagal');
@@ -716,6 +751,26 @@ class RegisterController extends Controller
             error_log($e);
 
             return ResponseFormatter::error($e, 'gagal');
+        }
+    }
+
+    /**
+     * @param  array<int, string|null>  $paths
+     */
+    private function cleanupTemporaryFiles(array $paths): void
+    {
+        if ($paths === []) {
+            return;
+        }
+
+        $disk = Storage::disk($this->fileUpload->temporaryDisk());
+
+        foreach ($paths as $path) {
+            if (! $path) {
+                continue;
+            }
+
+            $disk->delete($path);
         }
     }
 

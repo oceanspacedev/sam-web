@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 
 class Visit extends Model
@@ -35,19 +37,23 @@ class Visit extends Model
         });
 
         static::updating(function ($model) {
+            $disk = StorageDisk::default();
+            /** @var FilesystemAdapter $storage */
+            $storage = Storage::disk($disk);
+
             // Jika field picture_visit_in berubah, hapus gambar lama
             if ($model->isDirty('picture_visit_in') && $model->getOriginal('picture_visit_in')) {
                 $oldFile = $model->getOriginal('picture_visit_in');
-                if (Storage::disk('public')->exists($oldFile)) {
-                    Storage::disk('public')->delete($oldFile);
+                if ($storage->exists($oldFile)) {
+                    $storage->delete($oldFile);
                 }
             }
 
             // Jika field picture_visit_out berubah, hapus gambar lama
             if ($model->isDirty('picture_visit_out') && $model->getOriginal('picture_visit_out')) {
                 $oldFileOut = $model->getOriginal('picture_visit_out');
-                if (Storage::disk('public')->exists($oldFileOut)) {
-                    Storage::disk('public')->delete($oldFileOut);
+                if ($storage->exists($oldFileOut)) {
+                    $storage->delete($oldFileOut);
                 }
             }
         });

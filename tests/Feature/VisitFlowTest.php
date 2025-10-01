@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Outlet;
 use App\Models\User;
+use App\Support\StorageDisk;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -82,7 +83,9 @@ class VisitFlowTest extends FeatureTestCase
         $outPath = $respOut->json('data.visit.picture_visit_out');
         $this->assertNotEmpty($inPath);
         $this->assertNotEmpty($outPath);
-        $this->assertTrue(Storage::disk('public')->exists($inPath));
-        $this->assertTrue(Storage::disk('public')->exists($outPath));
+        $disk = StorageDisk::default();
+
+        $this->assertTrue(Storage::disk($disk)->exists($inPath));
+        $this->assertTrue(Storage::disk($disk)->exists($outPath));
     }
 }

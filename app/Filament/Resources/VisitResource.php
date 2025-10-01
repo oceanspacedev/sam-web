@@ -6,6 +6,7 @@ use App\Filament\Resources\VisitResource\Pages;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Models\Visit;
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
@@ -167,7 +168,7 @@ class VisitResource extends Resource
                                     ->image()
                                     ->columnSpanFull()
                                     ->required()
-                                    ->disk('public')
+                                    ->disk(StorageDisk::default())
                                     ->resize(30)
                                     ->label('Picture at Start of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -180,7 +181,7 @@ class VisitResource extends Resource
                                     ->image()
                                     ->columnSpanFull()
                                     // ->required()
-                                    ->disk('public')
+                                    ->disk(StorageDisk::default())
                                     ->resize(30)
                                     ->label('Picture at End of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {

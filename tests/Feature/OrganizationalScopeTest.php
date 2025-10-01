@@ -55,24 +55,66 @@ class OrganizationalScopeTest extends TestCase
      */
     public function test_super_admin_sees_all_outlets(): void
     {
-        $this->markTestIncomplete('API response structure needs refinement. Functional logic verified via model-level test.');
+        $superAdminRole = Role::factory()->create([
+            'name' => 'SUPER ADMIN',
+            'can_access_web' => 1,
+        ]);
 
-        $superAdminRole = new Role(['name' => 'SUPER ADMIN', 'can_access_web' => 1]);
-        $superAdminRole->id = 1;
-        $superAdminRole->save();
+        $user = User::factory()->create([
+            'role_id' => $superAdminRole->id,
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $this->division->id,
+            'region_id' => $this->region->id,
+            'cluster_id' => $this->cluster->id,
+        ]);
 
-        $user = User::factory()->create(['role_id' => $superAdminRole->id]);
+        $primaryOutlet = Outlet::factory()->create([
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $this->division->id,
+            'region_id' => $this->region->id,
+            'cluster_id' => $this->cluster->id,
+        ]);
 
-        // Create outlets in different organizations
-        $outlet1 = Outlet::factory()->create(['badanusaha_id' => $this->bu->id]);
-        $outlet2 = Outlet::factory()->create(); // Different organization
+        $otherDivision = Division::factory()->create([
+            'badanusaha_id' => $this->bu->id,
+            'name' => 'Alt Division',
+        ]);
+        $otherRegion = Region::factory()->create([
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $otherDivision->id,
+            'name' => 'Alt Region',
+        ]);
+        $otherCluster = Cluster::factory()->create([
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $otherDivision->id,
+            'region_id' => $otherRegion->id,
+            'name' => 'Alt Cluster',
+        ]);
+
+        $secondaryOutlet = Outlet::factory()->create([
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $otherDivision->id,
+            'region_id' => $otherRegion->id,
+            'cluster_id' => $otherCluster->id,
+        ]);
+
+        // Outlet from another badan usaha should be excluded automatically
+        Outlet::factory()->create();
 
         Sanctum::actingAs($user);
+        $response = $this->getJson('/api/outlet?divisi='.urlencode($this->division->name).'&region='.urlencode($this->region->name));
 
-        $response = $this->getJson('/api/outlet?divisi='.$this->division->name.'&region='.$this->region->name);
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('meta.status', 'success')
+            ->assertJsonPath('meta.message', 2);
 
-        $response->assertStatus(200);
-        $this->assertGreaterThanOrEqual(1, count($response->json('data.data')));
+        $data = collect($response->json('data'));
+        $this->assertCount(2, $data);
+        $this->assertEqualsCanonicalizing(
+            [$primaryOutlet->id, $secondaryOutlet->id],
+            $data->pluck('id')->all()
+        );
     }
 
     /**
@@ -82,41 +124,56 @@ class OrganizationalScopeTest extends TestCase
      */
     public function test_asm_sees_only_their_division_outlets(): void
     {
-        $this->markTestIncomplete('API response structure needs refinement. Functional logic verified via model-level test.');
-
-        $asmRole = new Role(['name' => 'ASM', 'can_access_web' => 1]);
-        $asmRole->id = 3;
-        $asmRole->save();
+        $asmRole = Role::factory()->create([
+            'name' => 'ASM',
+            'can_access_web' => 1,
+        ]);
 
         $user = User::factory()->create([
             'role_id' => $asmRole->id,
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $this->division->id,
+            'region_id' => $this->region->id,
+            'cluster_id' => $this->cluster->id,
         ]);
 
-        // Create outlet in user's division
-        $outlet1 = Outlet::factory()->create([
+        $visibleOutlet = Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $this->division->id,
+            'region_id' => $this->region->id,
+            'cluster_id' => $this->cluster->id,
         ]);
 
-        // Create outlet in different division
-        $otherDivision = Division::factory()->create(['badanusaha_id' => $this->bu->id]);
-        $outlet2 = Outlet::factory()->create([
+        $otherDivision = Division::factory()->create([
+            'badanusaha_id' => $this->bu->id,
+        ]);
+        $otherRegion = Region::factory()->create([
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $otherDivision->id,
+        ]);
+        $otherCluster = Cluster::factory()->create([
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $otherDivision->id,
+            'region_id' => $otherRegion->id,
+        ]);
+        Outlet::factory()->create([
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $otherDivision->id,
+            'region_id' => $otherRegion->id,
+            'cluster_id' => $otherCluster->id,
         ]);
 
         Sanctum::actingAs($user);
 
-        $response = $this->getJson('/api/outlet?divisi='.$this->division->name.'&region='.$this->region->name);
+        $response = $this->getJson('/api/outlet?divisi='.urlencode($this->division->name).'&region='.urlencode($this->region->name));
 
-        $response->assertStatus(200);
-        $data = $response->json('data.data');
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('meta.message', 1);
 
-        // Should only see outlet from their division
+        $data = $response->json('data');
         $this->assertCount(1, $data);
-        $this->assertEquals($outlet1->id, $data[0]['id']);
+        $this->assertEquals($visibleOutlet->id, $data[0]['id']);
     }
 
     /**
@@ -126,47 +183,54 @@ class OrganizationalScopeTest extends TestCase
      */
     public function test_asc_sees_only_their_region_outlets(): void
     {
-        $this->markTestIncomplete('API response structure needs refinement. Functional logic verified via model-level test.');
-
-        $ascRole = new Role(['name' => 'ASC', 'can_access_web' => 1]);
-        $ascRole->id = 2;
-        $ascRole->save();
+        $ascRole = Role::factory()->create([
+            'name' => 'ASC',
+            'can_access_web' => 1,
+        ]);
 
         $user = User::factory()->create([
             'role_id' => $ascRole->id,
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $this->division->id,
             'region_id' => $this->region->id,
+            'cluster_id' => $this->cluster->id,
         ]);
 
-        // Create outlet in user's region
-        $outlet1 = Outlet::factory()->create([
+        $visibleOutlet = Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $this->division->id,
             'region_id' => $this->region->id,
+            'cluster_id' => $this->cluster->id,
         ]);
 
-        // Create outlet in different region
         $otherRegion = Region::factory()->create([
             'divisi_id' => $this->division->id,
             'badanusaha_id' => $this->bu->id,
+            'name' => 'Secondary Region',
         ]);
-        $outlet2 = Outlet::factory()->create([
+        $otherCluster = Cluster::factory()->create([
+            'divisi_id' => $this->division->id,
+            'region_id' => $otherRegion->id,
+            'badanusaha_id' => $this->bu->id,
+        ]);
+        Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $this->division->id,
             'region_id' => $otherRegion->id,
+            'cluster_id' => $otherCluster->id,
         ]);
 
         Sanctum::actingAs($user);
 
-        $response = $this->getJson('/api/outlet?divisi='.$this->division->name.'&region='.$this->region->name);
+        $response = $this->getJson('/api/outlet');
 
-        $response->assertStatus(200);
-        $data = $response->json('data.data');
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('meta.message', 1);
 
-        // Should only see outlet from their region
+        $data = $response->json('data');
         $this->assertCount(1, $data);
-        $this->assertEquals($outlet1->id, $data[0]['id']);
+        $this->assertEquals($visibleOutlet->id, $data[0]['id']);
     }
 
     /**
@@ -176,11 +240,10 @@ class OrganizationalScopeTest extends TestCase
      */
     public function test_dsf_sees_only_their_cluster_outlets(): void
     {
-        $this->markTestIncomplete('API response structure needs refinement. Functional logic verified via model-level test.');
-
-        $dsfRole = new Role(['name' => 'DSF/DM', 'can_access_web' => 1]);
-        $dsfRole->id = 7;
-        $dsfRole->save();
+        $dsfRole = Role::factory()->create([
+            'name' => 'DSF/DM',
+            'can_access_web' => 1,
+        ]);
 
         $user = User::factory()->create([
             'role_id' => $dsfRole->id,
@@ -190,21 +253,20 @@ class OrganizationalScopeTest extends TestCase
             'cluster_id' => $this->cluster->id,
         ]);
 
-        // Create outlet in user's cluster
-        $outlet1 = Outlet::factory()->create([
+        $visibleOutlet = Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $this->division->id,
             'region_id' => $this->region->id,
             'cluster_id' => $this->cluster->id,
         ]);
 
-        // Create outlet in different cluster
         $otherCluster = Cluster::factory()->create([
             'region_id' => $this->region->id,
             'divisi_id' => $this->division->id,
             'badanusaha_id' => $this->bu->id,
+            'name' => 'Secondary Cluster',
         ]);
-        $outlet2 = Outlet::factory()->create([
+        Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $this->division->id,
             'region_id' => $this->region->id,
@@ -213,14 +275,15 @@ class OrganizationalScopeTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $response = $this->getJson('/api/outlet?divisi='.$this->division->name.'&region='.$this->region->name);
+        $response = $this->getJson('/api/outlet');
 
-        $response->assertStatus(200);
-        $data = $response->json('data.data');
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('meta.message', 1);
 
-        // Should only see outlet from their cluster
+        $data = $response->json('data');
         $this->assertCount(1, $data);
-        $this->assertEquals($outlet1->id, $data[0]['id']);
+        $this->assertEquals($visibleOutlet->id, $data[0]['id']);
     }
 
     public function test_is_visible_to_method_works_correctly(): void

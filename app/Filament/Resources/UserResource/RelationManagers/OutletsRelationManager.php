@@ -6,6 +6,7 @@ use App\Models\BadanUsaha;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
+use App\Support\StorageDisk;
 use Filament\Forms\Components\Select;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Support\Enums\MaxWidth;
@@ -184,22 +185,22 @@ class OutletsRelationManager extends RelationManager
                         ->action(function (Collection $records) {
                             foreach ($records as $record) {
                                 if ($record->poto_shop_sign) {
-                                    Storage::disk('public')->delete($record->poto_shop_sign);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_shop_sign);
                                 }
                                 if ($record->poto_depan) {
-                                    Storage::disk('public')->delete($record->poto_depan);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_depan);
                                 }
                                 if ($record->poto_kiri) {
-                                    Storage::disk('public')->delete($record->poto_kiri);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_kiri);
                                 }
                                 if ($record->poto_kanan) {
-                                    Storage::disk('public')->delete($record->poto_kanan);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_kanan);
                                 }
                                 if ($record->poto_ktp) {
-                                    Storage::disk('public')->delete($record->poto_ktp);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_ktp);
                                 }
                                 if ($record->video) {
-                                    Storage::disk('public')->delete($record->video);
+                                    Storage::disk(StorageDisk::default())->delete($record->video);
                                 }
 
                                 $record->update([

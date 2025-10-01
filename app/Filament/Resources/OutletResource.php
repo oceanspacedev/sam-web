@@ -8,6 +8,7 @@ use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
@@ -22,6 +23,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
@@ -49,7 +51,7 @@ class OutletResource extends Resource
                                     $divisiId = $get('divisi_id'); // Retrieve badanusaha_id using $get
                                     $outletId = $get('id'); // Ambil id outlet untuk proses edit (pastikan field ini tersedia)
                                     // Cek apakah kode_outlet sudah digunakan di divisi yang sama, kecuali oleh outlet ini sendiri
-                                    $exists = \DB::table('outlets')
+                                    $exists = DB::table('outlets')
                                         ->where('kode_outlet', $value)
                                         ->where('divisi_id', $divisiId)
                                         ->where('id', '!=', $outletId) // Abaikan data ini sendiri jika dalam mode edit
@@ -100,7 +102,7 @@ class OutletResource extends Resource
                     ->schema([
                         Forms\Components\FileUpload::make('poto_shop_sign')
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto Tanda Toko')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -110,7 +112,7 @@ class OutletResource extends Resource
                             }),
                         Forms\Components\FileUpload::make('poto_depan')
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto Depan')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -120,7 +122,7 @@ class OutletResource extends Resource
                             }),
                         Forms\Components\FileUpload::make('poto_kiri')
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto Kiri')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -130,7 +132,7 @@ class OutletResource extends Resource
                             }),
                         Forms\Components\FileUpload::make('poto_kanan')
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto Kanan')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -140,7 +142,7 @@ class OutletResource extends Resource
                             }),
                         Forms\Components\FileUpload::make('poto_ktp')
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto KTP Pemilik')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -149,7 +151,7 @@ class OutletResource extends Resource
                                 return $outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                             }),
                         Forms\Components\FileUpload::make('video')
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mkv'])
                             ->label('Video Toko')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -445,22 +447,22 @@ class OutletResource extends Resource
                             foreach ($records as $record) {
                                 // Hapus file yang terkait dengan kolom gambar/video
                                 if ($record->poto_shop_sign) {
-                                    Storage::disk('public')->delete($record->poto_shop_sign);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_shop_sign);
                                 }
                                 if ($record->poto_depan) {
-                                    Storage::disk('public')->delete($record->poto_depan);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_depan);
                                 }
                                 if ($record->poto_kiri) {
-                                    Storage::disk('public')->delete($record->poto_kiri);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_kiri);
                                 }
                                 if ($record->poto_kanan) {
-                                    Storage::disk('public')->delete($record->poto_kanan);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_kanan);
                                 }
                                 if ($record->poto_ktp) {
-                                    Storage::disk('public')->delete($record->poto_ktp);
+                                    Storage::disk(StorageDisk::default())->delete($record->poto_ktp);
                                 }
                                 if ($record->video) {
-                                    Storage::disk('public')->delete($record->video);
+                                    Storage::disk(StorageDisk::default())->delete($record->video);
                                 }
 
                                 // Reset kolom data menjadi null

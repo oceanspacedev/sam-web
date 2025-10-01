@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\StorageDisk;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -12,7 +14,19 @@ class FileUploadService
 
     public function __construct(protected ?string $disk = null)
     {
+        // Resolve default disk from configuration so .env FILESYSTEM_DISK is respected.
+        // Fallback to the class default ('public') when config is unavailable.
+        $this->defaultDisk = StorageDisk::default();
+
         $this->disk = $disk ?? $this->defaultDisk;
+    }
+
+    /**
+     * Resolve the filesystem adapter for the configured disk.
+     */
+    protected function storage(): FilesystemAdapter
+    {
+        return Storage::disk($this->disk);
     }
 
     /**
@@ -33,7 +47,12 @@ class FileUploadService
 
         $filename = $options['filename'] ?? ((string) Str::uuid().'.'.$ext);
 
-        return Storage::disk($this->disk)->putFileAs($directory, $file, $filename);
+        $putOptions = [];
+        if (isset($options['visibility'])) {
+            $putOptions['visibility'] = $options['visibility'];
+        }
+
+        return $this->storage()->putFileAs($directory, $file, $filename, $putOptions);
     }
 
     /**
@@ -54,7 +73,12 @@ class FileUploadService
 
         $filename = $options['filename'] ?? ((string) Str::uuid().'.'.$ext);
 
-        return Storage::disk($this->disk)->putFileAs($directory, $file, $filename);
+        $putOptions = [];
+        if (isset($options['visibility'])) {
+            $putOptions['visibility'] = $options['visibility'];
+        }
+
+        return $this->storage()->putFileAs($directory, $file, $filename, $putOptions);
     }
 
     /**
@@ -66,7 +90,7 @@ class FileUploadService
             return false;
         }
 
-        return Storage::disk($this->disk)->delete($path);
+        return $this->storage()->delete($path);
     }
 
     /**
@@ -74,7 +98,7 @@ class FileUploadService
      */
     public function fileExists(string $path): bool
     {
-        return Storage::disk($this->disk)->exists($path);
+        return $this->storage()->exists($path);
     }
 
     /**
@@ -82,7 +106,7 @@ class FileUploadService
      */
     public function getUrl(string $path): string
     {
-        return Storage::disk($this->disk)->url($path);
+        return $this->storage()->url($path);
     }
 
     /**
@@ -90,7 +114,7 @@ class FileUploadService
      */
     public function getFileSize(string $path): int
     {
-        return Storage::disk($this->disk)->size($path);
+        return $this->storage()->size($path);
     }
 
     /**
@@ -98,6 +122,6 @@ class FileUploadService
      */
     public function moveFile(string $from, string $to): bool
     {
-        return Storage::disk($this->disk)->move($from, $to);
+        return $this->storage()->move($from, $to);
     }
 }

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
-use App\Helpers\SendNotif;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -594,8 +594,11 @@ class RegisterController extends Controller
                     break;
             }
             $insert = Register::create($data);
-            if ($insert && count($notifId) != 0) {
-                SendNotif::sendMessage('Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap, $notifId);
+            if ($insert && $notifId !== []) {
+                SendNotificationJob::dispatch(
+                    'Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
+                    $notifId
+                );
             }
 
             return ResponseFormatter::success(null, 'berhasil menambahkan register '.$request->nama_outlet);
@@ -696,12 +699,16 @@ class RegisterController extends Controller
             $register->confirmed_by = Auth::user()->nama_lengkap;
             $register->confirmed_at = now();
             $register->update();
-            SendNotif::sendMessage(
+            $recipients = array_filter([
+                optional(User::where('nama_lengkap', $register->created_by)->first())->id_notif,
+                optional($register->tm)->id_notif,
+            ]);
+
+            SendNotificationJob::dispatch(
                 'Register '.$register->nama_outlet.' sudah dikonfirmasi oleh '.
                     Auth::user()->nama_lengkap.PHP_EOL.
                     'Dengan limit : Rp '.number_format($request->limit, 0, ',', '.'),
-                [User::where('nama_lengkap', $register->created_by)->first()->id_notif ?? '-', $register->tm->id_notif]
-
+                $recipients
             );
 
             return ResponseFormatter::success($register, 'berhasil update');
@@ -854,8 +861,8 @@ class RegisterController extends Controller
             } else {
                 $insert = Outlet::create($data);
             }
-            if (count($notif) != 0 && $insert) {
-                SendNotif::sendMessage(
+            if ($insert && $notif !== []) {
+                SendNotificationJob::dispatch(
                     'Register '.$register->nama_outlet.' sudah disetujui oleh '.
                         Auth::user()->nama_lengkap,
                     $notif
@@ -966,7 +973,11 @@ class RegisterController extends Controller
 
             $register->update();
 
-            SendNotif::sendMessage('Register '.$register->nama_outlet.' ditolak oleh '.Auth::user()->nama_lengkap.PHP_EOL.'Alasan : '.$request->alasan, [$register->tm->id_notif]);
+            $recipient = optional($register->tm)->id_notif;
+            SendNotificationJob::dispatch(
+                'Register '.$register->nama_outlet.' ditolak oleh '.Auth::user()->nama_lengkap.PHP_EOL.'Alasan : '.$request->alasan,
+                $recipient ? [$recipient] : []
+            );
 
             return ResponseFormatter::success($register, 'berhasil update');
         } catch (Exception $e) {

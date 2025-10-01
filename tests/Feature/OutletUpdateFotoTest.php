@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Outlet;
 use App\Models\User;
+use App\Support\StorageDisk;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -73,10 +74,11 @@ class OutletUpdateFotoTest extends FeatureTestCase
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_depan);
         $this->assertStringStartsWith('outlets/OUT001/photos/', $outlet->poto_depan);
-        $this->assertTrue(Storage::disk('public')->exists($outlet->poto_depan));
+        $disk = StorageDisk::default();
+        $this->assertTrue(Storage::disk($disk)->exists($outlet->poto_depan));
 
         $this->assertNotNull($outlet->video);
         $this->assertStringStartsWith('outlets/OUT001/videos/', $outlet->video);
-        $this->assertTrue(Storage::disk('public')->exists($outlet->video));
+        $this->assertTrue(Storage::disk($disk)->exists($outlet->video));
     }
 }

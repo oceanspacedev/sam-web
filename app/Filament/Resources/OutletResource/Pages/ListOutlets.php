@@ -6,6 +6,8 @@ use App\Filament\Exports\OutletExporter;
 use App\Filament\Resources\OutletResource;
 use App\Imports\OutletImport;
 use App\Models\Outlet;
+use App\Support\StorageDisk;
+use App\Support\StoragePathResolver;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
 use Filament\Forms\Components\Actions\Action as FormAction;
@@ -16,6 +18,7 @@ use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ListOutlets extends ListRecords
@@ -56,7 +59,7 @@ class ListOutlets extends ListRecords
                         ->required(),
                     FileUpload::make('file')
                         ->label('File (.xlsx/.csv)')
-                        ->disk('public')
+                        ->disk(StorageDisk::default())
                         ->directory('import')
                         ->preserveFilenames()
                         ->acceptedFileTypes([
@@ -74,13 +77,17 @@ class ListOutlets extends ListRecords
                 ])
                 ->modalWidth('md')
                 ->modalHeading('Import Data Outlet')
-                ->modalButton('Import')
+                ->button('Import')
                 ->action(function (array $data) {
+                    $disk = StorageDisk::default();
                     $relativePath = $data['file'];
-                    $fullPath = storage_path('app/public/'.ltrim($relativePath, '/'));
+                    [$fullPath, $temporaryPath] = StoragePathResolver::resolveForLocalAccess($disk, $relativePath);
 
                     try {
                         Excel::import(new OutletImport($data['mode']), $fullPath);
+                        if ($relativePath) {
+                            Storage::disk($disk)->delete($relativePath);
+                        }
                         Notification::make()
                             ->title('Import berhasil')
                             ->success()
@@ -91,6 +98,8 @@ class ListOutlets extends ListRecords
                             ->body($e->getMessage())
                             ->danger()
                             ->send();
+                    } finally {
+                        StoragePathResolver::cleanupTemporaryPath($temporaryPath ?? null);
                     }
                 });
         }

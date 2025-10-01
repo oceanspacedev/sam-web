@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Exports\OutletExport;
 use App\Exports\PlanVisitExport;
+use App\Support\StorageDisk;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -41,14 +42,16 @@ class ProcessExportJob implements ShouldQueue
 
             $path = 'exports/'.$this->filename;
 
+            $disk = StorageDisk::default();
+
             // Export ke storage
-            Excel::store($export, $path, 'public');
+            Excel::store($export, $path, $disk);
 
             Log::info('[ProcessExportJob] Export completed successfully', [
                 'type' => $this->exportType,
                 'filename' => $this->filename,
                 'path' => $path,
-                'size' => Storage::disk('public')->size($path),
+                'size' => Storage::disk($disk)->size($path),
             ]);
 
             // TODO: Notify user melalui notifikasi atau email bahwa export sudah selesai

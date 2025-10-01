@@ -6,14 +6,16 @@ use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use App\Models\Outlet;
 use App\Models\Visit;
+use App\Services\FileUploadService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class VisitController extends Controller
 {
+    public function __construct(protected FileUploadService $fileUpload) {}
+
     /**
      * Retrieve role-based visit monitoring data
      *
@@ -505,7 +507,15 @@ class VisitController extends Controller
                 }
                 $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
                 $imageName = date('Y-m-d').'-'.Auth::user()->username.'-'.'IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
-                $path = Storage::disk('public')->putFileAs('visits/in', $request->file('picture_visit'), $imageName);
+                try {
+                    $path = $this->fileUpload->uploadImage(
+                        $request->file('picture_visit'),
+                        'visits/in',
+                        ['filename' => $imageName]
+                    );
+                } catch (\RuntimeException $e) {
+                    return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
+                }
                 $visit = Visit::create([
                     'tanggal_visit' => date('Y-m-d'),
                     'user_id' => Auth::user()->id,
@@ -537,7 +547,15 @@ class VisitController extends Controller
                     $durasi = $awal->diffInMinutes($akhir);
                     $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
                     $imageName = date('Y-m-d').'-'.Auth::user()->username.'-'.'OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
-                    $path = Storage::disk('public')->putFileAs('visits/out', $request->file('picture_visit'), $imageName);
+                    try {
+                        $path = $this->fileUpload->uploadImage(
+                            $request->file('picture_visit'),
+                            'visits/out',
+                            ['filename' => $imageName]
+                        );
+                    } catch (\RuntimeException $e) {
+                        return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
+                    }
                     $data = [
                         'tanggal_visit' => date('Y-m-d'),
                         'latlong_out' => $request->latlong_out,

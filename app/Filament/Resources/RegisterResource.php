@@ -9,6 +9,7 @@ use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Register;
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
@@ -193,7 +194,7 @@ class RegisterResource extends Resource
                         Forms\Components\FileUpload::make('poto_shop_sign')
                             ->required()
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto Tanda Toko')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -204,7 +205,7 @@ class RegisterResource extends Resource
                         Forms\Components\FileUpload::make('poto_depan')
                             ->required()
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto Depan')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -215,7 +216,7 @@ class RegisterResource extends Resource
                         Forms\Components\FileUpload::make('poto_kiri')
                             ->required()
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto Kiri')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -226,7 +227,7 @@ class RegisterResource extends Resource
                         Forms\Components\FileUpload::make('poto_kanan')
                             ->required()
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto Kanan')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -237,7 +238,7 @@ class RegisterResource extends Resource
                         Forms\Components\FileUpload::make('poto_ktp')
                             ->required()
                             ->image()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->resize(30)
                             ->label('Foto KTP Pemilik')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -247,7 +248,7 @@ class RegisterResource extends Resource
                             }),
                         Forms\Components\FileUpload::make('video')
                             ->required()
-                            ->disk('public')
+                            ->disk(StorageDisk::default())
                             ->label('Video Toko')
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));

@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Support\StorageDisk;
 use App\Traits\HasOrganizationalScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 
 class Register extends Model
@@ -57,6 +59,10 @@ class Register extends Model
     protected static function booted()
     {
         static::updating(function ($model) {
+            $disk = StorageDisk::default();
+            /** @var FilesystemAdapter $storage */
+            $storage = Storage::disk($disk);
+
             $fields = [
                 'poto_shop_sign',
                 'poto_depan',
@@ -69,8 +75,8 @@ class Register extends Model
             foreach ($fields as $field) {
                 if ($model->isDirty($field) && $model->getOriginal($field)) {
                     $oldFile = $model->getOriginal($field);
-                    if (Storage::disk('public')->exists($oldFile)) {
-                        Storage::disk('public')->delete($oldFile);
+                    if ($storage->exists($oldFile)) {
+                        $storage->delete($oldFile);
                     }
                 }
             }

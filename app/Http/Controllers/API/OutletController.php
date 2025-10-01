@@ -11,7 +11,6 @@ use App\Services\FileUploadService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class OutletController extends Controller
@@ -141,7 +140,8 @@ class OutletController extends Controller
             $query = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi']);
 
             // Roles yang memerlukan divisi & region dari request
-            $requiresDivisionRegion = in_array($user->role_id, [1, 6, 8, 9, 11]);
+            $roleName = $user->role?->name;
+            $requiresDivisionRegion = in_array($roleName, ['ASM', 'COO', 'CSO', 'RKAM', 'CSO FAST EV'], true);
 
             if ($requiresDivisionRegion) {
                 $divisi = Division::where('name', $request->divisi)->first();
@@ -310,7 +310,6 @@ class OutletController extends Controller
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
-            $disk = Storage::disk('public');
             // Sanitasi kode outlet untuk path
             $safeKode = preg_replace('/[^A-Za-z0-9._-]/', '_', $outlet->kode_outlet);
             $baseDir = 'outlets/'.$safeKode;

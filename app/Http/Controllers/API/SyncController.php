@@ -12,6 +12,7 @@ use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Visit;
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -752,6 +753,8 @@ class SyncController extends Controller
             // Resolve username for file naming
             $username = optional(User::find($request->user_id))->username ?? (string) $request->user_id;
 
+            $disk = StorageDisk::default();
+
             // Store images (IN / OUT)
             $inExt = $request->file('picture_visit_in')->guessExtension() ?: $request->file('picture_visit_in')->extension();
             $outExt = $request->file('picture_visit_out')->guessExtension() ?: $request->file('picture_visit_out')->extension();
@@ -759,8 +762,8 @@ class SyncController extends Controller
             $imageNameIn = date('Y-m-d').'-'.$username.'-'.'IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$inExt;
             $imageNameOut = date('Y-m-d').'-'.$username.'-'.'OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$outExt;
 
-            $pathIn = $request->file('picture_visit_in')->storeAs('visits/in', $imageNameIn, 'public');
-            $pathOut = $request->file('picture_visit_out')->storeAs('visits/out', $imageNameOut, 'public');
+            $pathIn = $request->file('picture_visit_in')->storeAs('visits/in', $imageNameIn, $disk);
+            $pathOut = $request->file('picture_visit_out')->storeAs('visits/out', $imageNameOut, $disk);
 
             // Determine times and duration
             $checkInTime = $request->filled('check_in_time') ? Carbon::parse($request->check_in_time) : Carbon::now();
@@ -854,8 +857,9 @@ class SyncController extends Controller
             // Delete related public files if present
             foreach (['poto_shop_sign', 'poto_depan', 'poto_kiri', 'poto_kanan', 'poto_ktp', 'video'] as $mediaField) {
                 $path = $outlet->{$mediaField} ?? null;
-                if ($path && Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->delete($path);
+                $disk = StorageDisk::default();
+                if ($path && Storage::disk($disk)->exists($path)) {
+                    Storage::disk($disk)->delete($path);
                 }
             }
 

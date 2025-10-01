@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Outlet;
+use App\Support\StorageDisk;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -13,7 +14,8 @@ class SyncOutletResetTest extends TestCase
 
     public function test_reset_outlet_by_kode_outlet_and_username(): void
     {
-        Storage::fake('public');
+        $disk = StorageDisk::default();
+        Storage::fake($disk);
 
         $user = \App\Models\User::factory()->create([
             'username' => 'ag1',
@@ -34,7 +36,7 @@ class SyncOutletResetTest extends TestCase
 
         // ensure files exist in fake storage
         foreach (['poto_shop_sign', 'poto_depan', 'poto_kiri', 'poto_kanan', 'poto_ktp', 'video'] as $f) {
-            Storage::disk('public')->put($outlet->$f, 'dummy');
+            Storage::disk($disk)->put($outlet->$f, 'dummy');
         }
 
         $res = $this->postJson('/api/sync/outlet/reset', [

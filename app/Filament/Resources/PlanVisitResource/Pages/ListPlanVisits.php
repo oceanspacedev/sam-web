@@ -6,6 +6,8 @@ use App\Filament\Exports\PlanVisitExporter;
 use App\Filament\Resources\PlanVisitResource;
 use App\Imports\PlanVisitImport;
 use App\Models\PlanVisit;
+use App\Support\StorageDisk;
+use App\Support\StoragePathResolver;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
 use Filament\Forms\Components\Actions\Action as FormAction;
@@ -13,6 +15,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ListPlanVisits extends ListRecords
@@ -43,7 +46,7 @@ class ListPlanVisits extends ListRecords
                 ->form([
                     FileUpload::make('file')
                         ->label('File (.xlsx/.csv)')
-                        ->disk('public')
+                        ->disk(StorageDisk::default())
                         ->directory('import')
                         ->preserveFilenames()
                         ->acceptedFileTypes([
@@ -61,13 +64,17 @@ class ListPlanVisits extends ListRecords
                 ])
                 ->modalWidth('md')
                 ->modalHeading('Import Data Plan Visit')
-                ->modalButton('Import')
+                ->button('Import')
                 ->action(function (array $data) {
+                    $disk = StorageDisk::default();
                     $relativePath = $data['file'];
-                    $fullPath = storage_path('app/public/'.ltrim($relativePath, '/'));
+                    [$fullPath, $temporaryPath] = StoragePathResolver::resolveForLocalAccess($disk, $relativePath);
 
                     try {
                         Excel::import(new PlanVisitImport, $fullPath);
+                        if ($relativePath) {
+                            Storage::disk($disk)->delete($relativePath);
+                        }
                         Notification::make()
                             ->title('Import berhasil')
                             ->success()
@@ -78,6 +85,8 @@ class ListPlanVisits extends ListRecords
                             ->body($e->getMessage())
                             ->danger()
                             ->send();
+                    } finally {
+                        StoragePathResolver::cleanupTemporaryPath($temporaryPath ?? null);
                     }
                 });
         }

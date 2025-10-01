@@ -6,6 +6,7 @@ use App\Models\Outlet;
 use App\Models\Register;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\StorageDisk;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -92,11 +93,13 @@ class LeadFlowTest extends FeatureTestCase
         $this->assertNotEmpty($register->poto_shop_sign);
         $this->assertNotEmpty($register->video);
 
-        $this->assertTrue(Storage::disk('public')->exists($register->poto_depan));
-        $this->assertTrue(Storage::disk('public')->exists($register->poto_kanan));
-        $this->assertTrue(Storage::disk('public')->exists($register->poto_kiri));
-        $this->assertTrue(Storage::disk('public')->exists($register->poto_shop_sign));
-        $this->assertTrue(Storage::disk('public')->exists($register->video));
+        $disk = StorageDisk::default();
+
+        $this->assertTrue(Storage::disk($disk)->exists($register->poto_depan));
+        $this->assertTrue(Storage::disk($disk)->exists($register->poto_kanan));
+        $this->assertTrue(Storage::disk($disk)->exists($register->poto_kiri));
+        $this->assertTrue(Storage::disk($disk)->exists($register->poto_shop_sign));
+        $this->assertTrue(Storage::disk($disk)->exists($register->video));
 
         // Assert a lead outlet created with code LEAD{register_id}
         $leadOutlet = Outlet::where('kode_outlet', 'LEAD'.$register->id)->first();

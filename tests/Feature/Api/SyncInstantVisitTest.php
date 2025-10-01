@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Models\Visit;
+use App\Support\StorageDisk;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -14,10 +15,20 @@ class SyncInstantVisitTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $disk = StorageDisk::default();
+        Storage::fake($disk);
+
+        if ($disk !== 'public') {
+            Storage::fake('public');
+        }
+    }
+
     public function test_create_instant_visit_success(): void
     {
-        Storage::fake('public');
-
         $user = User::factory()->create([
             'username' => 'tester',
         ]);
@@ -50,14 +61,14 @@ class SyncInstantVisitTest extends TestCase
 
         $visit = Visit::first();
         $this->assertNotNull($visit);
-        $this->assertTrue(Storage::disk('public')->exists($visit->picture_visit_in));
-        $this->assertTrue(Storage::disk('public')->exists($visit->picture_visit_out));
+        $disk = StorageDisk::default();
+
+        $this->assertTrue(Storage::disk($disk)->exists($visit->picture_visit_in));
+        $this->assertTrue(Storage::disk($disk)->exists($visit->picture_visit_out));
     }
 
     public function test_create_instant_visit_rejects_duplicate_same_day_same_outlet(): void
     {
-        Storage::fake('public');
-
         $user = User::factory()->create();
         $outlet = Outlet::factory()->create();
 

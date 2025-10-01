@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
-use App\Helpers\SendNotif;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -12,6 +12,7 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Register;
 use App\Models\User;
+use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -204,6 +205,8 @@ class LeadController extends Controller
                     break;
             }
 
+            $disk = StorageDisk::default();
+
             // Validasi dinamis untuk file foto/video jika ada
             $rules = [];
             for ($i = 0; $i <= 3; $i++) {
@@ -239,7 +242,7 @@ class LeadController extends Controller
                 }
                 $ext = $file->guessExtension() ?: $file->extension();
                 $name = (string) Str::uuid().'.'.$ext;
-                $path = $file->storeAs('register/photos', $name, 'public');
+                $path = $file->storeAs('register/photos', $name, $disk);
                 $data[$target] = $path;
             }
 
@@ -250,7 +253,7 @@ class LeadController extends Controller
                 }
                 $vext = $video->guessExtension() ?: $video->extension();
                 $vname = (string) Str::uuid().'.'.$vext;
-                $vpath = $video->storeAs('register/videos', $vname, 'public');
+                $vpath = $video->storeAs('register/videos', $vname, $disk);
                 $data['video'] = $vpath;
             }
 
@@ -385,13 +388,18 @@ class LeadController extends Controller
                 }
                 $ext = $file->guessExtension() ?: $file->extension();
                 $name = (string) Str::uuid().'.'.$ext;
-                $path = $file->storeAs('register/ktp', $name, 'public');
+                $disk = StorageDisk::default();
+                $path = $file->storeAs('register/ktp', $name, $disk);
                 $lead['poto_ktp'] = $path;
             }
             $lead['ktp_outlet'] = $request->noktp;
             $lead['keterangan'] = null;
             $lead->update();
-            SendNotif::sendMessage('Register baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap, [User::where('role_id', 4)->first()->id_notif]);
+            $recipient = optional(User::where('role_id', 4)->first())->id_notif;
+            SendNotificationJob::dispatch(
+                'Register baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
+                $recipient ? [$recipient] : []
+            );
 
             return ResponseFormatter::success(null, 'berhasil menambahkan Lead '.$request->nama_outlet);
         } catch (Exception $e) {

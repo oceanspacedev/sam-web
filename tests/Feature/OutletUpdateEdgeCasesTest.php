@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Outlet;
 use App\Models\User;
+use App\Support\StorageDisk;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -88,7 +89,9 @@ class OutletUpdateEdgeCasesTest extends FeatureTestCase
         $resp->assertStatus(200);
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_shop_sign);
-        $this->assertTrue(Storage::disk('public')->exists($outlet->poto_shop_sign));
+        $disk = StorageDisk::default();
+
+        $this->assertTrue(Storage::disk($disk)->exists($outlet->poto_shop_sign));
     }
 
     public function test_reject_invalid_mime_photo()
@@ -148,7 +151,9 @@ class OutletUpdateEdgeCasesTest extends FeatureTestCase
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_depan);
         $this->assertNotNull($outlet->poto_kanan);
-        $this->assertTrue(Storage::disk('public')->exists($outlet->poto_depan));
-        $this->assertTrue(Storage::disk('public')->exists($outlet->poto_kanan));
+        $disk = StorageDisk::default();
+
+        $this->assertTrue(Storage::disk($disk)->exists($outlet->poto_depan));
+        $this->assertTrue(Storage::disk($disk)->exists($outlet->poto_kanan));
     }
 }

@@ -9,6 +9,7 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\StorageDisk;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -51,8 +52,10 @@ class OutletFileDeletionTest extends FeatureTestCase
             'poto_depan' => 'outlets/OUTDEL/photos/old.jpg',
         ]);
 
-        Storage::disk('public')->put('outlets/OUTDEL/photos/old.jpg', 'old');
-        $this->assertTrue(Storage::disk('public')->exists('outlets/OUTDEL/photos/old.jpg'));
+        $disk = StorageDisk::default();
+
+        Storage::disk($disk)->put('outlets/OUTDEL/photos/old.jpg', 'old');
+        $this->assertTrue(Storage::disk($disk)->exists('outlets/OUTDEL/photos/old.jpg'));
 
         $newPhoto = UploadedFile::fake()->image('fotodepan.jpg');
         $resp = $this->post('/api/outlet', [
@@ -65,7 +68,7 @@ class OutletFileDeletionTest extends FeatureTestCase
         $resp->assertStatus(200);
 
         $outlet->refresh();
-        $this->assertFalse(Storage::disk('public')->exists('outlets/OUTDEL/photos/old.jpg'));
-        $this->assertTrue(Storage::disk('public')->exists($outlet->poto_depan));
+        $this->assertFalse(Storage::disk($disk)->exists('outlets/OUTDEL/photos/old.jpg'));
+        $this->assertTrue(Storage::disk($disk)->exists($outlet->poto_depan));
     }
 }

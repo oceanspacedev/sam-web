@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasOrganizationalScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,9 +13,10 @@ use Illuminate\Support\Facades\Storage;
 class Register extends Model
 {
     use HasFactory;
+    use HasOrganizationalScope;
     use SoftDeletes;
 
-    protected $table = 'noos';
+    protected $table = 'registers';
 
     protected $guarded = [
         'id',

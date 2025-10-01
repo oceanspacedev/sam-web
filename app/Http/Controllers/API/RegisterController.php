@@ -8,14 +8,15 @@ use App\Http\Controllers\Controller;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Register;
 use App\Models\Outlet;
 use App\Models\Region;
+use App\Models\Register;
 use App\Models\User;
+use App\Services\FileUploadService;
+use App\Services\OrganizationalCacheService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -56,6 +57,11 @@ use Illuminate\Support\Str;
  */
 class RegisterController extends Controller
 {
+    public function __construct(
+        protected OrganizationalCacheService $orgCache,
+        protected FileUploadService $fileUpload
+    ) {}
+
     /**
      * Fetch NOOs with Role-Based Access Control
      *
@@ -142,102 +148,39 @@ class RegisterController extends Controller
      * @param  Request  $request  HTTP request instance
      * @return \Illuminate\Http\JsonResponse
      */
-    public function fetch(Request $request)
+    public function fetch()
     {
         try {
             $user = Auth::user();
-            $badanusahaId = $user->badanusaha_id;
-            $divisiId = $user->divisi_id;
-            $regionId = $user->region_id;
-            $clusterId = $user->cluster_id;
-            $roleId = $user->role_id;
 
+            // Eager load relationships untuk menghindari N+1
             $query = Register::with(['badanusaha', 'cluster', 'region', 'divisi']);
 
-            switch ($roleId) {
-                // ASM
-                case 1:
-                    // Cek jika akunnya adalah sodikc maka ambil data dari region Bigtasik, Bigcrb, Bigpwt, Bigbdg, Bigkarawang dengan divisi realme
-                    if ($user->id === 158) {
-                        $registers = $query
-                            ->whereIn('region_id', [13, 27, 26, 23, 24])
-                            ->where('divisi_id', 4)
-                            ->latest()
-                            ->get();
-                    } else {
-                        $registers = $query
-                            ->where('tm_id', $user->id)
-                            ->latest()
-                            ->get();
-                    }
-
-                    // Rule lama
-                    // $registers = $query
-                    // ->where('tm_id', $user->id)
-                    // ->latest()
-                    // ->get();
-
-                    break;
-                    // ASC
-                case 2:
-                    $registers = $query
-                        ->where('badanusaha_id', $badanusahaId)
-                        ->where('divisi_id', $divisiId)
-                        ->where('region_id', $regionId)
-                        ->latest()
-                        ->get();
-                    break;
-                    // DSF/DM
-                case 3:
-                    $registers = $query
-                        ->where('badanusaha_id', $badanusahaId)
-                        ->where('divisi_id', $divisiId)
-                        ->where('region_id', $regionId)
-                        ->where('cluster_id', $clusterId)
-                        ->orderBy('updated_at', 'DESC')
-                        ->get();
-                    break;
-                    // COO
-                case 6:
-                    $registers = $query
-                        ->latest()
-                        ->get();
-                    break;
-                    // CSO
-                case 8:
-                    $registers = $query
-                        ->where('divisi_id', 4)
-                        ->latest()
-                        ->get();
-                    break;
-                    // RKAM
-                case 9:
-                    $registers = $query
-                        ->where('tm_id', $user->id)
-                        ->latest()
-                        ->get();
-                    break;
-                    // KAM
-                case 10:
-                    $registers = $query
-                        ->where('badanusaha_id', $badanusahaId)
-                        ->where('divisi_id', $divisiId)
-                        ->where('region_id', $regionId)
-                        ->latest()
-                        ->get();
-                    break;
-
-                    // CSO FAST EV
-                case 11:
-                    $registers = $query
-                        ->where('divisi_id', 7)
-                        ->latest()
-                        ->get();
-                    break;
-
-                default:
-                    $registers = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('badanusaha_id', 2)->orWhere('badanusaha_id', 4)->whereIn('status', ['PENDING', 'CONFIRMED', 'REJECTED'])->latest()->get();
-                    break;
+            // Special case untuk user tertentu
+            if ($user->id === 158) {
+                $registers = $query
+                    ->whereIn('region_id', [13, 27, 26, 23, 24])
+                    ->where('divisi_id', 4)
+                    ->latest()
+                    ->get();
+            } elseif ($user->role_id === 1 || $user->role_id === 9) {
+                // ASM atau RKAM: filter by TM
+                $registers = $query
+                    ->where('tm_id', $user->id)
+                    ->latest()
+                    ->get();
+            } elseif ($user->role_id === 6) {
+                // COO: full access
+                $registers = $query->latest()->get();
+            } elseif ($user->role_id === 8) {
+                // CSO: Realme division only
+                $registers = $query->where('divisi_id', 4)->latest()->get();
+            } elseif ($user->role_id === 11) {
+                // CSO FAST EV: Fast EV division only
+                $registers = $query->where('divisi_id', 7)->latest()->get();
+            } else {
+                // Gunakan organizational scope trait
+                $registers = $query->visibleTo($user)->latest()->get();
             }
 
             return ResponseFormatter::success(
@@ -572,42 +515,42 @@ class RegisterController extends Controller
                 $request->validate($rules);
             }
 
-            $disk = Storage::disk('public');
+            // Process photo uploads using FileUploadService
             for ($i = 0; $i <= 4; $i++) {
                 $file = $request->file('photo'.$i);
                 if (! $file) {
                     continue;
                 }
-                if (! $file->isValid()) {
-                    return ResponseFormatter::error('File foto tidak valid', 'INVALID_FILE', 422);
+
+                try {
+                    $original = $file->getClientOriginalName();
+                    if (Str::contains($original, 'fotodepan')) {
+                        $target = 'poto_depan';
+                    } elseif (Str::contains($original, 'fotokanan')) {
+                        $target = 'poto_kanan';
+                    } elseif (Str::contains($original, 'fotokiri')) {
+                        $target = 'poto_kiri';
+                    } elseif (Str::contains($original, 'fotoktp')) {
+                        $target = 'poto_ktp';
+                    } else {
+                        $target = 'poto_shop_sign';
+                    }
+
+                    $path = $this->fileUpload->uploadImage($file, 'register/photos');
+                    $data[$target] = $path;
+                } catch (\RuntimeException $e) {
+                    return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
                 }
-                $original = $file->getClientOriginalName();
-                if (Str::contains($original, 'fotodepan')) {
-                    $target = 'poto_depan';
-                } elseif (Str::contains($original, 'fotokanan')) {
-                    $target = 'poto_kanan';
-                } elseif (Str::contains($original, 'fotokiri')) {
-                    $target = 'poto_kiri';
-                } elseif (Str::contains($original, 'fotoktp')) {
-                    $target = 'poto_ktp';
-                } else {
-                    $target = 'poto_shop_sign';
-                }
-                $ext = $file->guessExtension() ?: $file->extension();
-                $name = (string) Str::uuid().'.'.$ext;
-                $path = $disk->putFileAs('register/photos', $file, $name);
-                $data[$target] = $path;
             }
 
+            // Process video upload using FileUploadService
             if ($request->hasFile('video')) {
-                $video = $request->file('video');
-                if (! $video->isValid()) {
-                    return ResponseFormatter::error('File video tidak valid', 'INVALID_FILE', 422);
+                try {
+                    $path = $this->fileUpload->uploadVideo($request->file('video'), 'register/videos');
+                    $data['video'] = $path;
+                } catch (\RuntimeException $e) {
+                    return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);
                 }
-                $vext = $video->guessExtension() ?: $video->extension();
-                $vname = (string) Str::uuid().'.'.$vext;
-                $vpath = $disk->putFileAs('register/videos', $video, $vname);
-                $data['video'] = $vpath;
             }
 
             switch ($user->id) {
@@ -1081,7 +1024,8 @@ class RegisterController extends Controller
     public function getbu(Request $request)
     {
         try {
-            $badanusahas = BadanUsaha::all();
+            // Gunakan cache untuk menghindari query repetitive
+            $badanusahas = $this->orgCache->getAllBadanUsaha();
 
             return ResponseFormatter::success($badanusahas, 'berhasil');
         } catch (Exception $e) {
@@ -1146,8 +1090,9 @@ class RegisterController extends Controller
     public function getdiv(Request $request)
     {
         try {
-            $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
-            $divisi = Division::where('badanusaha_id', $badanusaha_id)->get();
+            $badanusaha = BadanUsaha::where('name', $request->bu)->firstOrFail();
+            // Gunakan cache untuk divisions
+            $divisi = $this->orgCache->getDivisionsByBadanUsaha($badanusaha->id);
 
             return ResponseFormatter::success($divisi, 'berhasil');
         } catch (Exception $e) {
@@ -1220,9 +1165,13 @@ class RegisterController extends Controller
     public function getreg(Request $request)
     {
         try {
-            $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
-            $divisi_id = Division::where('badanusaha_id', $badanusaha_id)->where('name', $request->div)->first()->id;
-            $region = Region::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->get();
+            $badanusaha = BadanUsaha::where('name', $request->bu)->firstOrFail();
+            $divisi = Division::where('badanusaha_id', $badanusaha->id)
+                ->where('name', $request->div)
+                ->firstOrFail();
+
+            // Gunakan cache untuk regions
+            $region = $this->orgCache->getRegionsByDivision($divisi->id);
 
             return ResponseFormatter::success($region, 'berhasil');
         } catch (Exception $e) {
@@ -1304,12 +1253,20 @@ class RegisterController extends Controller
         try {
             if ($request->role) {
                 $user = Auth::user();
-                $cluster = Cluster::where('badanusaha_id', $user->badanusaha_id)->where('divisi_id', $user->divisi_id)->where('region_id', $user->region_id)->get();
+                // Gunakan cache untuk clusters by region
+                $cluster = $this->orgCache->getClustersByRegion($user->region_id);
             } else {
-                $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
-                $divisi_id = Division::where('badanusaha_id', $badanusaha_id)->where('name', $request->div)->first()->id;
-                $region_id = Region::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('name', $request->reg)->first()->id;
-                $cluster = Cluster::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('region_id', $region_id)->get();
+                $badanusaha = BadanUsaha::where('name', $request->bu)->firstOrFail();
+                $divisi = Division::where('badanusaha_id', $badanusaha->id)
+                    ->where('name', $request->div)
+                    ->firstOrFail();
+                $region = Region::where('badanusaha_id', $badanusaha->id)
+                    ->where('divisi_id', $divisi->id)
+                    ->where('name', $request->reg)
+                    ->firstOrFail();
+
+                // Gunakan cache untuk clusters
+                $cluster = $this->orgCache->getClustersByRegion($region->id);
             }
 
             return ResponseFormatter::success($cluster, 'berhasil');

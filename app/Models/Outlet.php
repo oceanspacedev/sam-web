@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasOrganizationalScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 class Outlet extends Model
 {
     use HasFactory;
+    use HasOrganizationalScope;
     use SoftDeletes;
 
     protected $guarded = [

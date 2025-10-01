@@ -2,17 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
 use App\Models\Outlet;
-use App\Models\Region;
-use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\Feature\FeatureTestCase;
 use Tests\Concerns\SeedsMasterData;
 
 class VisitFlowTest extends FeatureTestCase
@@ -88,7 +82,7 @@ class VisitFlowTest extends FeatureTestCase
         $outPath = $respOut->json('data.visit.picture_visit_out');
         $this->assertNotEmpty($inPath);
         $this->assertNotEmpty($outPath);
-    $this->assertTrue(Storage::disk('public')->exists($inPath));
-    $this->assertTrue(Storage::disk('public')->exists($outPath));
+        $this->assertTrue(Storage::disk('public')->exists($inPath));
+        $this->assertTrue(Storage::disk('public')->exists($outPath));
     }
 }

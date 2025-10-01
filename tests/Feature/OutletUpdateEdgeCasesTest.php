@@ -2,17 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
 use App\Models\Outlet;
-use App\Models\Region;
-use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\Feature\FeatureTestCase;
 use Tests\Concerns\SeedsMasterData;
 
 class OutletUpdateEdgeCasesTest extends FeatureTestCase
@@ -94,7 +88,7 @@ class OutletUpdateEdgeCasesTest extends FeatureTestCase
         $resp->assertStatus(200);
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_shop_sign);
-    $this->assertTrue(Storage::disk('public')->exists($outlet->poto_shop_sign));
+        $this->assertTrue(Storage::disk('public')->exists($outlet->poto_shop_sign));
     }
 
     public function test_reject_invalid_mime_photo()
@@ -154,7 +148,7 @@ class OutletUpdateEdgeCasesTest extends FeatureTestCase
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_depan);
         $this->assertNotNull($outlet->poto_kanan);
-    $this->assertTrue(Storage::disk('public')->exists($outlet->poto_depan));
-    $this->assertTrue(Storage::disk('public')->exists($outlet->poto_kanan));
+        $this->assertTrue(Storage::disk('public')->exists($outlet->poto_depan));
+        $this->assertTrue(Storage::disk('public')->exists($outlet->poto_kanan));
     }
 }

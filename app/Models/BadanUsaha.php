@@ -37,14 +37,6 @@ class BadanUsaha extends Model
         return $this->hasMany(Register::class, 'badanusaha_id');
     }
 
-    /**
-     * @deprecated Use registers() instead.
-     */
-    public function noo(): HasMany
-    {
-        return $this->registers();
-    }
-
     public function divisi(): HasMany
     {
         return $this->hasMany(Division::class, 'badanusaha_id');

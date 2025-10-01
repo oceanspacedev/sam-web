@@ -13,7 +13,6 @@ use App\Models\Visit;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\Feature\FeatureTestCase;
 
 class VisitMonitorTest extends FeatureTestCase
 {

@@ -14,9 +14,9 @@ class RegisterSeeder extends Seeder
      */
     public function run()
     {
-    Register::insert([
+        Register::insert([
             [
-        'nama_outlet' => 'Register 1',
+                'nama_outlet' => 'Register 1',
                 'badanusaha_id' => 1,
                 'divisi_id' => 4,
                 'alamat_outlet' => 'JL. REGISTER 1',

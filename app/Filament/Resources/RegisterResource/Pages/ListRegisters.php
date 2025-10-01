@@ -23,9 +23,9 @@ class ListRegisters extends ListRecords
         ];
 
         // Check if the user is authorized to export
-    if (Gate::allows('export', Register::class)) {
+        if (Gate::allows('export', Register::class)) {
             $actions[] = ExportAction::make()
-        ->exporter(RegisterExporter::class)
+                ->exporter(RegisterExporter::class)
                 ->color('success')
                 ->icon('heroicon-o-document-arrow-down')
                 ->label('Export');
@@ -37,7 +37,7 @@ class ListRegisters extends ListRecords
     public function getTabs(): array
     {
         // Ambil query yang sudah difilter berdasarkan role
-    $query = RegisterResource::getEloquentQuery(); // Panggil getEloquentQuery() dari Resource
+        $query = RegisterResource::getEloquentQuery(); // Panggil getEloquentQuery() dari Resource
 
         return [
             'pending' => Tab::make()

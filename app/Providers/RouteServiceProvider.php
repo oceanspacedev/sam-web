@@ -106,6 +106,7 @@ class RouteServiceProvider extends ServiceProvider
         // Expensive operations limiter: exports, downloads, bulk imports, etc.
         RateLimiter::for('expensive', function (Request $request) {
             $ip = $request->ip();
+
             return [
                 Limit::perMinute(20)->by($ip),
                 // 200 per hour cap

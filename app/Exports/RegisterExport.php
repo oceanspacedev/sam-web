@@ -15,7 +15,7 @@ class RegisterExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
      */
     public function collection()
     {
-    return Register::with(['cluster', 'region', 'badanusaha'])->get();
+        return Register::with(['cluster', 'region', 'badanusaha'])->get();
     }
 
     public function headings(): array

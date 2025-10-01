@@ -2,7 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\BadanUsaha;
+use App\Models\Cluster;
+use App\Models\Division;
+use App\Models\Region;
+use App\Models\Role;
 use App\Models\User;
+use App\Observers\OrganizationalObserver;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -29,6 +35,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        // Register observers untuk auto-clear cache organizational data
+        BadanUsaha::observe(OrganizationalObserver::class);
+        Division::observe(OrganizationalObserver::class);
+        Region::observe(OrganizationalObserver::class);
+        Cluster::observe(OrganizationalObserver::class);
+        Role::observe(OrganizationalObserver::class);
+
         Pulse::user(fn ($user) => [
             'name' => $user->nama_lengkap,
             'extra' => $user->username,

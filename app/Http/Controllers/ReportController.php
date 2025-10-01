@@ -36,14 +36,14 @@ class ReportController extends Controller
         // Jumlah minggu - jumlah hari dalam satu bulan
         $remainingDays = $daysInMonth - $sundaysCount;
 
-        $jumlahDataNoo = DB::table('noos')
+        $jumlahDataNoo = DB::table('registers')
             ->whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
             ->count();
 
         $rataTambahNooPerHari = ceil(($jumlahDataNoo / $remainingDays) * 100) / 100;
 
-        $jumlahDataPerPembuatNoo = DB::table('noos')
+        $jumlahDataPerPembuatNoo = DB::table('registers')
             ->select('created_by', DB::raw('COUNT(*) as total'))
             ->whereYear('created_at', $year)
             ->whereMonth('created_at', $month)

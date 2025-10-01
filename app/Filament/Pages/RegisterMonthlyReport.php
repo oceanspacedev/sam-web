@@ -188,7 +188,7 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
     protected function getAggregatedQuery(): Builder
     {
         // Build an aggregate query grouped by created_by for the selected month/year
-    return Register::query()
+        return Register::query()
             ->withTrashed()
             ->select([
                 DB::raw('users.nama_lengkap as user_name'),
@@ -261,7 +261,7 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
 
     public function getRegisterCount(): int
     {
-    return Register::query()
+        return Register::query()
             ->withTrashed()
             ->whereYear('created_at', $this->year)
             ->whereMonth('created_at', $this->month)
@@ -274,7 +274,7 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
     {
         $remainingDays = max(1, $this->getRemainingDays());
 
-    return ceil(($this->getRegisterCount() / $remainingDays) * 100) / 100;
+        return ceil(($this->getRegisterCount() / $remainingDays) * 100) / 100;
     }
 
     /**

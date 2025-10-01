@@ -5,14 +5,12 @@ namespace Tests\Feature;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Register;
 use App\Models\Region;
+use App\Models\Register;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\Feature\FeatureTestCase;
 use Tests\Concerns\SeedsMasterData;
 
 class RegisterFlowTest extends FeatureTestCase
@@ -126,11 +124,11 @@ class RegisterFlowTest extends FeatureTestCase
             'video' => $video,
         ];
 
-    $resp = $this->post('/api/register', $payload);
+        $resp = $this->post('/api/register', $payload);
         $resp->assertStatus(200);
 
-    $register = Register::latest()->first();
-    $this->assertNotNull($register);
+        $register = Register::latest()->first();
+        $this->assertNotNull($register);
 
         // Confirm
         $confirm = $this->postJson('/api/register/confirm', [
@@ -189,7 +187,7 @@ class RegisterFlowTest extends FeatureTestCase
             'video' => $video,
         ];
 
-    $resp = $this->post('/api/register', $payload);
+        $resp = $this->post('/api/register', $payload);
         $resp->assertStatus(200);
 
         $register = Register::latest()->first();
@@ -200,7 +198,7 @@ class RegisterFlowTest extends FeatureTestCase
         ]);
         $reject->assertStatus(200);
 
-        $this->assertDatabaseHas('noos', [
+        $this->assertDatabaseHas('registers', [
             'id' => $register->id,
             'status' => 'REJECTED',
         ]);

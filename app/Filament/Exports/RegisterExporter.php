@@ -41,7 +41,7 @@ class RegisterExporter extends Exporter
 
     public static function getCompletedNotificationBody(Export $export): string
     {
-    $body = 'Ekspor data register selesai. '.number_format($export->successful_rows).' '.str('baris')->plural($export->successful_rows).' berhasil diekspor.';
+        $body = 'Ekspor data register selesai. '.number_format($export->successful_rows).' '.str('baris')->plural($export->successful_rows).' berhasil diekspor.';
 
         if ($failedRowsCount = $export->getFailedRowsCount()) {
             $body .= ' Namun, '.number_format($failedRowsCount).' '.str('baris')->plural($failedRowsCount).' gagal diekspor.';

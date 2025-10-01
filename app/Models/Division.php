@@ -36,14 +36,6 @@ class Division extends Model
         return $this->hasMany(Register::class, 'divisi_id');
     }
 
-    /**
-     * @deprecated Use registers() instead.
-     */
-    public function noo(): HasMany
-    {
-        return $this->registers();
-    }
-
     public function badanusaha(): BelongsTo
     {
         return $this->belongsTo(BadanUsaha::class)->withTrashed();

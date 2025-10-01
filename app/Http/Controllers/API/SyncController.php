@@ -53,6 +53,7 @@ class SyncController extends Controller
             $right = preg_replace('/\D/', '', (string) $right);
             $left = str_pad($left, 3, '0', STR_PAD_LEFT);
             $right = str_pad(substr($right, 0, 3), 3, '0', STR_PAD_LEFT);
+
             return $left.'.'.$right;
         }
 
@@ -70,8 +71,10 @@ class SyncController extends Controller
         }
         $left = str_pad($left, 3, '0', STR_PAD_LEFT);
         $right = str_pad($right, 3, '0', STR_PAD_LEFT);
+
         return $left.'.'.$right;
     }
+
     /**
      * Normalize transaksi input to match DB enum values (YES/NO).
      */
@@ -829,7 +832,7 @@ class SyncController extends Controller
             $outlet = Outlet::query()
                 ->where('kode_outlet', $kode)
                 ->where('divisi_id', $user->divisi_id)
-                ->orderBy('id') 
+                ->orderBy('id')
                 ->first();
 
             // Fallback: try unnormalized raw input trimmed if exact normalized not found (defensive)

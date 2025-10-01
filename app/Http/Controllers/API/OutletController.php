@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
+use App\Services\FileUploadService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,10 @@ use Illuminate\Support\Str;
 
 class OutletController extends Controller
 {
+    public function __construct(
+        protected FileUploadService $fileUpload
+    ) {}
+
     /**
      * Retrieve all outlets with complete relationship data
      *
@@ -131,120 +136,31 @@ class OutletController extends Controller
     {
         try {
             $user = Auth::user();
+
+            // Eager load relationships untuk menghindari N+1
             $query = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi']);
-            switch ($user->role_id) {
-                // ASM
-                case 1:
-                    $divisi = Division::where('name', $request->divisi)->first();
-                    if (! $divisi) {
-                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
-                    }
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
-                    if (! $region) {
-                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
-                    }
-                    $outlet = $query
-                        ->where('divisi_id', $divisi->id)
-                        ->where('region_id', $region->id)
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                    // ASC
-                case 2:
-                    $outlet = $query
-                        ->where('badanusaha_id', $user->badanusaha_id)
-                        ->where('divisi_id', $user->divisi_id)
-                        ->where('region_id', $user->region_id)
-                        ->whereIn('cluster_id', [$user->cluster_id, $user->cluster_id2])
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                    // DSF/DM
-                case 3:
-                    $outlet = $query
-                        ->where('badanusaha_id', $user->badanusaha_id)
-                        ->where('divisi_id', $user->divisi_id)
-                        ->where('region_id', $user->region_id)
-                        ->whereIn('cluster_id', [$user->cluster_id, $user->cluster_id2])
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                    // COO
-                case 6:
-                    $divisi = Division::where('name', $request->divisi)->first();
-                    if (! $divisi) {
-                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
-                    }
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
-                    if (! $region) {
-                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
-                    }
-                    $outlet = $query
-                        ->where('divisi_id', $divisi->id)
-                        ->where('region_id', $region->id)
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                    // CSO
-                case 8:
-                    $divisi = Division::where('name', $request->divisi)->first();
-                    if (! $divisi) {
-                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
-                    }
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
-                    if (! $region) {
-                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
-                    }
-                    $outlet = $query
-                        ->where('divisi_id', $divisi->id)
-                        ->where('region_id', $region->id)
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                    // RKAM
-                case 9:
-                    $divisi = Division::where('name', $request->divisi)->first();
-                    if (! $divisi) {
-                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
-                    }
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
-                    if (! $region) {
-                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
-                    }
-                    $outlet = $query
-                        ->where('divisi_id', $divisi->id)
-                        ->where('region_id', $region->id)
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                    // KAM
-                case 10:
-                    $outlet = $query
-                        ->where('badanusaha_id', $user->badanusaha_id)
-                        ->where('divisi_id', $user->divisi_id)
-                        ->where('region_id', $user->region_id)
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                    // CSO FAST EV
-                case 11:
-                    $divisi = Division::where('name', $request->divisi)->first();
-                    if (! $divisi) {
-                        return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
-                    }
-                    $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
-                    if (! $region) {
-                        return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
-                    }
-                    $outlet = $query
-                        ->where('divisi_id', $divisi->id)
-                        ->where('region_id', $region->id)
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                default:
-                    $outlet = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi'])->get();
-                    break;
+
+            // Roles yang memerlukan divisi & region dari request
+            $requiresDivisionRegion = in_array($user->role_id, [1, 6, 8, 9, 11]);
+
+            if ($requiresDivisionRegion) {
+                $divisi = Division::where('name', $request->divisi)->first();
+                if (! $divisi) {
+                    return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
+                }
+                $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
+                if (! $region) {
+                    return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
+                }
+
+                $outlet = $query
+                    ->where('divisi_id', $divisi->id)
+                    ->where('region_id', $region->id)
+                    ->orderBy('nama_outlet')
+                    ->get();
+            } else {
+                // Gunakan organizational scope trait
+                $outlet = $query->visibleTo($user)->orderBy('nama_outlet')->get();
             }
 
             return ResponseFormatter::success(
@@ -433,23 +349,23 @@ class OutletController extends Controller
                     $targetField = 'poto_shop_sign';
                 }
 
-                $ext = $file->guessExtension() ?: $file->extension();
-                $filename = (string) Str::uuid().'.'.$ext;
-                $path = $disk->putFileAs($baseDir.'/photos', $file, $filename);
-                // Simpan path relatif pada kolom agar hook model bisa hapus file lama
-                $outlet->{$targetField} = $path;
+                try {
+                    $path = $this->fileUpload->uploadImage($file, $baseDir.'/photos');
+                    // Simpan path relatif pada kolom agar hook model bisa hapus file lama
+                    $outlet->{$targetField} = $path;
+                } catch (\RuntimeException $e) {
+                    return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
+                }
             }
 
             // Proses video (opsional)
             if ($request->hasFile('video')) {
-                $video = $request->file('video');
-                if (! $video->isValid()) {
-                    return ResponseFormatter::error(null, 'File video tidak valid', 422);
+                try {
+                    $path = $this->fileUpload->uploadVideo($request->file('video'), $baseDir.'/videos');
+                    $outlet->video = $path;
+                } catch (\RuntimeException $e) {
+                    return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);
                 }
-                $vext = $video->guessExtension() ?: $video->extension();
-                $vname = (string) Str::uuid().'.'.$vext;
-                $vpath = $disk->putFileAs($baseDir.'/videos', $video, $vname);
-                $outlet->video = $vpath;
             }
 
             // Update field teks

@@ -42,14 +42,6 @@ class Cluster extends Model
         return $this->hasMany(Register::class);
     }
 
-    /**
-     * @deprecated Use registers() instead.
-     */
-    public function noo(): HasMany
-    {
-        return $this->registers();
-    }
-
     public function badanusaha(): BelongsTo
     {
         return $this->belongsTo(BadanUsaha::class)->withTrashed();

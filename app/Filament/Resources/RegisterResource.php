@@ -6,9 +6,9 @@ use App\Filament\Resources\RegisterResource\Pages;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Register;
 use App\Models\Outlet;
 use App\Models\Region;
+use App\Models\Register;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
@@ -25,8 +25,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
 
 class RegisterResource extends Resource

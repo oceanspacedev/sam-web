@@ -14,7 +14,6 @@ trait SeedsMasterData
      * Seed minimal master data required for most feature flows.
      * Optionally force a specific Role ID to avoid controller branching.
      *
-     * @param int|null $forceRoleId
      * @return array{bu: \App\Models\BadanUsaha, div: \App\Models\Division, reg: \App\Models\Region, clus: \App\Models\Cluster, role: \App\Models\Role}
      */
     protected function seedMasterData(?int $forceRoleId = null): array

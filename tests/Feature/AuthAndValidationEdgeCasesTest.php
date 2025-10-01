@@ -10,7 +10,6 @@ use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
 class AuthAndValidationEdgeCasesTest extends FeatureTestCase

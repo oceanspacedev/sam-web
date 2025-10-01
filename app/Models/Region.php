@@ -6,17 +6,19 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Region extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $guarded = [
         'id',
     ];
 
     protected $hidden = [
-        'created_at', 'updated_at',
+        'created_at', 'updated_at', 'deleted_at',
     ];
 
     public function user(): HasMany
@@ -44,12 +46,12 @@ class Region extends Model
 
     public function badanusaha(): BelongsTo
     {
-        return $this->belongsTo(BadanUsaha::class);
+        return $this->belongsTo(BadanUsaha::class)->withTrashed();
     }
 
     public function divisi(): BelongsTo
     {
-        return $this->belongsTo(Division::class);
+        return $this->belongsTo(Division::class)->withTrashed();
     }
 
     public function cluster(): HasMany

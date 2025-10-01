@@ -39,12 +39,12 @@ class Outlet extends Model
 
     public function cluster(): BelongsTo
     {
-        return $this->belongsTo(Cluster::class);
+        return $this->belongsTo(Cluster::class)->withTrashed();
     }
 
     public function region(): BelongsTo
     {
-        return $this->belongsTo(Region::class);
+        return $this->belongsTo(Region::class)->withTrashed();
     }
 
     public function user(): HasMany
@@ -54,12 +54,12 @@ class Outlet extends Model
 
     public function badanusaha(): BelongsTo
     {
-        return $this->belongsTo(BadanUsaha::class);
+        return $this->belongsTo(BadanUsaha::class)->withTrashed();
     }
 
     public function divisi(): BelongsTo
     {
-        return $this->belongsTo(Division::class);
+        return $this->belongsTo(Division::class)->withTrashed();
     }
 
     public function scopeWithTmAscDsf(Builder $query): Builder

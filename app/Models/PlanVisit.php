@@ -6,13 +6,19 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PlanVisit extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $guarded = [
         'id',
+    ];
+
+    protected $hidden = [
+        'deleted_at',
     ];
 
     public function scopeFilter($query)
@@ -24,12 +30,12 @@ class PlanVisit extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function outlet(): BelongsTo
     {
-        return $this->belongsTo(Outlet::class);
+        return $this->belongsTo(Outlet::class)->withTrashed();
     }
 
     public function formatForAPI()
@@ -41,6 +47,7 @@ class PlanVisit extends Model
             'outlet_id' => $this->outlet_id,
             'created_at' => $this->created_at ? Carbon::parse($this->created_at)->getPreciseTimestamp(3) : null,
             'updated_at' => $this->updated_at ? Carbon::parse($this->updated_at)->getPreciseTimestamp(3) : null,
+            'deleted_at' => $this->deleted_at ? Carbon::parse($this->deleted_at)->getPreciseTimestamp(3) : null,
             // Include loaded relations minimally to be consistent with other APIs
             'user' => $this->relationLoaded('user') ? $this->user : null,
             'outlet' => $this->relationLoaded('outlet') ? $this->outlet : null,

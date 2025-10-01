@@ -29,7 +29,7 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
 
         // Hindari error pada environment testing ketika tabel belum dimigrasi
-        if (Schema::hasTable('permissions')) {
+        if (Schema::hasTable('permissions') && Schema::hasColumn('permissions', 'deleted_at')) {
             $permissions = Permission::all();
             foreach ($permissions as $permission) {
                 Gate::define($permission->name, function ($user) use ($permission) {

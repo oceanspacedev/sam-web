@@ -25,7 +25,7 @@ class Visit extends Model
 
     public function outlet(): BelongsTo
     {
-        return $this->belongsTo(Outlet::class);
+        return $this->belongsTo(Outlet::class)->withTrashed();
     }
 
     protected static function booted()

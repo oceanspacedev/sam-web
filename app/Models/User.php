@@ -108,22 +108,22 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function cluster(): BelongsTo
     {
-        return $this->belongsTo(Cluster::class);
+        return $this->belongsTo(Cluster::class)->withTrashed();
     }
 
     public function cluster2(): BelongsTo
     {
-        return $this->belongsTo(Cluster::class, 'cluster_id2');
+        return $this->belongsTo(Cluster::class, 'cluster_id2')->withTrashed();
     }
 
     public function region(): BelongsTo
     {
-        return $this->belongsTo(Region::class);
+        return $this->belongsTo(Region::class)->withTrashed();
     }
 
     public function role(): BelongsTo
     {
-        return $this->belongsTo(Role::class);
+        return $this->belongsTo(Role::class)->withTrashed();
     }
 
     public function permissions()
@@ -133,17 +133,17 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function divisi(): BelongsTo
     {
-        return $this->belongsTo(Division::class);
+        return $this->belongsTo(Division::class)->withTrashed();
     }
 
     public function badanusaha(): BelongsTo
     {
-        return $this->belongsTo(BadanUsaha::class);
+        return $this->belongsTo(BadanUsaha::class)->withTrashed();
     }
 
     public function tm(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'tm_id');
+        return $this->belongsTo(User::class, 'tm_id')->withTrashed();
     }
 
     /**

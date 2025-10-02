@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\StorageDisk;
+use App\Traits\CleansUpMedia;
 use App\Traits\HasOrganizationalScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,11 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Filesystem\FilesystemAdapter;
-use Illuminate\Support\Facades\Storage;
 
 class Outlet extends Model
 {
+    use CleansUpMedia;
     use HasFactory;
     use HasOrganizationalScope;
     use SoftDeletes;
@@ -23,12 +22,30 @@ class Outlet extends Model
         'id',
     ];
 
-    public function scopeFilter($query)
+    protected array $mediaCleanupFields = [
+        'poto_shop_sign',
+        'poto_depan',
+        'poto_kiri',
+        'poto_kanan',
+        'poto_ktp',
+        'video',
+    ];
+
+    public function scopeFilter(Builder $query, ?string $term = null): Builder
     {
-        if (request('search')) {
-            $query->where('nama_outlet', 'like', '%'.request('search').'%')
-                ->orWhere('kode_outlet', 'like', '%'.request('search').'%');
-        }
+        $term ??= request('search');
+
+        return $query->when($term, function (Builder $query, string $search): void {
+            $query->where(function (Builder $query) use ($search): void {
+                $query->where('nama_outlet', 'like', "%{$search}%")
+                    ->orWhere('kode_outlet', 'like', "%{$search}%");
+            });
+        });
+    }
+
+    public function register(): BelongsTo
+    {
+        return $this->belongsTo(Register::class)->withTrashed();
     }
 
     public function planvisit(): HasMany
@@ -92,35 +109,10 @@ class Outlet extends Model
             );
     }
 
-    protected static function booted()
+    public function formatForAPI(): array
     {
-        static::updating(function ($model) {
-            $disk = StorageDisk::default();
-            /** @var FilesystemAdapter $storage */
-            $storage = Storage::disk($disk);
+        $this->loadMissing(['badanusaha', 'region', 'cluster', 'divisi']);
 
-            $fields = [
-                'poto_shop_sign',
-                'poto_depan',
-                'poto_kiri',
-                'poto_kanan',
-                'poto_ktp',
-                'video',
-            ];
-
-            foreach ($fields as $field) {
-                if ($model->isDirty($field) && $model->getOriginal($field)) {
-                    $oldFile = $model->getOriginal($field);
-                    if ($storage->exists($oldFile)) {
-                        $storage->delete($oldFile);
-                    }
-                }
-            }
-        });
-    }
-
-    public function formatForAPI()
-    {
         return [
             'id' => $this->id,
             'kode_outlet' => $this->kode_outlet,

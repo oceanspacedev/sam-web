@@ -28,7 +28,7 @@ class OutletExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMappi
     {
         return [
             'badan_usaha', 'divisi', 'region', 'cluster', 'kode_outlet', 'nama_outlet', 'alamat_outlet',
-            'distric', 'status_outlet', 'status', 'radius', 'limit', 'latlong', 'nama_pemilik_outlet', 'telepon_outlet',
+            'distric', 'status_outlet', 'radius', 'limit', 'latlong', 'nama_pemilik_outlet', 'telepon_outlet',
             'TM', 'ASC', 'DSF', 'tanggal registrasi', 'foto_shop_sign', 'foto_depan', 'foto_kiri',
             'foto_kanan', 'foto_ktp', 'video',
         ];
@@ -67,7 +67,6 @@ class OutletExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMappi
             $outlet->nama_outlet,
             $outlet->alamat_outlet,
             $outlet->distric,
-            $outlet->is_member ? 'MEMBER' : 'LEAD',
             $outlet->status_outlet,
             $outlet->radius.' Meter',
             'Rp '.number_format($outlet->limit, 0, ',', '.'),

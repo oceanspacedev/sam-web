@@ -1,7 +1,6 @@
 <?php
 
 use App\Helpers\SendNotif;
-use App\Http\Controllers\API\LeadController;
 use App\Http\Controllers\API\OutletController;
 use App\Http\Controllers\API\PlanVisitController;
 use App\Http\Controllers\API\RegisterController;
@@ -52,19 +51,19 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::get('register/getdiv', [RegisterController::class, 'getdiv']);
     Route::get('register/getreg', [RegisterController::class, 'getreg']);
     Route::get('register/getclus', [RegisterController::class, 'getclus']);
-    Route::post('register', [RegisterController::class, 'submit']);
+    Route::post('register', [RegisterController::class, 'submitNoo']);
     Route::get('register/all', [RegisterController::class, 'all']);
     Route::get('register', [RegisterController::class, 'fetch']);
     Route::get('register/{kodeOutlet}', [RegisterController::class, 'singleOutlet']);
     Route::get('register/outlet-options', [RegisterController::class, 'getRegisterOutlet']);
 
-    Route::post('register/confirm', [RegisterController::class, 'confirm']);
-    Route::post('register/approved', [RegisterController::class, 'approved']);
-    Route::post('register/reject', [RegisterController::class, 'reject']);
+    Route::post('register/confirm', [RegisterController::class, 'confirmNoo']);
+    Route::post('register/approved', [RegisterController::class, 'approveNoo']);
+    Route::post('register/reject', [RegisterController::class, 'rejectNoo']);
 
     // LEAD
-    Route::post('lead', [LeadController::class, 'create']);
-    Route::post('lead/update', [LeadController::class, 'update']);
+    Route::post('lead', [RegisterController::class, 'submitLead']);
+    Route::post('lead/update', [RegisterController::class, 'upgradeLead']);
 });
 
 // Route::post('user/register', [UserController::class, 'register']);

@@ -97,11 +97,6 @@ class OutletExporter extends Exporter
                     return $state ? $baseUrl.$state : '-';
                 })
                 ->label('Video'),
-            ExportColumn::make('is_member')
-                ->formatStateUsing(function ($state) {
-                    return $state == 1 ? 'MEMBER' : ($state == 0 ? 'LEAD' : '-');
-                })
-                ->label('Status Outlet'),
             ExportColumn::make('updated_at')
                 ->formatStateUsing(function ($state) {
                     return \Carbon\Carbon::parse($state)->format('d M Y');

@@ -80,9 +80,10 @@ class LeadMediaQueueTest extends FeatureTestCase
         $this->assertNotNull($register);
         $this->assertTrue(Str::startsWith($register->poto_depan, 'register/tmp/'));
 
-        $leadOutlet = Outlet::where('kode_outlet', 'LEAD'.$register->id)->first();
-        $this->assertNotNull($leadOutlet);
-        $this->assertTrue(Str::startsWith($leadOutlet->poto_depan, 'register/tmp/'));
+        $this->assertFalse(
+            Outlet::query()->where('kode_outlet', 'LEAD'.$register->id)->exists(),
+            'Lead creation should not generate an Outlet record.'
+        );
 
         Queue::assertPushed(ProcessRegisterMedia::class, function (ProcessRegisterMedia $job) use ($register) {
             return $job->registerId() === $register->id && count($job->mediaItems()) === 5;

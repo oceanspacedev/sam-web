@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,11 +22,13 @@ class PlanVisit extends Model
         'deleted_at',
     ];
 
-    public function scopeFilter($query)
+    public function scopeFilter(Builder $query, ?string $term = null): Builder
     {
-        if (request('search')) {
-            $query->where('nama_lengkap', 'like', '%'.request('search').'%');
-        }
+        $term ??= request('search');
+
+        return $query->when($term, function (Builder $query, string $search): void {
+            $query->where('nama_lengkap', 'like', "%{$search}%");
+        });
     }
 
     public function user(): BelongsTo
@@ -38,7 +41,7 @@ class PlanVisit extends Model
         return $this->belongsTo(Outlet::class)->withTrashed();
     }
 
-    public function formatForAPI()
+    public function formatForAPI(): array
     {
         return [
             'id' => $this->id,

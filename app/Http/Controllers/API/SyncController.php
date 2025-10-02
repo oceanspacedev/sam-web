@@ -460,7 +460,7 @@ class SyncController extends Controller
     /**
      * Get all Outlet data with relations
      *
-     * Retrieves complete outlet information including location data, status, membership,
+     * Retrieves complete outlet information including location data, status,
      * visit radius, and organizational assignments. This data enables external systems
      * to maintain outlet management, geolocation services, and territory planning.
      *
@@ -468,7 +468,7 @@ class SyncController extends Controller
      *
      * @group Sync
      *
-     * @response 200 {"meta":{"code":200,"status":"success","message":"Data Outlet berhasil diambil"},"data":[{"id":1,"kode_outlet":"OUT001","nama_outlet":"Sample Outlet","alamat_outlet":"123 Main St","distric":"Downtown","status_outlet":"Active","is_member":true,"radius":100,"limit":50,"latlong":"-6.2088,106.8456","badanusaha_id":1,"divisi_id":1,"region_id":1,"cluster_id":1,"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
+     * @response 200 {"meta":{"code":200,"status":"success","message":"Data Outlet berhasil diambil"},"data":[{"id":1,"kode_outlet":"OUT001","nama_outlet":"Sample Outlet","alamat_outlet":"123 Main St","distric":"Downtown","status_outlet":"Active","radius":100,"limit":50,"latlong":"-6.2088,106.8456","badanusaha_id":1,"divisi_id":1,"region_id":1,"cluster_id":1,"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Outlet"},"data":null}
      *
      * @return \Illuminate\Http\JsonResponse
@@ -476,7 +476,7 @@ class SyncController extends Controller
     public function getOutlet()
     {
         try {
-            $outlets = Outlet::select('id', 'kode_outlet', 'nama_outlet', 'alamat_outlet', 'distric', 'status_outlet', 'is_member', 'radius', 'limit', 'latlong', 'badanusaha_id', 'divisi_id', 'region_id', 'cluster_id', 'created_at', 'updated_at')
+            $outlets = Outlet::select('id', 'kode_outlet', 'nama_outlet', 'alamat_outlet', 'distric', 'status_outlet', 'radius', 'limit', 'latlong', 'badanusaha_id', 'divisi_id', 'region_id', 'cluster_id', 'created_at', 'updated_at')
                 ->orderBy('id')
                 ->get()
                 ->map(function ($item) {
@@ -487,7 +487,6 @@ class SyncController extends Controller
                         'alamat_outlet' => $item->alamat_outlet,
                         'distric' => $item->distric,
                         'status_outlet' => $item->status_outlet,
-                        'is_member' => $item->is_member,
                         'radius' => $item->radius,
                         'limit' => $item->limit,
                         'latlong' => $item->latlong,

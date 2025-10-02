@@ -15,6 +15,7 @@ use App\Models\Register;
 use App\Models\User;
 use App\Services\FileUploadService;
 use App\Services\OrganizationalCacheService;
+use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,9 +25,14 @@ use Illuminate\Support\Str;
 /**
  * @group New Outlet Opening (NOO) Management
  *
- * API endpoints for managing New Outlet Opening (NOO) requests with sophisticated role-based access control,
- * approval workflows, and file upload capabilities. The system supports 8 different user roles with
- * hierarchical access patterns and a 3-stage approval process (submit → confirm → approve/reject).
+ * API endpoints for managing the full New Outlet Opening (NOO) lifecycle and its lightweight Lead
+ * intake flow. Both features operate on the same `registers` table:
+ * - Records with `keterangan = 'LEAD'` represent Leads captured with minimal information.
+ * - Records with `keterangan = null` continue as NOO entries through confirm → approve stages.
+ *
+ * The system supports sophisticated role-based access control, approval workflows, and file upload
+ * capabilities. Eight different user roles have hierarchical access patterns and participate in the
+ * 3-stage approval process (submit → confirm → approve/reject).
  *
  * ## User Roles & Access Patterns:
  * - **ASM (ID: 1)**: Area Sales Manager - Access to NOOs created by their TM. Special case: user ID 158 (sodikc) has access to regions Bigtasik, Bigcrb, Bigpwt, Bigbdg, Bigkarawang with Realme division.
@@ -63,6 +69,208 @@ class RegisterController extends Controller
         protected OrganizationalCacheService $orgCache,
         protected FileUploadService $fileUpload
     ) {}
+
+    /**
+     * Submit a new Lead entry in the registers table.
+     *
+     * Persists a lightweight record with `keterangan = 'LEAD'` while queuing media uploads
+     * for background processing. Hierarchical attributes follow the same role-based rules as
+     * NOO submissions but outlet creation is deferred until the record is promoted and approved.
+     */
+    public function submitLead(Request $request)
+    {
+        $temporaryFiles = [];
+        $mediaQueue = [];
+        $mediaDispatched = false;
+
+        try {
+            $user = Auth::user();
+            $data = [
+                'nama_outlet' => $request->nama_outlet,
+                'alamat_outlet' => $request->alamat_outlet,
+                'nama_pemilik_outlet' => $request->nama_pemilik,
+                'nomer_tlp_outlet' => $request->nomer_pemilik,
+                'nomer_wakil_outlet' => $request->nomer_perwakilan,
+                'ktp_outlet' => '-',
+                'distric' => $request->distric,
+                'oppo' => $request->oppo,
+                'vivo' => $request->vivo,
+                'samsung' => $request->samsung,
+                'xiaomi' => $request->xiaomi,
+                'realme' => $request->realme,
+                'fl' => $request->fl,
+                'latlong' => $request->latlong,
+                'created_by' => $user->nama_lengkap,
+                'tm_id' => optional($user->tm)->id ?? $user->id,
+                'keterangan' => 'LEAD',
+                'poto_ktp' => '-',
+            ];
+
+            switch ($user->role_id) {
+                case 1:
+                    $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
+                    $divisi_id = Division::where('badanusaha_id', $badanusaha_id)->where('name', $request->div)->first()->id;
+                    $region_id = Region::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('name', $request->reg)->first()->id;
+                    $cluster_id = Cluster::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('region_id', $region_id)->where('name', $request->clus)->first()->id;
+                    $data['badanusaha_id'] = $badanusaha_id;
+                    $data['divisi_id'] = $divisi_id;
+                    $data['region_id'] = $region_id;
+                    $data['cluster_id'] = $cluster_id;
+                    break;
+
+                case 2:
+                    $data['badanusaha_id'] = $user->badanusaha_id;
+                    $data['divisi_id'] = $user->divisi_id;
+                    $data['region_id'] = $user->region_id;
+                    $data['cluster_id'] = Cluster::where('badanusaha_id', $user->badanusaha_id)
+                        ->where('divisi_id', $user->divisi_id)
+                        ->where('region_id', $user->region_id)
+                        ->where('name', $request->clus)
+                        ->first()->id;
+                    error_log($data['cluster_id']);
+                    break;
+
+                default:
+                    $data['badanusaha_id'] = $user->badanusaha_id;
+                    $data['divisi_id'] = $user->divisi_id;
+                    $data['region_id'] = $user->region_id;
+                    $data['cluster_id'] = $user->cluster_id;
+                    break;
+            }
+
+            $rules = [];
+            for ($i = 0; $i <= 3; $i++) {
+                if ($request->hasFile('photo'.$i)) {
+                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+                }
+            }
+            if ($request->hasFile('video')) {
+                $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
+            }
+            if (! empty($rules)) {
+                $request->validate($rules);
+            }
+
+            for ($i = 0; $i <= 3; $i++) {
+                $file = $request->file('photo'.$i);
+                if (! $file) {
+                    continue;
+                }
+
+                $original = $file->getClientOriginalName();
+                if (Str::contains($original, 'fotodepan')) {
+                    $target = 'poto_depan';
+                } elseif (Str::contains($original, 'fotokanan')) {
+                    $target = 'poto_kanan';
+                } elseif (Str::contains($original, 'fotokiri')) {
+                    $target = 'poto_kiri';
+                } else {
+                    $target = 'poto_shop_sign';
+                }
+
+                try {
+                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'register/tmp/photos');
+                } catch (\RuntimeException $exception) {
+                    $this->cleanupTemporaryFiles($temporaryFiles);
+
+                    return ResponseFormatter::error($exception->getMessage(), 'INVALID_FILE', 422);
+                }
+
+                $temporaryFiles[] = $temporaryPath;
+                $data[$target] = $temporaryPath;
+                $mediaQueue[] = [
+                    'field' => $target,
+                    'tmp_path' => $temporaryPath,
+                    'final_directory' => 'register/photos',
+                ];
+            }
+
+            if ($request->hasFile('video')) {
+                $video = $request->file('video');
+                try {
+                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'register/tmp/videos');
+                } catch (\RuntimeException $exception) {
+                    $this->cleanupTemporaryFiles($temporaryFiles);
+
+                    return ResponseFormatter::error($exception->getMessage(), 'INVALID_FILE', 422);
+                }
+
+                $temporaryFiles[] = $temporaryPath;
+                $data['video'] = $temporaryPath;
+                $mediaQueue[] = [
+                    'field' => 'video',
+                    'tmp_path' => $temporaryPath,
+                    'final_directory' => 'register/videos',
+                ];
+            }
+
+            $register = Register::create($data);
+
+            if ($mediaQueue !== []) {
+                ProcessRegisterMedia::dispatch(
+                    $register->id,
+                    $mediaQueue,
+                    $this->fileUpload->disk(),
+                    $this->fileUpload->temporaryDisk()
+                );
+                $mediaDispatched = true;
+            }
+
+            return ResponseFormatter::success(null, 'berhasil menambahkan LEAD '.$request->nama_outlet);
+        } catch (Exception $e) {
+            if (! $mediaDispatched) {
+                $this->cleanupTemporaryFiles($temporaryFiles);
+            }
+
+            return ResponseFormatter::error([
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], $e->getMessage());
+        }
+    }
+
+    /**
+     * Upgrade an existing Lead entry and promote it into the NOO pipeline.
+     */
+    public function upgradeLead(Request $request)
+    {
+        try {
+            $baseRules = [
+                'id' => ['required'],
+                'noktp' => ['required'],
+            ];
+            $fileRules = [];
+            if ($request->hasFile('photo')) {
+                $fileRules['photo'] = ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+            }
+            $request->validate(array_merge($baseRules, $fileRules));
+
+            $lead = Register::find($request->id);
+            if ($request->hasFile('photo')) {
+                $file = $request->file('photo');
+                if (! $file->isValid()) {
+                    return ResponseFormatter::error('File KTP tidak valid', 'INVALID_FILE', 422);
+                }
+                $ext = $file->guessExtension() ?: $file->extension();
+                $name = (string) Str::uuid().'.'.$ext;
+                $disk = StorageDisk::default();
+                $path = $file->storeAs('register/ktp', $name, $disk);
+                $lead['poto_ktp'] = $path;
+            }
+            $lead['ktp_outlet'] = $request->noktp;
+            $lead['keterangan'] = null;
+            $lead->update();
+            $recipient = optional(User::where('role_id', 4)->first())->id_notif;
+            SendNotificationJob::dispatch(
+                'Register baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
+                $recipient ? [$recipient] : []
+            );
+
+            return ResponseFormatter::success(null, 'berhasil menambahkan Lead '.$request->nama_outlet);
+        } catch (Exception $e) {
+            return ResponseFormatter::error($e->getMessage(), $e->getMessage());
+        }
+    }
 
     /**
      * Fetch NOOs with Role-Based Access Control
@@ -430,7 +638,7 @@ class RegisterController extends Controller
      * @param  Request  $request  HTTP request with NOO data and files
      * @return \Illuminate\Http\JsonResponse
      */
-    public function submit(Request $request)
+    public function submitNoo(Request $request)
     {
         $temporaryFiles = [];
         $mediaQueue = [];
@@ -716,7 +924,7 @@ class RegisterController extends Controller
      * @param  Request  $request  HTTP request with confirmation data
      * @return \Illuminate\Http\JsonResponse
      */
-    public function confirm(Request $request)
+    public function confirmNoo(Request $request)
     {
         try {
 
@@ -863,7 +1071,7 @@ class RegisterController extends Controller
      * @param  Request  $request  HTTP request with approval data
      * @return \Illuminate\Http\JsonResponse
      */
-    public function approved(Request $request)
+    public function approveNoo(Request $request)
     {
         try {
 
@@ -885,6 +1093,7 @@ class RegisterController extends Controller
             }
 
             $data = [
+                'register_id' => $register->id,
                 'kode_outlet' => $register->kode_outlet,
                 'badanusaha_id' => $register->badanusaha_id,
                 'nama_outlet' => $register->nama_outlet,
@@ -906,13 +1115,21 @@ class RegisterController extends Controller
                 'status_outlet' => 'MAINTAIN',
                 'limit' => $register->limit,
             ];
-            $outletExisting = Outlet::where('badanusaha_id', $register->badanusaha_id)
-                ->where('divisi_id', $register->divisi_id)
-                ->where('region_id', $register->region_id)
-                ->where('cluster_id', $register->cluster_id)
-                ->where('kode_outlet', $register->kode_outlet)->first();
+
+            $outletExisting = Outlet::query()
+                ->where('register_id', $register->id)
+                ->orWhere(function ($query) use ($register) {
+                    $query->where('badanusaha_id', $register->badanusaha_id)
+                        ->where('divisi_id', $register->divisi_id)
+                        ->where('region_id', $register->region_id)
+                        ->where('cluster_id', $register->cluster_id)
+                        ->where('kode_outlet', $register->kode_outlet);
+                })
+                ->first();
+
             if ($outletExisting) {
-                return ResponseFormatter::success($register, 'berhasil update');
+                $outletExisting->forceFill($data)->save();
+                $insert = $outletExisting;
             } else {
                 $insert = Outlet::create($data);
             }
@@ -1011,7 +1228,7 @@ class RegisterController extends Controller
      * @param  Request  $request  HTTP request with rejection data
      * @return \Illuminate\Http\JsonResponse
      */
-    public function reject(Request $request)
+    public function rejectNoo(Request $request)
     {
         try {
             $request->validate([

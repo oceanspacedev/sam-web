@@ -25,7 +25,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
@@ -585,43 +584,6 @@ class RegisterResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\ForceDeleteBulkAction::make(),
                     Tables\Actions\RestoreBulkAction::make(),
-                    Tables\Actions\BulkAction::make('createOutlets')
-                        ->label('Create Outlets')
-                        ->icon('heroicon-o-plus-circle')
-                        ->visible(fn () => Auth::user()->role->name === 'SUPER ADMIN')
-                        ->action(function ($records) { // Removed $request here
-                            foreach ($records as $record) {
-                                $data = [
-                                    'kode_outlet' => 'LEAD'.$record->id,
-                                    'nama_outlet' => $record->nama_outlet,
-                                    'alamat_outlet' => $record->alamat_outlet,
-                                    'nama_pemilik_outlet' => $record->nama_pemilik_outlet,
-                                    'nomer_tlp_outlet' => $record->nomer_tlp_outlet,
-                                    'badanusaha_id' => $record->badanusaha_id,
-                                    'divisi_id' => $record->divisi_id,
-                                    'region_id' => $record->region_id,
-                                    'cluster_id' => $record->cluster_id,
-                                    'distric' => $record->distric,
-                                    'poto_shop_sign' => $record->poto_shop_sign,
-                                    'poto_depan' => $record->poto_depan,
-                                    'poto_kanan' => $record->poto_kanan,
-                                    'poto_kiri' => $record->poto_kiri,
-                                    'poto_ktp' => $record->poto_ktp,
-                                    'video' => $record->video,
-                                    'limit' => $record->limit ?? 0,
-                                    'radius' => 100,
-                                    'latlong' => $record->latlong,
-                                    'status_outlet' => 'MAINTAIN',
-                                    'is_member' => '0',
-                                ];
-                                Outlet::create($data);
-                            }
-                            Notification::make()
-                                ->title('Outlets created successfully!')
-                                ->success()
-                                ->send();
-                        })
-                        ->deselectRecordsAfterCompletion(),
                 ]),
             ]);
     }

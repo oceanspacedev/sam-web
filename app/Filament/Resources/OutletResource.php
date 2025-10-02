@@ -262,13 +262,6 @@ class OutletResource extends Resource
                             ])
                             ->required(),
 
-                        Forms\Components\TextInput::make('is_member')
-                            ->label('Is Member')
-                            ->default('1')
-                            ->required()
-                            ->numeric()
-                            ->readonly(),
-
                         Forms\Components\TextInput::make('limit')
                             ->required()
                             ->numeric()

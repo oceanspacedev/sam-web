@@ -5,8 +5,10 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -36,14 +38,16 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->role->can_access_web == 1;
+        return (bool) ($this->role?->can_access_web);
     }
 
-    public function scopeFilter($query)
+    public function scopeFilter(Builder $query, ?string $term = null): Builder
     {
-        if (request('search')) {
-            $query->where('nama_lengkap', 'like', '%'.request('search').'%');
-        }
+        $term ??= request('search');
+
+        return $query->when($term, function (Builder $query, string $search): void {
+            $query->where('nama_lengkap', 'like', "%{$search}%");
+        });
     }
 
     public function outlet(): HasMany
@@ -126,9 +130,9 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->belongsTo(Role::class)->withTrashed();
     }
 
-    public function permissions()
+    public function permissions(): BelongsToMany
     {
-        return $this->role->permissions();
+        return $this->belongsToMany(Permission::class, 'role_permissions', 'role_id', 'permission_id', 'role_id');
     }
 
     public function divisi(): BelongsTo
@@ -187,7 +191,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         'profile_photo_url',
     ];
 
-    public function formatForAPI()
+    public function formatForAPI(): array
     {
         return [
             'username' => $this->username,

@@ -26,7 +26,7 @@ class Region extends Model
         return $this->hasMany(User::class);
     }
 
-    public function outlet(): hasMany
+    public function outlet(): HasMany
     {
         return $this->hasMany(Outlet::class);
     }

@@ -2,22 +2,26 @@
 
 namespace App\Models;
 
-use App\Support\StorageDisk;
+use App\Traits\CleansUpMedia;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Filesystem\FilesystemAdapter;
-use Illuminate\Support\Facades\Storage;
 
 class Visit extends Model
 {
+    use CleansUpMedia;
     use HasFactory;
     use SoftDeletes;
 
     protected $guarded = [
         'id',
+    ];
+
+    protected array $mediaCleanupFields = [
+        'picture_visit_in',
+        'picture_visit_out',
     ];
 
     public function user(): BelongsTo
@@ -30,32 +34,10 @@ class Visit extends Model
         return $this->belongsTo(Outlet::class)->withTrashed();
     }
 
-    protected static function booted()
+    protected static function booted(): void
     {
         static::saving(function ($visit) {
             $visit->calculateDurasiVisit();
-        });
-
-        static::updating(function ($model) {
-            $disk = StorageDisk::default();
-            /** @var FilesystemAdapter $storage */
-            $storage = Storage::disk($disk);
-
-            // Jika field picture_visit_in berubah, hapus gambar lama
-            if ($model->isDirty('picture_visit_in') && $model->getOriginal('picture_visit_in')) {
-                $oldFile = $model->getOriginal('picture_visit_in');
-                if ($storage->exists($oldFile)) {
-                    $storage->delete($oldFile);
-                }
-            }
-
-            // Jika field picture_visit_out berubah, hapus gambar lama
-            if ($model->isDirty('picture_visit_out') && $model->getOriginal('picture_visit_out')) {
-                $oldFileOut = $model->getOriginal('picture_visit_out');
-                if ($storage->exists($oldFileOut)) {
-                    $storage->delete($oldFileOut);
-                }
-            }
         });
     }
 
@@ -77,7 +59,7 @@ class Visit extends Model
         }
     }
 
-    public function formatForAPI()
+    public function formatForAPI(): array
     {
         return [
             'id' => $this->id,

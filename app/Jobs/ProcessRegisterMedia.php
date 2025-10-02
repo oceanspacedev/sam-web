@@ -83,9 +83,11 @@ class ProcessRegisterMedia implements ShouldQueue
         if ($updates !== []) {
             $register->forceFill($updates)->save();
 
-            $outlet = $register->kode_outlet
-                ? Outlet::query()->where('kode_outlet', $register->kode_outlet)->first()
-                : Outlet::query()->where('kode_outlet', 'LEAD'.$register->id)->first();
+            $outlet = Outlet::query()->where('register_id', $register->id)->first()
+                ?? ($register->kode_outlet
+                    ? Outlet::query()->where('kode_outlet', $register->kode_outlet)->first()
+                    : null)
+                ?? Outlet::query()->where('kode_outlet', 'LEAD'.$register->id)->first();
 
             if ($outlet) {
                 $mediaFields = [

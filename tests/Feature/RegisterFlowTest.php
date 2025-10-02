@@ -147,6 +147,7 @@ class RegisterFlowTest extends FeatureTestCase
         $approve->assertStatus(200);
 
         $this->assertDatabaseHas('outlets', [
+            'register_id' => $register->id,
             'kode_outlet' => 'REG-001',
             'nama_outlet' => $register->nama_outlet,
             'status_outlet' => 'MAINTAIN',

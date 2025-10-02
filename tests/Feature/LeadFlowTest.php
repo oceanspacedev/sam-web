@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Outlet;
 use App\Models\Register;
-use App\Models\Role;
 use App\Models\User;
 use App\Support\StorageDisk;
 use Illuminate\Http\UploadedFile;
@@ -18,7 +17,7 @@ class LeadFlowTest extends FeatureTestCase
 
     // Storage faked and RefreshDatabase handled by FeatureTestCase.
 
-    public function test_lead_create_creates_register_and_lead_outlet_and_saves_files()
+    public function test_lead_create_creates_register_and_saves_files_without_creating_outlet()
     {
         // Force role id to 3 to avoid controller special cases 1/2/9/10.
         $seed = $this->seedMasterData(3);
@@ -101,11 +100,10 @@ class LeadFlowTest extends FeatureTestCase
         $this->assertTrue(Storage::disk($disk)->exists($register->poto_shop_sign));
         $this->assertTrue(Storage::disk($disk)->exists($register->video));
 
-        // Assert a lead outlet created with code LEAD{register_id}
-        $leadOutlet = Outlet::where('kode_outlet', 'LEAD'.$register->id)->first();
-        $this->assertNotNull($leadOutlet);
-        $this->assertEquals('Lead Outlet', $leadOutlet->nama_outlet);
-        $this->assertEquals($register->poto_depan, $leadOutlet->poto_depan);
-        $this->assertTrue(Storage::disk($disk)->exists($leadOutlet->poto_depan));
+        // Assert no lead outlet is automatically created
+        $this->assertFalse(
+            Outlet::query()->where('kode_outlet', 'LEAD'.$register->id)->exists(),
+            'Lead creation should not generate an Outlet record.'
+        );
     }
 }

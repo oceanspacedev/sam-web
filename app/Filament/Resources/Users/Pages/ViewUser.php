@@ -1,12 +1,17 @@
 <?php
 
-namespace App\Filament\Resources\UserResource\Pages;
+namespace App\Filament\Resources\Users\Pages;
 
+use Filament\Actions\EditAction;
+use Filament\Actions\Action;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
+use Filament\Infolists\Components\TextEntry;
+use App\Models\User;
 use App\Exports\UserMonthlyOutletsExport;
-use App\Filament\Resources\UserResource;
+use App\Filament\Resources\Users\UserResource;
 use Filament\Actions;
 use Filament\Infolists;
-use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\ViewRecord;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -16,7 +21,7 @@ class ViewUser extends ViewRecord
 
     public function getTitle(): string
     {
-        /** @var \App\Models\User $record */
+        /** @var User $record */
         $record = $this->getRecord();
 
         return 'Detail User: '.$record->nama_lengkap;
@@ -25,13 +30,13 @@ class ViewUser extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\EditAction::make(),
-            Actions\Action::make('download_user_monthly_outlets')
+            EditAction::make(),
+            Action::make('download_user_monthly_outlets')
                 ->label('Download Rekap (Bulan saat ini)')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('success')
                 ->action(function () {
-                    /** @var \App\Models\User $user */
+                    /** @var User $user */
                     $user = $this->getRecord();
                     $filename = 'user-outlets-report-'.$user->id.'-'.now()->format('Ym').'.xlsx';
 
@@ -40,20 +45,20 @@ class ViewUser extends ViewRecord
         ];
     }
 
-    public function infolist(Infolist $infolist): Infolist
+    public function infolist(Schema $schema): Schema
     {
         return $infolist
             ->schema([
-                Infolists\Components\Section::make('Informasi User')
+                Section::make('Informasi User')
                     ->schema([
-                        Infolists\Components\TextEntry::make('nama_lengkap')->label('Nama Lengkap'),
-                        Infolists\Components\TextEntry::make('username')->label('Username'),
-                        Infolists\Components\TextEntry::make('role.name')->label('Role'),
-                        Infolists\Components\TextEntry::make('badanusaha.name')->label('Badan Usaha'),
-                        Infolists\Components\TextEntry::make('divisi.name')->label('Divisi'),
-                        Infolists\Components\TextEntry::make('region.name')->label('Region'),
-                        Infolists\Components\TextEntry::make('cluster.name')->label('Cluster'),
-                        Infolists\Components\TextEntry::make('tm.nama_lengkap')->label('TM'),
+                        TextEntry::make('nama_lengkap')->label('Nama Lengkap'),
+                        TextEntry::make('username')->label('Username'),
+                        TextEntry::make('role.name')->label('Role'),
+                        TextEntry::make('badanusaha.name')->label('Badan Usaha'),
+                        TextEntry::make('divisi.name')->label('Divisi'),
+                        TextEntry::make('region.name')->label('Region'),
+                        TextEntry::make('cluster.name')->label('Cluster'),
+                        TextEntry::make('tm.nama_lengkap')->label('TM'),
                     ])->columns(2),
             ]);
     }

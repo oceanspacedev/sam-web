@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\OutletResource\Pages;
+namespace App\Filament\Resources\Outlets\Pages;
 
-use App\Filament\Resources\OutletResource;
+use Filament\Actions\DeleteAction;
+use App\Filament\Resources\Outlets\OutletResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -13,7 +14,7 @@ class EditOutlet extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            DeleteAction::make(),
         ];
     }
 }

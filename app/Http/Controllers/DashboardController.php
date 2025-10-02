@@ -7,6 +7,7 @@ use App\Models\PlanVisit;
 use App\Models\Register;
 use App\Models\User;
 use App\Models\Visit;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -14,7 +15,7 @@ class DashboardController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function index()
     {

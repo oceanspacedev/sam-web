@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\DivisionResource\Pages;
+namespace App\Filament\Resources\Divisions\Pages;
 
-use App\Filament\Resources\DivisionResource;
+use Filament\Actions\CreateAction;
+use App\Filament\Resources\Divisions\DivisionResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ManageRecords;
 
@@ -13,7 +14,7 @@ class ManageDivisions extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            CreateAction::make(),
         ];
     }
 }

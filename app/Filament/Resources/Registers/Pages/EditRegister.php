@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\RegisterResource\Pages;
+namespace App\Filament\Resources\Registers\Pages;
 
-use App\Filament\Resources\RegisterResource;
+use Filament\Actions\DeleteAction;
+use App\Filament\Resources\Registers\RegisterResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -13,7 +14,7 @@ class EditRegister extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            DeleteAction::make(),
         ];
     }
 }

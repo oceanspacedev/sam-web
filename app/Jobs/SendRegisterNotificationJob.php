@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -9,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SendRegisterNotificationJob implements ShouldQueue
 {
@@ -74,7 +76,7 @@ class SendRegisterNotificationJob implements ShouldQueue
                     $this->release(60); // Retry after 1 minute
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('[SendRegisterNotificationJob] Exception occurred', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -85,7 +87,7 @@ class SendRegisterNotificationJob implements ShouldQueue
         }
     }
 
-    public function failed(\Throwable $exception): void
+    public function failed(Throwable $exception): void
     {
         Log::error('[SendRegisterNotificationJob] Job failed after retries', [
             'exception' => $exception->getMessage(),

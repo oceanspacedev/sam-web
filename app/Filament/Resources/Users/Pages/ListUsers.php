@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Filament\Resources\UserResource\Pages;
+namespace App\Filament\Resources\Users\Pages;
 
+use Filament\Actions\CreateAction;
 use App\Filament\Exports\UserExporter;
-use App\Filament\Resources\UserResource;
+use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
@@ -17,7 +18,7 @@ class ListUsers extends ListRecords
     protected function getHeaderActions(): array
     {
         $actions = [
-            Actions\CreateAction::make(),
+            CreateAction::make(),
         ];
 
         // Check if the user is authorized to export

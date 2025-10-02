@@ -1,16 +1,18 @@
 <?php
 
-namespace App\Filament\Resources\PlanVisitResource\Pages;
+namespace App\Filament\Resources\PlanVisits\Pages;
 
+use Filament\Actions\CreateAction;
+use Filament\Actions\Action;
+use Throwable;
 use App\Filament\Exports\PlanVisitExporter;
-use App\Filament\Resources\PlanVisitResource;
+use App\Filament\Resources\PlanVisits\PlanVisitResource;
 use App\Imports\PlanVisitImport;
 use App\Models\PlanVisit;
 use App\Support\StorageDisk;
 use App\Support\StoragePathResolver;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
-use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
@@ -25,7 +27,7 @@ class ListPlanVisits extends ListRecords
     protected function getHeaderActions(): array
     {
         $actions = [
-            Actions\CreateAction::make(),
+            CreateAction::make(),
         ];
 
         // Check if the user is authorized to export
@@ -39,11 +41,11 @@ class ListPlanVisits extends ListRecords
 
         // Import using Maatwebsite/Excel with template download hint
         if (Gate::allows('create', PlanVisit::class)) {
-            $actions[] = Actions\Action::make('import')
+            $actions[] = Action::make('import')
                 ->label('Import')
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-tray')
-                ->form([
+                ->schema([
                     FileUpload::make('file')
                         ->label('File (.xlsx/.csv)')
                         ->disk(StorageDisk::default())
@@ -57,7 +59,7 @@ class ListPlanVisits extends ListRecords
                         ])
                         ->required()
                         ->hintActions([
-                            FormAction::make('download_template')
+                            Action::make('download_template')
                                 ->label('Download Template')
                                 ->url('/planvisit/export/template'),
                         ]),
@@ -79,7 +81,7 @@ class ListPlanVisits extends ListRecords
                             ->title('Import berhasil')
                             ->success()
                             ->send();
-                    } catch (\Throwable $e) {
+                    } catch (Throwable $e) {
                         Notification::make()
                             ->title('Import gagal')
                             ->body($e->getMessage())

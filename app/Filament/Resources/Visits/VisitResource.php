@@ -1,7 +1,26 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\Visits;
 
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\ToggleButtons;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
+use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
+use App\Filament\Resources\Visits\Pages\ListVisits;
+use App\Filament\Resources\Visits\Pages\CreateVisit;
+use App\Filament\Resources\Visits\Pages\EditVisit;
 use App\Filament\Resources\VisitResource\Pages;
 use App\Models\Outlet;
 use App\Models\User;
@@ -10,7 +29,6 @@ use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Filters\Filter;
@@ -24,23 +42,23 @@ class VisitResource extends Resource
 {
     protected static ?string $model = Visit::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-camera';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-camera';
 
     protected static ?int $navigationSort = 3;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\Group::make()
+        return $schema
+            ->components([
+                Group::make()
                     ->schema([
-                        Forms\Components\Section::make('Visit Information')
+                        Section::make('Visit Information')
                             ->schema([
-                                Forms\Components\DateTimePicker::make('tanggal_visit')
-                                    ->default(\Carbon\Carbon::parse(now())->startOfDay()) // Setel waktu ke 00:00:00
+                                DateTimePicker::make('tanggal_visit')
+                                    ->default(Carbon::parse(now())->startOfDay()) // Setel waktu ke 00:00:00
                                     ->required()
                                     ->label('Tanggal Visit'),
-                                Forms\Components\ToggleButtons::make('tipe_visit')
+                                ToggleButtons::make('tipe_visit')
                                     ->label('Tipe Visit')
                                     ->required()
                                     ->inline()
@@ -57,7 +75,7 @@ class VisitResource extends Resource
                                         'EXTRACALL' => 'info',
                                     ])
                                     ->default('EXTRACALL'),
-                                Forms\Components\Select::make('user_id')
+                                Select::make('user_id')
                                     ->searchable()
                                     ->required()
                                     ->reactive()
@@ -91,7 +109,7 @@ class VisitResource extends Resource
 
                                         return "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}";
                                     }),
-                                Forms\Components\Select::make('outlet_id')
+                                Select::make('outlet_id')
                                     ->searchable()
                                     ->required()
                                     ->label('Pilih Outlet')
@@ -130,7 +148,7 @@ class VisitResource extends Resource
                                     ->reactive()
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state) {
-                                            $outlet = \App\Models\Outlet::find($state);
+                                            $outlet = Outlet::find($state);
                                             $set('latlong_in', $outlet?->latlong ?? null);
                                         } else {
                                             $set('latlong_in', null);
@@ -138,21 +156,21 @@ class VisitResource extends Resource
                                     }),
                             ])
                             ->columns(2),
-                        Forms\Components\Section::make('Location & Timing')
+                        Section::make('Location & Timing')
                             ->schema([
-                                Forms\Components\TextInput::make('latlong_in')
+                                TextInput::make('latlong_in')
                                     ->maxLength(255)
                                     ->label('LatLong In')
                                     ->placeholder('Latitude and Longitude at the start'),
-                                Forms\Components\TextInput::make('latlong_out')
+                                TextInput::make('latlong_out')
                                     ->maxLength(255)
                                     ->label('LatLong Out')
                                     ->placeholder('Latitude and Longitude at the end')
                                     ->visible(fn (string $context): bool => $context === 'edit'),
-                                Forms\Components\DateTimePicker::make('check_in_time')
+                                DateTimePicker::make('check_in_time')
                                     ->label('Check-in Time')
                                     ->default(now()),
-                                Forms\Components\DateTimePicker::make('check_out_time')
+                                DateTimePicker::make('check_out_time')
                                     ->label('Check-out Time')
                                     ->default(now())
                                     ->visible(fn (string $context): bool => $context === 'edit'),
@@ -160,16 +178,15 @@ class VisitResource extends Resource
                             ->columns(2),
                     ])
                     ->columnSpan(['lg' => 2]),
-                Forms\Components\Group::make()
+                Group::make()
                     ->schema([
-                        Forms\Components\Section::make('Files')
+                        Section::make('Files')
                             ->schema([
-                                Forms\Components\FileUpload::make('picture_visit_in')
+                                FileUpload::make('picture_visit_in')
                                     ->image()
                                     ->columnSpanFull()
                                     ->required()
                                     ->disk(StorageDisk::default())
-                                    ->resize(30)
                                     ->label('Picture at Start of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                         $user = User::find($get('user_id'));
@@ -177,12 +194,11 @@ class VisitResource extends Resource
 
                                         return Carbon::now()->format('Y-m-d').'-'.$username.'-IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$file->getClientOriginalExtension();
                                     }),
-                                Forms\Components\FileUpload::make('picture_visit_out')
+                                FileUpload::make('picture_visit_out')
                                     ->image()
                                     ->columnSpanFull()
                                     // ->required()
                                     ->disk(StorageDisk::default())
-                                    ->resize(30)
                                     ->label('Picture at End of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                         $user = User::find($get('user_id'));
@@ -192,9 +208,9 @@ class VisitResource extends Resource
                                     })
                                     ->visible(fn (string $context): bool => $context === 'edit'),
                             ]),
-                        Forms\Components\Section::make('Transaction Information')
+                        Section::make('Transaction Information')
                             ->schema([
-                                Forms\Components\ToggleButtons::make('transaksi')
+                                ToggleButtons::make('transaksi')
                                     ->label('Transaksi')
                                     ->required()
                                     ->inline()
@@ -211,7 +227,7 @@ class VisitResource extends Resource
                                         'NO' => 'danger',
                                     ])
                                     ->default('NO'),
-                                Forms\Components\Textarea::make('laporan_visit')
+                                Textarea::make('laporan_visit')
                                     ->columnSpanFull()
                                     ->label('Laporan Visit'),
                             ])
@@ -226,52 +242,52 @@ class VisitResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('tanggal_visit')
+                TextColumn::make('tanggal_visit')
                     ->label('Tanggal Visit')
                     ->date('d M Y'),
-                Tables\Columns\TextColumn::make('user.nama_lengkap')
+                TextColumn::make('user.nama_lengkap')
                     ->label('Nama')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('outlet.nama_outlet')
+                TextColumn::make('outlet.nama_outlet')
                     ->label('Nama Outlet')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('tipe_visit')
+                TextColumn::make('tipe_visit')
                     ->label('Tipe Visit'),
-                Tables\Columns\TextColumn::make('latlong_in')
+                TextColumn::make('latlong_in')
                     ->label('Lokasi Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('latlong_out')
+                TextColumn::make('latlong_out')
                     ->label('Lokasi Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('check_in_time')
+                TextColumn::make('check_in_time')
                     ->label('Jam Check-In')
                     ->time(),
-                Tables\Columns\TextColumn::make('check_out_time')
+                TextColumn::make('check_out_time')
                     ->label('Jam Check-Out')
                     ->time(),
-                Tables\Columns\TextColumn::make('picture_visit_in')
+                TextColumn::make('picture_visit_in')
                     ->label('Foto Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('picture_visit_out')
+                TextColumn::make('picture_visit_out')
                     ->label('Foto Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('transaksi')
+                TextColumn::make('transaksi')
                     ->label('Transaksi'),
-                Tables\Columns\TextColumn::make('durasi_visit')
+                TextColumn::make('durasi_visit')
                     ->label('Durasi Visit'),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->label('Tanggal Dibuat')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->label('Terakhir Diperbarui')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -281,10 +297,10 @@ class VisitResource extends Resource
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
-                Tables\Filters\TrashedFilter::make()
+                TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Visit::class)),
                 Filter::make('created_at')
-                    ->form([
+                    ->schema([
                         DatePicker::make('tanggal_visit_from')
                             ->label('Tanggal Visit Mulai'),
                         DatePicker::make('tanggal_visit_until')
@@ -303,14 +319,14 @@ class VisitResource extends Resource
                     }),
 
             ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
+            ->recordActions([
+                EditAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\ForceDeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                    ForceDeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
                 ]),
             ]);
     }
@@ -353,9 +369,9 @@ class VisitResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListVisits::route('/'),
-            'create' => Pages\CreateVisit::route('/create'),
-            'edit' => Pages\EditVisit::route('/{record}/edit'),
+            'index' => ListVisits::route('/'),
+            'create' => CreateVisit::route('/create'),
+            'edit' => EditVisit::route('/{record}/edit'),
         ];
     }
 }

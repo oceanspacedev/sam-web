@@ -12,6 +12,8 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class OutletController extends Controller
 {
@@ -352,7 +354,7 @@ class OutletController extends Controller
                     $path = $this->fileUpload->uploadImage($file, $baseDir.'/photos');
                     // Simpan path relatif pada kolom agar hook model bisa hapus file lama
                     $outlet->{$targetField} = $path;
-                } catch (\RuntimeException $e) {
+                } catch (RuntimeException $e) {
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
                 }
             }
@@ -362,7 +364,7 @@ class OutletController extends Controller
                 try {
                     $path = $this->fileUpload->uploadVideo($request->file('video'), $baseDir.'/videos');
                     $outlet->video = $path;
-                } catch (\RuntimeException $e) {
+                } catch (RuntimeException $e) {
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);
                 }
             }
@@ -374,7 +376,7 @@ class OutletController extends Controller
             $outlet->save();
 
             return ResponseFormatter::success(null, 'berhasil Update');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return ResponseFormatter::error($e->errors(), 'VALIDATION_ERROR', 422);
         } catch (Exception $e) {
             error_log($e->getMessage());

@@ -1,12 +1,19 @@
-import preset from '../../../../vendor/filament/filament/tailwind.config.preset'
 import tailwindScrollbar from 'tailwind-scrollbar'
 
 export default {
-    presets: [preset],
     content: [
         './app/Filament/**/*.php',
         './resources/views/filament/**/*.blade.php',
         './vendor/filament/**/*.blade.php',
     ],
+    theme: {
+        extend: {
+            colors: {
+                primary: {
+                    500: 'var(--color-primary-500)',
+                },
+            },
+        },
+    },
     plugins: [tailwindScrollbar],
 }

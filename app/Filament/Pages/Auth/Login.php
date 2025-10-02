@@ -3,16 +3,15 @@
 namespace App\Filament\Pages\Auth;
 
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
-use Filament\Pages\Auth\Login as DefaultLogin;
+use Filament\Schemas\Schema;
 use Illuminate\Validation\ValidationException;
 
-class Login extends DefaultLogin
+class Login extends \Filament\Auth\Pages\Login
 {
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
+        return $schema
+            ->components([
                 TextInput::make('login')
                     ->label('Username')
                     ->required()

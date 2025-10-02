@@ -1,7 +1,28 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\Registers;
 
+use App\Filament\Resources\Registers\RegisterResource;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Forms\Components\FileUpload;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Forms\Components\ToggleButtons;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
+use Filament\Support\Enums\Width;
+use Filament\Actions\EditAction;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
+use App\Filament\Resources\Registers\Pages\ListRegisters;
+use App\Filament\Resources\Registers\Pages\CreateRegister;
+use App\Filament\Resources\Registers\Pages\EditRegister;
 use App\Filament\Resources\RegisterResource\Pages;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -15,12 +36,8 @@ use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
@@ -34,64 +51,63 @@ class RegisterResource extends Resource
 {
     protected static ?string $model = Register::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-building-office';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-building-office';
 
     protected static ?int $navigationSort = 2;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\Grid::make(12)
+        return $schema
+            ->components([
+                Grid::make(12)
                     ->schema([
-                        Forms\Components\Group::make([
-                            Forms\Components\Section::make('Data Outlet')
+                        Group::make([
+                            Section::make('Data Outlet')
                                 ->schema([
-                                    Forms\Components\TextInput::make('nama_outlet')
+                                    TextInput::make('nama_outlet')
                                         ->required()
                                         ->maxLength(255)
                                         ->reactive()
                                         ->label('Nama Outlet'),
-                                    Forms\Components\TextInput::make('distric')
+                                    TextInput::make('distric')
                                         ->required()
                                         ->maxLength(255)
                                         ->label('Distrik'),
-                                    Forms\Components\Textarea::make('alamat_outlet')
+                                    Textarea::make('alamat_outlet')
                                         ->required()
                                         ->columnSpanFull()
                                         ->label('Alamat Outlet'),
-                                    Forms\Components\TextInput::make('nama_pemilik_outlet')
+                                    TextInput::make('nama_pemilik_outlet')
                                         ->required()
                                         ->maxLength(255)
                                         ->label('Nama Pemilik Outlet'),
-                                    Forms\Components\TextInput::make('nomer_tlp_outlet')
+                                    TextInput::make('nomer_tlp_outlet')
                                         ->required()
                                         ->maxLength(255)
                                         ->label('Nomor Telepon Outlet'),
-                                    Forms\Components\TextInput::make('nomer_wakil_outlet')
+                                    TextInput::make('nomer_wakil_outlet')
                                         ->maxLength(255)
                                         ->label('Nomor Wakil Outlet'),
-                                    Forms\Components\TextInput::make('ktp_outlet')
+                                    TextInput::make('ktp_outlet')
                                         ->maxLength(255)
                                         ->label('KTP Pemilik Outlet')
                                         ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                         ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan'))),
-                                    Forms\Components\TextInput::make('latlong')
+                                    TextInput::make('latlong')
                                         ->required()
                                         ->maxLength(255)
                                         ->label('Koordinat Lat/Long'),
                                 ])
                                 ->columns(2),
-                            Forms\Components\Section::make('Dokumentasi')
+                            Section::make('Dokumentasi')
                                 ->schema([
-                                    Forms\Components\Grid::make([
+                                    Grid::make([
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                        Forms\Components\FileUpload::make('poto_shop_sign')
+                                        FileUpload::make('poto_shop_sign')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto Tanda Toko')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -99,10 +115,9 @@ class RegisterResource extends Resource
 
                                                 return 'register-'.$outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('poto_depan')
+                                        FileUpload::make('poto_depan')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto Depan')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -110,10 +125,9 @@ class RegisterResource extends Resource
 
                                                 return 'register-'.$outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('poto_kiri')
+                                        FileUpload::make('poto_kiri')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto Kiri')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -121,10 +135,9 @@ class RegisterResource extends Resource
 
                                                 return 'register-'.$outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('poto_kanan')
+                                        FileUpload::make('poto_kanan')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto Kanan')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
@@ -132,10 +145,9 @@ class RegisterResource extends Resource
 
                                                 return 'register-'.$outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('poto_ktp')
+                                        FileUpload::make('poto_ktp')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto KTP Pemilik')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
@@ -144,7 +156,7 @@ class RegisterResource extends Resource
 
                                                 return 'register-'.$outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('video')
+                                        FileUpload::make('video')
                                             ->disk(StorageDisk::default())
                                             ->label('Video Toko')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
@@ -155,29 +167,29 @@ class RegisterResource extends Resource
                                             }),
                                     ]),
                                 ]),
-                            Forms\Components\Section::make('Promotor dan Frontliner')
+                            Section::make('Promotor dan Frontliner')
                                 ->schema([
-                                    Forms\Components\TextInput::make('oppo')
+                                    TextInput::make('oppo')
                                         ->required()
                                         ->numeric()
                                         ->label('Oppo'),
-                                    Forms\Components\TextInput::make('vivo')
+                                    TextInput::make('vivo')
                                         ->required()
                                         ->numeric()
                                         ->label('Vivo'),
-                                    Forms\Components\TextInput::make('realme')
+                                    TextInput::make('realme')
                                         ->required()
                                         ->numeric()
                                         ->label('Realme'),
-                                    Forms\Components\TextInput::make('samsung')
+                                    TextInput::make('samsung')
                                         ->required()
                                         ->numeric()
                                         ->label('Samsung'),
-                                    Forms\Components\TextInput::make('xiaomi')
+                                    TextInput::make('xiaomi')
                                         ->required()
                                         ->numeric()
                                         ->label('Xiaomi'),
-                                    Forms\Components\TextInput::make('fl')
+                                    TextInput::make('fl')
                                         ->required()
                                         ->numeric()
                                         ->label('FL'),
@@ -185,10 +197,10 @@ class RegisterResource extends Resource
                                 ->columns(2),
                         ])
                             ->columnSpan(['default' => 12, 'xl' => 8]),
-                        Forms\Components\Group::make([
-                            Forms\Components\Section::make('Informasi Tambahan')
+                        Group::make([
+                            Section::make('Informasi Tambahan')
                                 ->schema([
-                                    Forms\Components\Select::make('created_by')
+                                    Select::make('created_by')
                                         ->label('Dibuat Oleh')
                                         ->searchable()
                                         ->required()
@@ -211,7 +223,7 @@ class RegisterResource extends Resource
 
                                             $set('tm_id', optional($creator->tm)->id ?? $creator->id);
                                         }),
-                                    Forms\Components\ToggleButtons::make('keterangan')
+                                    ToggleButtons::make('keterangan')
                                         ->label('Keterangan')
                                         ->options([
                                             'LEAD' => 'LEAD',
@@ -229,11 +241,11 @@ class RegisterResource extends Resource
                                         ->dehydrateStateUsing(fn (?string $state): ?string => $state === 'LEAD' ? 'LEAD' : null),
                                 ])
                                 ->columns(1),
-                            Forms\Components\Section::make('Struktur Organisasi')
+                            Section::make('Struktur Organisasi')
                                 ->schema([
-                                    Forms\Components\Grid::make(['default' => 1])
+                                    Grid::make(['default' => 1])
                                         ->schema([
-                                            Forms\Components\Select::make('badanusaha_id')
+                                            Select::make('badanusaha_id')
                                                 ->label('Badan Usaha')
                                                 ->searchable()
                                                 ->required()
@@ -258,7 +270,7 @@ class RegisterResource extends Resource
                                                     $set('region_id', null);
                                                     $set('cluster_id', null);
                                                 }),
-                                            Forms\Components\Select::make('divisi_id')
+                                            Select::make('divisi_id')
                                                 ->label('Divisi')
                                                 ->searchable()
                                                 ->preload()
@@ -279,7 +291,7 @@ class RegisterResource extends Resource
                                                     $set('region_id', null);
                                                     $set('cluster_id', null);
                                                 }),
-                                            Forms\Components\Select::make('region_id')
+                                            Select::make('region_id')
                                                 ->label('Region')
                                                 ->searchable()
                                                 ->preload()
@@ -299,7 +311,7 @@ class RegisterResource extends Resource
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('cluster_id', null);
                                                 }),
-                                            Forms\Components\Select::make('cluster_id')
+                                            Select::make('cluster_id')
                                                 ->label('Cluster')
                                                 ->searchable()
                                                 ->preload()
@@ -318,9 +330,9 @@ class RegisterResource extends Resource
                                                 }),
                                         ]),
                                 ]),
-                            Forms\Components\Section::make('TM')
+                            Section::make('TM')
                                 ->schema([
-                                    Forms\Components\Select::make('tm_id')
+                                    Select::make('tm_id')
                                         ->label('Nama TM')
                                         ->required()
                                         ->searchable()
@@ -395,90 +407,90 @@ class RegisterResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->label('Tanggal Dibuat') // Capitalized the label for consistency
                     ->date('d M Y'),
-                Tables\Columns\TextColumn::make('created_by')
+                TextColumn::make('created_by')
                     ->label('Dibuat Oleh')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('kode_outlet')
+                TextColumn::make('kode_outlet')
                     ->label('Kode Outlet'),
-                Tables\Columns\TextColumn::make('divisi.name')
+                TextColumn::make('divisi.name')
                     ->label('Divisi'),
-                Tables\Columns\TextColumn::make('badanusaha.name')
+                TextColumn::make('badanusaha.name')
                     ->label('Badan Usaha'),
-                Tables\Columns\TextColumn::make('nama_outlet')
+                TextColumn::make('nama_outlet')
                     ->label('Nama Outlet')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('alamat_outlet')
+                TextColumn::make('alamat_outlet')
                     ->label('Alamat Outlet'),
-                Tables\Columns\TextColumn::make('nama_pemilik_outlet')
+                TextColumn::make('nama_pemilik_outlet')
                     ->label('Nama Pemilik Outlet'),
-                Tables\Columns\TextColumn::make('ktp_outlet')
+                TextColumn::make('ktp_outlet')
                     ->label('Nomor KTP Outlet'),
-                Tables\Columns\TextColumn::make('nomer_tlp_outlet')
+                TextColumn::make('nomer_tlp_outlet')
                     ->label('Nomor Telepon Outlet'),
-                Tables\Columns\TextColumn::make('nomer_wakil_outlet')
+                TextColumn::make('nomer_wakil_outlet')
                     ->label('Nomor Wakil Outlet'),
-                Tables\Columns\TextColumn::make('distric')
+                TextColumn::make('distric')
                     ->label('Distrik'),
-                Tables\Columns\TextColumn::make('region.name')
+                TextColumn::make('region.name')
                     ->label('Region'),
-                Tables\Columns\TextColumn::make('cluster.name')
+                TextColumn::make('cluster.name')
                     ->label('Cluster'),
-                Tables\Columns\TextColumn::make('poto_ktp')
+                TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('KTP'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('poto_shop_sign')
+                TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('poto_depan')
+                TextColumn::make('poto_depan')
                     ->label('Foto Depan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('poto_kanan')
+                TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('poto_kiri')
+                TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('video')
+                TextColumn::make('video')
                     ->label('Video Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
                     ->color('primary')
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('oppo')
+                TextColumn::make('oppo')
                     ->label('Oppo'),
-                Tables\Columns\TextColumn::make('vivo')
+                TextColumn::make('vivo')
                     ->label('Vivo'),
-                Tables\Columns\TextColumn::make('realme')
+                TextColumn::make('realme')
                     ->label('Realme'),
-                Tables\Columns\TextColumn::make('samsung')
+                TextColumn::make('samsung')
                     ->label('Samsung'),
-                Tables\Columns\TextColumn::make('xiaomi')
+                TextColumn::make('xiaomi')
                     ->label('Xiaomi'),
-                Tables\Columns\TextColumn::make('fl')
+                TextColumn::make('fl')
                     ->label('Frontliner'),
-                Tables\Columns\TextColumn::make('latlong')
+                TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->color('primary')
                     ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('limit')
+                TextColumn::make('limit')
                     ->label('Limit'),
-                Tables\Columns\TextColumn::make('keterangan')
+                TextColumn::make('keterangan')
                     ->label('Keterangan')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->label('Terakhir Diperbarui') // Updated for clarity
                     ->dateTime()
                     ->sortable()
@@ -490,7 +502,7 @@ class RegisterResource extends Resource
             ->deferLoading()
             ->filters([
                 Filter::make('region')
-                    ->form([
+                    ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
                             ->options(BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray())
@@ -548,18 +560,18 @@ class RegisterResource extends Resource
 
                         return $query;
                     }),
-                Tables\Filters\TrashedFilter::make()
+                TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Register::class)),
             ], layout: FiltersLayout::Modal)
-            ->filtersFormWidth(MaxWidth::Large)
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('confirm')
+            ->filtersFormWidth(Width::Large)
+            ->recordActions([
+                EditAction::make(),
+                Action::make('confirm')
                     ->label('Confirm')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn ($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
-                    ->form([
+                    ->schema([
                         TextInput::make('kode_outlet')
                             ->regex('/^[\S]+$/', 'Kode outlet tidak boleh mengandung spasi')
                             ->helperText('Kode outlet tidak boleh mengandung spasi')
@@ -581,7 +593,7 @@ class RegisterResource extends Resource
                                 ->send(),
                         ]);
                     }),
-                Tables\Actions\Action::make('approve')
+                Action::make('approve')
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
@@ -597,12 +609,12 @@ class RegisterResource extends Resource
                                 ->send(),
                         ]);
                     }),
-                Tables\Actions\Action::make('reject')
+                Action::make('reject')
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
-                    ->form([
+                    ->schema([
                         Textarea::make('alasan')
                             ->required(),
                     ])
@@ -619,11 +631,11 @@ class RegisterResource extends Resource
                             ->send();
                     }),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\ForceDeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                    ForceDeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
                 ]),
             ]);
     }
@@ -668,9 +680,9 @@ class RegisterResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListRegisters::route('/'),
-            'create' => Pages\CreateRegister::route('/create'),
-            'edit' => Pages\EditRegister::route('/{record}/edit'),
+            'index' => ListRegisters::route('/'),
+            'create' => CreateRegister::route('/create'),
+            'edit' => EditRegister::route('/{record}/edit'),
         ];
     }
 }

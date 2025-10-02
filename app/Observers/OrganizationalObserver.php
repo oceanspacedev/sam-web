@@ -2,6 +2,11 @@
 
 namespace App\Observers;
 
+use App\Models\BadanUsaha;
+use App\Models\Cluster;
+use App\Models\Division;
+use App\Models\Region;
+use App\Models\Role;
 use App\Services\OrganizationalCacheService;
 use Illuminate\Database\Eloquent\Model;
 
@@ -31,11 +36,11 @@ class OrganizationalObserver
         $class = get_class($model);
 
         match ($class) {
-            \App\Models\BadanUsaha::class => $this->cacheService->clearBadanUsahaCache(),
-            \App\Models\Division::class => $this->cacheService->clearDivisionCache($model->badanusaha_id),
-            \App\Models\Region::class => $this->cacheService->clearRegionCache($model->divisi_id),
-            \App\Models\Cluster::class => $this->cacheService->clearClusterCache($model->region_id),
-            \App\Models\Role::class => $this->cacheService->clearRoleCache(),
+            BadanUsaha::class => $this->cacheService->clearBadanUsahaCache(),
+            Division::class => $this->cacheService->clearDivisionCache($model->badanusaha_id),
+            Region::class => $this->cacheService->clearRegionCache($model->divisi_id),
+            Cluster::class => $this->cacheService->clearClusterCache($model->region_id),
+            Role::class => $this->cacheService->clearRoleCache(),
             default => null,
         };
     }

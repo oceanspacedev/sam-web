@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\OutletResource\Pages;
+namespace App\Filament\Resources\Outlets\Pages;
 
-use App\Filament\Resources\OutletResource;
+use App\Filament\Resources\Outlets\OutletResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateOutlet extends CreateRecord

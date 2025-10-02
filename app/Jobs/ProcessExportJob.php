@@ -4,7 +4,9 @@ namespace App\Jobs;
 
 use App\Exports\OutletExport;
 use App\Exports\PlanVisitExport;
+use App\Exports\RegisterExport;
 use App\Support\StorageDisk;
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,6 +15,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 class ProcessExportJob implements ShouldQueue
 {
@@ -56,7 +59,7 @@ class ProcessExportJob implements ShouldQueue
 
             // TODO: Notify user melalui notifikasi atau email bahwa export sudah selesai
             // Bisa kirim email dengan link download atau push notification
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('[ProcessExportJob] Export failed', [
                 'type' => $this->exportType,
                 'filename' => $this->filename,
@@ -71,7 +74,7 @@ class ProcessExportJob implements ShouldQueue
     protected function getExportInstance(): mixed
     {
         return match ($this->exportType) {
-            'register' => new \App\Exports\RegisterExport,
+            'register' => new RegisterExport,
             'outlet' => new OutletExport,
             'plan_visit' => new PlanVisitExport(
                 $this->filters['start_date'] ?? now()->startOfMonth()->format('Y-m-d'),
@@ -81,7 +84,7 @@ class ProcessExportJob implements ShouldQueue
         };
     }
 
-    public function failed(\Throwable $exception): void
+    public function failed(Throwable $exception): void
     {
         Log::error('[ProcessExportJob] Job failed after retries', [
             'type' => $this->exportType,

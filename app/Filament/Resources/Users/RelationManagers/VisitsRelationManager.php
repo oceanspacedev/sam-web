@@ -1,7 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\UserResource\RelationManagers;
+namespace App\Filament\Resources\Users\RelationManagers;
 
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
+use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
 use App\Models\Visit;
 use Filament\Forms\Components\DatePicker;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -21,52 +28,52 @@ class VisitsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('id')
             ->columns([
-                Tables\Columns\TextColumn::make('tanggal_visit')
+                TextColumn::make('tanggal_visit')
                     ->label('Tanggal Visit')
                     ->date('d M Y'),
-                Tables\Columns\TextColumn::make('user.nama_lengkap')
+                TextColumn::make('user.nama_lengkap')
                     ->label('Nama')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('outlet.nama_outlet')
+                TextColumn::make('outlet.nama_outlet')
                     ->label('Nama Outlet')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('tipe_visit')
+                TextColumn::make('tipe_visit')
                     ->label('Tipe Visit'),
-                Tables\Columns\TextColumn::make('latlong_in')
+                TextColumn::make('latlong_in')
                     ->label('Lokasi Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('latlong_out')
+                TextColumn::make('latlong_out')
                     ->label('Lokasi Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('check_in_time')
+                TextColumn::make('check_in_time')
                     ->label('Jam Check-In')
                     ->time(),
-                Tables\Columns\TextColumn::make('check_out_time')
+                TextColumn::make('check_out_time')
                     ->label('Jam Check-Out')
                     ->time(),
-                Tables\Columns\TextColumn::make('picture_visit_in')
+                TextColumn::make('picture_visit_in')
                     ->label('Foto Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('picture_visit_out')
+                TextColumn::make('picture_visit_out')
                     ->label('Foto Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
-                Tables\Columns\TextColumn::make('transaksi')
+                TextColumn::make('transaksi')
                     ->label('Transaksi'),
-                Tables\Columns\TextColumn::make('durasi_visit')
+                TextColumn::make('durasi_visit')
                     ->label('Durasi Visit'),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->label('Tanggal Dibuat')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->label('Terakhir Diperbarui')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -76,10 +83,10 @@ class VisitsRelationManager extends RelationManager
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
-                Tables\Filters\TrashedFilter::make()
+                TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Visit::class)),
                 Filter::make('created_at')
-                    ->form([
+                    ->schema([
                         DatePicker::make('tanggal_visit_from')
                             ->label('Tanggal Visit Mulai'),
                         DatePicker::make('tanggal_visit_until')
@@ -99,14 +106,14 @@ class VisitsRelationManager extends RelationManager
 
             ])
             ->headerActions([])
-            ->actions([
-                Tables\Actions\EditAction::make(),
+            ->recordActions([
+                EditAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\ForceDeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                    ForceDeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
                 ]),
             ]);
     }

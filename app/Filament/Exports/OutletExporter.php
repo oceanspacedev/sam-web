@@ -4,6 +4,7 @@ namespace App\Filament\Exports;
 
 use App\Models\Outlet;
 use App\Models\User;
+use Carbon\Carbon;
 use Filament\Actions\Exports\ExportColumn;
 use Filament\Actions\Exports\Exporter;
 use Filament\Actions\Exports\Models\Export;
@@ -64,7 +65,7 @@ class OutletExporter extends Exporter
                 }),
             ExportColumn::make('created_at')
                 ->formatStateUsing(function ($state) {
-                    return \Carbon\Carbon::parse($state)->format('d M Y');
+                    return Carbon::parse($state)->format('d M Y');
                 })
                 ->label('Tanggal Registrasi'),
             ExportColumn::make('poto_shop_sign')
@@ -99,7 +100,7 @@ class OutletExporter extends Exporter
                 ->label('Video'),
             ExportColumn::make('updated_at')
                 ->formatStateUsing(function ($state) {
-                    return \Carbon\Carbon::parse($state)->format('d M Y');
+                    return Carbon::parse($state)->format('d M Y');
                 })
                 ->label('Diperbaharui pada'),
         ];

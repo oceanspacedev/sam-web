@@ -6,16 +6,19 @@ use App\Models\BadanUsaha;
 use App\Models\Division;
 use App\Models\Register;
 use Carbon\Carbon;
-use Filament\Forms;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
 use Filament\Pages\Page;
-use Filament\Tables;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class RegisterMonthlyReport extends Page implements HasForms, HasTable
@@ -23,11 +26,11 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
     use InteractsWithForms;
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chart-bar';
 
-    protected static ?string $navigationGroup = 'Reports';
+    protected static string|\UnitEnum|null $navigationGroup = 'Reports';
 
-    protected static string $view = 'filament.pages.register-monthly-report';
+    protected string $view = 'filament.pages.register-monthly-report';
 
     protected static ?string $navigationLabel = 'Register Monthly Report';
 
@@ -87,13 +90,13 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
         $this->dispatch('$refresh');
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\Section::make('Filter Bulanan')
+        return $schema
+            ->components([
+                Section::make('Filter Bulanan')
                     ->schema([
-                        Forms\Components\Select::make('month')
+                        Select::make('month')
                             ->label('Bulan')
                             ->options([
                                 1 => 'Januari',
@@ -111,7 +114,7 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
                             ])
                             ->required()
                             ->reactive(),
-                        Forms\Components\Select::make('year')
+                        Select::make('year')
                             ->label('Tahun')
                             ->options(function () {
                                 $current = (int) date('Y');
@@ -124,14 +127,14 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
                             })
                             ->required()
                             ->reactive(),
-                        Forms\Components\Select::make('badanusahaId')
+                        Select::make('badanusahaId')
                             ->label('Badan Usaha')
                             ->options(fn () => BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id'))
                             ->searchable()
                             ->preload()
                             ->reactive()
                             ->placeholder('Semua'),
-                        Forms\Components\Select::make('divisionId')
+                        Select::make('divisionId')
                             ->label('Divisi')
                             ->options(function (callable $get) {
                                 $bu = $get('badanusahaId');
@@ -148,18 +151,18 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
                             ->placeholder('Semua'),
                     ])
                     ->columns(4),
-                Forms\Components\Section::make('Ringkasan')
+                Section::make('Ringkasan')
                     ->schema([
-                        Forms\Components\Placeholder::make('month_name')
+                        Placeholder::make('month_name')
                             ->label('Bulan')
                             ->content(fn (): string => $this->getMonthName()),
-                        Forms\Components\Placeholder::make('register_total')
+                        Placeholder::make('register_total')
                             ->label('Total Register Bulan Ini')
                             ->content(fn (): string => number_format($this->getRegisterCount())),
-                        Forms\Components\Placeholder::make('workdays')
+                        Placeholder::make('workdays')
                             ->label('Hari Kerja (tanpa Minggu)')
                             ->content(fn (): string => (string) $this->getRemainingDays()),
-                        Forms\Components\Placeholder::make('avg_per_day')
+                        Placeholder::make('avg_per_day')
                             ->label('Rata-rata Register / Hari')
                             ->content(fn (): string => number_format($this->getRegisterAveragePerDay(), 2)),
                     ])
@@ -172,11 +175,11 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
         return $table
             ->query($this->getAggregatedQuery())
             ->columns([
-                Tables\Columns\TextColumn::make('user_name')
+                TextColumn::make('user_name')
                     ->label('Pembuat')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\TextColumn::make('total')
+                TextColumn::make('total')
                     ->label('Total Register')
                     ->sortable(),
             ])
@@ -251,7 +254,7 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
     /**
      * Provide a stable string key for each aggregated row.
      */
-    public function getTableRecordKey($record): string
+    public function getTableRecordKey(Model|array $record): string
     {
         // Prefer created_by as a unique key per row, fallback to user_name.
         $base = $record->created_by ?? $record->user_name ?? spl_object_id($record);

@@ -17,10 +17,12 @@ use App\Services\FileUploadService;
 use App\Services\OrganizationalCacheService;
 use App\Support\StorageDisk;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * @group New Outlet Opening (NOO) Management
@@ -170,7 +172,7 @@ class RegisterController extends Controller
 
                 try {
                     $temporaryPath = $this->fileUpload->storeTemporary($file, 'register/tmp/photos');
-                } catch (\RuntimeException $exception) {
+                } catch (RuntimeException $exception) {
                     $this->cleanupTemporaryFiles($temporaryFiles);
 
                     return ResponseFormatter::error($exception->getMessage(), 'INVALID_FILE', 422);
@@ -189,7 +191,7 @@ class RegisterController extends Controller
                 $video = $request->file('video');
                 try {
                     $temporaryPath = $this->fileUpload->storeTemporary($video, 'register/tmp/videos');
-                } catch (\RuntimeException $exception) {
+                } catch (RuntimeException $exception) {
                     $this->cleanupTemporaryFiles($temporaryFiles);
 
                     return ResponseFormatter::error($exception->getMessage(), 'INVALID_FILE', 422);
@@ -356,7 +358,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request instance
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function fetch()
     {
@@ -526,7 +528,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request instance
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function all(Request $request)
     {
@@ -636,7 +638,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request with NOO data and files
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function submitNoo(Request $request)
     {
@@ -758,7 +760,7 @@ class RegisterController extends Controller
                         'final_directory' => 'register/photos',
                     ];
                     $data[$target] = $temporaryPath;
-                } catch (\RuntimeException $e) {
+                } catch (RuntimeException $e) {
                     $this->cleanupTemporaryFiles($temporaryFiles);
 
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
@@ -776,7 +778,7 @@ class RegisterController extends Controller
                         'final_directory' => 'register/videos',
                     ];
                     $data['video'] = $temporaryPath;
-                } catch (\RuntimeException $e) {
+                } catch (RuntimeException $e) {
                     $this->cleanupTemporaryFiles($temporaryFiles);
 
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);
@@ -922,7 +924,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request with confirmation data
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function confirmNoo(Request $request)
     {
@@ -1069,7 +1071,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request with approval data
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function approveNoo(Request $request)
     {
@@ -1226,7 +1228,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request with rejection data
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function rejectNoo(Request $request)
     {
@@ -1302,7 +1304,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request instance
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getbu(Request $request)
     {
@@ -1368,7 +1370,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request with business unit parameter
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getdiv(Request $request)
     {
@@ -1443,7 +1445,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request with business unit and division parameters
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getreg(Request $request)
     {
@@ -1529,7 +1531,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request with filtering parameters
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getclus(Request $request)
     {
@@ -1639,7 +1641,7 @@ class RegisterController extends Controller
      * }
      *
      * @param  Request  $request  HTTP request instance
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getRegisterOutlet(Request $request)
     {
@@ -1772,7 +1774,7 @@ class RegisterController extends Controller
      *
      * @param  Request  $request  HTTP request instance
      * @param  mixed  $kodeOutlet  NOO record ID to retrieve
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function singleOutlet(Request $request, $kodeOutlet)
     {

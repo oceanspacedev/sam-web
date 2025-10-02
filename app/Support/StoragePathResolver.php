@@ -4,6 +4,8 @@ namespace App\Support;
 
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Throwable;
 
 class StoragePathResolver
 {
@@ -20,17 +22,17 @@ class StoragePathResolver
 
         try {
             return [$storage->path($relativePath), null];
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             $temporaryPath = tempnam(sys_get_temp_dir(), 'storage-');
 
             if ($temporaryPath === false) {
-                throw new \RuntimeException('Unable to create a temporary file for storage import handling.', 0, $exception);
+                throw new RuntimeException('Unable to create a temporary file for storage import handling.', 0, $exception);
             }
 
             $stream = $storage->readStream($relativePath);
 
             if (! is_resource($stream)) {
-                throw new \RuntimeException(
+                throw new RuntimeException(
                     sprintf('Unable to read file [%s] from disk [%s].', $relativePath, $disk),
                     0,
                     $exception,
@@ -42,7 +44,7 @@ class StoragePathResolver
             if (! is_resource($destination)) {
                 fclose($stream);
 
-                throw new \RuntimeException('Unable to open temporary file for writing imported contents.', 0, $exception);
+                throw new RuntimeException('Unable to open temporary file for writing imported contents.', 0, $exception);
             }
 
             try {

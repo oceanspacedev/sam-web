@@ -8,13 +8,13 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationItem;
-use Filament\Pages;
+use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Support\Enums\MaxWidth;
+use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets;
+use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -39,7 +39,7 @@ class AdminPanelProvider extends PanelProvider
             ->databaseNotifications()
             ->brandLogo(asset('icon/samsam.png'))
             ->sidebarCollapsibleOnDesktop()
-            ->maxContentWidth(MaxWidth::Full)
+            ->maxContentWidth(Width::Full)
             ->sidebarWidth('18rem')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
@@ -64,21 +64,21 @@ class AdminPanelProvider extends PanelProvider
                     ->group('Developer'),
             ])
             ->pages([
-                Pages\Dashboard::class,
+                Dashboard::class,
                 RegisterMonthlyReport::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                Widgets\AccountWidget::class,
+                AccountWidget::class,
             ])
-            ->renderHook(
-                PanelsRenderHook::TOPBAR_START,
-                fn (): string => Blade::render('@livewire("top-bar-start")'),
-            )
-            ->renderHook(
-                PanelsRenderHook::SIDEBAR_FOOTER,
-                fn () => view('livewire.sidebar-nav-end')
-            )
+            // ->renderHook(
+            //     PanelsRenderHook::TOPBAR_START,
+            //     fn (): string => Blade::render('@livewire("top-bar-start")'),
+            // )
+            // ->renderHook(
+            //     PanelsRenderHook::SIDEBAR_FOOTER,
+            //     fn () => view('livewire.sidebar-nav-end')
+            // )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -93,7 +93,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ])
-            ->viteTheme('resources/css/filament/admin/theme.css');
+            ]);
+            // ->viteTheme('resources/css/filament/admin/theme.css');
     }
 }

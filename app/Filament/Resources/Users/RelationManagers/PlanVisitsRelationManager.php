@@ -1,7 +1,11 @@
 <?php
 
-namespace App\Filament\Resources\UserResource\RelationManagers;
+namespace App\Filament\Resources\Users\RelationManagers;
 
+use Filament\Tables\Columns\TextColumn;
+use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -15,20 +19,20 @@ class PlanVisitsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('id')
             ->columns([
-                Tables\Columns\TextColumn::make('user.nama_lengkap')
+                TextColumn::make('user.nama_lengkap')
                     ->label('Nama')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('outlet.nama_outlet')
+                TextColumn::make('outlet.nama_outlet')
                     ->label('Outlet')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('outlet.kode_outlet'),
-                Tables\Columns\TextColumn::make('tanggal_visit')
+                TextColumn::make('outlet.kode_outlet'),
+                TextColumn::make('tanggal_visit')
                     ->label('Tanggal Visit')
                     ->date('d M Y'),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -40,12 +44,12 @@ class PlanVisitsRelationManager extends RelationManager
                 //
             ])
             ->headerActions([])
-            ->actions([
-                Tables\Actions\EditAction::make(),
+            ->recordActions([
+                EditAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

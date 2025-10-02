@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Filament\Resources\OutletResource;
-use App\Filament\Resources\RegisterResource;
-use App\Filament\Resources\VisitResource;
+use App\Filament\Resources\Outlets\OutletResource;
+use App\Filament\Resources\Registers\RegisterResource;
+use App\Filament\Resources\Visits\VisitResource;
 use App\Support\StorageDisk;
 use Filament\Forms\ComponentContainer;
 use Filament\Forms\Components\Component;

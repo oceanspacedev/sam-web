@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\CleansUpMedia;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,7 +52,7 @@ class Visit extends Model
                 $durationInMinutes = $checkIn->diffInMinutes($checkOut);
 
                 $this->durasi_visit = $durationInMinutes;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->durasi_visit = null;
             }
         } else {

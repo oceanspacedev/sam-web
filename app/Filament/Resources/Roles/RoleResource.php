@@ -1,14 +1,26 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\Roles;
 
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
+use App\Models\BadanUsaha;
+use App\Models\Division;
+use App\Models\Region;
+use App\Models\Cluster;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Schemas\Components\Grid;
+use App\Filament\Resources\Roles\Pages\ListRoles;
+use App\Filament\Resources\Roles\Pages\CreateRole;
+use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\RoleResource\Pages;
 use App\Models\Permission;
 use App\Models\Role;
 use Filament\Forms;
-use Filament\Forms\Components\Card;
 use Filament\Forms\Components\CheckboxList;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -21,15 +33,15 @@ class RoleResource extends Resource
 {
     protected static ?string $model = Role::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
 
-    public static function form(Forms\Form $form): Forms\Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Card::make()
+        return $schema
+            ->components([
+                Section::make()
                     ->schema([
                         TextInput::make('name')  // Misalnya, nama role
                             ->required()
@@ -58,10 +70,10 @@ class RoleResource extends Resource
 
                                 switch ($filterType) {
                                     case 'badanusaha':
-                                        return \App\Models\BadanUsaha::pluck('name', 'id');
+                                        return BadanUsaha::pluck('name', 'id');
 
                                     case 'divisi':
-                                        return \App\Models\Division::with(['badanusaha'])
+                                        return Division::with(['badanusaha'])
                                             ->get()
                                             ->mapWithKeys(function ($division) {
                                                 $badanusahaName = $division->badanusaha ? $division->badanusaha->name : 'Tidak ada badan usaha';
@@ -70,7 +82,7 @@ class RoleResource extends Resource
                                             });
 
                                     case 'region':
-                                        return \App\Models\Region::with(['badanusaha'])
+                                        return Region::with(['badanusaha'])
                                             ->get()
                                             ->mapWithKeys(function ($region) {
                                                 $badanusahaName = $region->badanusaha ? $region->badanusaha->name : 'Tidak ada badan usaha';
@@ -80,7 +92,7 @@ class RoleResource extends Resource
                                             });
 
                                     case 'cluster':
-                                        return \App\Models\Cluster::with(['badanusaha', 'divisi', 'region'])
+                                        return Cluster::with(['badanusaha', 'divisi', 'region'])
                                             ->get()
                                             ->mapWithKeys(function ($cluster) {
                                                 $badanusahaName = $cluster->badanusaha ? $cluster->badanusaha->name : 'Tidak ada badan usaha';
@@ -113,14 +125,14 @@ class RoleResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')->searchable(),
-                Tables\Columns\IconColumn::make('can_access_web')
+                TextColumn::make('name')->searchable(),
+                IconColumn::make('can_access_web')
                     ->label('Akses Web')
                     ->boolean(),
-                Tables\Columns\TextColumn::make('filter_type')
+                TextColumn::make('filter_type')
                     ->label('Filter Type')
                     ->badge(),
-                Tables\Columns\TextColumn::make('permissions_count')
+                TextColumn::make('permissions_count')
                     ->label('Jumlah Izin')
                     ->badge()
                     ->counts('permissions'),
@@ -128,11 +140,11 @@ class RoleResource extends Resource
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->filters([])
-            ->actions([
-                Tables\Actions\EditAction::make(),
+            ->recordActions([
+                EditAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+            ->toolbarActions([
+                DeleteBulkAction::make(),
             ]);
     }
 
@@ -148,12 +160,12 @@ class RoleResource extends Resource
             });
 
         return [
-            Forms\Components\Grid::make(3)
+            Grid::make(3)
                 ->schema(
                     $permissions->map(function ($permissions, $resource) {
                         $operations = $permissions->pluck('name')->toArray();
 
-                        return Card::make(self::formatHeadline($resource))
+                        return Section::make(self::formatHeadline($resource))
                             ->schema([
                                 Toggle::make("select_all_{$resource}")
                                     ->label('Select All')
@@ -236,9 +248,9 @@ class RoleResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListRoles::route('/'),
-            'create' => Pages\CreateRole::route('/create'),
-            'edit' => Pages\EditRole::route('/{record}/edit'),
+            'index' => ListRoles::route('/'),
+            'create' => CreateRole::route('/create'),
+            'edit' => EditRole::route('/{record}/edit'),
         ];
     }
 }

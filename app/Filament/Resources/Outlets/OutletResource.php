@@ -1,7 +1,26 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\Outlets;
 
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\FileUpload;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
+use Filament\Support\Enums\Width;
+use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
+use Filament\Actions\BulkAction;
+use App\Filament\Resources\Outlets\Pages\ListOutlets;
+use App\Filament\Resources\Outlets\Pages\CreateOutlet;
+use App\Filament\Resources\Outlets\Pages\EditOutlet;
 use App\Filament\Resources\OutletResource\Pages;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -12,11 +31,8 @@ use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
-use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
@@ -32,20 +48,20 @@ class OutletResource extends Resource
 {
     protected static ?string $model = Outlet::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-building-storefront';
 
     protected static ?int $navigationSort = 1;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\Grid::make(12)
+        return $schema
+            ->components([
+                Grid::make(12)
                     ->schema([
-                        Forms\Components\Group::make([
-                            Forms\Components\Section::make('Informasi Outlet')
+                        Group::make([
+                            Section::make('Informasi Outlet')
                                 ->schema([
-                                    Forms\Components\TextInput::make('kode_outlet')
+                                    TextInput::make('kode_outlet')
                                         ->required()
                                         ->regex('/^[\S]+$/', 'Kode outlet tidak boleh mengandung spasi')
                                         ->helperText('Kode outlet tidak boleh mengandung spasi')
@@ -69,96 +85,91 @@ class OutletResource extends Resource
                                         ->maxLength(255)
                                         ->label('Kode Outlet')
                                         ->placeholder('Masukkan kode outlet'),
-                                    Forms\Components\TextInput::make('nama_outlet')
+                                    TextInput::make('nama_outlet')
                                         ->required()
                                         ->maxLength(255)
                                         ->label('Nama Outlet')
                                         ->placeholder('Masukkan nama outlet'),
-                                    Forms\Components\TextInput::make('distric')
+                                    TextInput::make('distric')
                                         ->required()
                                         ->maxLength(255)
                                         ->label('Distrik')
                                         ->placeholder('Masukkan distrik outlet'),
-                                    Forms\Components\TextInput::make('latlong')
+                                    TextInput::make('latlong')
                                         ->maxLength(255)
                                         ->label('Latitude/Longitude')
                                         ->placeholder('Masukkan koordinat latitude dan longitude outlet'),
-                                    Forms\Components\Textarea::make('alamat_outlet')
+                                    Textarea::make('alamat_outlet')
                                         ->required()
                                         ->columnSpanFull()
                                         ->label('Alamat Outlet')
                                         ->placeholder('Masukkan alamat lengkap outlet'),
                                 ])
                                 ->columns(2),
-                            Forms\Components\Section::make('Kontak & Pemilik Outlet')
+                            Section::make('Kontak & Pemilik Outlet')
                                 ->schema([
-                                    Forms\Components\TextInput::make('nama_pemilik_outlet')
+                                    TextInput::make('nama_pemilik_outlet')
                                         ->maxLength(255)
                                         ->label('Nama Pemilik Outlet')
                                         ->placeholder('Masukkan nama pemilik outlet'),
-                                    Forms\Components\TextInput::make('nomer_tlp_outlet')
+                                    TextInput::make('nomer_tlp_outlet')
                                         ->maxLength(255)
                                         ->label('Nomor Telepon Outlet')
                                         ->placeholder('Masukkan nomor telepon outlet'),
                                 ])
                                 ->columns(2),
-                            Forms\Components\Section::make('Foto & Video')
+                            Section::make('Foto & Video')
                                 ->schema([
-                                    Forms\Components\Grid::make([
+                                    Grid::make([
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                        Forms\Components\FileUpload::make('poto_shop_sign')
+                                        FileUpload::make('poto_shop_sign')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto Tanda Toko')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
                                                 return $outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('poto_depan')
+                                        FileUpload::make('poto_depan')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto Depan')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
                                                 return $outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('poto_kiri')
+                                        FileUpload::make('poto_kiri')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto Kiri')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
                                                 return $outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('poto_kanan')
+                                        FileUpload::make('poto_kanan')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto Kanan')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
                                                 return $outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('poto_ktp')
+                                        FileUpload::make('poto_ktp')
                                             ->image()
                                             ->disk(StorageDisk::default())
-                                            ->resize(30)
                                             ->label('Foto KTP Pemilik')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
                                                 return $outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
                                             }),
-                                        Forms\Components\FileUpload::make('video')
+                                        FileUpload::make('video')
                                             ->disk(StorageDisk::default())
                                             ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mkv'])
                                             ->label('Video Toko')
@@ -171,12 +182,12 @@ class OutletResource extends Resource
                                 ]),
                         ])
                             ->columnSpan(['default' => 1, 'xl' => 8]),
-                        Forms\Components\Group::make([
-                            Forms\Components\Section::make('Struktur Organisasi')
+                        Group::make([
+                            Section::make('Struktur Organisasi')
                                 ->schema([
-                                    Forms\Components\Grid::make(['default' => 1])
+                                    Grid::make(['default' => 1])
                                         ->schema([
-                                            Forms\Components\Select::make('badanusaha_id')
+                                            Select::make('badanusaha_id')
                                                 ->label('Badan Usaha')
                                                 ->searchable()
                                                 ->required()
@@ -201,7 +212,7 @@ class OutletResource extends Resource
                                                     $set('region_id', null);
                                                     $set('cluster_id', null);
                                                 }),
-                                            Forms\Components\Select::make('divisi_id')
+                                            Select::make('divisi_id')
                                                 ->label('Divisi')
                                                 ->searchable()
                                                 ->preload()
@@ -222,7 +233,7 @@ class OutletResource extends Resource
                                                     $set('region_id', null);
                                                     $set('cluster_id', null);
                                                 }),
-                                            Forms\Components\Select::make('region_id')
+                                            Select::make('region_id')
                                                 ->label('Region')
                                                 ->searchable()
                                                 ->preload()
@@ -242,7 +253,7 @@ class OutletResource extends Resource
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('cluster_id', null);
                                                 }),
-                                            Forms\Components\Select::make('cluster_id')
+                                            Select::make('cluster_id')
                                                 ->label('Cluster')
                                                 ->searchable()
                                                 ->preload()
@@ -261,12 +272,12 @@ class OutletResource extends Resource
                                                 }),
                                         ]),
                                 ]),
-                            Forms\Components\Section::make('Status & Limit Outlet')
+                            Section::make('Status & Limit Outlet')
                                 ->schema([
-                                    Forms\Components\Grid::make([
+                                    Grid::make([
                                         'default' => 1,
                                     ])->schema([
-                                        Forms\Components\Select::make('status_outlet')
+                                        Select::make('status_outlet')
                                             ->label('Status Outlet')
                                             ->searchable()
                                             ->options([
@@ -275,13 +286,13 @@ class OutletResource extends Resource
                                                 'UNPRODUCTIVE' => 'UNPRODUCTIVE',
                                             ])
                                             ->required(),
-                                        Forms\Components\TextInput::make('limit')
+                                        TextInput::make('limit')
                                             ->required()
                                             ->numeric()
                                             ->label('Limit')
                                             ->default('0')
                                             ->placeholder('Masukkan limit outlet'),
-                                        Forms\Components\TextInput::make('radius')
+                                        TextInput::make('radius')
                                             ->required()
                                             ->numeric()
                                             ->label('Radius')
@@ -301,73 +312,73 @@ class OutletResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('kode_outlet')
+                TextColumn::make('kode_outlet')
                     ->label('Kode Outlet')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('badanusaha.name')
+                TextColumn::make('badanusaha.name')
                     ->label('Badan Usaha'),
-                Tables\Columns\TextColumn::make('divisi.name')
+                TextColumn::make('divisi.name')
                     ->label('Divisi'),
-                Tables\Columns\TextColumn::make('region.name')
+                TextColumn::make('region.name')
                     ->label('Region'),
-                Tables\Columns\TextColumn::make('cluster.name')
+                TextColumn::make('cluster.name')
                     ->label('Cluster'),
-                Tables\Columns\TextColumn::make('nama_outlet')
+                TextColumn::make('nama_outlet')
                     ->label('Nama Outlet')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('nama_pemilik_outlet')
+                TextColumn::make('nama_pemilik_outlet')
                     ->label('Nama Pemilik Outlet'),
-                Tables\Columns\TextColumn::make('nomer_tlp_outlet')
+                TextColumn::make('nomer_tlp_outlet')
                     ->label('Nomor Telepon Outlet'),
-                Tables\Columns\TextColumn::make('distric')
+                TextColumn::make('distric')
                     ->label('Distrik'),
-                Tables\Columns\TextColumn::make('poto_shop_sign')
+                TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
-                Tables\Columns\TextColumn::make('poto_depan')
+                TextColumn::make('poto_depan')
                     ->label('Foto Depan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
-                Tables\Columns\TextColumn::make('poto_kiri')
+                TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
-                Tables\Columns\TextColumn::make('poto_kanan')
+                TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
-                Tables\Columns\TextColumn::make('poto_ktp')
+                TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
-                Tables\Columns\TextColumn::make('video')
+                TextColumn::make('video')
                     ->label('Video Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
                     ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
                     ->color('primary'),
-                Tables\Columns\TextColumn::make('limit')
+                TextColumn::make('limit')
                     ->label('Limit'),
-                Tables\Columns\TextColumn::make('radius')
+                TextColumn::make('radius')
                     ->label('Radius'),
-                Tables\Columns\TextColumn::make('latlong')
+                TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
                     ->color('primary'),
-                Tables\Columns\TextColumn::make('status_outlet')
+                TextColumn::make('status_outlet')
                     ->label('Status Outlet'),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->label('Tanggal Dibuat')
                     ->date('d M Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->label('Terakhir Diperbarui')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -378,7 +389,7 @@ class OutletResource extends Resource
             ->deferLoading()
             ->filters([
                 Filter::make('region')
-                    ->form([
+                    ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
                             ->options(BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray())
@@ -436,19 +447,19 @@ class OutletResource extends Resource
 
                         return $query;
                     }),
-                Tables\Filters\TrashedFilter::make()
+                TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
 
             ], layout: FiltersLayout::Modal)
-            ->filtersFormWidth(MaxWidth::Large)
-            ->actions([
-                Tables\Actions\EditAction::make(),
+            ->filtersFormWidth(Width::Large)
+            ->recordActions([
+                EditAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\ForceDeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                    ForceDeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
                     BulkAction::make('reset')
                         ->label('Reset Data Outlet')
                         ->icon('heroicon-o-building-storefront')
@@ -529,9 +540,9 @@ class OutletResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListOutlets::route('/'),
-            'create' => Pages\CreateOutlet::route('/create'),
-            'edit' => Pages\EditOutlet::route('/{record}/edit'),
+            'index' => ListOutlets::route('/'),
+            'create' => CreateOutlet::route('/create'),
+            'edit' => EditOutlet::route('/{record}/edit'),
         ];
     }
 }

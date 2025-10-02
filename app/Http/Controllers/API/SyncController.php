@@ -14,8 +14,11 @@ use App\Models\User;
 use App\Models\Visit;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Sync Controller for Data Synchronization
@@ -27,7 +30,7 @@ use Illuminate\Support\Facades\Storage;
  * All endpoints are unauthenticated (outside auth:sanctum group) and implement throttling
  * for expensive operations to ensure system stability and prevent abuse.
  *
- * @mixin \App\Http\Controllers\Controller
+ * @mixin Controller
  */
 class SyncController extends Controller
 {
@@ -125,7 +128,7 @@ class SyncController extends Controller
      * @param  mixed  $date  Database datetime value (Carbon object, DateTime object, or string)
      * @return string|null Formatted date string or null if input is empty
      *
-     * @throws \Exception Returns original value if parsing fails
+     * @throws Exception Returns original value if parsing fails
      */
     private function formatDate($date)
     {
@@ -141,7 +144,7 @@ class SyncController extends Controller
                 // Handle string dates from database
                 return Carbon::parse($date)->format('Y-m-d H:i:s');
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // If parsing fails, return the original value
             return $date;
         }
@@ -157,7 +160,7 @@ class SyncController extends Controller
      * @param  mixed  $timestamp  Timestamp in milliseconds, seconds, or as a date string
      * @return string|null Formatted timestamp string or null if input is empty
      *
-     * @throws \Exception Returns original value if parsing fails
+     * @throws Exception Returns original value if parsing fails
      */
     private function formatTanggalVisit($timestamp)
     {
@@ -180,7 +183,7 @@ class SyncController extends Controller
             } else {
                 return Carbon::parse($timestamp)->format('Y-m-d H:i:s');
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return $timestamp;
         }
     }
@@ -200,7 +203,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data Badan Usaha berhasil diambil"},"data":[{"id":1,"name":"Sample Badan Usaha","created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Badan Usaha"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getBadanUsaha()
     {
@@ -218,7 +221,7 @@ class SyncController extends Controller
                 });
 
             return ResponseFormatter::success($badanUsaha, 'Data Badan Usaha berhasil diambil');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error(null, 'Gagal mengambil data Badan Usaha: '.$e->getMessage(), 500);
         }
     }
@@ -237,7 +240,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data Divisi berhasil diambil"},"data":[{"id":1,"name":"Sample Division","badanusaha_id":1,"badanusaha":{"id":1,"name":"Sample Badan Usaha"},"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Divisi"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getDivision()
     {
@@ -258,7 +261,7 @@ class SyncController extends Controller
                 });
 
             return ResponseFormatter::success($divisions, 'Data Divisi berhasil diambil');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error(null, 'Gagal mengambil data Divisi: '.$e->getMessage(), 500);
         }
     }
@@ -277,7 +280,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data Region berhasil diambil"},"data":[{"id":1,"name":"Sample Region","badanusaha_id":1,"divisi_id":1,"badanusaha":{"id":1,"name":"Sample Badan Usaha"},"divisi":{"id":1,"name":"Sample Division"},"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Region"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getRegion()
     {
@@ -303,7 +306,7 @@ class SyncController extends Controller
                 });
 
             return ResponseFormatter::success($regions, 'Data Region berhasil diambil');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error(null, 'Gagal mengambil data Region: '.$e->getMessage(), 500);
         }
     }
@@ -322,7 +325,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data Cluster berhasil diambil"},"data":[{"id":1,"name":"Sample Cluster","badanusaha_id":1,"divisi_id":1,"region_id":1,"badanusaha":{"id":1,"name":"Sample Badan Usaha"},"divisi":{"id":1,"name":"Sample Division"},"region":{"id":1,"name":"Sample Region"},"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Cluster"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getCluster()
     {
@@ -351,7 +354,7 @@ class SyncController extends Controller
                 });
 
             return ResponseFormatter::success($clusters, 'Data Cluster berhasil diambil');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error(null, 'Gagal mengambil data Cluster: '.$e->getMessage(), 500);
         }
     }
@@ -370,7 +373,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data Role berhasil diambil"},"data":[{"id":1,"name":"Admin","can_access_web":true,"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Role"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getRole()
     {
@@ -389,7 +392,7 @@ class SyncController extends Controller
                 });
 
             return ResponseFormatter::success($roles, 'Data Role berhasil diambil');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error(null, 'Gagal mengambil data Role: '.$e->getMessage(), 500);
         }
     }
@@ -409,7 +412,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data User berhasil diambil"},"data":[{"id":1,"nama_lengkap":"John Doe","username":"johndoe","role_id":1,"badanusaha_id":1,"divisi_id":1,"region_id":1,"cluster_id":1,"cluster_id2":null,"tm_id":null,"role":{"id":1,"name":"Admin"},"badanusaha":{"id":1,"name":"Sample Badan Usaha"},"divisi":{"id":1,"name":"Sample Division"},"region":{"id":1,"name":"Sample Region"},"cluster":{"id":1,"name":"Sample Cluster"},"cluster2":null,"tm":null,"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data User"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getUser()
     {
@@ -452,7 +455,7 @@ class SyncController extends Controller
                 });
 
             return ResponseFormatter::success($users, 'Data User berhasil diambil');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error(null, 'Gagal mengambil data User: '.$e->getMessage(), 500);
         }
     }
@@ -471,7 +474,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data Outlet berhasil diambil"},"data":[{"id":1,"kode_outlet":"OUT001","nama_outlet":"Sample Outlet","alamat_outlet":"123 Main St","distric":"Downtown","status_outlet":"Active","radius":100,"limit":50,"latlong":"-6.2088,106.8456","badanusaha_id":1,"divisi_id":1,"region_id":1,"cluster_id":1,"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Outlet"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getOutlet()
     {
@@ -500,7 +503,7 @@ class SyncController extends Controller
                 });
 
             return ResponseFormatter::success($outlets, 'Data Outlet berhasil diambil');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error(null, 'Gagal mengambil data Outlet: '.$e->getMessage(), 500);
         }
     }
@@ -523,7 +526,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data Visit berhasil diambil"},"data":[{"id":1,"tanggal_visit":"2024-01-01 10:00:00","user_id":123,"outlet_id":456,"tipe_visit":"Sales Call","picture_visit_in":"photo_in.jpg","picture_visit_out":"photo_out.jpg","latlong_in":"-6.2088,106.8456","latlong_out":"-6.2088,106.8456","check_in_time":"2024-01-01 10:00:00","check_out_time":"2024-01-01 11:30:00","durasi_visit":90,"transaksi":"Success","laporan_visit":"Good visit","created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Visit"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getVisit()
     {
@@ -562,7 +565,7 @@ class SyncController extends Controller
                 });
 
             return ResponseFormatter::success($visits, 'Data Visit berhasil diambil');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error(null, 'Gagal mengambil data Visit: '.$e->getMessage(), 500);
         }
     }
@@ -586,7 +589,7 @@ class SyncController extends Controller
      * @response 200 {"meta":{"code":200,"status":"success","message":"Data Plan Visit berhasil diambil"},"data":[{"id":1,"tanggal_visit":"2025-07-01 00:00:00","user_id":123,"outlet_id":456,"created_at":"2024-01-01 00:00:00","updated_at":"2024-01-01 00:00:00"}]}
      * @response 500 {"meta":{"code":500,"status":"error","message":"Gagal mengambil data Plan Visit"},"data":null}
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function deleteInstantDuplicateVisit(Request $request)
     {
@@ -674,7 +677,7 @@ class SyncController extends Controller
                 'deleted_total' => count($deletedIds),
                 'deleted_ids' => array_values($deletedIds),
             ], 'Duplicate visits cleaned');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error([
                 'error' => $e->getMessage(),
             ], 'Failed to clean duplicate visits: '.$e->getMessage(), 500);
@@ -789,7 +792,7 @@ class SyncController extends Controller
             return ResponseFormatter::success([
                 'visit' => $visit,
             ], 'Visit berhasil dibuat', 201);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error([
                 'error' => $e->getMessage(),
             ], 'Gagal membuat visit: '.$e->getMessage(), 500);
@@ -879,9 +882,9 @@ class SyncController extends Controller
                 'outlet_id' => $outlet->id,
                 'kode_outlet' => $outlet->kode_outlet,
             ], 'Outlet reset successfully');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             throw $e; // let Laravel handle 422 response
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return ResponseFormatter::error([
                 'error' => $e->getMessage(),
             ], 'Failed to reset outlet: '.$e->getMessage(), 500);

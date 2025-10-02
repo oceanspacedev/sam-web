@@ -1,11 +1,23 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\Divisions;
 
+use Filament\Schemas\Schema;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use App\Models\BadanUsaha;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\Filter;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use App\Filament\Resources\Divisions\Pages\ManageDivisions;
 use App\Filament\Resources\DivisionResource\Pages;
 use App\Models\Division;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Grouping\Group;
@@ -16,24 +28,24 @@ class DivisionResource extends Resource
 {
     protected static ?string $model = Division::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-briefcase';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-briefcase';
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
 
     protected static ?int $navigationSort = 2;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\Select::make('badanusaha_id')
+        return $schema
+            ->components([
+                Select::make('badanusaha_id')
                     ->label('Badan Usaha')
                     ->relationship('badanUsaha', 'name')
                     ->searchable()
                     ->required()
                     ->placeholder('Pilih badan usaha')
                     ->createOptionForm([
-                        Forms\Components\TextInput::make('name')
+                        TextInput::make('name')
                             ->required()
                             ->unique()
                             ->maxLength(255)
@@ -46,16 +58,16 @@ class DivisionResource extends Resource
                         $role = $user->role;
 
                         if ($role->filter_type === 'badanusaha') {
-                            return \App\Models\BadanUsaha::whereIn('id', $role->filter_data ?? [])
+                            return BadanUsaha::whereIn('id', $role->filter_data ?? [])
                                 ->pluck('name', 'id');
                         } elseif ($role->filter_type === 'all') {
-                            return \App\Models\BadanUsaha::pluck('name', 'id');
+                            return BadanUsaha::pluck('name', 'id');
                         }
 
-                        return \App\Models\BadanUsaha::where('id', $user->badanusaha_id)
+                        return BadanUsaha::where('id', $user->badanusaha_id)
                             ->pluck('name', 'id');
                     }),
-                Forms\Components\TextInput::make('name')
+                TextInput::make('name')
                     ->required()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255)
@@ -68,28 +80,28 @@ class DivisionResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
+                TextColumn::make('name')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
-                Tables\Columns\BadgeColumn::make('badanusaha.name')
+                BadgeColumn::make('badanusaha.name')
                     ->label('Badan Usaha')
                     ->color('primary')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('regions_count')
+                TextColumn::make('regions_count')
                     ->label('Regions')
                     ->counts('regions')
                     ->badge()
                     ->color('success'),
-                Tables\Columns\TextColumn::make('clusters_count')
+                TextColumn::make('clusters_count')
                     ->label('Clusters')
                     ->counts('clusters')
                     ->badge()
                     ->color('warning'),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -101,25 +113,25 @@ class DivisionResource extends Resource
                     ->label('Badan Usaha'),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('badanusaha')
+                SelectFilter::make('badanusaha')
                     ->relationship('badanUsaha', 'name')
                     ->searchable()
                     ->preload(),
-                Tables\Filters\Filter::make('has_regions')
+                Filter::make('has_regions')
                     ->label('Has Regions')
                     ->query(fn (Builder $query) => $query->has('regions')),
-                Tables\Filters\Filter::make('empty')
+                Filter::make('empty')
                     ->label('Empty (No Regions)')
                     ->query(fn (Builder $query) => $query->doesntHave('regions')),
             ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
+            ->recordActions([
+                EditAction::make(),
+                DeleteAction::make()
                     ->requiresConfirmation(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }
@@ -140,7 +152,7 @@ class DivisionResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ManageDivisions::route('/'),
+            'index' => ManageDivisions::route('/'),
         ];
     }
 }

@@ -7,6 +7,8 @@ use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
+use Exception;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Maatwebsite\Excel\Concerns\ToModel;
@@ -23,7 +25,7 @@ class OutletImport implements ToModel, WithHeadingRow
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Model|null
+     * @return Model|null
      */
     public function model(array $row)
     {
@@ -94,7 +96,7 @@ class OutletImport implements ToModel, WithHeadingRow
                     'latlong' => $row['latlong'] ?? null,
                 ]);
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error importing row: '.json_encode($row).' - '.$e->getMessage());
             Session::flash('error', 'Error importing row: '.json_encode($row).' - '.$e->getMessage());
 

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\PlanVisitResource\Pages;
+namespace App\Filament\Resources\PlanVisits\Pages;
 
-use App\Filament\Resources\PlanVisitResource;
+use App\Filament\Resources\PlanVisits\PlanVisitResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreatePlanVisit extends CreateRecord

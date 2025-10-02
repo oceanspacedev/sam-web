@@ -1,34 +1,46 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\PlanVisits;
 
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\DatePicker;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use App\Filament\Resources\PlanVisits\Pages\ListPlanVisits;
+use App\Filament\Resources\PlanVisits\Pages\CreatePlanVisit;
+use App\Filament\Resources\PlanVisits\Pages\EditPlanVisit;
 use App\Filament\Resources\PlanVisitResource\Pages;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\User;
+use Closure;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Route;
 
 class PlanVisitResource extends Resource
 {
     protected static ?string $model = PlanVisit::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-calendar-date-range';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-calendar-date-range';
 
     protected static ?int $navigationSort = 4;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\Section::make('User Information')
+        return $schema
+            ->components([
+                Section::make('User Information')
                     ->schema([
-                        Forms\Components\Select::make('user_id')
+                        Select::make('user_id')
                             ->searchable()
                             ->required()
                             ->reactive()
@@ -62,7 +74,7 @@ class PlanVisitResource extends Resource
 
                                 return "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}";
                             }),
-                        Forms\Components\Select::make('outlet_id')
+                        Select::make('outlet_id')
                             ->searchable()
                             ->required()
                             ->label('Pilih Outlet')
@@ -101,9 +113,9 @@ class PlanVisitResource extends Resource
                     ])
                     ->collapsible()
                     ->columns(2),
-                Forms\Components\Section::make('Visit Details')
+                Section::make('Visit Details')
                     ->schema([
-                        Forms\Components\DatePicker::make('tanggal_visit')
+                        DatePicker::make('tanggal_visit')
                             ->native(false)
                             ->required()
                             ->label('Tanggal Visit')
@@ -119,20 +131,20 @@ class PlanVisitResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.nama_lengkap')
+                TextColumn::make('user.nama_lengkap')
                     ->label('Nama')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('outlet.nama_outlet')
+                TextColumn::make('outlet.nama_outlet')
                     ->label('Outlet')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('outlet.kode_outlet'),
-                Tables\Columns\TextColumn::make('tanggal_visit')
+                TextColumn::make('outlet.kode_outlet'),
+                TextColumn::make('tanggal_visit')
                     ->label('Tanggal Visit')
                     ->date('d M Y'),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -143,12 +155,12 @@ class PlanVisitResource extends Resource
             ->filters([
                 //
             ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
+            ->recordActions([
+                EditAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }
@@ -193,17 +205,23 @@ class PlanVisitResource extends Resource
         return Route::current()->parameter('record');
     }
 
-    public static function resolveRecordRouteBinding(int|string $key): ?PlanVisit
+    public static function resolveRecordRouteBinding(string|int $key, ?Closure $modifyQuery = null): ?Model
     {
-        return self::getEloquentQuery()->first();
+        $query = static::getEloquentQuery();
+
+        if ($modifyQuery) {
+            $modifyQuery($query);
+        }
+
+        return $query->whereKey($key)->first();
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListPlanVisits::route('/'),
-            'create' => Pages\CreatePlanVisit::route('/create'),
-            'edit' => Pages\EditPlanVisit::route('/{record}/edit'),
+            'index' => ListPlanVisits::route('/'),
+            'create' => CreatePlanVisit::route('/create'),
+            'edit' => EditPlanVisit::route('/{record}/edit'),
         ];
     }
 }

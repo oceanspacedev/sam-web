@@ -1,16 +1,18 @@
 <?php
 
-namespace App\Filament\Resources\OutletResource\Pages;
+namespace App\Filament\Resources\Outlets\Pages;
 
+use Filament\Actions\CreateAction;
+use Filament\Actions\Action;
+use Throwable;
 use App\Filament\Exports\OutletExporter;
-use App\Filament\Resources\OutletResource;
+use App\Filament\Resources\Outlets\OutletResource;
 use App\Imports\OutletImport;
 use App\Models\Outlet;
 use App\Support\StorageDisk;
 use App\Support\StoragePathResolver;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
-use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
@@ -26,7 +28,7 @@ class ListOutlets extends ListRecords
     protected function getHeaderActions(): array
     {
         $actions = [
-            Actions\CreateAction::make(),
+            CreateAction::make(),
         ];
 
         // Check if the user is authorized to export
@@ -40,11 +42,11 @@ class ListOutlets extends ListRecords
 
         // Import using Maatwebsite/Excel - single action with inline button group for mode
         if (Gate::allows('create', Outlet::class)) {
-            $actions[] = Actions\Action::make('import')
+            $actions[] = Action::make('import')
                 ->label('Import')
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-tray')
-                ->form([
+                ->schema([
                     ToggleButtons::make('mode')
                         ->label('Mode Import')
                         ->inline()
@@ -68,7 +70,7 @@ class ListOutlets extends ListRecords
                         ])
                         ->required()
                         ->hintActions([
-                            FormAction::make('download_template')
+                            Action::make('download_template')
                                 ->label('Download Template')
                                 ->url(fn (callable $get) => '/outlet/export/template?mode='.urlencode((string) $get('mode'))),
                         ]),
@@ -90,7 +92,7 @@ class ListOutlets extends ListRecords
                             ->title('Import berhasil')
                             ->success()
                             ->send();
-                    } catch (\Throwable $e) {
+                    } catch (Throwable $e) {
                         Notification::make()
                             ->title('Import gagal')
                             ->body($e->getMessage())

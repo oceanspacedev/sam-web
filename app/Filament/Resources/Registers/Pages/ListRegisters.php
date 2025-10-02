@@ -1,13 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\RegisterResource\Pages;
+namespace App\Filament\Resources\Registers\Pages;
 
+use Filament\Actions\CreateAction;
+use Filament\Schemas\Components\Tabs\Tab;
 use App\Filament\Exports\RegisterExporter;
-use App\Filament\Resources\RegisterResource;
+use App\Filament\Resources\Registers\RegisterResource;
 use App\Models\Register;
 use Filament\Actions;
 use Filament\Actions\ExportAction;
-use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +20,7 @@ class ListRegisters extends ListRecords
     protected function getHeaderActions(): array
     {
         $actions = [
-            Actions\CreateAction::make(),
+            CreateAction::make(),
         ];
 
         // Check if the user is authorized to export

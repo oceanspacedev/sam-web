@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\RoleResource\Pages;
+namespace App\Filament\Resources\Roles\Pages;
 
-use App\Filament\Resources\RoleResource;
+use Filament\Actions\DeleteAction;
+use App\Filament\Resources\Roles\RoleResource;
 use App\Models\Permission;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
@@ -15,7 +16,7 @@ class EditRole extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            DeleteAction::make(),
         ];
     }
 

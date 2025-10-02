@@ -13,6 +13,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class ProcessRegisterMedia implements ShouldQueue
 {
@@ -71,7 +72,7 @@ class ProcessRegisterMedia implements ShouldQueue
                     'visibility' => Arr::get($item, 'visibility'),
                     'disk' => $this->finalDisk,
                 ]);
-            } catch (\RuntimeException $exception) {
+            } catch (RuntimeException $exception) {
                 $this->deleteTemporary($tmpPath);
 
                 continue;

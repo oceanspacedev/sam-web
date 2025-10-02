@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\BadanUsahaResource\Pages;
+namespace App\Filament\Resources\BadanUsahas\Pages;
 
-use App\Filament\Resources\BadanUsahaResource;
+use Filament\Actions\CreateAction;
+use App\Filament\Resources\BadanUsahas\BadanUsahaResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ManageRecords;
 
@@ -13,7 +14,7 @@ class ManageBadanUsahas extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            CreateAction::make(),
         ];
     }
 }

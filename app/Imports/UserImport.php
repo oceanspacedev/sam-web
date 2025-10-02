@@ -8,6 +8,8 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
+use Exception;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -15,7 +17,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 class UserImport implements ToModel, WithHeadingRow
 {
     /**
-     * @return \Illuminate\Database\Eloquent\Model|null
+     * @return Model|null
      */
     public function model(array $row)
     {
@@ -36,7 +38,7 @@ class UserImport implements ToModel, WithHeadingRow
 
                 return $user;
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Log the error and skip the row
             Log::error("Error processing row for username {$row['username']}: ".$e->getMessage());
 

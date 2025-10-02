@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Filament;
 
-use App\Filament\Resources\UserResource\Pages\ListUsers;
-use App\Filament\Resources\UserResource\Pages\ViewUser;
+use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Filament\Resources\Users\Pages\ViewUser;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\User;

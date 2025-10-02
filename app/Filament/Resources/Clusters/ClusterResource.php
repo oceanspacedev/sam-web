@@ -1,13 +1,25 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\Clusters;
 
+use Filament\Schemas\Schema;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use App\Models\BadanUsaha;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\Filter;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use App\Filament\Resources\Clusters\Pages\ManageClusters;
 use App\Filament\Resources\ClusterResource\Pages;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Region;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Grouping\Group;
@@ -18,17 +30,17 @@ class ClusterResource extends Resource
 {
     protected static ?string $model = Cluster::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-map-pin';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-map-pin';
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
 
     protected static ?int $navigationSort = 4;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\Select::make('badanusaha_id')
+        return $schema
+            ->components([
+                Select::make('badanusaha_id')
                     ->label('Badan Usaha')
                     ->relationship('badanUsaha', 'name')
                     ->searchable()
@@ -36,7 +48,7 @@ class ClusterResource extends Resource
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
                     ->createOptionForm([
-                        Forms\Components\TextInput::make('name')
+                        TextInput::make('name')
                             ->required()
                             ->unique()
                             ->maxLength(255)
@@ -49,13 +61,13 @@ class ClusterResource extends Resource
                         $role = $user->role;
 
                         if ($role->filter_type === 'badanusaha') {
-                            return \App\Models\BadanUsaha::whereIn('id', $role->filter_data ?? [])
+                            return BadanUsaha::whereIn('id', $role->filter_data ?? [])
                                 ->pluck('name', 'id');
                         } elseif ($role->filter_type === 'all') {
-                            return \App\Models\BadanUsaha::pluck('name', 'id');
+                            return BadanUsaha::pluck('name', 'id');
                         }
 
-                        return \App\Models\BadanUsaha::where('id', $user->badanusaha_id)
+                        return BadanUsaha::where('id', $user->badanusaha_id)
                             ->pluck('name', 'id');
                     })
                     ->afterStateUpdated(function ($state, callable $set) {
@@ -63,7 +75,7 @@ class ClusterResource extends Resource
                         $set('region_id', null);
                     }),
 
-                Forms\Components\Select::make('divisi_id')
+                Select::make('divisi_id')
                     ->label('Divisi')
                     ->searchable()
                     ->preload()
@@ -83,7 +95,7 @@ class ClusterResource extends Resource
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('region_id', null);
                     }),
-                Forms\Components\Select::make('region_id')
+                Select::make('region_id')
                     ->label('Region')
                     ->searchable()
                     ->preload()
@@ -100,7 +112,7 @@ class ClusterResource extends Resource
                         return Region::where('divisi_id', $divisiId)
                             ->pluck('name', 'id');
                     }),
-                Forms\Components\TextInput::make('name')
+                TextInput::make('name')
                     ->required()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255)
@@ -113,31 +125,31 @@ class ClusterResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
+                TextColumn::make('name')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
-                Tables\Columns\BadgeColumn::make('badanusaha.name')
+                BadgeColumn::make('badanusaha.name')
                     ->label('Badan Usaha')
                     ->color('primary')
                     ->searchable(),
-                Tables\Columns\BadgeColumn::make('divisi.name')
+                BadgeColumn::make('divisi.name')
                     ->label('Divisi')
                     ->color('success')
                     ->searchable(),
-                Tables\Columns\BadgeColumn::make('region.name')
+                BadgeColumn::make('region.name')
                     ->label('Region')
                     ->color('warning')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('outlets_count')
+                TextColumn::make('outlets_count')
                     ->label('Outlets')
                     ->counts('outlets')
                     ->badge()
                     ->color('info'),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -150,36 +162,36 @@ class ClusterResource extends Resource
                     ->collapsible(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('badanusaha')
+                SelectFilter::make('badanusaha')
                     ->relationship('badanUsaha', 'name')
                     ->searchable()
                     ->preload()
                     ->label('Badan Usaha'),
-                Tables\Filters\SelectFilter::make('divisi')
+                SelectFilter::make('divisi')
                     ->relationship('divisi', 'name')
                     ->searchable()
                     ->preload()
                     ->label('Divisi'),
-                Tables\Filters\SelectFilter::make('region')
+                SelectFilter::make('region')
                     ->relationship('region', 'name')
                     ->searchable()
                     ->preload()
                     ->label('Region'),
-                Tables\Filters\Filter::make('has_outlets')
+                Filter::make('has_outlets')
                     ->label('Has Outlets')
                     ->query(fn (Builder $query) => $query->has('outlets')),
-                Tables\Filters\Filter::make('empty')
+                Filter::make('empty')
                     ->label('Empty (No Outlets)')
                     ->query(fn (Builder $query) => $query->doesntHave('outlets')),
             ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
+            ->recordActions([
+                EditAction::make(),
+                DeleteAction::make()
                     ->requiresConfirmation(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }
@@ -213,7 +225,7 @@ class ClusterResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ManageClusters::route('/'),
+            'index' => ManageClusters::route('/'),
         ];
     }
 }

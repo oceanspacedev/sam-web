@@ -1,11 +1,20 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Resources\BadanUsahas;
 
+use Filament\Schemas\Schema;
+use Filament\Forms\Components\TextInput;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteAction;
+use Filament\Notifications\Notification;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use App\Filament\Resources\BadanUsahas\Pages\ManageBadanUsahas;
 use App\Filament\Resources\BadanUsahaResource\Pages;
 use App\Models\BadanUsaha;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -15,17 +24,17 @@ class BadanUsahaResource extends Resource
 {
     protected static ?string $model = BadanUsaha::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-building-office-2';
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('name')
+        return $schema
+            ->components([
+                TextInput::make('name')
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true)
@@ -39,30 +48,30 @@ class BadanUsahaResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
+                TextColumn::make('name')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
-                Tables\Columns\TextColumn::make('divisions_count')
+                TextColumn::make('divisions_count')
                     ->label('Divisions')
                     ->counts('divisions')
                     ->badge()
                     ->color('primary'),
-                Tables\Columns\TextColumn::make('regions_count')
+                TextColumn::make('regions_count')
                     ->label('Regions')
                     ->counts('regions')
                     ->badge()
                     ->color('success'),
-                Tables\Columns\TextColumn::make('clusters_count')
+                TextColumn::make('clusters_count')
                     ->label('Clusters')
                     ->counts('clusters')
                     ->badge()
                     ->color('warning'),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -71,20 +80,20 @@ class BadanUsahaResource extends Resource
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->filters([
-                Tables\Filters\Filter::make('has_divisions')
+                Filter::make('has_divisions')
                     ->label('Has Divisions')
                     ->query(fn (Builder $query) => $query->has('divisions')),
-                Tables\Filters\Filter::make('empty')
+                Filter::make('empty')
                     ->label('Empty (No Divisions)')
                     ->query(fn (Builder $query) => $query->doesntHave('divisions')),
             ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
+            ->recordActions([
+                EditAction::make(),
+                DeleteAction::make()
                     ->requiresConfirmation()
                     ->action(function (BadanUsaha $record) {
                         if ($record->divisions()->exists()) {
-                            \Filament\Notifications\Notification::make()
+                            Notification::make()
                                 ->title('Cannot delete')
                                 ->body('This Badan Usaha has divisions. Please delete divisions first.')
                                 ->danger()
@@ -95,9 +104,9 @@ class BadanUsahaResource extends Resource
                         $record->delete();
                     }),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }
@@ -105,7 +114,7 @@ class BadanUsahaResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ManageBadanUsahas::route('/'),
+            'index' => ManageBadanUsahas::route('/'),
         ];
     }
 }

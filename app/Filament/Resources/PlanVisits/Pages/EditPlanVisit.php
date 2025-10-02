@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\PlanVisitResource\Pages;
+namespace App\Filament\Resources\PlanVisits\Pages;
 
-use App\Filament\Resources\PlanVisitResource;
+use Filament\Actions\DeleteAction;
+use App\Filament\Resources\PlanVisits\PlanVisitResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -13,7 +14,7 @@ class EditPlanVisit extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            DeleteAction::make(),
         ];
     }
 }

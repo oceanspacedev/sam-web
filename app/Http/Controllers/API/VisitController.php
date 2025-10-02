@@ -13,6 +13,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class VisitController extends Controller
 {
@@ -527,7 +528,7 @@ class VisitController extends Controller
                         'final_directory' => 'visits/in',
                         'filename' => $imageName,
                     ];
-                } catch (\RuntimeException $e) {
+                } catch (RuntimeException $e) {
                     $this->cleanupTemporaryFiles($temporaryFiles);
 
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
@@ -588,7 +589,7 @@ class VisitController extends Controller
                             'final_directory' => 'visits/out',
                             'filename' => $imageName,
                         ];
-                    } catch (\RuntimeException $e) {
+                    } catch (RuntimeException $e) {
                         $this->cleanupTemporaryFiles($temporaryFiles);
 
                         return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);

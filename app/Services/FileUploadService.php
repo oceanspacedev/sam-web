@@ -7,6 +7,7 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class FileUploadService
 {
@@ -70,14 +71,14 @@ class FileUploadService
     public function uploadImage(UploadedFile $file, string $directory, array $options = []): string
     {
         if (! $file->isValid()) {
-            throw new \RuntimeException('Invalid file upload');
+            throw new RuntimeException('Invalid file upload');
         }
 
         $allowedMimes = $options['allowed_mimes'] ?? ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         $ext = $file->guessExtension() ?: $file->extension();
 
         if (! in_array(strtolower($ext), $allowedMimes)) {
-            throw new \RuntimeException("File type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
+            throw new RuntimeException("File type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
         }
 
         $filename = $options['filename'] ?? ((string) Str::uuid().'.'.$ext);
@@ -96,14 +97,14 @@ class FileUploadService
     public function uploadVideo(UploadedFile $file, string $directory, array $options = []): string
     {
         if (! $file->isValid()) {
-            throw new \RuntimeException('Invalid video file upload');
+            throw new RuntimeException('Invalid video file upload');
         }
 
         $allowedMimes = $options['allowed_mimes'] ?? ['mp4', 'mov', 'avi', 'mkv', 'webm'];
         $ext = $file->guessExtension() ?: $file->extension();
 
         if (! in_array(strtolower($ext), $allowedMimes)) {
-            throw new \RuntimeException("Video type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
+            throw new RuntimeException("Video type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
         }
 
         $filename = $options['filename'] ?? ((string) Str::uuid().'.'.$ext);
@@ -122,7 +123,7 @@ class FileUploadService
     public function storeTemporary(UploadedFile $file, string $directory, array $options = []): string
     {
         if (! $file->isValid()) {
-            throw new \RuntimeException('Invalid temporary file upload');
+            throw new RuntimeException('Invalid temporary file upload');
         }
 
         $ext = $file->guessExtension() ?: $file->extension();
@@ -144,13 +145,13 @@ class FileUploadService
         $tempStorage = $this->temporaryStorage();
 
         if (! $tempStorage->exists($temporaryPath)) {
-            throw new \RuntimeException("Temporary file {$temporaryPath} does not exist");
+            throw new RuntimeException("Temporary file {$temporaryPath} does not exist");
         }
 
         $stream = $tempStorage->readStream($temporaryPath);
 
         if ($stream === false) {
-            throw new \RuntimeException("Unable to read temporary file {$temporaryPath}");
+            throw new RuntimeException("Unable to read temporary file {$temporaryPath}");
         }
 
         $filename = $options['filename'] ?? ($options['preserve_name'] ?? false

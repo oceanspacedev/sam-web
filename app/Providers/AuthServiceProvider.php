@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Models\Permission;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use PDOException;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -21,26 +23,35 @@ class AuthServiceProvider extends ServiceProvider
 
     /**
      * Register any authentication / authorization services.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         $this->registerPolicies();
-
-        // Hindari error pada environment testing ketika tabel belum dimigrasi
-        if (Schema::hasTable('permissions') && Schema::hasColumn('permissions', 'deleted_at')) {
-            $permissions = Permission::all();
-            foreach ($permissions as $permission) {
-                Gate::define($permission->name, function ($user) use ($permission) {
-                    return $user->permissions->contains('id', $permission->id);
-                });
-            }
-        }
 
         Gate::define('viewPulse', function (User $user) {
             return $user->role->name === 'SUPER ADMIN';
         });
 
+        if ($this->shouldSkipDynamicPermissionRegistration()) {
+            return;
+        }
+
+        Permission::query()->each(function (Permission $permission): void {
+            Gate::define($permission->name, function (User $user) use ($permission): bool {
+                return $user->permissions->contains('id', $permission->id);
+            });
+        });
+    }
+
+    /**
+     * Determine if the dynamic permission gates should be skipped.
+     */
+    protected function shouldSkipDynamicPermissionRegistration(): bool
+    {
+        try {
+            return ! Schema::hasTable('permissions') || ! Schema::hasColumn('permissions', 'deleted_at');
+        } catch (PDOException|QueryException $exception) {
+            return true;
+        }
     }
 }

@@ -6,12 +6,11 @@ use App\Filament\Resources\Outlets\OutletResource;
 use App\Filament\Resources\Registers\RegisterResource;
 use App\Filament\Resources\Visits\VisitResource;
 use App\Support\StorageDisk;
-use Filament\Forms\ComponentContainer;
-use Filament\Forms\Components\Component;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Schemas\Components\Component as SchemaComponent;
+use Filament\Schemas\Schema;
 use Illuminate\Support\Collection;
 use Livewire\Component as LivewireComponent;
 use Tests\TestCase;
@@ -45,9 +44,9 @@ class FileUploadDiskConsistencyTest extends TestCase
     }
 
     /**
-     * @param  callable(ComponentContainer): ComponentContainer  $callback
+     * @param  callable(Schema): Schema  $callback
      */
-    protected function makeForm(callable $callback): ComponentContainer
+    protected function makeForm(callable $callback): Schema
     {
         $livewire = new class extends LivewireComponent implements HasForms
         {
@@ -59,27 +58,33 @@ class FileUploadDiskConsistencyTest extends TestCase
             }
         };
 
-        return $callback(Form::make($livewire));
+        return $callback(Schema::make($livewire));
     }
 
-    protected function gatherFileUploadComponents(ComponentContainer $container): Collection
+    protected function gatherFileUploadComponents(Schema $schema): Collection
     {
-        return collect($container->getComponents())
-            ->flatMap(fn (Component $component): array => $this->flattenComponent($component))
-            ->filter(fn (Component $component): bool => $component instanceof FileUpload)
+        return collect($this->flattenSchema($schema))
             ->values();
     }
 
     /**
-     * @return array<int, Component>
+     * @return array<int, FileUpload>
      */
-    protected function flattenComponent(Component $component): array
+    protected function flattenSchema(Schema $schema): array
     {
-        $components = [$component];
+        $components = [];
 
-        if (method_exists($component, 'getChildComponentContainer') && ($childContainer = $component->getChildComponentContainer())) {
-            foreach ($childContainer->getComponents() as $childComponent) {
-                $components = array_merge($components, $this->flattenComponent($childComponent));
+        foreach ($schema->getComponents(withActions: false, withHidden: true) as $component) {
+            if (! $component instanceof SchemaComponent) {
+                continue;
+            }
+
+            if ($component instanceof FileUpload) {
+                $components[] = $component;
+            }
+
+            foreach ($component->getChildSchemas(withHidden: true) as $childSchema) {
+                $components = array_merge($components, $this->flattenSchema($childSchema));
             }
         }
 

@@ -31,7 +31,17 @@ class VisitMonitorTest extends FeatureTestCase
     public function test_monitor_for_special_user_id_2_merges_visits()
     {
         $g = $this->makeGraph(8, 63);
-        $role = Role::factory()->create(['name' => 'CSO', 'can_access_web' => 1]);
+        $managerRole = Role::factory()->create(['id' => 8, 'name' => 'Manager', 'can_access_web' => 1]);
+        $salesRole = Role::factory()->create(['name' => 'CSO', 'can_access_web' => 1]);
+
+        $teamManager = User::factory()->create([
+            'id' => 1,
+            'badanusaha_id' => $g['bu']->id,
+            'divisi_id' => $g['div']->id,
+            'region_id' => $g['reg']->id,
+            'cluster_id' => $g['clus']->id,
+            'role_id' => $managerRole->id,
+        ]);
 
         // Manager user id=2, role 8
         $manager = new User([
@@ -41,8 +51,8 @@ class VisitMonitorTest extends FeatureTestCase
             'divisi_id' => $g['div']->id,
             'region_id' => $g['reg']->id,
             'cluster_id' => $g['clus']->id,
-            'role_id' => 8,
-            'tm_id' => 1,
+            'role_id' => $managerRole->id,
+            'tm_id' => $teamManager->id,
             'password' => bcrypt('secret'),
         ]);
         $manager->id = 2;
@@ -56,7 +66,7 @@ class VisitMonitorTest extends FeatureTestCase
             'divisi_id' => 8,
             'region_id' => 63,
             'cluster_id' => $g['clus']->id,
-            'role_id' => $role->id,
+            'role_id' => $salesRole->id,
             'tm_id' => $manager->id,
             'password' => bcrypt('secret'),
         ]);
@@ -105,6 +115,15 @@ class VisitMonitorTest extends FeatureTestCase
     public function test_monitor_for_special_user_id_689_divisi_11()
     {
         $g = $this->makeGraph(11, 63);
+        $managerRole = Role::factory()->create(['id' => 8, 'name' => 'Manager', 'can_access_web' => 1]);
+        $teamManager = User::factory()->create([
+            'id' => 1,
+            'badanusaha_id' => $g['bu']->id,
+            'divisi_id' => $g['div']->id,
+            'region_id' => $g['reg']->id,
+            'cluster_id' => $g['clus']->id,
+            'role_id' => $managerRole->id,
+        ]);
 
         $manager = new User([
             'username' => 'mgr689',
@@ -113,8 +132,8 @@ class VisitMonitorTest extends FeatureTestCase
             'divisi_id' => 11,
             'region_id' => $g['reg']->id,
             'cluster_id' => $g['clus']->id,
-            'role_id' => 8,
-            'tm_id' => 1,
+            'role_id' => $managerRole->id,
+            'tm_id' => $teamManager->id,
             'password' => bcrypt('secret'),
         ]);
         $manager->id = 689;

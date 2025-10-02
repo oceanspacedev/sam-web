@@ -22,10 +22,8 @@ class UserFactory extends Factory
 
     /**
      * Define the model's default state.
-     *
-     * @return array
      */
-    public function definition()
+    public function definition(): array
     {
         return [
             'username' => $this->faker->unique()->userName(),
@@ -35,8 +33,7 @@ class UserFactory extends Factory
             'region_id' => Region::factory(),
             'cluster_id' => Cluster::factory(),
             'role_id' => Role::factory(),
-            // Temporarily set to 0; will be updated to self ID in afterCreating
-            'tm_id' => 0,
+            'tm_id' => null,
             'password' => '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
             'remember_token' => Str::random(10),
         ];
@@ -66,10 +63,10 @@ class UserFactory extends Factory
 
     public function configure()
     {
-        return $this->afterCreating(function (User $user) {
-            // Ensure tm_id references an existing user; point to self by default
-            $user->tm_id = $user->id;
-            $user->save();
+        return $this->afterCreating(function (User $user): void {
+            if ($user->tm_id === null) {
+                $user->forceFill(['tm_id' => $user->id])->save();
+            }
         });
     }
 }

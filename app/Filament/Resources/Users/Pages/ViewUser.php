@@ -2,17 +2,15 @@
 
 namespace App\Filament\Resources\Users\Pages;
 
-use Filament\Actions\EditAction;
-use Filament\Actions\Action;
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Section;
-use Filament\Infolists\Components\TextEntry;
-use App\Models\User;
 use App\Exports\UserMonthlyOutletsExport;
 use App\Filament\Resources\Users\UserResource;
-use Filament\Actions;
-use Filament\Infolists;
+use App\Models\User;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ViewUser extends ViewRecord
@@ -47,7 +45,7 @@ class ViewUser extends ViewRecord
 
     public function infolist(Schema $schema): Schema
     {
-        return $infolist
+        return $schema
             ->schema([
                 Section::make('Informasi User')
                     ->schema([

@@ -6,9 +6,9 @@ use App\Filament\Resources\RegisterResource\Pages;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Register;
+use App\Models\User;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
@@ -16,6 +16,8 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\MaxWidth;
@@ -25,7 +27,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
 
@@ -41,314 +42,353 @@ class RegisterResource extends Resource
     {
         return $form
             ->schema([
-                // Data Outlet
-                Forms\Components\Section::make('Data Outlet')
+                Forms\Components\Grid::make(12)
                     ->schema([
-                        Forms\Components\TextInput::make('kode_outlet')
-                            ->required()
-                            ->regex('/^[\S]+$/', 'Kode outlet tidak boleh mengandung spasi')
-                            ->helperText('Kode outlet tidak boleh mengandung spasi')
-                            ->rule(function (callable $get) {
-                                return function ($attribute, $value, $fail) use ($get) {
-                                    $divisiId = $get('divisi_id'); // Retrieve badanusaha_id using $get
-                                    $outletId = $get('id'); // Ambil id outlet untuk proses edit (pastikan field ini tersedia)
-                                    // Cek apakah kode_outlet sudah digunakan di divisi yang sama, kecuali oleh outlet ini sendiri
-                                    $exists = DB::table('outlets')
-                                        ->where('kode_outlet', $value)
-                                        ->where('divisi_id', $divisiId)
-                                        ->where('id', '!=', $outletId) // Abaikan data ini sendiri jika dalam mode edit
-                                        ->where('deleted_at', null)
-                                        ->exists();
-                                    if ($exists) {
-                                        $fail(__('Kode Outlet sudah digunakan untuk divisi ini.'));
-                                    }
-                                };
-                            })
-                            ->maxLength(255)
-                            ->label('Kode Outlet')
-                            ->placeholder('Masukkan kode outlet'),
-                        Forms\Components\TextInput::make('nama_outlet')
-                            ->required()
-                            ->maxLength(255)
-                            ->reactive()
-                            ->label('Nama Outlet'),
-                        Forms\Components\TextInput::make('distric')
-                            ->required()
-                            ->maxLength(255)
-                            ->label('Distrik'),
-                        Forms\Components\Textarea::make('alamat_outlet')
-                            ->required()
-                            ->columnSpanFull()
-                            ->label('Alamat Outlet'),
-                        Forms\Components\TextInput::make('nama_pemilik_outlet')
-                            ->required()
-                            ->maxLength(255)
-                            ->label('Nama Pemilik Outlet'),
-                        Forms\Components\TextInput::make('nomer_tlp_outlet')
-                            ->required()
-                            ->maxLength(255)
-                            ->label('Nomor Telepon Outlet'),
-                        Forms\Components\TextInput::make('nomer_wakil_outlet')
-                            ->maxLength(255)
-                            ->label('Nomor Wakil Outlet'),
-                        Forms\Components\TextInput::make('ktp_outlet')
-                            ->required()
-                            ->maxLength(255)
-                            ->label('KTP Pemilik Outlet'),
+                        Forms\Components\Group::make([
+                            Forms\Components\Section::make('Data Outlet')
+                                ->schema([
+                                    Forms\Components\TextInput::make('nama_outlet')
+                                        ->required()
+                                        ->maxLength(255)
+                                        ->reactive()
+                                        ->label('Nama Outlet'),
+                                    Forms\Components\TextInput::make('distric')
+                                        ->required()
+                                        ->maxLength(255)
+                                        ->label('Distrik'),
+                                    Forms\Components\Textarea::make('alamat_outlet')
+                                        ->required()
+                                        ->columnSpanFull()
+                                        ->label('Alamat Outlet'),
+                                    Forms\Components\TextInput::make('nama_pemilik_outlet')
+                                        ->required()
+                                        ->maxLength(255)
+                                        ->label('Nama Pemilik Outlet'),
+                                    Forms\Components\TextInput::make('nomer_tlp_outlet')
+                                        ->required()
+                                        ->maxLength(255)
+                                        ->label('Nomor Telepon Outlet'),
+                                    Forms\Components\TextInput::make('nomer_wakil_outlet')
+                                        ->maxLength(255)
+                                        ->label('Nomor Wakil Outlet'),
+                                    Forms\Components\TextInput::make('ktp_outlet')
+                                        ->maxLength(255)
+                                        ->label('KTP Pemilik Outlet')
+                                        ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                        ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan'))),
+                                    Forms\Components\TextInput::make('latlong')
+                                        ->required()
+                                        ->maxLength(255)
+                                        ->label('Koordinat Lat/Long'),
+                                ])
+                                ->columns(2),
+                            Forms\Components\Section::make('Dokumentasi')
+                                ->schema([
+                                    Forms\Components\Grid::make([
+                                        'default' => 1,
+                                        'md' => 2,
+                                    ])->schema([
+                                        Forms\Components\FileUpload::make('poto_shop_sign')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->resize(30)
+                                            ->label('Foto Tanda Toko')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
 
+                                                return 'register-'.$outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                            }),
+                                        Forms\Components\FileUpload::make('poto_depan')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->resize(30)
+                                            ->label('Foto Depan')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+
+                                                return 'register-'.$outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                            }),
+                                        Forms\Components\FileUpload::make('poto_kiri')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->resize(30)
+                                            ->label('Foto Kiri')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+
+                                                return 'register-'.$outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                            }),
+                                        Forms\Components\FileUpload::make('poto_kanan')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->resize(30)
+                                            ->label('Foto Kanan')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+
+                                                return 'register-'.$outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                            }),
+                                        Forms\Components\FileUpload::make('poto_ktp')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->resize(30)
+                                            ->label('Foto KTP Pemilik')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+
+                                                return 'register-'.$outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                            }),
+                                        Forms\Components\FileUpload::make('video')
+                                            ->disk(StorageDisk::default())
+                                            ->label('Video Toko')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+
+                                                return 'register-'.$outletName.'-video-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                            }),
+                                    ]),
+                                ]),
+                            Forms\Components\Section::make('Promotor dan Frontliner')
+                                ->schema([
+                                    Forms\Components\TextInput::make('oppo')
+                                        ->required()
+                                        ->numeric()
+                                        ->label('Oppo'),
+                                    Forms\Components\TextInput::make('vivo')
+                                        ->required()
+                                        ->numeric()
+                                        ->label('Vivo'),
+                                    Forms\Components\TextInput::make('realme')
+                                        ->required()
+                                        ->numeric()
+                                        ->label('Realme'),
+                                    Forms\Components\TextInput::make('samsung')
+                                        ->required()
+                                        ->numeric()
+                                        ->label('Samsung'),
+                                    Forms\Components\TextInput::make('xiaomi')
+                                        ->required()
+                                        ->numeric()
+                                        ->label('Xiaomi'),
+                                    Forms\Components\TextInput::make('fl')
+                                        ->required()
+                                        ->numeric()
+                                        ->label('FL'),
+                                ])
+                                ->columns(2),
+                        ])
+                            ->columnSpan(['default' => 12, 'xl' => 8]),
+                        Forms\Components\Group::make([
+                            Forms\Components\Section::make('Informasi Tambahan')
+                                ->schema([
+                                    Forms\Components\Select::make('created_by')
+                                        ->label('Dibuat Oleh')
+                                        ->searchable()
+                                        ->required()
+                                        ->options(fn (): array => self::getCreatorOptions())
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                            if (! $state) {
+                                                $set('tm_id', null);
+
+                                                return;
+                                            }
+
+                                            $creator = self::findCreatorByName($state);
+
+                                            if (! $creator) {
+                                                $set('tm_id', null);
+
+                                                return;
+                                            }
+
+                                            $set('tm_id', optional($creator->tm)->id ?? $creator->id);
+                                        }),
+                                    Forms\Components\ToggleButtons::make('keterangan')
+                                        ->label('Keterangan')
+                                        ->options([
+                                            'LEAD' => 'LEAD',
+                                            'NOO' => 'NOO',
+                                        ])
+                                        ->required()
+                                        ->live()
+                                        ->inline()
+                                        ->colors([
+                                            'LEAD' => 'warning',
+                                            'NOO' => 'primary',
+                                        ])
+                                        ->default('NOO')
+                                        ->formatStateUsing(fn (?string $state): string => $state === 'LEAD' ? 'LEAD' : 'NOO')
+                                        ->dehydrateStateUsing(fn (?string $state): ?string => $state === 'LEAD' ? 'LEAD' : null),
+                                ])
+                                ->columns(1),
+                            Forms\Components\Section::make('Struktur Organisasi')
+                                ->schema([
+                                    Forms\Components\Grid::make(['default' => 1])
+                                        ->schema([
+                                            Forms\Components\Select::make('badanusaha_id')
+                                                ->label('Badan Usaha')
+                                                ->searchable()
+                                                ->required()
+                                                ->reactive()
+                                                ->placeholder('Pilih badan usaha')
+                                                ->options(function (callable $get) {
+                                                    $user = auth()->user();
+                                                    $role = $user->role;
+
+                                                    if ($role->filter_type === 'badanusaha') {
+                                                        return BadanUsaha::whereIn('id', $role->filter_data ?? [])->pluck('name', 'id');
+                                                    }
+
+                                                    if ($role->filter_type === 'all') {
+                                                        return BadanUsaha::pluck('name', 'id');
+                                                    }
+
+                                                    return BadanUsaha::where('id', $user->badanusaha_id)->pluck('name', 'id');
+                                                })
+                                                ->afterStateUpdated(function ($state, callable $set) {
+                                                    $set('divisi_id', null);
+                                                    $set('region_id', null);
+                                                    $set('cluster_id', null);
+                                                }),
+                                            Forms\Components\Select::make('divisi_id')
+                                                ->label('Divisi')
+                                                ->searchable()
+                                                ->preload()
+                                                ->required()
+                                                ->reactive()
+                                                ->options(function (callable $get) {
+                                                    $badanusahaId = $get('badanusaha_id');
+
+                                                    if (! $badanusahaId) {
+                                                        return [];
+                                                    }
+
+                                                    return Division::where('badanusaha_id', $badanusahaId)
+                                                        ->orderBy('name')
+                                                        ->pluck('name', 'id');
+                                                })
+                                                ->afterStateUpdated(function ($state, callable $set) {
+                                                    $set('region_id', null);
+                                                    $set('cluster_id', null);
+                                                }),
+                                            Forms\Components\Select::make('region_id')
+                                                ->label('Region')
+                                                ->searchable()
+                                                ->preload()
+                                                ->required()
+                                                ->reactive()
+                                                ->options(function (callable $get) {
+                                                    $divisiId = $get('divisi_id');
+
+                                                    if (! $divisiId) {
+                                                        return [];
+                                                    }
+
+                                                    return Region::where('divisi_id', $divisiId)
+                                                        ->orderBy('name')
+                                                        ->pluck('name', 'id');
+                                                })
+                                                ->afterStateUpdated(function ($state, callable $set) {
+                                                    $set('cluster_id', null);
+                                                }),
+                                            Forms\Components\Select::make('cluster_id')
+                                                ->label('Cluster')
+                                                ->searchable()
+                                                ->preload()
+                                                ->required()
+                                                ->reactive()
+                                                ->options(function (callable $get) {
+                                                    $regionId = $get('region_id');
+
+                                                    if (! $regionId) {
+                                                        return [];
+                                                    }
+
+                                                    return Cluster::where('region_id', $regionId)
+                                                        ->orderBy('name')
+                                                        ->pluck('name', 'id');
+                                                }),
+                                        ]),
+                                ]),
+                            Forms\Components\Section::make('TM')
+                                ->schema([
+                                    Forms\Components\Select::make('tm_id')
+                                        ->label('Nama TM')
+                                        ->required()
+                                        ->searchable()
+                                        ->preload()
+                                        ->options(fn (Get $get): array => self::getTmOptions($get('created_by'), $get('tm_id')))
+                                        ->live(),
+                                ]),
+                        ])
+                            ->columnSpan(['default' => 12, 'xl' => 4]),
                     ])
-                    ->columns(2), // Menggunakan dua kolom untuk tampilan lebih kompak
-
-                Forms\Components\Section::make('Badan Usaha & Divisi')
-                    ->schema([
-                        Forms\Components\Select::make('badanusaha_id')
-                            ->label('Badan Usaha')
-                            ->searchable()
-                            ->required()
-                            ->reactive()
-                            ->placeholder('Pilih badan usaha')
-                            ->options(function (callable $get) {
-                                $user = auth()->user();
-                                $role = $user->role;
-
-                                if ($role->filter_type === 'badanusaha') {
-                                    return \App\Models\BadanUsaha::whereIn('id', $role->filter_data ?? [])
-                                        ->pluck('name', 'id');
-                                } elseif ($role->filter_type === 'all') {
-                                    return \App\Models\BadanUsaha::pluck('name', 'id');
-                                }
-
-                                return \App\Models\BadanUsaha::where('id', $user->badanusaha_id)
-                                    ->pluck('name', 'id');
-                            })
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $set('divisi_id', null);
-                                $set('region_id', null);
-                                $set('cluster_id', null);
-                                $set('cluster_id2', null);
-                            }),
-
-                        Forms\Components\Select::make('divisi_id')
-                            ->label('Divisi')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->reactive()
-                            ->options(function (callable $get) {
-                                $badanusahaId = $get('badanusaha_id');
-                                if (! $badanusahaId) {
-                                    return [];
-                                }
-
-                                return Division::where('badanusaha_id', $badanusahaId)
-                                    ->pluck('name', 'id');
-                            })
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $set('region_id', null);
-                                $set('cluster_id', null);
-                                $set('cluster_id2', null);
-                            }),
-
-                        Forms\Components\Select::make('region_id')
-                            ->label('Region')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->reactive()
-                            ->options(function (callable $get) {
-                                $divisiId = $get('divisi_id');
-                                if (! $divisiId) {
-                                    return [];
-                                }
-
-                                return Region::where('divisi_id', $divisiId)
-                                    ->pluck('name', 'id');
-                            })
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $set('cluster_id', null);
-                                $set('cluster_id2', null);
-                            }),
-
-                        Forms\Components\Select::make('cluster_id')
-                            ->label('Cluster')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->reactive()
-                            ->options(function (callable $get) {
-                                $regionId = $get('region_id');
-                                if (! $regionId) {
-                                    return [];
-                                }
-
-                                return Cluster::where('region_id', $regionId)
-                                    ->pluck('name', 'id');
-                            }),
-                    ])
-                    ->columns(2), // Menyusun dropdown dalam dua kolom
-
-                // Foto dan Video
-                Forms\Components\Section::make('Dokumentasi')
-                    ->schema([
-                        Forms\Components\FileUpload::make('poto_shop_sign')
-                            ->required()
-                            ->image()
-                            ->disk(StorageDisk::default())
-                            ->resize(30)
-                            ->label('Foto Tanda Toko')
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-
-                                return 'register-'.$outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
-                            }),
-                        Forms\Components\FileUpload::make('poto_depan')
-                            ->required()
-                            ->image()
-                            ->disk(StorageDisk::default())
-                            ->resize(30)
-                            ->label('Foto Depan')
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-
-                                return 'register-'.$outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
-                            }),
-                        Forms\Components\FileUpload::make('poto_kiri')
-                            ->required()
-                            ->image()
-                            ->disk(StorageDisk::default())
-                            ->resize(30)
-                            ->label('Foto Kiri')
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-
-                                return 'register-'.$outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
-                            }),
-                        Forms\Components\FileUpload::make('poto_kanan')
-                            ->required()
-                            ->image()
-                            ->disk(StorageDisk::default())
-                            ->resize(30)
-                            ->label('Foto Kanan')
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-
-                                return 'register-'.$outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
-                            }),
-                        Forms\Components\FileUpload::make('poto_ktp')
-                            ->required()
-                            ->image()
-                            ->disk(StorageDisk::default())
-                            ->resize(30)
-                            ->label('Foto KTP Pemilik')
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-
-                                return 'register-'.$outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
-                            }),
-                        Forms\Components\FileUpload::make('video')
-                            ->required()
-                            ->disk(StorageDisk::default())
-                            ->label('Video Toko')
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
-
-                                return 'register-'.$outletName.'-video-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
-                            }),
-                    ])
-                    ->columns(2),
-
-                // Produk dan Merk
-                Forms\Components\Section::make('Promotor dan Frontliner')
-                    ->schema([
-                        Forms\Components\TextInput::make('oppo')
-                            ->required()
-                            ->numeric()
-                            ->label('Oppo'),
-                        Forms\Components\TextInput::make('vivo')
-                            ->required()
-                            ->numeric()
-                            ->label('Vivo'),
-                        Forms\Components\TextInput::make('realme')
-                            ->required()
-                            ->numeric()
-                            ->label('Realme'),
-                        Forms\Components\TextInput::make('samsung')
-                            ->required()
-                            ->numeric()
-                            ->label('Samsung'),
-                        Forms\Components\TextInput::make('xiaomi')
-                            ->required()
-                            ->numeric()
-                            ->label('Xiaomi'),
-                        Forms\Components\TextInput::make('fl')
-                            ->required()
-                            ->numeric()
-                            ->label('FL'),
-                    ])
-                    ->columns(2),
-
-                // Informasi Tambahan
-                Forms\Components\Section::make('Informasi Tambahan')
-                    ->schema([
-                        Forms\Components\TextInput::make('latlong')
-                            ->required()
-                            ->maxLength(255)
-                            ->label('Koordinat Lat/Long'),
-                        Forms\Components\TextInput::make('limit')
-                            ->numeric()
-                            ->label('Limit'),
-                        Forms\Components\Select::make('status')
-                            ->required()
-                            ->label('Status')
-                            ->options([
-                                'PENDING' => 'PENDING',
-                                'CONFIRMED' => 'CONFIRMED',
-                                'APPROVED' => 'APPROVED',
-                                'REJECTED' => 'REJECTED',
-                            ])
-                            ->placeholder('Pilih Status'),
-                        Forms\Components\TextInput::make('created_by')
-                            ->required()
-                            ->maxLength(255)
-                            ->label('Dibuat Oleh'),
-                        Forms\Components\TextInput::make('keterangan')
-                            ->maxLength(255)
-                            ->label('Keterangan'),
-                    ])
-                    ->columns(2),
-
-                // Tanggal dan Persetujuan
-                Forms\Components\Section::make('Tanggal dan Persetujuan')
-                    ->schema([
-                        Forms\Components\DateTimePicker::make('rejected_at')
-                            ->label('Tanggal Ditolak'),
-                        Forms\Components\TextInput::make('rejected_by')
-                            ->maxLength(255)
-                            ->label('Ditolak Oleh'),
-                        Forms\Components\DateTimePicker::make('confirmed_at')
-                            ->label('Tanggal Dikonfirmasi'),
-                        Forms\Components\TextInput::make('confirmed_by')
-                            ->maxLength(255)
-                            ->label('Dikonfirmasi Oleh'),
-                        Forms\Components\DateTimePicker::make('approved_at')
-                            ->label('Tanggal Disetujui'),
-                        Forms\Components\TextInput::make('approved_by')
-                            ->maxLength(255)
-                            ->label('Disetujui Oleh'),
-                    ])
-                    ->columns(2),
-
-                Forms\Components\Section::make('TM')
-                    ->schema([
-                        Forms\Components\Select::make('tm_id')
-                            ->relationship('tm', 'nama_lengkap')
-                            ->preload()
-                            ->searchable()
-                            ->required()
-                            ->label('Nama TM'),
-                    ]),
-
+                    ->columnSpanFull(),
             ]);
+    }
+
+    protected static function isLead(?string $keterangan): bool
+    {
+        return strtoupper((string) $keterangan) === 'LEAD';
+    }
+
+    protected static function getCreatorOptions(): array
+    {
+        return User::query()
+            ->orderBy('nama_lengkap')
+            ->pluck('nama_lengkap', 'nama_lengkap')
+            ->toArray();
+    }
+
+    protected static function findCreatorByName(string $name): ?User
+    {
+        return User::query()
+            ->where('nama_lengkap', $name)
+            ->first();
+    }
+
+    protected static function getTmOptions(?string $creatorName, ?int $currentTmId): array
+    {
+        $options = [];
+
+        if ($creatorName) {
+            $creator = self::findCreatorByName($creatorName);
+
+            if ($creator) {
+                $tm = $creator->tm;
+
+                if ($tm) {
+                    $options[$tm->id] = $tm->nama_lengkap;
+                } else {
+                    $options[$creator->id] = $creator->nama_lengkap;
+                }
+            }
+        }
+
+        if ($currentTmId && ! array_key_exists($currentTmId, $options)) {
+            $currentTm = User::query()->find($currentTmId);
+
+            if ($currentTm) {
+                $options[$currentTm->id] = $currentTm->nama_lengkap;
+            }
+        }
+
+        if (! empty($options)) {
+            return $options;
+        }
+
+        return User::query()
+            ->orderBy('nama_lengkap')
+            ->pluck('nama_lengkap', 'id')
+            ->toArray();
     }
 
     public static function table(Table $table): Table

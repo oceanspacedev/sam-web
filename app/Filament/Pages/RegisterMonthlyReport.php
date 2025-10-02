@@ -6,7 +6,6 @@ use App\Models\BadanUsaha;
 use App\Models\Division;
 use App\Models\Register;
 use Carbon\Carbon;
-use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -173,7 +172,7 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
         return $table
             ->query($this->getAggregatedQuery())
             ->columns([
-                Tables\Columns\TextColumn::make('created_by')
+                Tables\Columns\TextColumn::make('user_name')
                     ->label('Pembuat')
                     ->sortable()
                     ->searchable(),
@@ -191,44 +190,16 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
         return Register::query()
             ->withTrashed()
             ->select([
-                DB::raw('users.nama_lengkap as user_name'),
-                'noos.created_by',
-                DB::raw('COUNT(noos.id) as total'),
+                'registers.created_by',
+                DB::raw('COALESCE(users.nama_lengkap, registers.created_by) as user_name'),
+                DB::raw('COUNT(registers.id) as total'),
             ])
-            ->leftJoin('users', 'users.id', '=', 'noos.created_by')
-            ->whereYear('noos.created_at', $this->year)
-            ->whereMonth('noos.created_at', $this->month)
-            ->when($this->badanusahaId, fn ($q) => $q->where('noos.badanusaha_id', $this->badanusahaId))
-            ->when($this->divisionId, fn ($q) => $q->where('noos.divisi_id', $this->divisionId))
-            ->groupBy('noos.created_by', 'users.nama_lengkap');
-    }
-
-    protected function getHeaderActions(): array
-    {
-        return [
-            Actions\Action::make('exportCsv')
-                ->label('Export CSV')
-                ->icon('heroicon-o-document-arrow-down')
-                ->color('success')
-                ->action(function () {
-                    $rows = $this->getAggregatedQuery()->get(['user_name', 'total']);
-                    $filename = 'register-report-'.$this->year.'-'.str_pad((string) $this->month, 2, '0', STR_PAD_LEFT).'.csv';
-
-                    $handle = fopen('php://temp', 'r+');
-                    fputcsv($handle, ['Pembuat', 'Total Register']);
-                    foreach ($rows as $row) {
-                        fputcsv($handle, [$row->user_name, $row->total]);
-                    }
-                    rewind($handle);
-                    $csv = stream_get_contents($handle);
-                    fclose($handle);
-
-                    return response($csv, 200, [
-                        'Content-Type' => 'text/csv',
-                        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-                    ]);
-                }),
-        ];
+            ->leftJoin('users', 'users.id', '=', 'registers.created_by')
+            ->whereYear('registers.created_at', $this->year)
+            ->whereMonth('registers.created_at', $this->month)
+            ->when($this->badanusahaId, fn ($q) => $q->where('registers.badanusaha_id', $this->badanusahaId))
+            ->when($this->divisionId, fn ($q) => $q->where('registers.divisi_id', $this->divisionId))
+            ->groupBy('registers.created_by', 'users.nama_lengkap');
     }
 
     public function getMonthName(): string

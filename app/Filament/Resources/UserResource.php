@@ -35,168 +35,193 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('User Information')
+                Forms\Components\Grid::make(12)
                     ->schema([
-                        Forms\Components\TextInput::make('username')
-                            ->required()
-                            ->maxLength(255)
-                            ->label('Username')
-                            ->unique(ignoreRecord: true)
-                            ->dehydrateStateUsing(fn ($state) => strtolower($state))
-                            ->placeholder('Masukkan username yang unik')
-                            ->regex('/^[\S]+$/', 'Username tidak boleh mengandung spasi')
-                            ->helperText('Username tidak boleh mengandung spasi'),
-                        Forms\Components\TextInput::make('nama_lengkap')
-                            ->required()
-                            ->maxLength(255)
-                            ->label('Nama Lengkap')
-                            ->placeholder('Masukkan nama lengkap')
-                            ->dehydrateStateUsing(fn ($state) => strtoupper($state)),
+                        Forms\Components\Group::make([
+                            Forms\Components\Section::make('Akun & Identitas')
+                                ->schema([
+                                    Forms\Components\Grid::make([
+                                        'default' => 1,
+                                        'md' => 2,
+                                    ])->schema([
+                                        Forms\Components\TextInput::make('username')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->label('Username')
+                                            ->unique(ignoreRecord: true)
+                                            ->dehydrateStateUsing(fn ($state) => strtolower($state))
+                                            ->placeholder('Masukkan username yang unik')
+                                            ->regex('/^[\S]+$/', 'Username tidak boleh mengandung spasi')
+                                            ->helperText('Username tidak boleh mengandung spasi'),
+                                        Forms\Components\TextInput::make('nama_lengkap')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->label('Nama Lengkap')
+                                            ->placeholder('Masukkan nama lengkap')
+                                            ->dehydrateStateUsing(fn ($state) => strtoupper($state)),
+                                        Forms\Components\TextInput::make('password')
+                                            ->password()
+                                            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
+                                            ->dehydrated(fn ($state) => filled($state))
+                                            ->maxLength(255)
+                                            ->label('Password')
+                                            ->placeholder('Masukkan password')
+                                            ->required(fn (string $context): bool => $context === 'create')
+                                            ->revealable()
+                                            ->columnSpan(['default' => 1, 'md' => 2]),
+                                    ]),
+                                ]),
+                            Forms\Components\Section::make('Peran & Relasi TM')
+                                ->schema([
+                                    Forms\Components\Grid::make([
+                                        'default' => 1,
+                                        'md' => 2,
+                                    ])->schema([
+                                        Forms\Components\Select::make('role_id')
+                                            ->relationship('role', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->label('Role')
+                                            ->placeholder('Pilih role')
+                                            ->options(function (callable $get) {
+                                                $user = auth()->user();
+
+                                                if ($user->role->name !== 'SUPER ADMIN') {
+                                                    return \App\Models\Role::whereIn('name', ['AR', 'ASC', 'ASM', 'DSF/DM'])
+                                                        ->orderBy('name')
+                                                        ->pluck('name', 'id')->toArray();
+                                                }
+
+                                                return \App\Models\Role::orderBy('name')->pluck('name', 'id')->toArray();
+                                            }),
+                                        Forms\Components\Select::make('tm_id')
+                                            ->label('TM')
+                                            ->relationship('tm', 'nama_lengkap')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->placeholder('Pilih TM'),
+                                    ]),
+                                ]),
+                        ])
+                            ->columnSpan(['default' => 1, 'xl' => 8]),
+                        Forms\Components\Section::make('Struktur Organisasi')
+                            ->schema([
+                                Forms\Components\Grid::make(['default' => 1])
+                                    ->schema([
+                                        Forms\Components\Select::make('badanusaha_id')
+                                            ->label('Badan Usaha')
+                                            ->searchable()
+                                            ->required()
+                                            ->reactive()
+                                            ->placeholder('Pilih badan usaha')
+                                            ->options(function (callable $get) {
+                                                $user = auth()->user();
+                                                $role = $user->role;
+
+                                                if ($role->filter_type === 'badanusaha') {
+                                                    return BadanUsaha::whereIn('id', $role->filter_data ?? [])->pluck('name', 'id');
+                                                }
+
+                                                if ($role->filter_type === 'all') {
+                                                    return BadanUsaha::pluck('name', 'id');
+                                                }
+
+                                                return BadanUsaha::where('id', $user->badanusaha_id)->pluck('name', 'id');
+                                            })
+                                            ->afterStateUpdated(function ($state, callable $set) {
+                                                $set('divisi_id', null);
+                                                $set('region_id', null);
+                                                $set('cluster_id', null);
+                                                $set('cluster_id2', null);
+                                            }),
+                                        Forms\Components\Select::make('divisi_id')
+                                            ->label('Divisi')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->reactive()
+                                            ->placeholder('Pilih divisi')
+                                            ->options(function (callable $get) {
+                                                $badanusahaId = $get('badanusaha_id');
+
+                                                if (! $badanusahaId) {
+                                                    return [];
+                                                }
+
+                                                return Division::where('badanusaha_id', $badanusahaId)
+                                                    ->orderBy('name')
+                                                    ->pluck('name', 'id');
+                                            })
+                                            ->afterStateUpdated(function ($state, callable $set) {
+                                                $set('region_id', null);
+                                                $set('cluster_id', null);
+                                                $set('cluster_id2', null);
+                                            }),
+                                        Forms\Components\Select::make('region_id')
+                                            ->label('Region')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->reactive()
+                                            ->placeholder('Pilih region')
+                                            ->options(function (callable $get) {
+                                                $divisiId = $get('divisi_id');
+
+                                                if (! $divisiId) {
+                                                    return [];
+                                                }
+
+                                                return Region::where('divisi_id', $divisiId)
+                                                    ->orderBy('name')
+                                                    ->pluck('name', 'id');
+                                            })
+                                            ->afterStateUpdated(function ($state, callable $set) {
+                                                $set('cluster_id', null);
+                                                $set('cluster_id2', null);
+                                            }),
+                                        Forms\Components\Select::make('cluster_id')
+                                            ->label('Cluster')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->reactive()
+                                            ->placeholder('Pilih cluster')
+                                            ->options(function (callable $get) {
+                                                $regionId = $get('region_id');
+
+                                                if (! $regionId) {
+                                                    return [];
+                                                }
+
+                                                return Cluster::where('region_id', $regionId)
+                                                    ->orderBy('name')
+                                                    ->pluck('name', 'id');
+                                            }),
+                                        Forms\Components\Select::make('cluster_id2')
+                                            ->label('Cluster 2')
+                                            ->searchable()
+                                            ->preload()
+                                            ->reactive()
+                                            ->placeholder('Pilih cluster 2 (opsional)')
+                                            ->options(function (callable $get) {
+                                                $regionId = $get('region_id');
+
+                                                if (! $regionId) {
+                                                    return [];
+                                                }
+
+                                                return Cluster::where('region_id', $regionId)
+                                                    ->orderBy('name')
+                                                    ->pluck('name', 'id');
+                                            })
+                                            ->hint('Opsional, pilih cluster kedua bila diperlukan.'),
+                                    ]),
+                            ])
+                            ->columnSpan(['default' => 1, 'xl' => 4]),
                     ])
-                    ->columns(2),
-                Forms\Components\Section::make('Organization Information')
-                    ->schema([
-                        Forms\Components\Select::make('badanusaha_id')
-                            ->label('Badan Usaha')
-                            ->searchable()
-                            ->required()
-                            ->reactive()
-                            ->placeholder('Pilih badan usaha')
-                            ->options(function (callable $get) {
-                                $user = auth()->user();
-                                $role = $user->role;
-                                if ($role->filter_type === 'badanusaha') {
-                                    return \App\Models\BadanUsaha::whereIn('id', $role->filter_data ?? [])
-                                        ->pluck('name', 'id');
-                                } elseif ($role->filter_type === 'all') {
-                                    return \App\Models\BadanUsaha::pluck('name', 'id');
-                                }
-
-                                return \App\Models\BadanUsaha::where('id', $user->badanusaha_id)
-                                    ->pluck('name', 'id');
-                            })
-
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $set('divisi_id', null);
-                                $set('region_id', null);
-                                $set('cluster_id', null);
-                                $set('cluster_id2', null);
-                            }),
-                        Forms\Components\Select::make('divisi_id')
-                            ->label('Divisi')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->reactive()
-                            ->placeholder('Pilih divisi')
-                            ->options(function (callable $get) {
-                                $badanusahaId = $get('badanusaha_id');
-                                if (! $badanusahaId) {
-                                    return [];
-                                }
-
-                                return Division::where('badanusaha_id', $badanusahaId)
-                                    ->pluck('name', 'id');
-                            })
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $set('region_id', null);
-                                $set('cluster_id', null);
-                                $set('cluster_id2', null);
-                            }),
-                        Forms\Components\Select::make('region_id')
-                            ->label('Region')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->reactive()
-                            ->placeholder('Pilih region')
-                            ->options(function (callable $get) {
-                                $divisiId = $get('divisi_id');
-                                if (! $divisiId) {
-                                    return [];
-                                }
-
-                                return Region::where('divisi_id', $divisiId)
-                                    ->pluck('name', 'id');
-                            })
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $set('cluster_id', null);
-                                $set('cluster_id2', null);
-                            }),
-                        Forms\Components\Select::make('cluster_id')
-                            ->label('Cluster')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->reactive()
-                            ->placeholder('Pilih cluster')
-                            ->options(function (callable $get) {
-                                $regionId = $get('region_id');
-                                if (! $regionId) {
-                                    return [];
-                                }
-
-                                return Cluster::where('region_id', $regionId)
-                                    ->pluck('name', 'id');
-                            }),
-
-                        Forms\Components\Select::make('cluster_id2')
-                            ->label('Cluster 2')
-                            ->searchable()
-                            ->preload()
-                            ->reactive()
-                            ->placeholder('Pilih cluster 2')
-                            ->options(function (callable $get) {
-                                $clusterId = $get('region_id');
-                                if (! $clusterId) {
-                                    return [];
-                                }
-
-                                return Cluster::where('region_id', $clusterId)
-                                    ->pluck('name', 'id');
-                            }),
-                    ])
-                    ->columns(2),
-                Forms\Components\Section::make('Role & TM')
-                    ->schema([
-                        Forms\Components\Select::make('role_id')
-                            ->relationship('role', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->label('Role')
-                            ->placeholder('Pilih role')
-                            ->options(function (callable $get) {
-                                $user = auth()->user();
-                                if ($user->role->name !== 'SUPER ADMIN') {
-                                    return \App\Models\Role::whereIn('name', ['AR', 'ASC', 'ASM', 'DSF/DM'])
-                                        ->pluck('name', 'id')->toArray();
-                                }
-
-                                return \App\Models\Role::pluck('name', 'id')->toArray();
-                            }),
-                        Forms\Components\Select::make('tm_id')
-                            ->label('TM')
-                            ->relationship('tm', 'nama_lengkap')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->placeholder('Pilih TM'),
-                    ])
-                    ->columns(2),
-                Forms\Components\Section::make('Password')
-                    ->schema([
-                        Forms\Components\TextInput::make('password')
-                            ->password()
-                            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
-                            ->dehydrated(fn ($state) => filled($state))
-                            ->maxLength(255)
-                            ->label('Password')
-                            ->placeholder('Masukkan password')
-                            ->required(fn (string $context): bool => $context === 'create')
-                            ->revealable(),
-                    ])
-                    ->columns(1),
+                    ->columnSpanFull(),
             ]);
     }
 

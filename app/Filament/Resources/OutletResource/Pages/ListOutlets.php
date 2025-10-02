@@ -14,7 +14,6 @@ use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
-use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -104,12 +103,5 @@ class ListOutlets extends ListRecords
         }
 
         return $actions;
-    }
-
-    public function getTabs(): array
-    {
-        return [
-            'all' => Tab::make(),
-        ];
     }
 }

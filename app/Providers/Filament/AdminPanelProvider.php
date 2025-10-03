@@ -34,7 +34,7 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
-            ->spa()
+            ->spa(true)
             ->databaseNotifications()
             ->brandLogo(asset('icon/samsam.png'))
             ->sidebarCollapsibleOnDesktop()

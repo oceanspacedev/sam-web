@@ -7,6 +7,7 @@ use App\Http\Middleware\EncryptCookies;
 use App\Http\Middleware\IsAdmin;
 use App\Http\Middleware\LogRoute;
 use App\Http\Middleware\PreventRequestsDuringMaintenance;
+use App\Http\Middleware\RateLimitUploads;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\TrimStrings;
 use App\Http\Middleware\TrustProxies;
@@ -68,6 +69,7 @@ class Kernel extends HttpKernel
 
         'api' => [
             'throttle:api',
+            RateLimitUploads::class, // Custom upload rate limiting
             SubstituteBindings::class,
         ],
     ];
@@ -91,5 +93,6 @@ class Kernel extends HttpKernel
         'verified' => EnsureEmailIsVerified::class,
         'isAdmin' => IsAdmin::class,
         'logku' => LogRoute::class,
+        'upload.limiter' => RateLimitUploads::class, // Custom upload rate limiting
     ];
 }

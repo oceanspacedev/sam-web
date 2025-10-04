@@ -8,6 +8,7 @@ use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
 use App\Services\FileUploadService;
+use App\Services\FilenameGeneratorService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -351,7 +352,8 @@ class OutletController extends Controller
                 }
 
                 try {
-                    $path = $this->fileUpload->uploadImage($file, $baseDir.'/photos');
+                    // Use optimized flat storage with type prefix
+                    $path = $this->fileUpload->uploadImageOptimized($file, 'outlet-photo');
                     // Simpan path relatif pada kolom agar hook model bisa hapus file lama
                     $outlet->{$targetField} = $path;
                 } catch (RuntimeException $e) {
@@ -362,7 +364,8 @@ class OutletController extends Controller
             // Proses video (opsional)
             if ($request->hasFile('video')) {
                 try {
-                    $path = $this->fileUpload->uploadVideo($request->file('video'), $baseDir.'/videos');
+                    // Use optimized flat storage with type prefix
+                    $path = $this->fileUpload->uploadVideoOptimized($request->file('video'), 'outlet-video');
                     $outlet->video = $path;
                 } catch (RuntimeException $e) {
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);

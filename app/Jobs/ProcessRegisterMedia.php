@@ -51,11 +51,10 @@ class ProcessRegisterMedia implements ShouldQueue
         foreach ($this->mediaItems as $item) {
             $tmpPath = Arr::get($item, 'tmp_path');
             $field = Arr::get($item, 'field');
-            $directory = Arr::get($item, 'final_directory');
+            $type = Arr::get($item, 'type'); // NEW: Use type instead of directory
 
-            if (! $tmpPath || ! $field || ! $directory) {
+            if (! $tmpPath || ! $field || ! $type) {
                 $this->deleteTemporary($tmpPath);
-
                 continue;
             }
 
@@ -63,18 +62,28 @@ class ProcessRegisterMedia implements ShouldQueue
                 continue;
             }
 
-            $extension = pathinfo($tmpPath, PATHINFO_EXTENSION) ?: Arr::get($item, 'extension', 'bin');
-            $filename = Arr::get($item, 'filename', (string) Str::uuid().'.'.$extension);
-
             try {
-                $path = $service->transferFromTemporary($tmpPath, $directory, [
-                    'filename' => $filename,
-                    'visibility' => Arr::get($item, 'visibility'),
-                    'disk' => $this->finalDisk,
-                ]);
+                // Get the temporary file
+                $tempFile = new \Illuminate\Http\UploadedFile(
+                    Storage::disk($this->temporaryDisk)->path($tmpPath),
+                    basename($tmpPath),
+                    mime_content_type(Storage::disk($this->temporaryDisk)->path($tmpPath)),
+                    null,
+                    true
+                );
+
+                // Use optimized upload with flat storage and type prefix
+                if ($type === 'register-video') {
+                    $path = $service->uploadVideoOptimized($tempFile, $type);
+                } else {
+                    $path = $service->uploadImageOptimized($tempFile, $type);
+                }
+
+                // Clean up temporary file
+                Storage::disk($this->temporaryDisk)->delete($tmpPath);
+
             } catch (RuntimeException $exception) {
                 $this->deleteTemporary($tmpPath);
-
                 continue;
             }
 

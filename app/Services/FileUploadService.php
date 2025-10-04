@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\UploadedFile;
@@ -12,15 +13,20 @@ use RuntimeException;
 class FileUploadService
 {
     protected string $defaultDisk = 'public';
+    protected FilenameGeneratorService $filenameGenerator;
 
-    public function __construct(protected ?string $disk = null, protected ?string $temporaryDisk = null)
-    {
+    public function __construct(
+        protected ?string $disk = null,
+        protected ?string $temporaryDisk = null,
+        FilenameGeneratorService $filenameGenerator = null
+    ) {
         // Resolve default disk from configuration so .env FILESYSTEM_DISK is respected.
         // Fallback to the class default ('public') when config is unavailable.
         $this->defaultDisk = StorageDisk::default();
 
         $this->disk = $disk ?? $this->defaultDisk;
         $this->temporaryDisk = $temporaryDisk ?? 'local';
+        $this->filenameGenerator = $filenameGenerator ?? new FilenameGeneratorService();
     }
 
     /**
@@ -66,9 +72,10 @@ class FileUploadService
     }
 
     /**
-     * Upload image file with validation and optimization
+     * Upload optimized image with flat storage (TRUE FLAT STORAGE)
+     * Format: {type}{date}{userId}-{hash}-{uuid}.{ext}
      */
-    public function uploadImage(UploadedFile $file, string $directory, array $options = []): string
+    public function uploadImageOptimized(UploadedFile $file, string $type, array $options = []): string
     {
         if (! $file->isValid()) {
             throw new RuntimeException('Invalid file upload');
@@ -81,14 +88,61 @@ class FileUploadService
             throw new RuntimeException("File type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
         }
 
-        $filename = $options['filename'] ?? ((string) Str::uuid().'.'.$ext);
+        // Generate optimized filename with type prefix
+        $typePrefix = FilenameGeneratorService::getTypePrefix($type);
+        $filename = $this->filenameGenerator->generate($file, $type);
 
-        $putOptions = [];
-        if (isset($options['visibility'])) {
-            $putOptions['visibility'] = $options['visibility'];
+        $putOptions = [
+            'visibility' => $options['visibility'] ?? 'public',
+            'mimetype' => $file->getMimeType(),
+        ];
+
+        // TRUE FLAT STORAGE - no directories!
+        return $this->storage()->putFileAs('', $file, $filename, $putOptions);
+    }
+
+    /**
+     * Upload video with flat storage optimization
+     */
+    public function uploadVideoOptimized(UploadedFile $file, string $type, array $options = []): string
+    {
+        if (! $file->isValid()) {
+            throw new RuntimeException('Invalid video file upload');
         }
 
-        return $this->storage()->putFileAs(trim($directory, '/'), $file, $filename, $putOptions);
+        $allowedMimes = $options['allowed_mimes'] ?? ['mp4', 'mov', 'avi', 'mkv', 'webm'];
+        $ext = $file->guessExtension() ?: $file->extension();
+
+        if (! in_array(strtolower($ext), $allowedMimes)) {
+            throw new RuntimeException("Video type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
+        }
+
+        // Generate optimized filename with type prefix
+        $filename = $this->filenameGenerator->generate($file, $type);
+
+        $putOptions = [
+            'visibility' => $options['visibility'] ?? 'public',
+            'mimetype' => $file->getMimeType(),
+        ];
+
+        // TRUE FLAT STORAGE - no directories!
+        return $this->storage()->putFileAs('', $file, $filename, $putOptions);
+    }
+
+    /**
+     * Upload file with custom type prefix (for backward compatibility)
+     */
+    public function uploadWithCustomType(UploadedFile $file, string $type, array $options = []): string
+    {
+        return $this->uploadImageOptimized($file, $type, $options);
+    }
+
+    /**
+     * Legacy method - DEPRECATED (use optimized version instead)
+     */
+    public function uploadImage(UploadedFile $file, string $directory, array $options = []): string
+    {
+        return $this->uploadImageOptimized($file, 'photo', $options);
     }
 
     /**

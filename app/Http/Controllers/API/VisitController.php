@@ -8,6 +8,7 @@ use App\Jobs\ProcessVisitMedia;
 use App\Models\Outlet;
 use App\Models\Visit;
 use App\Services\FileUploadService;
+use App\Services\FilenameGeneratorService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -525,7 +526,7 @@ class VisitController extends Controller
                     $mediaQueue[] = [
                         'field' => 'picture_visit_in',
                         'tmp_path' => $temporaryPath,
-                        'final_directory' => 'visits/in',
+                        'type' => 'visit-in', // Use type instead of directory - TRUE FLAT STORAGE!
                         'filename' => $imageName,
                     ];
                 } catch (RuntimeException $e) {
@@ -586,7 +587,7 @@ class VisitController extends Controller
                         $mediaQueue[] = [
                             'field' => 'picture_visit_out',
                             'tmp_path' => $temporaryPath,
-                            'final_directory' => 'visits/out',
+                            'type' => 'visit-out', // Use type instead of directory - TRUE FLAT STORAGE!
                             'filename' => $imageName,
                         ];
                     } catch (RuntimeException $e) {

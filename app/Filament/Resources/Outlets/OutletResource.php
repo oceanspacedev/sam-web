@@ -27,6 +27,7 @@ use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
+use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
@@ -129,54 +130,61 @@ class OutletResource extends Resource
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Tanda Toko')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return $outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'outlet-photo', $userId);
+                                                // Output: op241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
                                             }),
                                         FileUpload::make('poto_depan')
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Depan')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return $outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                             }),
                                         FileUpload::make('poto_kiri')
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Kiri')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return $outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                             }),
                                         FileUpload::make('poto_kanan')
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Kanan')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return $outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                             }),
                                         FileUpload::make('poto_ktp')
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto KTP Pemilik')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return $outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'outlet-ktp', $userId);
                                             }),
                                         FileUpload::make('video')
                                             ->disk(StorageDisk::default())
                                             ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mkv'])
                                             ->label('Video Toko')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return $outletName.'-video-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'outlet-video', $userId);
                                             }),
                                     ]),
                                 ]),

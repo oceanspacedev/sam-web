@@ -30,6 +30,7 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Register;
 use App\Models\User;
+use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
@@ -111,9 +112,11 @@ class RegisterResource extends Resource
                                             ->label('Foto Tanda Toko')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return 'register-'.$outletName.'-fotoshopsign-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'register-photo', $userId);
+                                                // Output: rp241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
                                             }),
                                         FileUpload::make('poto_depan')
                                             ->image()
@@ -121,9 +124,10 @@ class RegisterResource extends Resource
                                             ->label('Foto Depan')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return 'register-'.$outletName.'-fotodepan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'register-photo', $userId);
                                             }),
                                         FileUpload::make('poto_kiri')
                                             ->image()
@@ -131,9 +135,10 @@ class RegisterResource extends Resource
                                             ->label('Foto Kiri')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return 'register-'.$outletName.'-fotokiri-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'register-photo', $userId);
                                             }),
                                         FileUpload::make('poto_kanan')
                                             ->image()
@@ -141,9 +146,10 @@ class RegisterResource extends Resource
                                             ->label('Foto Kanan')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return 'register-'.$outletName.'-fotokanan-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'register-photo', $userId);
                                             }),
                                         FileUpload::make('poto_ktp')
                                             ->image()
@@ -152,18 +158,20 @@ class RegisterResource extends Resource
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return 'register-'.$outletName.'-fotoktp-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'register-ktp', $userId);
                                             }),
                                         FileUpload::make('video')
                                             ->disk(StorageDisk::default())
                                             ->label('Video Toko')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $outletName = strtolower(str_replace(' ', '_', $get('nama_outlet')));
+                                                $userId = auth()->id();
+                                                $filenameGenerator = new FilenameGeneratorService();
 
-                                                return 'register-'.$outletName.'-video-'.Carbon::now()->format('dmYHis').'.'.$file->getClientOriginalExtension();
+                                                return $filenameGenerator->generate($file, 'register-video', $userId);
                                             }),
                                     ]),
                                 ]),

@@ -25,6 +25,7 @@ use App\Filament\Resources\VisitResource\Pages;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Models\Visit;
+use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Forms;
@@ -189,10 +190,11 @@ class VisitResource extends Resource
                                     ->disk(StorageDisk::default())
                                     ->label('Picture at Start of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                        $user = User::find($get('user_id'));
-                                        $username = $user ? $user->username : 'vacant';
+                                        $userId = auth()->id() ?? $get('user_id');
+                                        $filenameGenerator = new FilenameGeneratorService();
 
-                                        return Carbon::now()->format('Y-m-d').'-'.$username.'-IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$file->getClientOriginalExtension();
+                                        return $filenameGenerator->generate($file, 'visit-in', $userId);
+                                        // Output: vi241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
                                     }),
                                 FileUpload::make('picture_visit_out')
                                     ->image()
@@ -201,10 +203,11 @@ class VisitResource extends Resource
                                     ->disk(StorageDisk::default())
                                     ->label('Picture at End of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                        $user = User::find($get('user_id'));
-                                        $username = $user ? $user->username : 'vacant';
+                                        $userId = auth()->id() ?? $get('user_id');
+                                        $filenameGenerator = new FilenameGeneratorService();
 
-                                        return Carbon::now()->format('Y-m-d').'-'.$username.'-OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$file->getClientOriginalExtension();
+                                        return $filenameGenerator->generate($file, 'visit-out', $userId);
+                                        // Output: vo241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
                                     })
                                     ->visible(fn (string $context): bool => $context === 'edit'),
                             ]),

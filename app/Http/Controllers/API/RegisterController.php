@@ -14,6 +14,7 @@ use App\Models\Region;
 use App\Models\Register;
 use App\Models\User;
 use App\Services\FileUploadService;
+use App\Services\MediaProcessingService;
 use App\Services\OrganizationalCacheService;
 use App\Support\StorageDisk;
 use Exception;
@@ -69,7 +70,8 @@ class RegisterController extends Controller
 {
     public function __construct(
         protected OrganizationalCacheService $orgCache,
-        protected FileUploadService $fileUpload
+        protected FileUploadService $fileUpload,
+        protected MediaProcessingService $mediaService
     ) {}
 
     /**
@@ -180,10 +182,14 @@ class RegisterController extends Controller
 
                 $temporaryFiles[] = $temporaryPath;
                 $data[$target] = $temporaryPath;
+
+                // Map target to file type for optimized processing
+                $fileType = $this->mapTargetToFileType($target);
+
                 $mediaQueue[] = [
                     'field' => $target,
                     'tmp_path' => $temporaryPath,
-                    'final_directory' => 'register/photos',
+                    'type' => $fileType, // Use type instead of directory - TRUE FLAT STORAGE!
                 ];
             }
 
@@ -202,7 +208,7 @@ class RegisterController extends Controller
                 $mediaQueue[] = [
                     'field' => 'video',
                     'tmp_path' => $temporaryPath,
-                    'final_directory' => 'register/videos',
+                    'type' => 'register-video', // Use type instead of directory - TRUE FLAT STORAGE!
                 ];
             }
 
@@ -1788,5 +1794,20 @@ class RegisterController extends Controller
         } catch (Exception $err) {
             return ResponseFormatter::error(null, 'ada kesalahan');
         }
+    }
+
+    /**
+     * Map target field to file type for optimized processing
+     */
+    protected function mapTargetToFileType(string $target): string
+    {
+        return [
+            'poto_shop_sign' => 'register-photo',
+            'poto_depan' => 'register-photo',
+            'poto_kiri' => 'register-photo',
+            'poto_kanan' => 'register-photo',
+            'poto_ktp' => 'register-ktp',
+            'video' => 'register-video',
+        ][$target] ?? 'register-photo';
     }
 }

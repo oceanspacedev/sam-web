@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Api;
 
-use App\Jobs\ProcessRegisterMedia;
+use App\Jobs\ProcessMediaJob;
 use App\Models\Outlet;
 use App\Models\Register;
 use App\Models\User;
@@ -85,8 +85,8 @@ class LeadMediaQueueTest extends FeatureTestCase
             'Lead creation should not generate an Outlet record.'
         );
 
-        Queue::assertPushed(ProcessRegisterMedia::class, function (ProcessRegisterMedia $job) use ($register) {
-            return $job->registerId() === $register->id && count($job->mediaItems()) === 5;
+        Queue::assertPushed(ProcessMediaJob::class, function (ProcessMediaJob $job) use ($register) {
+            return $job->modelId === $register->id && $job->modelType === 'register' && count($job->mediaItems) === 5;
         });
     }
 }

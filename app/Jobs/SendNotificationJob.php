@@ -14,7 +14,6 @@ class SendNotificationJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
-
     public int $timeout = 30;
 
     /**
@@ -25,6 +24,16 @@ class SendNotificationJob implements ShouldQueue
     public function __construct(public string $message, array $recipientIds)
     {
         $this->recipientIds = array_values(array_filter($recipientIds));
+    }
+
+    /**
+     * Get the queue the job should be sent to.
+     *
+     * @return string
+     */
+    public function queue(): string
+    {
+        return 'notifications';
     }
 
     public function handle(): void

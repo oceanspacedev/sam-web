@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Api;
 
-use App\Jobs\ProcessVisitMedia;
+use App\Jobs\ProcessMediaJob;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Models\Visit;
@@ -76,8 +76,8 @@ class VisitMediaQueueTest extends FeatureTestCase
         $this->assertNotNull($visit);
         $this->assertTrue(Str::startsWith($visit->picture_visit_in, 'visits/tmp/in'));
 
-        Queue::assertPushed(ProcessVisitMedia::class, function (ProcessVisitMedia $job) use ($visit) {
-            return $job->visitId() === $visit->id && count($job->mediaItems()) === 1;
+        Queue::assertPushed(ProcessMediaJob::class, function (ProcessMediaJob $job) use ($visit) {
+            return $job->modelId === $visit->id && $job->modelType === 'visit' && count($job->mediaItems) === 1;
         });
     }
 
@@ -148,8 +148,8 @@ class VisitMediaQueueTest extends FeatureTestCase
         $visit->refresh();
         $this->assertTrue(Str::startsWith($visit->picture_visit_out, 'visits/tmp/out'));
 
-        Queue::assertPushed(ProcessVisitMedia::class, function (ProcessVisitMedia $job) use ($visit) {
-            return $job->visitId() === $visit->id && count($job->mediaItems()) === 1;
+        Queue::assertPushed(ProcessMediaJob::class, function (ProcessMediaJob $job) use ($visit) {
+            return $job->modelId === $visit->id && $job->modelType === 'visit' && count($job->mediaItems) === 1;
         });
     }
 }

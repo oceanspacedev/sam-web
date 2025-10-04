@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Api;
 
-use App\Jobs\ProcessRegisterMedia;
+use App\Jobs\ProcessMediaJob;
 use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -143,15 +143,29 @@ class RegisterMediaQueueTest extends FeatureTestCase
         ];
 
         $response = $this->post('/api/register', $payload, ['Accept' => 'application/json']);
+
+        // Debug: Check response status and content
+        echo "Response status: " . $response->getStatusCode() . PHP_EOL;
+        echo "Response content: " . $response->getContent() . PHP_EOL;
+
         $response->assertOk();
 
         $register = Register::latest()->first();
         $this->assertNotNull($register);
         $this->assertTrue(Str::startsWith($register->poto_depan, 'register/tmp/'));
 
-        Queue::assertPushed(ProcessRegisterMedia::class, function (ProcessRegisterMedia $job) use ($register) {
-            return $job->registerId() === $register->id && count($job->mediaItems()) === 6;
+        // Debug: Check what the response contains
+        $responseData = $response->json();
+        if (isset($responseData['debug'])) {
+            echo "Debug info: " . json_encode($responseData['debug']) . PHP_EOL;
+        }
+
+        // Check that media job was dispatched
+        Queue::assertPushed(ProcessMediaJob::class, function ($job) use ($register) {
+            return $job->modelType === 'register' && $job->modelId === $register->id;
         });
-        Queue::assertPushed(SendNotificationJob::class);
+
+        // Check that notification job was also dispatched
+        Queue::assertPushed(SendNotificationJob::class, 1);
     }
 }

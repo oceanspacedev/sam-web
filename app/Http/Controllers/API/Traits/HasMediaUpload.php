@@ -168,6 +168,29 @@ trait HasMediaUpload
     }
 
     /**
+     * Dispatch media job with unified handling
+     */
+    protected function dispatchMediaJob(string $modelType, int $modelId, array $mediaQueue): bool
+    {
+        if (empty($mediaQueue)) {
+            return false;
+        }
+
+        try {
+            ProcessMediaJob::dispatch($modelType, $modelId, $mediaQueue);
+            return true;
+        } catch (\Exception $e) {
+            \Log::error("Failed to dispatch media job", [
+                'model_type' => $modelType,
+                'model_id' => $modelId,
+                'media_count' => count($mediaQueue),
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Validate media files
      */
     protected function validateMediaFiles(Request $request, string $modelType): array

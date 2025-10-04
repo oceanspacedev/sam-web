@@ -35,6 +35,16 @@ class ProcessMediaJob implements ShouldQueue
         protected array $mediaItems
     ) {}
 
+    /**
+     * Get the queue the job should be sent to.
+     *
+     * @return string
+     */
+    public function queue(): string
+    {
+        return 'media';
+    }
+
     public function handle(MediaProcessingService $mediaService): void
     {
         $model = $this->getModel();

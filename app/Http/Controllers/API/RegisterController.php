@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
+use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
-use App\Jobs\ProcessRegisterMedia;
 use App\Jobs\SendNotificationJob;
+use App\Jobs\ProcessMediaJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -68,6 +69,8 @@ use RuntimeException;
  */
 class RegisterController extends Controller
 {
+    use HasMediaUpload;
+
     public function __construct(
         protected OrganizationalCacheService $orgCache,
         protected FileUploadService $fileUpload,
@@ -214,15 +217,15 @@ class RegisterController extends Controller
 
             $register = Register::create($data);
 
-            if ($mediaQueue !== []) {
-                ProcessRegisterMedia::dispatch(
-                    $register->id,
-                    $mediaQueue,
-                    $this->fileUpload->disk(),
-                    $this->fileUpload->temporaryDisk()
-                );
-                $mediaDispatched = true;
-            }
+            // Debug: Check register and mediaQueue state
+            file_put_contents('/tmp/debug_register.txt', json_encode([
+                'register_id' => $register->id ?? null,
+                'media_queue_count' => count($mediaQueue),
+                'media_queue_items' => array_map(function($item) { return ['field' => $item['field'] ?? null]; }, $mediaQueue),
+            ]));
+
+            // Process media files using unified trait
+            $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
 
             return ResponseFormatter::success(null, 'berhasil menambahkan LEAD '.$request->nama_outlet);
         } catch (Exception $e) {
@@ -839,14 +842,26 @@ class RegisterController extends Controller
                 );
             }
 
+            // Process media files using unified trait
             if ($register && $mediaQueue !== []) {
-                ProcessRegisterMedia::dispatch(
-                    $register->id,
-                    $mediaQueue,
-                    $this->fileUpload->disk(),
-                    $this->fileUpload->temporaryDisk()
-                );
-                $mediaDispatched = true;
+                file_put_contents('/tmp/debug_media_queue.txt', json_encode([
+                    'register_id' => $register->id,
+                    'media_count' => count($mediaQueue),
+                    'media_queue' => $mediaQueue,
+                    'about_to_dispatch' => true,
+                ]));
+                $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
+                file_put_contents('/tmp/debug_media_queue.txt', json_encode([
+                    'register_id' => $register->id,
+                    'media_dispatched' => $mediaDispatched,
+                    'dispatch_completed' => true,
+                ]));
+            } else {
+                file_put_contents('/tmp/debug_media_queue.txt', json_encode([
+                    'register_id' => $register->id ?? null,
+                    'media_queue_empty' => empty($mediaQueue),
+                    'no_dispatch' => true,
+                ]));
             }
 
             return ResponseFormatter::success(null, 'berhasil menambahkan register '.$request->nama_outlet);
@@ -1809,5 +1824,24 @@ class RegisterController extends Controller
             'poto_ktp' => 'register-ktp',
             'video' => 'register-video',
         ][$target] ?? 'register-photo';
+    }
+
+    /**
+     * Get photo field mapping for register model
+     * Used by HasMediaUpload trait
+     */
+    protected function getPhotoFieldMapping(string $modelType): array
+    {
+        if ($modelType === 'register') {
+            return [
+                'photo0' => 'poto_shop_sign',
+                'photo1' => 'poto_depan',
+                'photo2' => 'poto_kiri',
+                'photo3' => 'poto_kanan',
+                'photo4' => 'poto_ktp',
+            ];
+        }
+
+        return [];
     }
 }

@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
+use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
-use App\Jobs\ProcessVisitMedia;
+use App\Jobs\ProcessMediaJob;
 use App\Models\Outlet;
 use App\Models\Visit;
 use App\Services\FileUploadService;
@@ -18,6 +19,8 @@ use RuntimeException;
 
 class VisitController extends Controller
 {
+    use HasMediaUpload;
+
     public function __construct(protected FileUploadService $fileUpload) {}
 
     /**
@@ -544,14 +547,9 @@ class VisitController extends Controller
                     'picture_visit_in' => $temporaryPath,
                 ]);
 
+                // Process media files using unified trait
                 if ($mediaQueue !== []) {
-                    ProcessVisitMedia::dispatch(
-                        $visit->id,
-                        $mediaQueue,
-                        $this->fileUpload->disk(),
-                        $this->fileUpload->temporaryDisk()
-                    );
-                    $mediaDispatched = true;
+                    $mediaDispatched = $this->dispatchMediaJob('visit', $visit->id, $mediaQueue);
                     $visit->refresh();
                 }
 
@@ -606,14 +604,9 @@ class VisitController extends Controller
                     ];
                     $lastDataVisit->forceFill($data)->save();
 
+                    // Process media files using unified trait
                     if ($mediaQueue !== []) {
-                        ProcessVisitMedia::dispatch(
-                            $lastDataVisit->id,
-                            $mediaQueue,
-                            $this->fileUpload->disk(),
-                            $this->fileUpload->temporaryDisk()
-                        );
-                        $mediaDispatched = true;
+                        $mediaDispatched = $this->dispatchMediaJob('visit', $lastDataVisit->id, $mediaQueue);
                         $lastDataVisit->refresh();
                     }
 
@@ -658,4 +651,20 @@ class VisitController extends Controller
     }
 
     // submitNoo removed
+
+    /**
+     * Get photo field mapping for visit model
+     * Used by HasMediaUpload trait
+     */
+    protected function getPhotoFieldMapping(string $modelType): array
+    {
+        if ($modelType === 'visit') {
+            return [
+                'photo0' => 'picture_visit_in',
+                'photo1' => 'picture_visit_out',
+            ];
+        }
+
+        return [];
+    }
 }

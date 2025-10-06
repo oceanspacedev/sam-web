@@ -70,14 +70,6 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
             ])
-            // ->renderHook(
-            //     PanelsRenderHook::TOPBAR_START,
-            //     fn (): string => Blade::render('@livewire("top-bar-start")'),
-            // )
-            // ->renderHook(
-            //     PanelsRenderHook::SIDEBAR_FOOTER,
-            //     fn () => view('livewire.sidebar-nav-end')
-            // )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

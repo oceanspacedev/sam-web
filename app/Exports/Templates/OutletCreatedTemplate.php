@@ -26,10 +26,7 @@ class OutletCreatedTemplate implements FromCollection, ShouldAutoSize, WithHeadi
             'nama_outlet',
             'alamat_outlet',
             'distric',
-            'status',
-            'radius',
             'limit',
-            'latlong',
         ];
     }
 
@@ -45,10 +42,7 @@ class OutletCreatedTemplate implements FromCollection, ShouldAutoSize, WithHeadi
                 'TOKO MAJU JAYA',      // nama_outlet
                 'JL. RAYA NO. 1',      // alamat_outlet
                 'PENJARINGAN',         // distric
-                'MAINTAIN',            // status
-                100,                   // radius
                 0,                     // limit
-                '-6.12345,106.12345',  // latlong
             ],
         ]);
     }

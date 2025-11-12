@@ -5,9 +5,11 @@ namespace App\Filament\Resources\Outlets\Pages;
 use App\Filament\Exports\OutletExporter;
 use App\Filament\Resources\Outlets\OutletResource;
 use App\Imports\OutletImport;
+use App\Jobs\CleanupUploadedImportFile;
+use App\Jobs\Exports\GenerateOutletTemplate;
+use App\Jobs\SendImportNotification;
 use App\Models\Outlet;
 use App\Support\StorageDisk;
-use App\Support\StoragePathResolver;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
@@ -15,8 +17,8 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
@@ -45,18 +47,18 @@ class ListOutlets extends ListRecords
                 ->label('Import')
                 ->color('success')
                 ->icon('heroicon-o-arrow-down-tray')
+                ->slideOver()
                 ->schema([
                     ToggleButtons::make('mode')
                         ->label('Mode Import')
                         ->inline()
                         ->live()
                         ->options([
-                            'create_new' => 'Created',
-                            'update_cluster' => 'Update',
+                            'create' => 'Create',
+                            'update' => 'Update',
                         ])
-                        ->default('create_new')
                         ->required(),
-                    FileUpload::make('file')
+                    FileUpload::make('file_create')
                         ->label('File (.xlsx/.csv)')
                         ->disk(StorageDisk::default())
                         ->directory('import')
@@ -67,11 +69,70 @@ class ListOutlets extends ListRecords
                             'text/csv',
                             'application/csv',
                         ])
-                        ->required()
+                        ->visible(fn (callable $get) => $get('mode') === 'create')
+                        ->required(fn (callable $get) => $get('mode') === 'create')
                         ->hintActions([
                             Action::make('download_template')
-                                ->label('Download Template')
-                                ->url(fn (callable $get) => '/outlet/export/template?mode='.urlencode((string) $get('mode'))),
+                                ->label('Download Template Create')
+                                ->action(function () {
+                                    $userId = Auth::id();
+
+                                    if (! $userId) {
+                                        Notification::make()
+                                            ->title('Permintaan template gagal')
+                                            ->body('Sesi Anda kedaluwarsa. Silakan login ulang lalu coba kembali.')
+                                            ->danger()
+                                            ->send();
+
+                                        return;
+                                    }
+
+                                    GenerateOutletTemplate::dispatch($userId, 'create');
+
+                                    Notification::make()
+                                        ->title('Template sedang diproses')
+                                        ->body('Kami akan mengirim notifikasi ketika template outlet (mode: CREATE) siap diunduh.')
+                                        ->success()
+                                        ->send();
+                                }),
+                        ]),
+                    FileUpload::make('file_update')
+                        ->label('File (.xlsx/.csv)')
+                        ->disk(StorageDisk::default())
+                        ->directory('import')
+                        ->preserveFilenames()
+                        ->acceptedFileTypes([
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'application/vnd.ms-excel',
+                            'text/csv',
+                            'application/csv',
+                        ])
+                        ->visible(fn (callable $get) => $get('mode') === 'update')
+                        ->required(fn (callable $get) => $get('mode') === 'update')
+                        ->hintActions([
+                            Action::make('download_template')
+                                ->label('Download Template Update')
+                                ->action(function () {
+                                    $userId = Auth::id();
+
+                                    if (! $userId) {
+                                        Notification::make()
+                                            ->title('Permintaan template gagal')
+                                            ->body('Sesi Anda kedaluwarsa. Silakan login ulang lalu coba kembali.')
+                                            ->danger()
+                                            ->send();
+
+                                        return;
+                                    }
+
+                                    GenerateOutletTemplate::dispatch($userId, 'update');
+
+                                    Notification::make()
+                                        ->title('Template sedang diproses')
+                                        ->body('Kami akan mengirim notifikasi ketika template outlet (mode: UPDATE) siap diunduh.')
+                                        ->success()
+                                        ->send();
+                                }),
                         ]),
                 ])
                 ->modalWidth('md')
@@ -79,16 +140,37 @@ class ListOutlets extends ListRecords
                 ->button('Import')
                 ->action(function (array $data) {
                     $disk = StorageDisk::default();
-                    $relativePath = $data['file'];
-                    [$fullPath, $temporaryPath] = StoragePathResolver::resolveForLocalAccess($disk, $relativePath);
+                    $mode = $data['mode'] ?? 'create';
+                    $relativePath = $mode === 'create'
+                        ? ltrim((string) ($data['file_create'] ?? ''), '/')
+                        : ltrim((string) ($data['file_update'] ?? ''), '/');
+
+                    if ($relativePath === '') {
+                        Notification::make()
+                            ->title('Import gagal')
+                            ->body('Berkas tidak ditemukan. Silakan unggah ulang dan jalankan import kembali.')
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    $userId = Auth::id();
 
                     try {
-                        Excel::import(new OutletImport($data['mode']), $fullPath);
-                        if ($relativePath) {
-                            Storage::disk($disk)->delete($relativePath);
+                        $pendingDispatch = Excel::queueImport(new OutletImport($mode, $userId), $relativePath, $disk);
+
+                        if ($pendingDispatch) {
+                            $jobs = [
+                                new CleanupUploadedImportFile($disk, $relativePath),
+                            ];
+
+                            $pendingDispatch->chain($jobs);
                         }
+
                         Notification::make()
-                            ->title('Import berhasil')
+                            ->title('Import sedang diproses')
+                            ->body('Data akan diproses di latar belakang. Jika terjadi kendala, silakan cek log queue.')
                             ->success()
                             ->send();
                     } catch (Throwable $e) {
@@ -97,8 +179,17 @@ class ListOutlets extends ListRecords
                             ->body($e->getMessage())
                             ->danger()
                             ->send();
-                    } finally {
-                        StoragePathResolver::cleanupTemporaryPath($temporaryPath ?? null);
+
+                        if ($userId) {
+                            SendImportNotification::dispatch(
+                                $userId,
+                                'Import Data Outlet',
+                                'Import data outlet (mode: '.strtoupper($mode).') gagal diproses. Silakan cek log queue.',
+                                false
+                            );
+                        }
+
+                        report($e);
                     }
                 });
         }

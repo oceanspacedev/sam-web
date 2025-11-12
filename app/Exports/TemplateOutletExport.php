@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Exports\Templates\OutletCreatedTemplate;
+use App\Exports\Templates\OutletHierarchyMasterTemplate;
 use App\Exports\Templates\OutletUpdatedTemplate;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -18,10 +19,20 @@ class TemplateOutletExport implements ShouldAutoSize, WithMultipleSheets
     {
         // Adjust sheets based on requested mode
         return match ($this->mode) {
-            'create_new' => [new OutletCreatedTemplate],
-            'update_cluster', 'update' => [new OutletUpdatedTemplate],
-            // For upsert or unspecified, provide both for clarity
-            default => [new OutletUpdatedTemplate, new OutletCreatedTemplate],
+            'create' => [
+                new OutletCreatedTemplate,
+                new OutletHierarchyMasterTemplate,
+            ],
+            'update' => [
+                new OutletUpdatedTemplate,
+                new OutletHierarchyMasterTemplate,
+            ],
+            // For upsert or unspecified, provide both templates plus master data for convenience
+            default => [
+                new OutletUpdatedTemplate,
+                new OutletCreatedTemplate,
+                new OutletHierarchyMasterTemplate,
+            ],
         };
     }
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\API\OutletController;
 use App\Http\Controllers\API\PlanVisitController;
 use App\Http\Controllers\API\RegisterController;
 use App\Http\Controllers\API\SyncController;
+use App\Http\Controllers\API\TestUploadController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\VisitController;
 use App\Http\Controllers\OutletController as outlet;
@@ -70,6 +71,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
 Route::post('user/login', [UserController::class, 'login'])->middleware('throttle:login');
 
 Route::post('notif', [SendNotif::class, 'sendMessage']);
+Route::post('test-upload', TestUploadController::class);
 
 Route::get('divisi', [SettingController::class, 'getdivisi']);
 Route::get('region', [SettingController::class, 'getregion']);

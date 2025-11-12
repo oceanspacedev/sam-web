@@ -25,7 +25,7 @@ class FileUploadService
         $this->defaultDisk = StorageDisk::default();
 
         $this->disk = $disk ?? $this->defaultDisk;
-        $this->temporaryDisk = $temporaryDisk ?? 'local';
+        $this->temporaryDisk = $temporaryDisk ?? $this->defaultDisk;
         $this->filenameGenerator = $filenameGenerator ?? new FilenameGeneratorService;
     }
 
@@ -97,8 +97,9 @@ class FileUploadService
             'mimetype' => $file->getMimeType(),
         ];
 
-        // TRUE FLAT STORAGE - no directories!
-        return $this->storage()->putFileAs('', $file, $filename, $putOptions);
+        $directory = trim($options['directory'] ?? '', '/');
+
+        return $this->storage()->putFileAs($directory, $file, $filename, $putOptions);
     }
 
     /**
@@ -125,8 +126,9 @@ class FileUploadService
             'mimetype' => $file->getMimeType(),
         ];
 
-        // TRUE FLAT STORAGE - no directories!
-        return $this->storage()->putFileAs('', $file, $filename, $putOptions);
+        $directory = trim($options['directory'] ?? '', '/');
+
+        return $this->storage()->putFileAs($directory, $file, $filename, $putOptions);
     }
 
     /**
@@ -138,11 +140,33 @@ class FileUploadService
     }
 
     /**
-     * Legacy method - DEPRECATED (use optimized version instead)
+     * Legacy method - kept for backward compatibility where a directory/filename needs to be honored.
+     * Uses optimized filename when no custom filename is provided.
      */
     public function uploadImage(UploadedFile $file, string $directory, array $options = []): string
     {
-        return $this->uploadImageOptimized($file, 'photo', $options);
+        if (! $file->isValid()) {
+            throw new RuntimeException('Invalid image file upload');
+        }
+
+        $allowedMimes = $options['allowed_mimes'] ?? ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $ext = strtolower($file->guessExtension() ?: $file->extension());
+
+        if (! in_array($ext, $allowedMimes)) {
+            throw new RuntimeException("File type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
+        }
+
+        $filename = $options['filename']
+            ?? $this->filenameGenerator->generate($file, $options['type'] ?? 'photo');
+
+        $targetDirectory = trim($directory, '/');
+
+        return $this->storage()->putFileAs(
+            $targetDirectory,
+            $file,
+            $filename,
+            $this->buildPutOptions($file, $options)
+        );
     }
 
     /**
@@ -169,6 +193,26 @@ class FileUploadService
         }
 
         return $this->storage()->putFileAs(trim($directory, '/'), $file, $filename, $putOptions);
+    }
+
+    /**
+     * Build put options for storage writes.
+     */
+    protected function buildPutOptions(UploadedFile $file, array $options): array
+    {
+        $putOptions = [];
+
+        if (isset($options['visibility'])) {
+            $putOptions['visibility'] = $options['visibility'];
+        }
+
+        if (! isset($putOptions['visibility'])) {
+            $putOptions['visibility'] = 'public';
+        }
+
+        $putOptions['mimetype'] = $file->getMimeType();
+
+        return $putOptions;
     }
 
     /**

@@ -23,8 +23,8 @@ class RateLimitUploads
         $userId = auth()->id();
 
         // Different limits for authenticated vs anonymous users
-        $limitPerMinute = $userId ? 30 : 10; // 30 uploads per minute for authenticated, 10 for anonymous
-        $limitPerHour = $userId ? 200 : 50;   // 200 uploads per hour for authenticated, 50 for anonymous
+        $limitPerMinute = $userId ? 60 : 40;
+        $limitPerHour = $userId ? 300 : 120;
 
         // Check per-minute rate limit
         $minuteKey = "upload:minute:{$ipAddress}:".($userId ?? 'guest');

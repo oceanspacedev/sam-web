@@ -21,6 +21,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -273,7 +274,7 @@ class RegisterController extends Controller
             $lead['keterangan'] = null;
             $lead->update();
             $recipient = optional(User::where('role_id', 4)->first())->id_notif;
-            SendNotificationJob::dispatch(
+            $this->dispatchNotification(
                 'Register baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
                 $recipient ? [$recipient] : []
             );
@@ -837,7 +838,7 @@ class RegisterController extends Controller
             }
             $register = Register::create($data);
             if ($register && $notifId !== []) {
-                SendNotificationJob::dispatch(
+                $this->dispatchNotification(
                     'Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
                     $notifId
                 );
@@ -971,7 +972,7 @@ class RegisterController extends Controller
                 optional($register->tm)->id_notif,
             ]);
 
-            SendNotificationJob::dispatch(
+            $this->dispatchNotification(
                 'Register '.$register->nama_outlet.' sudah dikonfirmasi oleh '.
                     Auth::user()->nama_lengkap.PHP_EOL.
                     'Dengan limit : Rp '.number_format($request->limit, 0, ',', '.'),
@@ -1158,7 +1159,7 @@ class RegisterController extends Controller
                 $insert = Outlet::create($data);
             }
             if ($insert && $notif !== []) {
-                SendNotificationJob::dispatch(
+                $this->dispatchNotification(
                     'Register '.$register->nama_outlet.' sudah disetujui oleh '.
                         Auth::user()->nama_lengkap,
                     $notif
@@ -1270,7 +1271,7 @@ class RegisterController extends Controller
             $register->update();
 
             $recipient = optional($register->tm)->id_notif;
-            SendNotificationJob::dispatch(
+            $this->dispatchNotification(
                 'Register '.$register->nama_outlet.' ditolak oleh '.Auth::user()->nama_lengkap.PHP_EOL.'Alasan : '.$request->alasan,
                 $recipient ? [$recipient] : []
             );
@@ -1844,5 +1845,16 @@ class RegisterController extends Controller
         }
 
         return [];
+    }
+
+    protected function dispatchNotification(string $message, array $recipientIds): void
+    {
+        $normalizedRecipients = array_values(array_filter($recipientIds));
+
+        if ($normalizedRecipients === []) {
+            return;
+        }
+
+        Queue::push((new SendNotificationJob($message, $normalizedRecipients))->onQueue('notifications'));
     }
 }

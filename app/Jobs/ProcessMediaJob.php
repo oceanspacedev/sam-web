@@ -32,9 +32,9 @@ class ProcessMediaJob implements ShouldQueue
     public int $timeout = 300; // 5 minutes max
 
     public function __construct(
-        protected string $modelType, // 'register', 'visit', 'outlet'
-        protected int $modelId,
-        protected array $mediaItems
+        public string $modelType, // 'register', 'visit', 'outlet'
+        public int $modelId,
+        public array $mediaItems
     ) {}
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API\Traits;
 use App\Jobs\ProcessMediaJob;
 use App\Services\MediaProcessingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Queue;
 
 /**
  * UNIFIED MEDIA UPLOAD TRAIT
@@ -177,7 +178,7 @@ trait HasMediaUpload
         }
 
         try {
-            ProcessMediaJob::dispatch($modelType, $modelId, $mediaQueue);
+            Queue::push((new ProcessMediaJob($modelType, $modelId, $mediaQueue))->onQueue('media'));
 
             return true;
         } catch (\Exception $e) {

@@ -8,9 +8,11 @@ use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
 use App\Services\FileUploadService;
+use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -332,6 +334,9 @@ class OutletController extends Controller
                 }
             }
 
+            $photosDir = $baseDir.'/photos';
+            $videosDir = $baseDir.'/videos';
+
             foreach ($photoFiles as $file) {
                 if (! $file->isValid()) {
                     return ResponseFormatter::error(null, 'File foto tidak valid', 422);
@@ -351,9 +356,11 @@ class OutletController extends Controller
                 }
 
                 try {
-                    // Use optimized flat storage with type prefix
-                    $path = $this->fileUpload->uploadImageOptimized($file, 'outlet-photo');
-                    // Simpan path relatif pada kolom agar hook model bisa hapus file lama
+                    $path = $this->fileUpload->uploadImageOptimized($file, 'outlet-photo', [
+                        'directory' => $photosDir,
+                    ]);
+
+                    $this->deleteOutletMedia($outlet->{$targetField});
                     $outlet->{$targetField} = $path;
                 } catch (RuntimeException $e) {
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
@@ -363,8 +370,11 @@ class OutletController extends Controller
             // Proses video (opsional)
             if ($request->hasFile('video')) {
                 try {
-                    // Use optimized flat storage with type prefix
-                    $path = $this->fileUpload->uploadVideoOptimized($request->file('video'), 'outlet-video');
+                    $path = $this->fileUpload->uploadVideoOptimized($request->file('video'), 'outlet-video', [
+                        'directory' => $videosDir,
+                    ]);
+
+                    $this->deleteOutletMedia($outlet->video);
                     $outlet->video = $path;
                 } catch (RuntimeException $e) {
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);
@@ -384,6 +394,25 @@ class OutletController extends Controller
             error_log($e->getMessage());
 
             return ResponseFormatter::error(null, $e->getMessage(), 400);
+        }
+    }
+
+    protected function deleteOutletMedia(?string $path): void
+    {
+        if (! $path || $path === '-' || $path === '0') {
+            return;
+        }
+
+        $disk = StorageDisk::default();
+
+        try {
+            Storage::disk($disk)->delete($path);
+        } catch (Exception $exception) {
+            \Log::warning('Failed to delete outlet media', [
+                'path' => $path,
+                'disk' => $disk,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 }

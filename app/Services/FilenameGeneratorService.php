@@ -2,13 +2,13 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 
 class FilenameGeneratorService
 {
+    protected static ?string $cachedDateStamp = null;
+
     /**
      * Generate optimized filename for flat storage
      * Format: {type}{date}{userId}{hash}{uuid}.{ext}
@@ -17,9 +17,9 @@ class FilenameGeneratorService
     public function generate(UploadedFile $file, string $type, ?int $userId = null): string
     {
         $userId = $userId ?? Auth::id();
-        $date = Carbon::now()->format('ymd'); // 241204
-        $hash = $this->generateFileHash($file); // a1b2c3
-        $uuid = Str::uuid()->toString(); // full UUID
+        $userId = $userId ?? 0;
+        $date = $this->resolveDateStamp();
+        [$hash, $uuid] = $this->generateIdentifiers();
         $ext = strtolower($file->getClientOriginalExtension());
 
         // Get type prefix instead of full type name
@@ -59,18 +59,13 @@ class FilenameGeneratorService
     /**
      * Generate short hash from file for uniqueness
      */
-    protected function generateFileHash(UploadedFile $file): string
-    {
-        return substr(md5($file->getPathname().$file->getClientOriginalName().microtime()), 0, 6);
-    }
-
     /**
      * Parse filename to extract metadata
      * Example: vi241204123-a1b2c3-uuid.jpg -> ['type' => 'visit-in', 'date' => '241204', 'userId' => 123, 'hash' => 'a1b2c3', 'uuid' => '...', 'ext' => 'jpg']
      */
     public function parse(string $filename): array
     {
-        if (! preg_match('/^([a-z]{2})(\d{6,8})(\d+)-([a-f0-9]{6})-([a-f0-9-]{36})\.([a-z0-9]+)$/', $filename, $matches)) {
+        if (! preg_match('/^([a-z]{2})(\d{6})(\d+)-([a-f0-9]{6})-([a-f0-9-]{36})\.([a-z0-9]+)$/', $filename, $matches)) {
             return [];
         }
 
@@ -120,16 +115,41 @@ class FilenameGeneratorService
     {
         $type = $data['type'] ?? 'file';
         $userId = $data['user_id'] ?? Auth::id();
-        $date = $data['date'] ?? Carbon::now()->format('ymd');
+        $date = $data['date'] ?? $this->resolveDateStamp();
         $customPrefix = $data['prefix'] ?? '';
 
         $typePrefix = self::getTypePrefix($type);
-        $hash = $this->generateFileHash($file);
-        $uuid = Str::uuid()->toString();
+        [$hash, $uuid] = $this->generateIdentifiers();
         $ext = strtolower($file->getClientOriginalExtension());
 
         $prefix = $customPrefix ? $customPrefix.'-' : '';
 
         return "{$prefix}{$typePrefix}{$date}{$userId}-{$hash}-{$uuid}.{$ext}";
+    }
+
+    protected function resolveDateStamp(): string
+    {
+        $current = gmdate('ymd');
+
+        if (self::$cachedDateStamp !== $current) {
+            self::$cachedDateStamp = $current;
+        }
+
+        return self::$cachedDateStamp;
+    }
+
+    protected function generateIdentifiers(): array
+    {
+        $bytes = random_bytes(16);
+        $hex = bin2hex($bytes);
+
+        $hash = substr($hex, 0, 6);
+
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+
+        $uuid = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+
+        return [$hash, $uuid];
     }
 }

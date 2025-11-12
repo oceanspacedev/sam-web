@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class FilenameGeneratorService
 {
@@ -61,7 +61,7 @@ class FilenameGeneratorService
      */
     protected function generateFileHash(UploadedFile $file): string
     {
-        return substr(md5($file->getPathname() . $file->getClientOriginalName() . microtime()), 0, 6);
+        return substr(md5($file->getPathname().$file->getClientOriginalName().microtime()), 0, 6);
     }
 
     /**
@@ -70,7 +70,7 @@ class FilenameGeneratorService
      */
     public function parse(string $filename): array
     {
-        if (!preg_match('/^([a-z]{2})(\d{6,8})(\d+)-([a-f0-9]{6})-([a-f0-9-]{36})\.([a-z0-9]+)$/', $filename, $matches)) {
+        if (! preg_match('/^([a-z]{2})(\d{6,8})(\d+)-([a-f0-9]{6})-([a-f0-9-]{36})\.([a-z0-9]+)$/', $filename, $matches)) {
             return [];
         }
 
@@ -110,7 +110,7 @@ class FilenameGeneratorService
      */
     public function isValid(string $filename): bool
     {
-        return !empty($this->parse($filename));
+        return ! empty($this->parse($filename));
     }
 
     /**
@@ -128,7 +128,7 @@ class FilenameGeneratorService
         $uuid = Str::uuid()->toString();
         $ext = strtolower($file->getClientOriginalExtension());
 
-        $prefix = $customPrefix ? $customPrefix . '-' : '';
+        $prefix = $customPrefix ? $customPrefix.'-' : '';
 
         return "{$prefix}{$typePrefix}{$date}{$userId}-{$hash}-{$uuid}.{$ext}";
     }

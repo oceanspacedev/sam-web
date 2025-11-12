@@ -2,9 +2,8 @@
 
 namespace App\Filament\Resources\Regions\Pages;
 
-use Filament\Actions\CreateAction;
 use App\Filament\Resources\Regions\RegionResource;
-use Filament\Actions;
+use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 
 class ManageRegions extends ManageRecords

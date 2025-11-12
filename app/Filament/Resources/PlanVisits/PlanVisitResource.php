@@ -2,25 +2,22 @@
 
 namespace App\Filament\Resources\PlanVisits;
 
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DatePicker;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Actions\EditAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use App\Filament\Resources\PlanVisits\Pages\ListPlanVisits;
 use App\Filament\Resources\PlanVisits\Pages\CreatePlanVisit;
 use App\Filament\Resources\PlanVisits\Pages\EditPlanVisit;
-use App\Filament\Resources\PlanVisitResource\Pages;
+use App\Filament\Resources\PlanVisits\Pages\ListPlanVisits;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\User;
 use Closure;
-use Filament\Forms;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -30,7 +27,7 @@ class PlanVisitResource extends Resource
 {
     protected static ?string $model = PlanVisit::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-calendar-date-range';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calendar-date-range';
 
     protected static ?int $navigationSort = 4;
 

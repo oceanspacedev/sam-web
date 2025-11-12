@@ -14,11 +14,14 @@ class AuthServiceProviderTest extends TestCase
     {
         Schema::shouldReceive('hasTable')->once()->andThrow(new PDOException('test connection issue'));
         Schema::shouldReceive('hasColumn')->never();
+        Gate::partialMock()
+            ->shouldReceive('define')
+            ->never();
 
         $provider = new AuthServiceProvider($this->app);
 
         $provider->boot();
 
-        $this->assertTrue(Gate::has('viewPulse'));
+        $this->assertFalse(Gate::has('non-existent-permission'));
     }
 }

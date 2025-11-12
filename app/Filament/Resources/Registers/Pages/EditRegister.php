@@ -2,9 +2,8 @@
 
 namespace App\Filament\Resources\Registers\Pages;
 
-use Filament\Actions\DeleteAction;
 use App\Filament\Resources\Registers\RegisterResource;
-use Filament\Actions;
+use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditRegister extends EditRecord

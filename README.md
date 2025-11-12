@@ -18,7 +18,7 @@ Web SAM adalah sistem manajemen aktivitas sales berbasis Laravel yang mengelola:
 - **Auth:** Laravel Fortify + Sanctum (API tokens)
 - **Database:** MySQL 8.x
 - **Server:** Laravel Octane (Swoole/RoadRunner untuk performa tinggi)
-- **Monitoring:** Laravel Telescope + Pulse
+- **Monitoring:** Horizon metrics & application logs
 - **Testing:** PHPUnit 10.x
 - **Code Quality:** Laravel Pint (PHP CS Fixer)
 
@@ -753,12 +753,6 @@ php artisan tinker
 
 ### Monitoring
 ```bash
-# Access Telescope (dev only)
-https://web-sam.test/telescope
-
-# Access Pulse (performance monitoring)
-https://web-sam.test/pulse
-
 # Clear logs
 php artisan log:clear
 ```

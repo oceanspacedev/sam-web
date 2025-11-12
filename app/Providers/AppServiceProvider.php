@@ -14,7 +14,6 @@ use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Pulse\Facades\Pulse;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -41,12 +40,6 @@ class AppServiceProvider extends ServiceProvider
         Region::observe(OrganizationalObserver::class);
         Cluster::observe(OrganizationalObserver::class);
         Role::observe(OrganizationalObserver::class);
-
-        Pulse::user(fn ($user) => [
-            'name' => $user->nama_lengkap,
-            'extra' => $user->username,
-            'avatar' => $user->profile_photo_path,
-        ]);
 
         Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
             $openApi->secure(

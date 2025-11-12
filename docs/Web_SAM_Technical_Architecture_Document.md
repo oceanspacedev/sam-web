@@ -18,9 +18,6 @@ graph TD
     H --> J[Redis Cache]
     H --> K[File Storage]
     
-    E --> L[Laravel Telescope]
-    E --> M[Laravel Pulse]
-    
     subgraph "Frontend Layer"
         C
         D
@@ -43,11 +40,6 @@ graph TD
         J
         K
     end
-    
-    subgraph "Monitoring Layer"
-        L
-        M
-    end
 ```
 
 ## 2. Technology Description
@@ -60,7 +52,7 @@ graph TD
 
 * **Authentication**: Laravel Fortify 1.30.0 + Laravel Sanctum 3.3.3 untuk API tokens
 
-* **Monitoring**: Laravel Telescope 5.11.4 + Laravel Pulse 1.4.3
+* **Monitoring**: Horizon metrics & structured logging
 
 * **Night Mode**: Laravel Nightwatch 1.13.7 for dark mode support
 
@@ -82,8 +74,6 @@ graph TD
 | /login       | POST   | Login dengan Laravel Fortify            |
 | /register    | POST   | Registrasi user baru                    |
 | /logout      | POST   | Logout user                             |
-| /pulse       | GET    | Laravel Pulse monitoring                |
-| /telescope   | GET    | Laravel Telescope monitoring            |
 | /admin/\*    | GET    | Filament admin panel (Super Admin only) |
 | /admin/\*    | POST   | Filament CRUD operations                |
 | /livewire/\* | POST   | Livewire component interactions         |
@@ -1023,13 +1013,11 @@ All API responses follow a consistent format using ResponseFormatter:
 
 ### 10.1 Application Monitoring
 
-* **Laravel Telescope**: Request and query monitoring
-
-* **Laravel Pulse**: Performance metrics
+* **Horizon Metrics**: Queue performance insights
 
 * **Browser Logging**: Frontend error tracking
 
-* **Log Management**: Structured logging
+* **Log Management**: Structured logging & alerts
 
 ### 10.2 Development Tools
 
@@ -1254,9 +1242,9 @@ graph LR
 
 * **Application Logs** - Structured logging with proper levels
 
-* **Performance Monitoring** - Laravel Pulse metrics
+* **Queue Monitoring** - Horizon dashboard metrics
 
-* **Error Tracking** - Laravel Telescope for debugging
+* **Error Tracking** - Centralized log channel notifications
 
 * **API Documentation** - Auto-generated via Scramble
 

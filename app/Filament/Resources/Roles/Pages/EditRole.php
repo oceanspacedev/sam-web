@@ -2,10 +2,9 @@
 
 namespace App\Filament\Resources\Roles\Pages;
 
-use Filament\Actions\DeleteAction;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Models\Permission;
-use Filament\Actions;
+use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Arr;
 

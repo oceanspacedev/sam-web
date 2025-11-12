@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Services\FileUploadService;
-use App\Services\FilenameGeneratorService;
 use App\Models\User;
+use App\Services\FilenameGeneratorService;
+use App\Services\FileUploadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ConsistentFlatStorageTest extends TestCase
@@ -17,15 +17,17 @@ class ConsistentFlatStorageTest extends TestCase
     use RefreshDatabase, WithFaker;
 
     protected FileUploadService $fileUpload;
+
     protected FilenameGeneratorService $filenameGenerator;
+
     protected User $testUser;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->fileUpload = new FileUploadService();
-        $this->filenameGenerator = new FilenameGeneratorService();
+        $this->fileUpload = new FileUploadService;
+        $this->filenameGenerator = new FilenameGeneratorService;
         $this->testUser = User::factory()->create(['id' => 123]);
 
         // Use fake storage for testing
@@ -150,14 +152,14 @@ class ConsistentFlatStorageTest extends TestCase
 
         // This simulates what happens in RegisterResource FileUpload component
         $userId = auth()->id();
-        $filenameGenerator = new FilenameGeneratorService();
+        $filenameGenerator = new FilenameGeneratorService;
         $filename = $filenameGenerator->generate($file, 'register-photo', $userId);
 
         // Verify format matches Filament expectations
         $this->assertMatchesRegularExpression(
             '/^rp\d{6,8}\d+-[a-f0-9]{6}-[a-f0-9-]{36}\.jpg$/',
             $filename,
-            "Filament filename should follow optimized format"
+            'Filament filename should follow optimized format'
         );
 
         // Simulate VisitResource upload
@@ -167,7 +169,7 @@ class ConsistentFlatStorageTest extends TestCase
         $this->assertMatchesRegularExpression(
             '/^vi\d{6,8}\d+-[a-f0-9]{6}-[a-f0-9-]{36}\.jpg$/',
             $visitFilename,
-            "Visit filename should follow optimized format"
+            'Visit filename should follow optimized format'
         );
 
         // Simulate OutletResource upload
@@ -177,7 +179,7 @@ class ConsistentFlatStorageTest extends TestCase
         $this->assertMatchesRegularExpression(
             '/^op\d{6,8}\d+-[a-f0-9]{6}-[a-f0-9-]{36}\.jpg$/',
             $outletFilename,
-            "Outlet filename should follow optimized format"
+            'Outlet filename should follow optimized format'
         );
 
         echo "\n🎨 Filament Resource Test Results:\n";
@@ -295,9 +297,9 @@ class ConsistentFlatStorageTest extends TestCase
         $improvement = ($oldTime - $newTime) / $oldTime * 100;
 
         echo "\n⚡ Performance Comparison Results:\n";
-        echo "🐌 Old System: " . number_format($oldTime, 2) . "ms for {$iterations} iterations\n";
-        echo "🚀 New System: " . number_format($newTime, 2) . "ms for {$iterations} iterations\n";
-        echo "📈 Improvement: " . number_format($improvement, 1) . "%\n";
+        echo '🐌 Old System: '.number_format($oldTime, 2)."ms for {$iterations} iterations\n";
+        echo '🚀 New System: '.number_format($newTime, 2)."ms for {$iterations} iterations\n";
+        echo '📈 Improvement: '.number_format($improvement, 1)."%\n";
 
         // At minimum, new system should not be significantly slower
         $this->assertLessThan($oldTime * 1.2, $newTime, 'New system should not be more than 20% slower');

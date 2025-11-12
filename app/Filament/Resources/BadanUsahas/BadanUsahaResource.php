@@ -2,21 +2,18 @@
 
 namespace App\Filament\Resources\BadanUsahas;
 
-use Filament\Schemas\Schema;
+use App\Filament\Resources\BadanUsahas\Pages\ManageBadanUsahas;
+use App\Models\BadanUsaha;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
-use Filament\Actions\EditAction;
-use Filament\Actions\DeleteAction;
-use Filament\Notifications\Notification;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use App\Filament\Resources\BadanUsahas\Pages\ManageBadanUsahas;
-use App\Filament\Resources\BadanUsahaResource\Pages;
-use App\Models\BadanUsaha;
-use Filament\Forms;
-use Filament\Resources\Resource;
-use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -24,11 +21,11 @@ class BadanUsahaResource extends Resource
 {
     protected static ?string $model = BadanUsaha::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-building-office-2';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-office-2';
 
     protected static ?int $navigationSort = 1;
 
-    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
+    protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 
     public static function form(Schema $schema): Schema
     {

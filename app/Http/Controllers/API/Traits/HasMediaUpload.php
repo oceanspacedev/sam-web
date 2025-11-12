@@ -49,7 +49,7 @@ trait HasMediaUpload
             }
 
             // Dispatch queue job if there are media items
-            if (!empty($mediaQueue)) {
+            if (! empty($mediaQueue)) {
                 ProcessMediaJob::dispatch($modelType, $modelId, $mediaQueue);
                 $mediaDispatched = true;
             }
@@ -61,7 +61,7 @@ trait HasMediaUpload
             ];
 
         } catch (\Exception $e) {
-            if (!$mediaDispatched) {
+            if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
 
@@ -74,7 +74,7 @@ trait HasMediaUpload
      */
     protected function processPhotoUpload($file, string $photoKey, string $modelType, array &$temporaryFiles, array &$mediaQueue): void
     {
-        if (!$file || !$file->isValid()) {
+        if (! $file || ! $file->isValid()) {
             return;
         }
 
@@ -102,7 +102,7 @@ trait HasMediaUpload
      */
     protected function processVideoUpload($file, string $modelType, array &$temporaryFiles, array &$mediaQueue): void
     {
-        if (!$file || !$file->isValid()) {
+        if (! $file || ! $file->isValid()) {
             return;
         }
 
@@ -125,7 +125,7 @@ trait HasMediaUpload
      */
     protected function getPhotoFieldMapping(string $modelType): array
     {
-        return match($modelType) {
+        return match ($modelType) {
             'register' => [
                 'photo0' => 'poto_shop_sign',
                 'photo1' => 'poto_depan',
@@ -178,14 +178,16 @@ trait HasMediaUpload
 
         try {
             ProcessMediaJob::dispatch($modelType, $modelId, $mediaQueue);
+
             return true;
         } catch (\Exception $e) {
-            \Log::error("Failed to dispatch media job", [
+            \Log::error('Failed to dispatch media job', [
                 'model_type' => $modelType,
                 'model_id' => $modelId,
                 'media_count' => count($mediaQueue),
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -206,7 +208,7 @@ trait HasMediaUpload
                 $type = MediaProcessingService::getFileTypeFromField($photoKey, $modelType);
                 $validation = $mediaService->validateFile($file, $type);
 
-                if (!$validation['valid']) {
+                if (! $validation['valid']) {
                     $errors[$photoKey] = $validation['errors'];
                 }
             }
@@ -218,7 +220,7 @@ trait HasMediaUpload
             $type = MediaProcessingService::getFileTypeFromField('video', $modelType);
             $validation = $mediaService->validateFile($file, $type);
 
-            if (!$validation['valid']) {
+            if (! $validation['valid']) {
                 $errors['video'] = $validation['errors'];
             }
         }

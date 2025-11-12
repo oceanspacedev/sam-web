@@ -184,6 +184,7 @@ class RegisterMonthlyReport extends Page implements HasForms, HasTable
                     ->sortable(),
             ])
             ->defaultSort('total', 'desc')
+            ->defaultKeySort(false)
             ->paginated(false);
     }
 

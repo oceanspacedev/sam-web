@@ -2,25 +2,24 @@
 
 namespace App\Filament\Resources\Users\RelationManagers;
 
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TrashedFilter;
-use Filament\Support\Enums\Width;
-use Filament\Actions\EditAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreBulkAction;
-use Filament\Actions\BulkAction;
 use App\Models\BadanUsaha;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
 use App\Support\StorageDisk;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\Select;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables;
+use Filament\Support\Enums\Width;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -60,32 +59,32 @@ class OutletsRelationManager extends RelationManager
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('video')
                     ->label('Video Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('limit')
                     ->label('Limit'),

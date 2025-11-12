@@ -6,7 +6,6 @@ use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendNotificationJob;
-use App\Jobs\ProcessMediaJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -221,7 +220,9 @@ class RegisterController extends Controller
             file_put_contents('/tmp/debug_register.txt', json_encode([
                 'register_id' => $register->id ?? null,
                 'media_queue_count' => count($mediaQueue),
-                'media_queue_items' => array_map(function($item) { return ['field' => $item['field'] ?? null]; }, $mediaQueue),
+                'media_queue_items' => array_map(function ($item) {
+                    return ['field' => $item['field'] ?? null];
+                }, $mediaQueue),
             ]));
 
             // Process media files using unified trait

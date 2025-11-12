@@ -2,18 +2,17 @@
 
 namespace App\Filament\Resources\Users\RelationManagers;
 
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TrashedFilter;
-use Filament\Actions\EditAction;
+use App\Models\Visit;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
-use App\Models\Visit;
 use Filament\Forms\Components\DatePicker;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
@@ -59,12 +58,12 @@ class VisitsRelationManager extends RelationManager
                     ->label('Foto Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('picture_visit_out')
                     ->label('Foto Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('transaksi')
                     ->label('Transaksi'),
                 TextColumn::make('durasi_visit')

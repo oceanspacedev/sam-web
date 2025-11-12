@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Models\Outlet;
 use App\Models\Register;
 use App\Models\Visit;
-use App\Models\Outlet;
 use App\Services\MediaProcessingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,7 +26,9 @@ class ProcessMediaJob implements ShouldQueue
     use SerializesModels;
 
     public int $tries = 3;
+
     public array $backoff = [1, 5, 10]; // Exponential backoff
+
     public int $timeout = 300; // 5 minutes max
 
     public function __construct(
@@ -37,8 +39,6 @@ class ProcessMediaJob implements ShouldQueue
 
     /**
      * Get the queue the job should be sent to.
-     *
-     * @return string
      */
     public function queue(): string
     {
@@ -51,6 +51,7 @@ class ProcessMediaJob implements ShouldQueue
 
         if (! $model) {
             $this->cleanupAll();
+
             return;
         }
 
@@ -59,7 +60,7 @@ class ProcessMediaJob implements ShouldQueue
             $result = $mediaService->processMultipleFileUpdates($model, $this->mediaItems);
 
             // Log successful processing
-            if (!empty($result['updated_fields'])) {
+            if (! empty($result['updated_fields'])) {
                 \Log::info("{$this->modelType} media processed successfully", [
                     'model_id' => $this->modelId,
                     'updated_fields' => $result['updated_fields'],
@@ -67,7 +68,7 @@ class ProcessMediaJob implements ShouldQueue
             }
 
             // Log any errors for debugging
-            if (!empty($result['errors'])) {
+            if (! empty($result['errors'])) {
                 \Log::warning("Some {$this->modelType} media items failed to process", [
                     'model_id' => $this->modelId,
                     'errors' => $result['errors'],
@@ -90,7 +91,7 @@ class ProcessMediaJob implements ShouldQueue
 
     protected function getModel()
     {
-        return match($this->modelType) {
+        return match ($this->modelType) {
             'register' => Register::query()->find($this->modelId),
             'visit' => Visit::query()->find($this->modelId),
             'outlet' => Outlet::query()->find($this->modelId),

@@ -33,7 +33,7 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     {
         Gate::define('viewHorizon', function ($user = null) {
             // Allow access to admin users only
-            if (!$user) {
+            if (! $user) {
                 return false;
             }
 

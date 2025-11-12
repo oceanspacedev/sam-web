@@ -7,7 +7,6 @@ use App\Models\Register;
 use App\Models\Visit;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -17,14 +16,15 @@ use RuntimeException;
 class MediaProcessingService
 {
     protected FileUploadService $fileUpload;
+
     protected FilenameGeneratorService $filenameGenerator;
 
     public function __construct(
-        FileUploadService $fileUpload = null,
-        FilenameGeneratorService $filenameGenerator = null
+        ?FileUploadService $fileUpload = null,
+        ?FilenameGeneratorService $filenameGenerator = null
     ) {
-        $this->fileUpload = $fileUpload ?? new FileUploadService();
-        $this->filenameGenerator = $filenameGenerator ?? new FilenameGeneratorService();
+        $this->fileUpload = $fileUpload ?? new FileUploadService;
+        $this->filenameGenerator = $filenameGenerator ?? new FilenameGeneratorService;
     }
 
     /**
@@ -90,7 +90,7 @@ class MediaProcessingService
 
             // Process with consistent flow
             $result = $this->processFileUpload($uploadedFile, $type, array_merge($options, [
-                'user_id' => $userId
+                'user_id' => $userId,
             ]));
 
             // Clean up temporary file
@@ -138,6 +138,7 @@ class MediaProcessingService
                 'picture_visit_in' => 'visit-in',
                 'picture_visit_out' => 'visit-out',
             ];
+
             return $fieldMappings[$field] ?? 'visit-photo';
         }
 
@@ -150,6 +151,7 @@ class MediaProcessingService
                 'poto_ktp' => 'outlet-ktp',
                 'video' => 'outlet-video',
             ];
+
             return $fieldMappings[$field] ?? 'outlet-photo';
         }
 
@@ -226,16 +228,16 @@ class MediaProcessingService
         $maxSize = $this->getMaxFileSize($type);
         $allowedMimes = $this->getAllowedMimeTypes($type);
 
-        if (!$file->isValid()) {
+        if (! $file->isValid()) {
             $errors[] = 'File upload is invalid';
         }
 
         if ($file->getSize() > $maxSize) {
-            $errors[] = "File size exceeds limit of " . $this->formatBytes($maxSize);
+            $errors[] = 'File size exceeds limit of '.$this->formatBytes($maxSize);
         }
 
-        if (!in_array($file->getMimeType(), $allowedMimes)) {
-            $errors[] = "File type not allowed. Allowed: " . implode(', ', $allowedMimes);
+        if (! in_array($file->getMimeType(), $allowedMimes)) {
+            $errors[] = 'File type not allowed. Allowed: '.implode(', ', $allowedMimes);
         }
 
         return [
@@ -267,6 +269,6 @@ class MediaProcessingService
 
         $bytes /= (1 << (10 * $pow));
 
-        return round($bytes, 2) . ' ' . $units[$pow];
+        return round($bytes, 2).' '.$units[$pow];
     }
 }

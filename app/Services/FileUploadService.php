@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\UploadedFile;
@@ -13,12 +12,13 @@ use RuntimeException;
 class FileUploadService
 {
     protected string $defaultDisk = 'public';
+
     protected FilenameGeneratorService $filenameGenerator;
 
     public function __construct(
         protected ?string $disk = null,
         protected ?string $temporaryDisk = null,
-        FilenameGeneratorService $filenameGenerator = null
+        ?FilenameGeneratorService $filenameGenerator = null
     ) {
         // Resolve default disk from configuration so .env FILESYSTEM_DISK is respected.
         // Fallback to the class default ('public') when config is unavailable.
@@ -26,7 +26,7 @@ class FileUploadService
 
         $this->disk = $disk ?? $this->defaultDisk;
         $this->temporaryDisk = $temporaryDisk ?? 'local';
-        $this->filenameGenerator = $filenameGenerator ?? new FilenameGeneratorService();
+        $this->filenameGenerator = $filenameGenerator ?? new FilenameGeneratorService;
     }
 
     /**

@@ -2,37 +2,34 @@
 
 namespace App\Filament\Resources\Visits;
 
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Group;
-use Filament\Schemas\Components\Section;
-use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\ToggleButtons;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Textarea;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TrashedFilter;
-use Filament\Actions\EditAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreBulkAction;
-use App\Filament\Resources\Visits\Pages\ListVisits;
 use App\Filament\Resources\Visits\Pages\CreateVisit;
 use App\Filament\Resources\Visits\Pages\EditVisit;
-use App\Filament\Resources\VisitResource\Pages;
+use App\Filament\Resources\Visits\Pages\ListVisits;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Models\Visit;
 use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
-use Filament\Forms;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
@@ -43,7 +40,7 @@ class VisitResource extends Resource
 {
     protected static ?string $model = Visit::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-camera';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-camera';
 
     protected static ?int $navigationSort = 3;
 
@@ -191,7 +188,7 @@ class VisitResource extends Resource
                                     ->label('Picture at Start of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                         $userId = auth()->id() ?? $get('user_id');
-                                        $filenameGenerator = new FilenameGeneratorService();
+                                        $filenameGenerator = new FilenameGeneratorService;
 
                                         return $filenameGenerator->generate($file, 'visit-in', $userId);
                                         // Output: vi241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
@@ -204,7 +201,7 @@ class VisitResource extends Resource
                                     ->label('Picture at End of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                         $userId = auth()->id() ?? $get('user_id');
-                                        $filenameGenerator = new FilenameGeneratorService();
+                                        $filenameGenerator = new FilenameGeneratorService;
 
                                         return $filenameGenerator->generate($file, 'visit-out', $userId);
                                         // Output: vo241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
@@ -276,12 +273,12 @@ class VisitResource extends Resource
                     ->label('Foto Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('picture_visit_out')
                     ->label('Foto Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('transaksi')
                     ->label('Transaksi'),
                 TextColumn::make('durasi_visit')

@@ -28,10 +28,6 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        Gate::define('viewPulse', function (User $user) {
-            return $user->role->name === 'SUPER ADMIN';
-        });
-
         if ($this->shouldSkipDynamicPermissionRegistration()) {
             return;
         }

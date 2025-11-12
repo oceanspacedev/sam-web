@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class RateLimitUploads
 {
@@ -15,7 +15,7 @@ class RateLimitUploads
     public function handle(Request $request, Closure $next)
     {
         // Only apply to routes with file uploads
-        if (!$this->hasFileUpload($request)) {
+        if (! $this->hasFileUpload($request)) {
             return $next($request);
         }
 
@@ -27,7 +27,7 @@ class RateLimitUploads
         $limitPerHour = $userId ? 200 : 50;   // 200 uploads per hour for authenticated, 50 for anonymous
 
         // Check per-minute rate limit
-        $minuteKey = "upload:minute:{$ipAddress}:" . ($userId ?? 'guest');
+        $minuteKey = "upload:minute:{$ipAddress}:".($userId ?? 'guest');
         $minuteCount = Redis::incr($minuteKey);
 
         if ($minuteCount === 1) {
@@ -50,7 +50,7 @@ class RateLimitUploads
         }
 
         // Check per-hour rate limit
-        $hourKey = "upload:hour:{$ipAddress}:" . ($userId ?? 'guest');
+        $hourKey = "upload:hour:{$ipAddress}:".($userId ?? 'guest');
         $hourCount = Redis::incr($hourKey);
 
         if ($hourCount === 1) {

@@ -2,14 +2,13 @@
 
 namespace App\Filament\Resources\Registers\Pages;
 
-use Filament\Actions\CreateAction;
-use Filament\Schemas\Components\Tabs\Tab;
 use App\Filament\Exports\RegisterExporter;
 use App\Filament\Resources\Registers\RegisterResource;
 use App\Models\Register;
-use Filament\Actions;
+use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 

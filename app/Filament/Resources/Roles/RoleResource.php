@@ -2,30 +2,27 @@
 
 namespace App\Filament\Resources\Roles;
 
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Section;
-use App\Models\BadanUsaha;
-use App\Models\Division;
-use App\Models\Region;
-use App\Models\Cluster;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\IconColumn;
-use Filament\Actions\EditAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Schemas\Components\Grid;
-use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Filament\Resources\Roles\Pages\CreateRole;
 use App\Filament\Resources\Roles\Pages\EditRole;
-use App\Filament\Resources\RoleResource\Pages;
+use App\Filament\Resources\Roles\Pages\ListRoles;
+use App\Models\BadanUsaha;
+use App\Models\Cluster;
+use App\Models\Division;
 use App\Models\Permission;
+use App\Models\Region;
 use App\Models\Role;
-use Filament\Forms;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Str;
 
@@ -33,9 +30,9 @@ class RoleResource extends Resource
 {
     protected static ?string $model = Role::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static string | \UnitEnum | null $navigationGroup = 'Settings';
+    protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 
     public static function form(Schema $schema): Schema
     {

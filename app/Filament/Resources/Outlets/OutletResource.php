@@ -2,26 +2,9 @@
 
 namespace App\Filament\Resources\Outlets;
 
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Group;
-use Filament\Schemas\Components\Section;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\FileUpload;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TrashedFilter;
-use Filament\Support\Enums\Width;
-use Filament\Actions\EditAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreBulkAction;
-use Filament\Actions\BulkAction;
-use App\Filament\Resources\Outlets\Pages\ListOutlets;
 use App\Filament\Resources\Outlets\Pages\CreateOutlet;
 use App\Filament\Resources\Outlets\Pages\EditOutlet;
-use App\Filament\Resources\OutletResource\Pages;
+use App\Filament\Resources\Outlets\Pages\ListOutlets;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -29,13 +12,26 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
-use Carbon\Carbon;
-use Filament\Forms;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -49,7 +45,7 @@ class OutletResource extends Resource
 {
     protected static ?string $model = Outlet::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-building-storefront';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';
 
     protected static ?int $navigationSort = 1;
 
@@ -131,7 +127,7 @@ class OutletResource extends Resource
                                             ->label('Foto Tanda Toko')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                                 // Output: op241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
@@ -142,7 +138,7 @@ class OutletResource extends Resource
                                             ->label('Foto Depan')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                             }),
@@ -152,7 +148,7 @@ class OutletResource extends Resource
                                             ->label('Foto Kiri')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                             }),
@@ -162,7 +158,7 @@ class OutletResource extends Resource
                                             ->label('Foto Kanan')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                             }),
@@ -172,7 +168,7 @@ class OutletResource extends Resource
                                             ->label('Foto KTP Pemilik')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-ktp', $userId);
                                             }),
@@ -182,7 +178,7 @@ class OutletResource extends Resource
                                             ->label('Video Toko')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-video', $userId);
                                             }),
@@ -343,32 +339,32 @@ class OutletResource extends Resource
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('video')
                     ->label('Video Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary'),
                 TextColumn::make('limit')
                     ->label('Limit'),

@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Services\FileUploadService;
 use App\Services\FilenameGeneratorService;
+use App\Services\FileUploadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class HighVolumeFileUploadTest extends TestCase
@@ -17,14 +17,15 @@ class HighVolumeFileUploadTest extends TestCase
     use RefreshDatabase, WithFaker;
 
     protected FileUploadService $fileUpload;
+
     protected FilenameGeneratorService $filenameGenerator;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->fileUpload = new FileUploadService();
-        $this->filenameGenerator = new FilenameGeneratorService();
+        $this->fileUpload = new FileUploadService;
+        $this->filenameGenerator = new FilenameGeneratorService;
 
         // Use fake storage for testing
         Storage::fake('public');
@@ -78,9 +79,9 @@ class HighVolumeFileUploadTest extends TestCase
 
         echo "\n📊 Performance Results:\n";
         echo "✅ 1000 files uploaded successfully\n";
-        echo "⚡ Total time: " . number_format($duration, 2) . "ms\n";
-        echo "🚀 Average per file: " . number_format($duration / 1000, 2) . "ms\n";
-        echo "📈 Files per second: " . number_format(1000 / ($duration / 1000), 0) . "\n";
+        echo '⚡ Total time: '.number_format($duration, 2)."ms\n";
+        echo '🚀 Average per file: '.number_format($duration / 1000, 2)."ms\n";
+        echo '📈 Files per second: '.number_format(1000 / ($duration / 1000), 0)."\n";
     }
 
     /**
@@ -132,6 +133,7 @@ class HighVolumeFileUploadTest extends TestCase
                     $path = $this->fileUpload->uploadImageOptimized($file, $type);
                     $uploaded[] = $path;
                 }
+
                 return $uploaded;
             };
         }
@@ -155,8 +157,8 @@ class HighVolumeFileUploadTest extends TestCase
         echo "👥 {$concurrentUsers} concurrent users\n";
         echo "📁 {$filesPerUser} files per user\n";
         echo "📊 Total: {$totalFiles} files\n";
-        echo "⚡ Total time: " . number_format($duration, 2) . "ms\n";
-        echo "🚀 Throughput: " . number_format($totalFiles / ($duration / 1000), 0) . " files/second\n";
+        echo '⚡ Total time: '.number_format($duration, 2)."ms\n";
+        echo '🚀 Throughput: '.number_format($totalFiles / ($duration / 1000), 0)." files/second\n";
     }
 
     /**
@@ -226,13 +228,13 @@ class HighVolumeFileUploadTest extends TestCase
         $this->assertLessThan(50 * 1024 * 1024, $memoryIncrease, 'Memory increase should be less than 50MB'); // 50MB
 
         echo "\n💾 Memory Efficiency Results:\n";
-        echo "🔽 Initial memory: " . $this->formatBytes($initialMemory) . "\n";
-        echo "⬆️  Final memory: " . $this->formatBytes($finalMemory) . "\n";
-        echo "📈 Increase: " . $this->formatBytes($memoryIncrease) . "\n";
-        echo "🏔️  Peak memory: " . $this->formatBytes($peakMemory) . "\n";
+        echo '🔽 Initial memory: '.$this->formatBytes($initialMemory)."\n";
+        echo '⬆️  Final memory: '.$this->formatBytes($finalMemory)."\n";
+        echo '📈 Increase: '.$this->formatBytes($memoryIncrease)."\n";
+        echo '🏔️  Peak memory: '.$this->formatBytes($peakMemory)."\n";
 
         foreach ($memorySnapshots as $snapshot) {
-            echo "📊 Iteration {$snapshot['iteration']}: " . $this->formatBytes($snapshot['memory']) . "\n";
+            echo "📊 Iteration {$snapshot['iteration']}: ".$this->formatBytes($snapshot['memory'])."\n";
         }
     }
 
@@ -245,6 +247,6 @@ class HighVolumeFileUploadTest extends TestCase
 
         $bytes /= (1 << (10 * $pow));
 
-        return round($bytes, 2) . ' ' . $units[$pow];
+        return round($bytes, 2).' '.$units[$pow];
     }
 }

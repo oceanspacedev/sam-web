@@ -2,11 +2,10 @@
 
 namespace App\Filament\Resources\Users\Pages;
 
-use Filament\Actions\CreateAction;
 use App\Filament\Exports\UserExporter;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
-use Filament\Actions;
+use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Gate;

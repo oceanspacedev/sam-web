@@ -2,28 +2,9 @@
 
 namespace App\Filament\Resources\Registers;
 
-use App\Filament\Resources\Registers\RegisterResource;
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Group;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
-use Filament\Forms\Components\FileUpload;
-use Filament\Schemas\Components\Utilities\Set;
-use Filament\Forms\Components\ToggleButtons;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TrashedFilter;
-use Filament\Support\Enums\Width;
-use Filament\Actions\EditAction;
-use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreBulkAction;
-use App\Filament\Resources\Registers\Pages\ListRegisters;
 use App\Filament\Resources\Registers\Pages\CreateRegister;
 use App\Filament\Resources\Registers\Pages\EditRegister;
-use App\Filament\Resources\RegisterResource\Pages;
+use App\Filament\Resources\Registers\Pages\ListRegisters;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -33,15 +14,30 @@ use App\Models\User;
 use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
-use Filament\Forms;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
@@ -52,7 +48,7 @@ class RegisterResource extends Resource
 {
     protected static ?string $model = Register::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-building-office';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-office';
 
     protected static ?int $navigationSort = 2;
 
@@ -113,7 +109,7 @@ class RegisterResource extends Resource
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-photo', $userId);
                                                 // Output: rp241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
@@ -125,7 +121,7 @@ class RegisterResource extends Resource
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-photo', $userId);
                                             }),
@@ -136,7 +132,7 @@ class RegisterResource extends Resource
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-photo', $userId);
                                             }),
@@ -147,7 +143,7 @@ class RegisterResource extends Resource
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-photo', $userId);
                                             }),
@@ -159,7 +155,7 @@ class RegisterResource extends Resource
                                             ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-ktp', $userId);
                                             }),
@@ -169,7 +165,7 @@ class RegisterResource extends Resource
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = auth()->id();
-                                                $filenameGenerator = new FilenameGeneratorService();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-video', $userId);
                                             }),
@@ -450,32 +446,32 @@ class RegisterResource extends Resource
                     ->label('Foto KTP')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('KTP'))
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
                     ->color('primary')
-                    ->url(fn ($state): string => asset('storage/'.$state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
                 TextColumn::make('oppo')
                     ->label('Oppo'),
                 TextColumn::make('vivo')

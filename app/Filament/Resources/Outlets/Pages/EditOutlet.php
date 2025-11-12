@@ -2,9 +2,8 @@
 
 namespace App\Filament\Resources\Outlets\Pages;
 
-use Filament\Actions\DeleteAction;
 use App\Filament\Resources\Outlets\OutletResource;
-use Filament\Actions;
+use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditOutlet extends EditRecord

@@ -145,8 +145,8 @@ class RegisterMediaQueueTest extends FeatureTestCase
         $response = $this->post('/api/register', $payload, ['Accept' => 'application/json']);
 
         // Debug: Check response status and content
-        echo "Response status: " . $response->getStatusCode() . PHP_EOL;
-        echo "Response content: " . $response->getContent() . PHP_EOL;
+        echo 'Response status: '.$response->getStatusCode().PHP_EOL;
+        echo 'Response content: '.$response->getContent().PHP_EOL;
 
         $response->assertOk();
 
@@ -157,7 +157,7 @@ class RegisterMediaQueueTest extends FeatureTestCase
         // Debug: Check what the response contains
         $responseData = $response->json();
         if (isset($responseData['debug'])) {
-            echo "Debug info: " . json_encode($responseData['debug']) . PHP_EOL;
+            echo 'Debug info: '.json_encode($responseData['debug']).PHP_EOL;
         }
 
         // Check that media job was dispatched

@@ -11,6 +11,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class PlanVisitController extends Controller
 {
@@ -219,6 +220,16 @@ class PlanVisitController extends Controller
     public function add(Request $request): JsonResponse
     {
         try {
+            $user = Auth::user();
+
+            Log::channel('planvisit')->info('Plan visit add initiated', [
+                'user_id' => $user->id,
+                'payload' => [
+                    'tanggal_visit' => $request->tanggal_visit,
+                    'kode_outlet' => $request->kode_outlet,
+                ],
+            ]);
+
             $request->validate([
                 'tanggal_visit' => ['required', 'date'],
                 'kode_outlet' => ['required'],
@@ -227,6 +238,11 @@ class PlanVisitController extends Controller
             $idOutlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
 
             if (! $idOutlet) {
+                Log::channel('planvisit')->warning('Plan visit add failed: outlet not found', [
+                    'user_id' => $user->id,
+                    'kode_outlet' => $request->kode_outlet,
+                ]);
+
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
@@ -256,14 +272,20 @@ class PlanVisitController extends Controller
 
             // #cek apakah sudah ada data dengan user, outlet dan tanggal yang dikirim
             $cekData = PlanVisit::whereDate('tanggal_visit', Carbon::parse($request->tanggal_visit))
-                ->where('user_id', Auth::user()->id)
+                ->where('user_id', $user->id)
                 ->where('outlet_id', $idOutlet->id)
                 ->first();
             if ($cekData) {
+                Log::channel('planvisit')->warning('Plan visit add failed: duplicate', [
+                    'user_id' => $user->id,
+                    'outlet_id' => $idOutlet->id,
+                    'tanggal_visit' => $request->tanggal_visit,
+                ]);
+
                 return ResponseFormatter::error($cekData, 'data sebelumnya sudah ada');
             }
             $addPlan = PlanVisit::create([
-                'user_id' => Auth::id(),
+                'user_id' => $user->id,
                 'outlet_id' => $idOutlet->id,
                 'tanggal_visit' => Carbon::parse($request->tanggal_visit),
             ]);
@@ -279,6 +301,13 @@ class PlanVisitController extends Controller
                 'user.divisi',
                 'user.cluster',
                 'user.role',
+            ]);
+
+            Log::channel('planvisit')->info('Plan visit add success', [
+                'plan_visit_id' => $addPlan->id,
+                'user_id' => $user->id,
+                'outlet_id' => $idOutlet->id,
+                'tanggal_visit' => $addPlan->tanggal_visit,
             ]);
 
             return ResponseFormatter::success($addPlan->formatForAPI(), 'berhasil');
@@ -333,6 +362,17 @@ class PlanVisitController extends Controller
     public function delete(Request $request): JsonResponse
     {
         try {
+            $user = Auth::user();
+
+            Log::channel('planvisit')->info('Plan visit delete initiated', [
+                'user_id' => $user->id,
+                'payload' => [
+                    'bulan' => $request->bulan,
+                    'tahun' => $request->tahun,
+                    'kode_outlet' => $request->kode_outlet,
+                ],
+            ]);
+
             $validation = $request->validate([
                 'bulan' => 'required',
                 'tahun' => 'required',
@@ -342,6 +382,11 @@ class PlanVisitController extends Controller
             $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
 
             if (! $outlet) {
+                Log::channel('planvisit')->warning('Plan visit delete failed: outlet not found', [
+                    'user_id' => $user->id,
+                    'kode_outlet' => $request->kode_outlet,
+                ]);
+
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
@@ -364,12 +409,27 @@ class PlanVisitController extends Controller
             $delete = PlanVisit::where('outlet_id', $outlet->id)
                 ->whereYear('tanggal_visit', $request->tahun)
                 ->whereMonth('tanggal_visit', $request->bulan)
-                ->where('user_id', Auth::user()->id)
+                ->where('user_id', $user->id)
                 ->delete();
 
             if (! $delete) {
+                Log::channel('planvisit')->warning('Plan visit delete failed: no records found', [
+                    'user_id' => $user->id,
+                    'outlet_id' => $outlet->id,
+                    'bulan' => $request->bulan,
+                    'tahun' => $request->tahun,
+                ]);
+
                 return ResponseFormatter::error(null, $validation, 422);
             }
+
+            Log::channel('planvisit')->info('Plan visit delete success', [
+                'user_id' => $user->id,
+                'outlet_id' => $outlet->id,
+                'deleted_count' => $delete,
+                'bulan' => $request->bulan,
+                'tahun' => $request->tahun,
+            ]);
 
             return ResponseFormatter::success($delete, 'berhasil');
         } catch (Exception $e) {
@@ -404,15 +464,27 @@ class PlanVisitController extends Controller
     public function deleterealme(Request $request): JsonResponse
     {
         try {
+            $user = Auth::user();
+
+            Log::channel('planvisit')->info('Plan visit delete realme initiated', [
+                'user_id' => $user->id,
+                'plan_visit_id' => $request->id,
+            ]);
+
             $validation = $request->validate([
                 'id' => 'required',
             ]);
 
             $planVisit = PlanVisit::where('id', $request->id)
-                ->where('user_id', Auth::user()->id)
+                ->where('user_id', $user->id)
                 ->first();
 
             if ((Carbon::now() > Carbon::createFromTimestamp($planVisit->tanggal_visit)->startOfWeek()->addDay(1)->addHour(10))) {
+                Log::channel('planvisit')->warning('Plan visit delete realme failed: deadline passed', [
+                    'user_id' => $user->id,
+                    'plan_visit_id' => $request->id,
+                ]);
+
                 return ResponseFormatter::error(null, 'Tidak bisa menghapus plan visit kurang dari atau dalam minggu yang berjalan');
             }
 
@@ -421,12 +493,22 @@ class PlanVisitController extends Controller
             }
 
             $delete = PlanVisit::where('id', $request->id)
-                ->where('user_id', Auth::user()->id)
+                ->where('user_id', $user->id)
                 ->delete();
 
             if (! $delete) {
+                Log::channel('planvisit')->warning('Plan visit delete realme failed: record not found', [
+                    'user_id' => $user->id,
+                    'plan_visit_id' => $request->id,
+                ]);
+
                 return ResponseFormatter::error(null, $validation, 422);
             }
+
+            Log::channel('planvisit')->info('Plan visit delete realme success', [
+                'user_id' => $user->id,
+                'plan_visit_id' => $request->id,
+            ]);
 
             return ResponseFormatter::success($delete, 'berhasil');
         } catch (Exception $e) {

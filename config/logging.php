@@ -106,6 +106,49 @@ return [
             'path' => storage_path('logs/custom.log'),
             'level' => env('LOG_LEVEL', 'debug'),
         ],
+
+        // Separate log channels for better observability
+        'visit' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/visit.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30, // Keep logs for 30 days
+        ],
+
+        'lead' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/lead.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+        ],
+
+        'noo' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/noo.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+        ],
+
+        'api_errors' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/api-errors.log'),
+            'level' => 'error', // Only log errors and above
+            'days' => 60, // Keep error logs longer
+        ],
+
+        'outlet' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/outlet.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+        ],
+
+        'planvisit' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/planvisit.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+        ],
     ],
 
 ];

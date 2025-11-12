@@ -12,6 +12,7 @@ use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -281,6 +282,13 @@ class OutletController extends Controller
     public function updatefoto(Request $request)
     {
         try {
+            $user = Auth::user();
+
+            Log::channel('outlet')->info('Outlet update foto initiated', [
+                'user_id' => $user->id,
+                'kode_outlet' => $request->kode_outlet,
+            ]);
+
             // Validasi dasar field non-file
             $baseRules = [
                 'kode_outlet' => ['required'],
@@ -311,6 +319,11 @@ class OutletController extends Controller
 
             $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
             if (! $outlet) {
+                Log::channel('outlet')->warning('Outlet update foto failed: outlet not found', [
+                    'user_id' => $user->id,
+                    'kode_outlet' => $request->kode_outlet,
+                ]);
+
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
@@ -387,6 +400,12 @@ class OutletController extends Controller
             $outlet->latlong = $request->latlong;
             $outlet->save();
 
+            Log::channel('outlet')->info('Outlet update foto success', [
+                'user_id' => $user->id,
+                'outlet_id' => $outlet->id,
+                'kode_outlet' => $outlet->kode_outlet,
+            ]);
+
             return ResponseFormatter::success(null, 'berhasil Update');
         } catch (ValidationException $e) {
             return ResponseFormatter::error($e->errors(), 'VALIDATION_ERROR', 422);
@@ -408,7 +427,7 @@ class OutletController extends Controller
         try {
             Storage::disk($disk)->delete($path);
         } catch (Exception $exception) {
-            \Log::warning('Failed to delete outlet media', [
+            Log::channel('outlet')->warning('Failed to delete outlet media', [
                 'path' => $path,
                 'disk' => $disk,
                 'error' => $exception->getMessage(),

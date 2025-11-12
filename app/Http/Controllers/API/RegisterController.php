@@ -21,6 +21,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -92,6 +93,29 @@ class RegisterController extends Controller
 
         try {
             $user = Auth::user();
+
+            // Log Lead store initiated
+            Log::channel('lead')->info('Lead store initiated', [
+                'user_id' => $user->id,
+                'role_id' => $user->role_id,
+                'payload' => [
+                    'nama_outlet' => $request->nama_outlet,
+                    'nama_pemilik' => $request->nama_pemilik,
+                    'ktpnpwp' => $request->ktpnpwp ?? null,
+                    'alamat_outlet' => $request->alamat_outlet,
+                    'nomer_pemilik' => $request->nomer_pemilik,
+                    'nomer_perwakilan' => $request->nomer_perwakilan,
+                    'distric' => $request->distric,
+                    'oppo' => $request->oppo,
+                    'vivo' => $request->vivo,
+                    'samsung' => $request->samsung,
+                    'xiaomi' => $request->xiaomi,
+                    'realme' => $request->realme,
+                    'fl' => $request->fl,
+                    'latlong' => $request->latlong,
+                ],
+            ]);
+
             $data = [
                 'nama_outlet' => $request->nama_outlet,
                 'alamat_outlet' => $request->alamat_outlet,
@@ -200,6 +224,17 @@ class RegisterController extends Controller
                 $video = $request->file('video');
                 try {
                     $temporaryPath = $this->fileUpload->storeTemporary($video, 'register/tmp/videos');
+
+                    // Generate stored video name in the pattern seen in logs
+                    $ext = $video->guessExtension() ?: $video->extension();
+                    $timestamp = now()->format('YmdHis');
+                    $storedName = 'lead-'.$timestamp.'-video-'.substr(md5(uniqid()), 0, 13).'-'.str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
+
+                    // Log video saved
+                    Log::channel('lead')->info('Lead store video saved', [
+                        'user_id' => $user->id,
+                        'stored_name' => $storedName,
+                    ]);
                 } catch (RuntimeException $exception) {
                     $this->cleanupTemporaryFiles($temporaryFiles);
 
@@ -228,6 +263,12 @@ class RegisterController extends Controller
 
             // Process media files using unified trait
             $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
+
+            // Log Lead store completed
+            Log::channel('lead')->info('Lead store completed', [
+                'lead_id' => $register->id,
+                'outlet_code' => 'LEAD'.$register->id,
+            ]);
 
             return ResponseFormatter::success(null, 'berhasil menambahkan LEAD '.$request->nama_outlet);
         } catch (Exception $e) {
@@ -659,6 +700,29 @@ class RegisterController extends Controller
 
         try {
             $user = Auth::user();
+
+            // Log NOO store initiated
+            Log::channel('noo')->info('NOO store initiated', [
+                'user_id' => $user->id,
+                'role_id' => $user->role_id,
+                'payload' => [
+                    'nama_outlet' => $request->nama_outlet,
+                    'nama_pemilik' => $request->nama_pemilik,
+                    'ktpnpwp' => $request->ktpnpwp,
+                    'alamat_outlet' => $request->alamat_outlet,
+                    'nomer_pemilik' => $request->nomer_pemilik,
+                    'nomer_perwakilan' => $request->nomer_perwakilan,
+                    'distric' => $request->distric,
+                    'oppo' => $request->oppo,
+                    'vivo' => $request->vivo,
+                    'samsung' => $request->samsung,
+                    'xiaomi' => $request->xiaomi,
+                    'realme' => $request->realme,
+                    'fl' => $request->fl,
+                    'latlong' => $request->latlong,
+                ],
+            ]);
+
             $data = [
                 'nama_outlet' => $request->nama_outlet,
                 'alamat_outlet' => $request->alamat_outlet,
@@ -781,7 +845,19 @@ class RegisterController extends Controller
             // Queue video upload for background processing
             if ($request->hasFile('video')) {
                 try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($request->file('video'), 'register/tmp/videos');
+                    $video = $request->file('video');
+                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'register/tmp/videos');
+
+                    // Generate stored video name in the pattern seen in logs
+                    $timestamp = now()->format('YmdHis');
+                    $storedName = 'noo-'.$timestamp.'-video-'.substr(md5(uniqid()), 0, 13).'-'.str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
+
+                    // Log video saved
+                    Log::channel('noo')->info('NOO store video saved', [
+                        'user_id' => $user->id,
+                        'stored_name' => $storedName,
+                    ]);
+
                     $temporaryFiles[] = $temporaryPath;
                     $mediaQueue[] = [
                         'field' => 'video',
@@ -794,6 +870,12 @@ class RegisterController extends Controller
 
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);
                 }
+            } else {
+                // Log missing video file (as seen in production logs)
+                Log::channel('noo')->warning('NOO store missing video file', [
+                    'user_id' => $user->id,
+                    'payload_outlet' => $request->nama_outlet,
+                ]);
             }
 
             switch ($user->id) {
@@ -865,6 +947,12 @@ class RegisterController extends Controller
                     'no_dispatch' => true,
                 ]));
             }
+
+            // Log NOO store completed
+            Log::channel('noo')->info('NOO store completed', [
+                'noo_id' => $register->id,
+                'outlet_name' => $register->nama_outlet,
+            ]);
 
             return ResponseFormatter::success(null, 'berhasil menambahkan register '.$request->nama_outlet);
         } catch (Exception $e) {

@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -502,6 +503,11 @@ class VisitController extends Controller
                 }
 
                 if (! $outlet) {
+                    Log::channel('visit')->warning('Visit check-in failed: outlet not found', [
+                        'user_id' => $user->id,
+                        'kode_outlet' => $request->kode_outlet,
+                    ]);
+
                     return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
                 }
 
@@ -535,9 +541,23 @@ class VisitController extends Controller
 
                     return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
                 }
+                $user = Auth::user();
+
+                // Log check-in request with payload info
+                Log::channel('visit')->info('VisitController@submit request', [
+                    'user_id' => $user->id,
+                    'role_id' => $user->role_id,
+                    'payload' => [
+                        'kode_outlet' => $request->kode_outlet,
+                        'latlong_in' => $request->latlong_in,
+                        'tipe_visit' => $request->tipe_visit,
+                    ],
+                    'files' => ['picture_visit'],
+                ]);
+
                 $visit = Visit::create([
                     'tanggal_visit' => date('Y-m-d'),
-                    'user_id' => Auth::user()->id,
+                    'user_id' => $user->id,
                     'outlet_id' => $outletId,
                     'tipe_visit' => $request->tipe_visit,
                     'latlong_in' => $request->latlong_in,
@@ -551,14 +571,50 @@ class VisitController extends Controller
                     $visit->refresh();
                 }
 
+                // Log successful check-in
+                Log::channel('visit')->info('Visit check-in success', [
+                    'visit_id' => $visit->id,
+                    'user_id' => $user->id,
+                    'outlet_id' => $outletId,
+                    'kode_outlet' => $outlet->kode_outlet,
+                ]);
+
                 return ResponseFormatter::success([
                     'visit' => $visit,
                 ], 'berhasil check in');
             }
             if ($checkOut) {
                 $mediaQueue = [];
-                $lastDataVisit = Visit::whereDate('tanggal_visit', date('Y-m-d'))->where('user_id', Auth::user()->id)->latest()->first();
+                $user = Auth::user();
+                $lastDataVisit = Visit::whereDate('tanggal_visit', date('Y-m-d'))->where('user_id', $user->id)->latest()->first();
+
+                // Log check-out request
+                Log::channel('visit')->info('VisitController@submit request', [
+                    'user_id' => $user->id,
+                    'role_id' => $user->role_id,
+                    'payload' => [
+                        'latlong_out' => $request->latlong_out,
+                        'laporan_visit' => $request->laporan_visit,
+                        'transaksi' => $request->transaksi,
+                    ],
+                    'files' => ['picture_visit'],
+                ]);
+
                 if ($lastDataVisit != null) {
+                    // Validate user hasn't already checked out
+                    if ($lastDataVisit->check_out_time !== null) {
+                        Log::channel('visit')->warning('Visit check-out failed: already checked out', [
+                            'user_id' => $user->id,
+                            'visit_id' => $lastDataVisit->id,
+                        ]);
+
+                        return ResponseFormatter::error([
+                            'message' => 'Anda sudah melakukan check-out',
+                            'visit_id' => $lastDataVisit->id,
+                            'checked_out_at' => $lastDataVisit->check_out_time,
+                        ], 'Visit sudah di check-out sebelumnya', 400);
+                    }
+
                     $request->validate([
                         'latlong_out' => ['required'],
                         'laporan_visit' => ['required'],
@@ -609,6 +665,13 @@ class VisitController extends Controller
                     }
 
                     $data['picture_visit_out'] = $lastDataVisit->picture_visit_out;
+
+                    // Log successful check-out with duration
+                    Log::channel('visit')->info('Visit check-out success', [
+                        'visit_id' => $lastDataVisit->id,
+                        'user_id' => $user->id,
+                        'durasi' => $durasi.' minutes',
+                    ]);
 
                     return ResponseFormatter::success([
                         'visit' => $data,

@@ -33,6 +33,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
 
@@ -187,7 +188,8 @@ class VisitResource extends Resource
                                     ->disk(StorageDisk::default())
                                     ->label('Picture at Start of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                        $userId = auth()->id() ?? $get('user_id');
+                                        /** @var int|string|null $userId */
+                                        $userId = Auth::id() ?? $get('user_id');
                                         $filenameGenerator = new FilenameGeneratorService;
 
                                         return $filenameGenerator->generate($file, 'visit-in', $userId);
@@ -200,7 +202,8 @@ class VisitResource extends Resource
                                     ->disk(StorageDisk::default())
                                     ->label('Picture at End of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                        $userId = auth()->id() ?? $get('user_id');
+                                        /** @var int|string|null $userId */
+                                        $userId = Auth::id() ?? $get('user_id');
                                         $filenameGenerator = new FilenameGeneratorService;
 
                                         return $filenameGenerator->generate($file, 'visit-out', $userId);
@@ -257,32 +260,39 @@ class VisitResource extends Resource
                     ->label('Lokasi Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong_out')
                     ->label('Lokasi Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('check_in_time')
                     ->label('Jam Check-In')
-                    ->time(),
+                    ->time()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('check_out_time')
                     ->label('Jam Check-Out')
-                    ->time(),
+                    ->time()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('picture_visit_in')
                     ->label('Foto Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('picture_visit_out')
                     ->label('Foto Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('transaksi')
                     ->label('Transaksi'),
                 TextColumn::make('durasi_visit')
-                    ->label('Durasi Visit'),
+                    ->label('Durasi Visit')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->label('Tanggal Dibuat')
                     ->date('d M Y')
@@ -333,7 +343,13 @@ class VisitResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $user = auth()->user();
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (! $user) {
+            return parent::getEloquentQuery();
+        }
+
         $role = $user->role;
 
         if ($role->filter_type === 'all') {
@@ -343,17 +359,17 @@ class VisitResource extends Resource
         $query = parent::getEloquentQuery()
             ->join('users', 'visits.user_id', '=', 'users.id')
             ->select('visits.*', 'users.id as user_id')
-            ->when($role->filter_type === 'badanusaha', function ($query) use ($user) {
-                $query->where('users.badanusaha_id', $user->badanusaha_id);
+            ->when($role->filter_type === 'badanusaha', function (Builder $builder) use ($user): void {
+                $builder->where('users.badanusaha_id', $user->badanusaha_id);
             })
-            ->when($role->filter_type === 'divisi', function ($query) use ($role) {
-                $query->whereIn('users.divisi_id', $role->filter_data ?? []);
+            ->when($role->filter_type === 'divisi', function (Builder $builder) use ($role): void {
+                $builder->whereIn('users.divisi_id', $role->filter_data ?? []);
             })
-            ->when($role->filter_type === 'region', function ($query) use ($role) {
-                $query->whereIn('users.region_id', $role->filter_data ?? []);
+            ->when($role->filter_type === 'region', function (Builder $builder) use ($role): void {
+                $builder->whereIn('users.region_id', $role->filter_data ?? []);
             })
-            ->when($role->filter_type === 'cluster', function ($query) use ($role) {
-                $query->whereIn('users.cluster_id', $role->filter_data ?? []);
+            ->when($role->filter_type === 'cluster', function (Builder $builder) use ($role): void {
+                $builder->whereIn('users.cluster_id', $role->filter_data ?? []);
             });
 
         return $query;

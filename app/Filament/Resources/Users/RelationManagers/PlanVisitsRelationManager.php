@@ -20,11 +20,13 @@ class PlanVisitsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('user.nama_lengkap')
                     ->label('Nama')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('outlet.nama_outlet')
                     ->label('Outlet')
                     ->searchable(),
-                TextColumn::make('outlet.kode_outlet'),
+                TextColumn::make('outlet.kode_outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('tanggal_visit')
                     ->label('Tanggal Visit')
                     ->date('d M Y'),

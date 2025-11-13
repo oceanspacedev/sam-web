@@ -29,14 +29,13 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Support\Enums\Width;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 
@@ -102,7 +101,7 @@ class UserResource extends Resource
                                             ->label('Role')
                                             ->placeholder('Pilih role')
                                             ->options(function (callable $get) {
-                                                $user = auth()->user();
+                                                $user = Auth::user();
 
                                                 if ($user->role->name !== 'SUPER ADMIN') {
                                                     return Role::whereIn('name', ['AR', 'ASC', 'ASM', 'DSF/DM'])
@@ -134,7 +133,7 @@ class UserResource extends Resource
                                             ->reactive()
                                             ->placeholder('Pilih badan usaha')
                                             ->options(function (callable $get) {
-                                                $user = auth()->user();
+                                                $user = Auth::user();
                                                 $role = $user->role;
 
                                                 if ($role->filter_type === 'badanusaha') {
@@ -246,17 +245,39 @@ class UserResource extends Resource
     {
         return $schema
             ->components([
-                Section::make('Informasi User')
+                Grid::make([
+                    'default' => 1,
+                    'md' => 2,
+                ])
                     ->schema([
-                        TextEntry::make('nama_lengkap')->label('Nama Lengkap'),
-                        TextEntry::make('username')->label('Username'),
-                        TextEntry::make('role.name')->label('Role'),
-                        TextEntry::make('badanusaha.name')->label('Badan Usaha'),
-                        TextEntry::make('divisi.name')->label('Divisi'),
-                        TextEntry::make('region.name')->label('Region'),
-                        TextEntry::make('cluster.name')->label('Cluster'),
-                        TextEntry::make('tm.nama_lengkap')->label('TM'),
-                    ])->columns(2),
+                        Section::make('Informasi User')
+                            ->columns([
+                                'default' => 1,
+                                'md' => 2,
+                            ])
+                            ->schema([
+                                TextEntry::make('nama_lengkap')
+                                    ->label('Nama Lengkap')
+                                    ->columnSpan(2),
+                                TextEntry::make('username')->label('Username'),
+                                TextEntry::make('role.name')->label('Role'),
+                                TextEntry::make('tm.nama_lengkap')
+                                    ->label('TM')
+                                    ->columnSpan(2),
+                            ]),
+                        Section::make('Struktur Organisasi')
+                            ->columns([
+                                'default' => 1,
+                                'md' => 2,
+                            ])
+                            ->schema([
+                                TextEntry::make('badanusaha.name')->label('Badan Usaha'),
+                                TextEntry::make('divisi.name')->label('Divisi'),
+                                TextEntry::make('region.name')->label('Region'),
+                                TextEntry::make('cluster.name')->label('Cluster'),
+                            ]),
+                    ])
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -269,10 +290,14 @@ class UserResource extends Resource
                 // Tables\Columns\TextColumn::make('username')
                 //     ->searchable(),
                 TextColumn::make('role.name'),
-                TextColumn::make('badanusaha.name'),
-                TextColumn::make('divisi.name'),
-                TextColumn::make('region.name'),
-                TextColumn::make('cluster.name'),
+                TextColumn::make('badanusaha.name')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('divisi.name')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('region.name')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('cluster.name')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('tm.nama_lengkap')
                     ->label('TM'),
                 TextColumn::make('created_at')
@@ -348,8 +373,7 @@ class UserResource extends Resource
 
                 TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], User::class)),
-            ], layout: FiltersLayout::Modal)
-            ->filtersFormWidth(Width::Large)
+            ])
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
@@ -376,7 +400,8 @@ class UserResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where(function ($query) {
-                $user = auth()->user();
+                /** @var User|null $user */
+                $user = Auth::user();
                 $role = $user->role;
                 switch ($role->filter_type) {
                     case 'badanusaha':

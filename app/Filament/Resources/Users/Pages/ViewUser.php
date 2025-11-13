@@ -12,6 +12,7 @@ use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Maatwebsite\Excel\Facades\Excel;
+use STS\FilamentImpersonate\Actions\Impersonate;
 
 class ViewUser extends ViewRecord
 {
@@ -40,6 +41,8 @@ class ViewUser extends ViewRecord
 
                     return Excel::download(new UserMonthlyOutletsExport($user), $filename);
                 }),
+            Impersonate::make('impersonate')
+                ->visible(fn (User $record): bool => (bool) $record->role?->can_access_web),
         ];
     }
 

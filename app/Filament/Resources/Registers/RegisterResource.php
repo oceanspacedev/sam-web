@@ -33,14 +33,13 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
 
@@ -108,7 +107,7 @@ class RegisterResource extends Resource
                                             ->label('Foto Tanda Toko')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-photo', $userId);
@@ -120,7 +119,7 @@ class RegisterResource extends Resource
                                             ->label('Foto Depan')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-photo', $userId);
@@ -131,7 +130,7 @@ class RegisterResource extends Resource
                                             ->label('Foto Kiri')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-photo', $userId);
@@ -142,7 +141,7 @@ class RegisterResource extends Resource
                                             ->label('Foto Kanan')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-photo', $userId);
@@ -154,7 +153,7 @@ class RegisterResource extends Resource
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-ktp', $userId);
@@ -164,7 +163,7 @@ class RegisterResource extends Resource
                                             ->label('Video Toko')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'register-video', $userId);
@@ -256,7 +255,13 @@ class RegisterResource extends Resource
                                                 ->reactive()
                                                 ->placeholder('Pilih badan usaha')
                                                 ->options(function (callable $get) {
-                                                    $user = auth()->user();
+                                                    /** @var User|null $user */
+                                                    $user = Auth::user();
+
+                                                    if (! $user) {
+                                                        return [];
+                                                    }
+
                                                     $role = $user->role;
 
                                                     if ($role->filter_type === 'badanusaha') {
@@ -420,77 +425,100 @@ class RegisterResource extends Resource
                 TextColumn::make('kode_outlet')
                     ->label('Kode Outlet'),
                 TextColumn::make('divisi.name')
-                    ->label('Divisi'),
+                    ->label('Divisi')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('badanusaha.name')
-                    ->label('Badan Usaha'),
+                    ->label('Badan Usaha')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nama_outlet')
                     ->label('Nama Outlet')
                     ->searchable(),
                 TextColumn::make('alamat_outlet')
-                    ->label('Alamat Outlet'),
+                    ->label('Alamat Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nama_pemilik_outlet')
-                    ->label('Nama Pemilik Outlet'),
+                    ->label('Nama Pemilik Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('ktp_outlet')
-                    ->label('Nomor KTP Outlet'),
+                    ->label('Nomor KTP Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nomer_tlp_outlet')
-                    ->label('Nomor Telepon Outlet'),
+                    ->label('Nomor Telepon Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nomer_wakil_outlet')
-                    ->label('Nomor Wakil Outlet'),
+                    ->label('Nomor Wakil Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('distric')
                     ->label('Distrik'),
                 TextColumn::make('region.name')
-                    ->label('Region'),
+                    ->label('Region')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('cluster.name')
-                    ->label('Cluster'),
+                    ->label('Cluster')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('KTP'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('oppo')
-                    ->label('Oppo'),
+                    ->label('Oppo')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('vivo')
-                    ->label('Vivo'),
+                    ->label('Vivo')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('realme')
-                    ->label('Realme'),
+                    ->label('Realme')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('samsung')
-                    ->label('Samsung'),
+                    ->label('Samsung')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('xiaomi')
-                    ->label('Xiaomi'),
+                    ->label('Xiaomi')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('fl')
-                    ->label('Frontliner'),
+                    ->label('Frontliner')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->color('primary')
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('limit')
-                    ->label('Limit'),
+                    ->label('Limit')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('keterangan')
                     ->label('Keterangan')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -566,8 +594,7 @@ class RegisterResource extends Resource
                     }),
                 TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Register::class)),
-            ], layout: FiltersLayout::Modal)
-            ->filtersFormWidth(Width::Large)
+            ])
             ->recordActions([
                 EditAction::make(),
                 Action::make('confirm')
@@ -584,34 +611,42 @@ class RegisterResource extends Resource
                             ->numeric()
                             ->required(),
                     ])
-                    ->action(function ($record, $data) {
+                    ->action(function ($record, $data): void {
+                        /** @var User|null $authUser */
+                        $authUser = Auth::user();
+
                         $record->update([
                             'kode_outlet' => $data['kode_outlet'],
                             'limit' => $data['limit'],
                             'confirmed_at' => Carbon::now(),
-                            'confirmed_by' => auth()->user()->nama_lengkap,
+                            'confirmed_by' => $authUser?->nama_lengkap,
                             'status' => 'CONFIRMED',
-                            Notification::make()
-                                ->title($record->nama_outlet.' Confirm')
-                                ->success()
-                                ->send(),
                         ]);
+
+                        Notification::make()
+                            ->title($record->nama_outlet.' Confirm')
+                            ->success()
+                            ->send();
                     }),
                 Action::make('approve')
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
-                    ->action(function ($record, $data) {
+                    ->action(function ($record, $data): void {
+                        /** @var User|null $authUser */
+                        $authUser = Auth::user();
+
                         $record->update([
                             'approved_at' => Carbon::now(),
-                            'approved_by' => auth()->user()->nama_lengkap,
+                            'approved_by' => $authUser?->nama_lengkap,
                             'status' => 'APPROVED',
-                            Notification::make()
-                                ->title($record->nama_outlet.' Approved')
-                                ->success()
-                                ->send(),
                         ]);
+
+                        Notification::make()
+                            ->title($record->nama_outlet.' Approved')
+                            ->success()
+                            ->send();
                     }),
                 Action::make('reject')
                     ->label('Reject')
@@ -622,10 +657,13 @@ class RegisterResource extends Resource
                         Textarea::make('alasan')
                             ->required(),
                     ])
-                    ->action(function ($record, $data) {
+                    ->action(function ($record, $data): void {
+                        /** @var User|null $authUser */
+                        $authUser = Auth::user();
+
                         $record->update([
                             'confirmed_at' => Carbon::now(),
-                            'confirmed_by' => auth()->user()->name,
+                            'confirmed_by' => $authUser?->name,
                             'status' => 'REJECTED',
                             'keterangan' => $data['alasan'],
                         ]);
@@ -655,7 +693,12 @@ class RegisterResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where(function ($query) {
-                $user = auth()->user();
+                /** @var User|null $user */
+                $user = Auth::user();
+                if (! $user) {
+                    return;
+                }
+
                 $role = $user->role;
                 switch ($role->filter_type) {
                     case 'badanusaha':

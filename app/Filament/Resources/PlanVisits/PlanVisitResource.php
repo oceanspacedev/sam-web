@@ -18,10 +18,12 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Auth;
 
 class PlanVisitResource extends Resource
 {
@@ -150,7 +152,34 @@ class PlanVisitResource extends Resource
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
-                //
+                Filter::make('tanggal_visit')
+                    ->label('Tanggal Visit')
+                    ->schema([
+                        DatePicker::make('from')
+                            ->label('Dari Tanggal'),
+                        DatePicker::make('until')
+                            ->label('Sampai Tanggal'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when($data['from'] ?? null, fn (Builder $builder, string $date): Builder => $builder->whereDate('tanggal_visit', '>=', $date))
+                            ->when($data['until'] ?? null, fn (Builder $builder, string $date): Builder => $builder->whereDate('tanggal_visit', '<=', $date));
+                    }),
+                Filter::make('user')
+                    ->label('User')
+                    ->schema([
+                        Select::make('user_id')
+                            ->label('User')
+                            ->searchable()
+                            ->placeholder('Semua User')
+                            ->options(
+                                fn (): array => User::query()
+                                    ->orderBy('nama_lengkap')
+                                    ->pluck('nama_lengkap', 'id')
+                                    ->toArray()
+                            ),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query->when($data['user_id'] ?? null, fn (Builder $builder, $userId): Builder => $builder->where('user_id', $userId))),
             ])
             ->recordActions([
                 EditAction::make(),
@@ -171,27 +200,33 @@ class PlanVisitResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $user = auth()->user();
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (! $user) {
+            return parent::getEloquentQuery();
+        }
+
         $role = $user->role;
 
-        if ($role->filter_type === 'all') {
+        if (! $role || $role->filter_type === 'all') {
             return parent::getEloquentQuery();
         }
 
         $query = parent::getEloquentQuery()
             ->leftJoin('users', 'plan_visits.user_id', '=', 'users.id')
             ->select('plan_visits.*', 'users.id as user_id')
-            ->when($role->filter_type === 'badanusaha', function ($query) use ($user) {
-                $query->where('users.badanusaha_id', $user->badanusaha_id);
+            ->when($role->filter_type === 'badanusaha', function (Builder $builder) use ($user): void {
+                $builder->where('users.badanusaha_id', $user->badanusaha_id);
             })
-            ->when($role->filter_type === 'divisi', function ($query) use ($role) {
-                $query->whereIn('users.divisi_id', $role->filter_data ?? []);
+            ->when($role->filter_type === 'divisi', function (Builder $builder) use ($role): void {
+                $builder->whereIn('users.divisi_id', $role->filter_data ?? []);
             })
-            ->when($role->filter_type === 'region', function ($query) use ($role) {
-                $query->whereIn('users.region_id', $role->filter_data ?? []);
+            ->when($role->filter_type === 'region', function (Builder $builder) use ($role): void {
+                $builder->whereIn('users.region_id', $role->filter_data ?? []);
             })
-            ->when($role->filter_type === 'cluster', function ($query) use ($role) {
-                $query->whereIn('users.cluster_id', $role->filter_data ?? []);
+            ->when($role->filter_type === 'cluster', function (Builder $builder) use ($role): void {
+                $builder->whereIn('users.cluster_id', $role->filter_data ?? []);
             });
 
         return $query;

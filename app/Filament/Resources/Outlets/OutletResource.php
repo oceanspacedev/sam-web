@@ -27,15 +27,14 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -126,7 +125,7 @@ class OutletResource extends Resource
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Tanda Toko')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
@@ -137,7 +136,7 @@ class OutletResource extends Resource
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Depan')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
@@ -147,7 +146,7 @@ class OutletResource extends Resource
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Kiri')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
@@ -157,7 +156,7 @@ class OutletResource extends Resource
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Kanan')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
@@ -167,7 +166,7 @@ class OutletResource extends Resource
                                             ->disk(StorageDisk::default())
                                             ->label('Foto KTP Pemilik')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-ktp', $userId);
@@ -177,7 +176,7 @@ class OutletResource extends Resource
                                             ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mkv'])
                                             ->label('Video Toko')
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = auth()->id();
+                                                $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-video', $userId);
@@ -198,7 +197,11 @@ class OutletResource extends Resource
                                                 ->reactive()
                                                 ->placeholder('Pilih badan usaha')
                                                 ->options(function (callable $get) {
-                                                    $user = auth()->user();
+                                                    /** @var \App\Models\User|null $user */
+                                                    $user = Auth::user();
+                                                    if (! $user) {
+                                                        return [];
+                                                    }
                                                     $role = $user->role;
 
                                                     if ($role->filter_type === 'badanusaha') {
@@ -320,61 +323,75 @@ class OutletResource extends Resource
                     ->label('Kode Outlet')
                     ->searchable(),
                 TextColumn::make('badanusaha.name')
-                    ->label('Badan Usaha'),
+                    ->label('Badan Usaha')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('divisi.name')
-                    ->label('Divisi'),
+                    ->label('Divisi')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('region.name')
-                    ->label('Region'),
+                    ->label('Region')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('cluster.name')
-                    ->label('Cluster'),
+                    ->label('Cluster')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nama_outlet')
                     ->label('Nama Outlet')
                     ->searchable(),
                 TextColumn::make('nama_pemilik_outlet')
-                    ->label('Nama Pemilik Outlet'),
+                    ->label('Nama Pemilik Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nomer_tlp_outlet')
-                    ->label('Nomor Telepon Outlet'),
+                    ->label('Nomor Telepon Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('distric')
                     ->label('Distrik'),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('limit')
                     ->label('Limit'),
                 TextColumn::make('radius')
-                    ->label('Radius'),
+                    ->label('Radius')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status_outlet')
                     ->label('Status Outlet'),
                 TextColumn::make('created_at')
@@ -454,8 +471,7 @@ class OutletResource extends Resource
                 TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
 
-            ], layout: FiltersLayout::Modal)
-            ->filtersFormWidth(Width::Large)
+            ])
             ->recordActions([
                 EditAction::make(),
             ])
@@ -467,9 +483,8 @@ class OutletResource extends Resource
                     BulkAction::make('reset')
                         ->label('Reset Data Outlet')
                         ->icon('heroicon-o-building-storefront')
-                        ->action(function (Collection $records) {
-                            foreach ($records as $record) {
-                                // Hapus file yang terkait dengan kolom gambar/video
+                        ->action(function (Collection $records): void {
+                            $records->each(function (Outlet $record): void {
                                 if ($record->poto_shop_sign) {
                                     Storage::disk(StorageDisk::default())->delete($record->poto_shop_sign);
                                 }
@@ -489,7 +504,6 @@ class OutletResource extends Resource
                                     Storage::disk(StorageDisk::default())->delete($record->video);
                                 }
 
-                                // Reset kolom data menjadi null
                                 $record->update([
                                     'nama_pemilik_outlet' => null,
                                     'nomer_tlp_outlet' => null,
@@ -501,7 +515,7 @@ class OutletResource extends Resource
                                     'poto_ktp' => null,
                                     'video' => null,
                                 ]);
-                            }
+                            });
                         })
                         ->authorize(fn () => Gate::allows('reset_any_outlet')),
                 ]),
@@ -512,7 +526,12 @@ class OutletResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where(function ($query) {
-                $user = auth()->user();
+                /** @var \App\Models\User|null $user */
+                /** @var \App\Models\User|null $user */
+                $user = Auth::user();
+                if (! $user) {
+                    return;
+                }
                 $role = $user->role;
                 switch ($role->filter_type) {
                     case 'badanusaha':

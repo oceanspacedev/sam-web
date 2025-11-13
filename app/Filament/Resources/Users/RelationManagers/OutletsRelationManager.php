@@ -39,64 +39,80 @@ class OutletsRelationManager extends RelationManager
                 TextColumn::make('kode_outlet')
                     ->label('Kode Outlet')
                     ->searchable(),
-                TextColumn::make('badanusaha.name')
-                    ->label('Badan Usaha'),
-                TextColumn::make('divisi.name')
-                    ->label('Divisi'),
-                TextColumn::make('region.name')
-                    ->label('Region'),
-                TextColumn::make('cluster.name')
-                    ->label('Cluster'),
                 TextColumn::make('nama_outlet')
                     ->label('Nama Outlet')
                     ->searchable(),
+                TextColumn::make('status_outlet')
+                    ->label('Status Outlet'),
+                TextColumn::make('badanusaha.name')
+                    ->label('Badan Usaha')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('divisi.name')
+                    ->label('Divisi')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('region.name')
+                    ->label('Region')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('cluster.name')
+                    ->label('Cluster')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nama_pemilik_outlet')
-                    ->label('Nama Pemilik Outlet'),
+                    ->label('Nama Pemilik Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('nomer_tlp_outlet')
-                    ->label('Nomor Telepon Outlet'),
+                    ->label('Nomor Telepon Outlet')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('distric')
-                    ->label('Distrik'),
+                    ->label('Distrik')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
                     ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
-                    ->color('primary'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('limit')
-                    ->label('Limit'),
+                    ->label('Limit')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('radius')
-                    ->label('Radius'),
+                    ->label('Radius')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
-                    ->color('primary'),
-                TextColumn::make('status_outlet')
-                    ->label('Status Outlet'),
+                    ->color('primary')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->label('Tanggal Dibuat')
                     ->date('d M Y')
@@ -189,6 +205,7 @@ class OutletsRelationManager extends RelationManager
                         ->label('Reset Data Outlet')
                         ->icon('heroicon-o-building-storefront')
                         ->action(function (Collection $records) {
+                            /** @var Outlet $record */
                             foreach ($records as $record) {
                                 if ($record->poto_shop_sign) {
                                     Storage::disk(StorageDisk::default())->delete($record->poto_shop_sign);

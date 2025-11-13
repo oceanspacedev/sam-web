@@ -33,7 +33,8 @@ class VisitsRelationManager extends RelationManager
                     ->date('d M Y'),
                 TextColumn::make('user.nama_lengkap')
                     ->label('Nama')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('outlet.nama_outlet')
                     ->label('Nama Outlet')
                     ->searchable(),
@@ -43,32 +44,39 @@ class VisitsRelationManager extends RelationManager
                     ->label('Lokasi Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong_out')
                     ->label('Lokasi Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('check_in_time')
                     ->label('Jam Check-In')
-                    ->time(),
+                    ->time()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('check_out_time')
                     ->label('Jam Check-Out')
-                    ->time(),
+                    ->time()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('picture_visit_in')
                     ->label('Foto Check-In')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('picture_visit_out')
                     ->label('Foto Check-Out')
                     ->color('primary')
                     ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true),
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('transaksi')
                     ->label('Transaksi'),
                 TextColumn::make('durasi_visit')
-                    ->label('Durasi Visit'),
+                    ->label('Durasi Visit')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->label('Tanggal Dibuat')
                     ->date('d M Y')

@@ -54,7 +54,7 @@ class GenerateTemplateJobsTest extends TestCase
             return $notification->userId === 7
                 && $notification->title === 'Template Outlet Siap'
                 && $notification->downloadPath === $expectedPath
-                && $notification->body === 'Template outlet (mode: CREATE) sudah siap diunduh.';
+                && $notification->body === 'Template import create outlet sudah siap diunduh.';
         });
 
         Carbon::setTestNow();

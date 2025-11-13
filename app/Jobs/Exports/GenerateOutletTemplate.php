@@ -38,7 +38,7 @@ class GenerateOutletTemplate implements ShouldQueue
         SendImportNotification::dispatch(
             $this->userId,
             'Template Outlet Siap',
-            'Template outlet (mode: '.Str::upper($mode).') sudah siap diunduh.',
+            'Template import '.Str::lower($mode).' outlet sudah siap diunduh.',
             true,
             $path
         );

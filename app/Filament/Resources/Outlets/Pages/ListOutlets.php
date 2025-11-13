@@ -91,7 +91,7 @@ class ListOutlets extends ListRecords
 
                                     Notification::make()
                                         ->title('Template sedang diproses')
-                                        ->body('Kami akan mengirim notifikasi ketika template outlet (mode: CREATE) siap diunduh.')
+                                        ->body('Mulai menyiapkan template import create outlet, proses akan berjalan di belakang layar.')
                                         ->success()
                                         ->send();
                                 }),
@@ -129,7 +129,7 @@ class ListOutlets extends ListRecords
 
                                     Notification::make()
                                         ->title('Template sedang diproses')
-                                        ->body('Kami akan mengirim notifikasi ketika template outlet (mode: UPDATE) siap diunduh.')
+                                        ->body('Mulai menyiapkan template import update outlet, proses akan berjalan di belakang layar.')
                                         ->success()
                                         ->send();
                                 }),

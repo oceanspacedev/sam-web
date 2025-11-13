@@ -80,7 +80,7 @@ class ListPlanVisits extends ListRecords
 
                                     Notification::make()
                                         ->title('Template sedang diproses')
-                                        ->body('Kami akan mengirim notifikasi ketika template plan visit siap diunduh.')
+                                        ->body('Mulai menyiapkan template import plan visit, proses akan berjalan di belakang layar.')
                                         ->success()
                                         ->send();
                                 }),

@@ -2,12 +2,14 @@
 
 namespace App\Imports;
 
+use App\Exports\OutletImportErrorsExport;
 use App\Jobs\SendImportNotification;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
+use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
@@ -18,7 +20,9 @@ use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Events\AfterImport;
+use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Row;
+use Throwable;
 
 class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEvents, WithHeadingRow
 {
@@ -70,14 +74,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
             if ($existing && $this->mode === 'create') {
                 $this->incrementSkipped();
-                $this->rememberError($rowIndex, $data, 'Outlet sudah terdaftar, dilewati karena mode CREATE.');
-
-                return;
-            }
-
-            if (! $existing && $this->mode === 'update') {
-                $this->incrementSkipped();
-                $this->rememberError($rowIndex, $data, 'Outlet tidak ditemukan, tidak dapat diproses pada mode UPDATE.');
+                $this->rememberError($rowIndex, $data, 'Kode outlet sudah dipakai di outlet lain.');
 
                 return;
             }
@@ -185,39 +182,65 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
                 $isEmpty = $processed === 0 && $errorCount === 0;
 
-                $lines = [
-                    'Mode: '.strtoupper($this->mode),
-                    'Diproses: '.$processed,
-                    'Dibuat: '.$created,
-                    'Diperbarui: '.$updated,
-                    'Dilewati: '.$skipped,
+                $modeLabel = match ($this->mode) {
+                    'create' => 'Create',
+                    'update' => 'Update',
+                    default => 'Upsert',
+                };
+
+                $messageParts = [
+                    "Import {$modeLabel} data outlet selesai.",
+                    'Sebanyak '.number_format($processed).' '.str('baris')->plural($processed).' diproses.',
                 ];
 
-                if ($isEmpty) {
-                    $lines[] = 'Tidak ada baris data yang diproses. Pastikan data dimulai pada baris kedua dan sheet yang diunggah sudah terisi.';
-                    $lines[] = 'Periksa kembali bahwa nama kolom mengikuti template (contoh: badan_usaha_baru, divisi_baru, region_baru, cluster_baru).';
-                    $lines[] = 'Jika Anda menguji validasi hierarki, gunakan nilai yang benar-benar terdaftar untuk melihat pesan detail kesalahan.';
+                if ($created > 0) {
+                    $messageParts[] = number_format($created).' '.str('baris')->plural($created).' berhasil dibuat.';
                 }
+
+                if ($updated > 0) {
+                    $messageParts[] = number_format($updated).' '.str('baris')->plural($updated).' berhasil diperbarui.';
+                }
+
+                if ($skipped > 0) {
+                    $messageParts[] = number_format($skipped).' '.str('baris')->plural($skipped).' dilewati.';
+                }
+
+                if ($errorCount === 0 && $created === 0 && $updated === 0) {
+                    $messageParts[] = 'Tidak ada baris yang berhasil diproses. Periksa kembali template sebelum mengunggah ulang.';
+                }
+
+                $downloadPath = null;
+                $errorsForExport = $summary['errors_export'] ?? $this->errors;
 
                 if ($errorCount > 0) {
-                    $lines[] = 'Gagal: '.$errorCount;
-                    $lines[] = 'Detail:';
+                    $downloadPath = $this->storeErrorReport($errorsForExport);
 
-                    foreach (array_slice($errorDetails, 0, 5) as $error) {
-                        $code = $error['kode_outlet'] ? ' ['.$error['kode_outlet'].']' : '';
-                        $lines[] = '- Baris '.$error['row'].$code.': '.$error['message'];
-                    }
+                    $messageParts[] = number_format($errorCount).' '.str('baris')->plural($errorCount).' perlu diperbaiki.';
 
-                    if ($errorCount > 5) {
-                        $lines[] = '- dan lainnya...';
+                    if ($downloadPath) {
+                        $messageParts[] = 'Detail lengkap tersedia di file Excel terlampir.';
                     }
                 }
+
+                $body = implode(' ', $messageParts);
+
+                $downloads = $downloadPath
+                    ? [
+                        [
+                            'name' => 'download_xlsx',
+                            'label' => 'Unduh .xlsx',
+                            'path' => $downloadPath,
+                        ],
+                    ]
+                    : null;
 
                 SendImportNotification::dispatch(
                     $this->userId,
                     'Import Data Outlet',
-                    implode("\n", $lines),
-                    $errorCount === 0 && ! $isEmpty
+                    $body,
+                    $errorCount === 0 && ! $isEmpty,
+                    $downloadPath,
+                    $downloads
                 );
 
                 $this->flushSummary();
@@ -378,26 +401,57 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     private function rememberError(int $rowIndex, array $row, string $message): void
     {
         $code = $this->extractOutletCode($row);
+        $columns = $this->buildExportColumns($row);
 
-        $this->errors[] = [
+        $error = [
             'row' => $rowIndex,
             'message' => $message,
             'kode_outlet' => $code,
+            'columns' => $columns,
         ];
 
-        $this->mutateSummary(function (array &$summary) use ($rowIndex, $message, $code): void {
+        $this->errors[] = $error;
+
+        $this->mutateSummary(function (array &$summary) use ($error): void {
+            $summary['errors'] ??= [];
+            $summary['errors_export'] ??= [];
+
             $summary['error_total']++;
+
+            $summary['errors_export'][] = $error;
 
             if (count($summary['errors']) >= self::ERROR_SAMPLE_LIMIT) {
                 return;
             }
 
-            $summary['errors'][] = [
-                'row' => $rowIndex,
-                'message' => $message,
-                'kode_outlet' => $code,
-            ];
+            $summary['errors'][] = $error;
         });
+    }
+
+    /**
+     * @return array<string, ?string>
+     */
+    private function buildExportColumns(array $row): array
+    {
+        $map = [
+            'badan_usaha' => ['badan_usaha', 'badan_usaha_baru'],
+            'divisi' => ['divisi', 'divisi_baru'],
+            'region' => ['region', 'region_baru'],
+            'cluster' => ['cluster', 'cluster_baru'],
+            'kode_outlet' => ['kode_outlet', 'kode_outlet_baru'],
+            'nama_outlet' => ['nama_outlet', 'nama_outlet_baru'],
+            'alamat_outlet' => ['alamat_outlet', 'alamat_outlet_baru'],
+            'distric' => ['distric', 'distric_baru'],
+            'limit' => ['limit', 'limit_baru'],
+        ];
+
+        $columns = [];
+
+        foreach ($map as $key => $candidates) {
+            $columns[$key] = $this->firstFilled($row, $candidates);
+        }
+
+        return $columns;
     }
 
     private function extractOutletCode(array $row): ?string
@@ -483,6 +537,37 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             'skipped' => 0,
             'error_total' => 0,
             'errors' => [],
+            'errors_export' => [],
         ];
+    }
+
+    /**
+     * @param  array<int, array{row:int,message:string,kode_outlet:?string,columns:array<string,?string>}>  $errors
+     */
+    private function storeErrorReport(array $errors): ?string
+    {
+        if ($this->userId === null || $errors === []) {
+            return null;
+        }
+
+        $path = sprintf(
+            'imports/outlets/errors/%s/outlet-import-errors-%s.xlsx',
+            $this->userId,
+            now()->format('Ymd_His')
+        );
+
+        try {
+            Excel::store(new OutletImportErrorsExport($errors), $path, StorageDisk::default());
+
+            return $path;
+        } catch (Throwable $exception) {
+            Log::warning('Gagal menyimpan laporan error import outlet', [
+                'user_id' => $this->userId,
+                'path' => $path,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }

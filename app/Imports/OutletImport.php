@@ -30,6 +30,36 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
     private const ERROR_SAMPLE_LIMIT = 20;
 
+    private const EXPORT_BASE_FIELDS = [
+        'badan_usaha',
+        'divisi',
+        'region',
+        'cluster',
+        'kode_outlet',
+        'nama_outlet',
+        'nama_pemilik_outlet',
+        'nomer_tlp_outlet',
+        'alamat_outlet',
+        'distric',
+        'limit',
+        'status_outlet',
+    ];
+
+    private const EXPORT_UPDATE_FIELDS = [
+        'badan_usaha_baru',
+        'divisi_baru',
+        'region_baru',
+        'cluster_baru',
+        'kode_outlet_baru',
+        'nama_outlet_baru',
+        'nama_pemilik_outlet_baru',
+        'nomer_tlp_outlet_baru',
+        'alamat_outlet_baru',
+        'distric_baru',
+        'limit_baru',
+        'status_outlet_baru',
+    ];
+
     private string $mode;
 
     private ?int $userId;
@@ -43,7 +73,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     private int $skipped = 0;
 
     /**
-     * @var array<int, array{row:int,message:string,kode_outlet:?string}>
+     * @var array<int, array{row:int,message:string,kode_outlet:?string,columns:array<string,?string>}>
      */
     private array $errors = [];
 
@@ -64,93 +94,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         $data = $row->toArray();
 
         try {
-            $lookupCode = $this->normalizeOutletCode($this->requireValue($data, ['kode_outlet'], 'kode_outlet'));
-
-            if ($lookupCode === null) {
-                throw new Exception('Kolom kode_outlet wajib diisi.');
-            }
-
-            $existing = Outlet::where('kode_outlet', $lookupCode)->first();
-
-            if ($existing && $this->mode === 'create') {
-                $this->incrementSkipped();
-                $this->rememberError($rowIndex, $data, 'Kode outlet sudah dipakai di outlet lain.');
-
-                return;
-            }
-
-            $targetBadanUsahaName = $this->requireValue($data, ['badan_usaha_baru', 'badan_usaha'], 'badan_usaha');
-            $targetDivisiName = $this->requireValue($data, ['divisi_baru', 'divisi'], 'divisi');
-            $targetRegionName = $this->requireValue($data, ['region_baru', 'region'], 'region');
-            $targetClusterName = $this->requireValue($data, ['cluster_baru', 'cluster'], 'cluster');
-
-            $badanusahaId = $this->getBadanUsahaId($targetBadanUsahaName);
-            $divisiId = $this->getDivisionId($targetDivisiName, $badanusahaId);
-            $regionId = $this->getRegionId($targetRegionName, $divisiId, $badanusahaId);
-            $clusterId = $this->getClusterId($targetClusterName, $badanusahaId, $divisiId, $regionId);
-
-            $targetKodeOutlet = $this->normalizeOutletCode(
-                $this->requireValue($data, ['kode_outlet_baru', 'kode_outlet'], 'kode_outlet')
-            );
-
-            if ($targetKodeOutlet === null) {
-                throw new Exception('Kolom kode_outlet wajib diisi.');
-            }
-
-            $payload = [
-                'badanusaha_id' => $badanusahaId,
-                'divisi_id' => $divisiId,
-                'region_id' => $regionId,
-                'cluster_id' => $clusterId,
-                'kode_outlet' => $targetKodeOutlet,
-                'nama_outlet' => $this->uppercase(
-                    $this->requireValue($data, ['nama_outlet_baru', 'nama_outlet'], 'nama_outlet', $existing?->nama_outlet)
-                ),
-                'alamat_outlet' => $this->uppercase(
-                    $this->firstFilled($data, ['alamat_outlet_baru', 'alamat_outlet'], $existing?->alamat_outlet)
-                ),
-                'distric' => $this->uppercase(
-                    $this->firstFilled($data, ['distric_baru', 'distric'], $existing?->distric)
-                ),
-                'limit' => $this->resolveInteger(
-                    $this->firstFilled($data, ['limit_baru', 'limit']),
-                    $existing?->limit ?? 0
-                ),
-                'status_outlet' => $this->uppercase(
-                    $this->firstFilled($data, ['status_outlet_baru', 'status_outlet', 'status'], $existing?->status_outlet ?? 'MAINTAIN')
-                ),
-                'nama_pemilik_outlet' => $this->uppercase(
-                    $this->firstFilled($data, ['nama_pemilik_outlet_baru', 'nama_pemilik_outlet'], $existing?->nama_pemilik_outlet)
-                ),
-                'nomer_tlp_outlet' => $this->sanitizeString(
-                    $this->firstFilled($data, ['nomer_tlp_outlet_baru', 'nomer_tlp_outlet'], $existing?->nomer_tlp_outlet)
-                ),
-            ];
-
-            if ($existing) {
-                $existing->fill(
-                    array_filter(
-                        $payload,
-                        static fn ($value) => $value !== null,
-                    ),
-                );
-                $existing->save();
-                $this->incrementUpdated();
-
-                return;
-            }
-
-            $payload['radius'] = $this->resolveInteger($this->firstFilled($data, ['radius']), 100);
-            $payload['latlong'] = $this->sanitizeString($this->firstFilled($data, ['latlong']));
-
-            Outlet::create(
-                array_filter(
-                    $payload,
-                    static fn ($value) => $value !== null,
-                ),
-            );
-
-            $this->incrementCreated();
+            $this->processRowData($data, $rowIndex, persistNew: true, trackSummary: true);
         } catch (Exception $e) {
             $this->rememberError($rowIndex, $data, $e->getMessage());
             Log::warning('Outlet import error', [
@@ -159,6 +103,119 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 'message' => $e->getMessage(),
             ]);
         }
+    }
+
+    public function model(array $row, int $rowIndex = 1): ?Outlet
+    {
+        return $this->processRowData($row, $rowIndex, persistNew: false, trackSummary: false);
+    }
+
+    private function processRowData(array $data, int $rowIndex, bool $persistNew, bool $trackSummary): ?Outlet
+    {
+        $lookupCode = $this->normalizeOutletCode($this->requireValue($data, ['kode_outlet'], 'kode_outlet'));
+
+        if ($lookupCode === null) {
+            throw new Exception('Kolom kode_outlet wajib diisi.');
+        }
+
+        $existing = Outlet::where('kode_outlet', $lookupCode)->first();
+
+        if ($existing && $this->mode === 'create') {
+            $message = 'Kode outlet sudah dipakai di outlet lain.';
+
+            if ($trackSummary) {
+                $this->incrementSkipped();
+                $this->rememberError($rowIndex, $data, $message);
+
+                return null;
+            }
+
+            throw new Exception($message);
+        }
+
+        $targetBadanUsahaName = $this->requireValue($data, ['badan_usaha_baru', 'badan_usaha'], 'badan_usaha');
+        $targetDivisiName = $this->requireValue($data, ['divisi_baru', 'divisi'], 'divisi');
+        $targetRegionName = $this->requireValue($data, ['region_baru', 'region'], 'region');
+        $targetClusterName = $this->requireValue($data, ['cluster_baru', 'cluster'], 'cluster');
+
+        $badanusahaId = $this->getBadanUsahaId($targetBadanUsahaName);
+        $divisiId = $this->getDivisionId($targetDivisiName, $badanusahaId);
+        $regionId = $this->getRegionId($targetRegionName, $divisiId, $badanusahaId);
+        $clusterId = $this->getClusterId($targetClusterName, $badanusahaId, $divisiId, $regionId);
+
+        $targetKodeOutlet = $this->normalizeOutletCode(
+            $this->requireValue($data, ['kode_outlet_baru', 'kode_outlet'], 'kode_outlet')
+        );
+
+        if ($targetKodeOutlet === null) {
+            throw new Exception('Kolom kode_outlet wajib diisi.');
+        }
+
+        $payload = [
+            'badanusaha_id' => $badanusahaId,
+            'divisi_id' => $divisiId,
+            'region_id' => $regionId,
+            'cluster_id' => $clusterId,
+            'kode_outlet' => $targetKodeOutlet,
+            'nama_outlet' => $this->uppercase(
+                $this->requireValue($data, ['nama_outlet_baru', 'nama_outlet'], 'nama_outlet', $existing?->nama_outlet)
+            ),
+            'alamat_outlet' => $this->uppercase(
+                $this->firstFilled($data, ['alamat_outlet_baru', 'alamat_outlet'], $existing?->alamat_outlet)
+            ),
+            'distric' => $this->uppercase(
+                $this->firstFilled($data, ['distric_baru', 'distric'], $existing?->distric)
+            ),
+            'limit' => $this->resolveInteger(
+                $this->firstFilled($data, ['limit_baru', 'limit']),
+                $existing?->limit ?? 0
+            ),
+            'status_outlet' => $this->uppercase(
+                $this->firstFilled($data, ['status_outlet_baru', 'status_outlet', 'status'], $existing?->status_outlet ?? 'MAINTAIN')
+            ),
+            'nama_pemilik_outlet' => $this->uppercase(
+                $this->firstFilled($data, ['nama_pemilik_outlet_baru', 'nama_pemilik_outlet'], $existing?->nama_pemilik_outlet)
+            ),
+            'nomer_tlp_outlet' => $this->sanitizeString(
+                $this->firstFilled($data, ['nomer_tlp_outlet_baru', 'nomer_tlp_outlet'], $existing?->nomer_tlp_outlet)
+            ),
+        ];
+
+        if ($existing) {
+            $existing->fill(
+                array_filter(
+                    $payload,
+                    static fn ($value) => $value !== null,
+                ),
+            );
+            $existing->save();
+
+            if ($trackSummary) {
+                $this->incrementUpdated();
+            }
+
+            return null;
+        }
+
+        $payload['radius'] = $this->resolveInteger($this->firstFilled($data, ['radius']), 100);
+        $payload['latlong'] = $this->sanitizeString($this->firstFilled($data, ['latlong']));
+
+        $attributes = array_filter(
+            $payload,
+            static fn ($value) => $value !== null,
+        );
+
+        if ($persistNew) {
+            Outlet::create($attributes);
+
+            if ($trackSummary) {
+                $this->incrementCreated();
+            }
+
+            return null;
+        }
+
+        return Outlet::make($attributes);
     }
 
     public function registerEvents(): array
@@ -178,11 +235,11 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 $updated = max($summary['updated'], $this->updated);
                 $skipped = max($summary['skipped'], $this->skipped);
                 $errorCount = $summary['error_total'] ?? count($this->errors);
-                $errorDetails = $summary['errors'] ?? $this->errors;
+                $mode = $summary['mode'] ?? $this->mode;
 
                 $isEmpty = $processed === 0 && $errorCount === 0;
 
-                $modeLabel = match ($this->mode) {
+                $modeLabel = match ($mode) {
                     'create' => 'Create',
                     'update' => 'Update',
                     default => 'Upsert',
@@ -206,16 +263,16 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 }
 
                 if ($errorCount === 0 && $created === 0 && $updated === 0) {
-                    $messageParts[] = 'Tidak ada baris yang berhasil diproses. Periksa kembali template sebelum mengunggah ulang.';
+                    $messageParts[] = 'Tidak ada baris data yang diproses. Periksa kembali template sebelum mengunggah ulang.';
                 }
 
                 $downloadPath = null;
                 $errorsForExport = $summary['errors_export'] ?? $this->errors;
 
                 if ($errorCount > 0) {
-                    $downloadPath = $this->storeErrorReport($errorsForExport);
+                    $downloadPath = $this->storeErrorReport($errorsForExport, $mode);
 
-                    $messageParts[] = number_format($errorCount).' '.str('baris')->plural($errorCount).' perlu diperbaiki.';
+                    $messageParts[] = number_format($errorCount).' '.str('baris')->plural($errorCount).' gagal diproses dan perlu diperbaiki.';
 
                     if ($downloadPath) {
                         $messageParts[] = 'Detail lengkap tersedia di file Excel terlampir.';
@@ -236,7 +293,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
                 SendImportNotification::dispatch(
                     $this->userId,
-                    'Import Data Outlet',
+                    'Import Data Outlet Selesai',
                     $body,
                     $errorCount === 0 && ! $isEmpty,
                     $downloadPath,
@@ -308,6 +365,11 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         $value = $this->sanitizeString($value);
 
         return $value === null ? null : mb_strtoupper(str_replace(' ', '', $value));
+    }
+
+    private function normalizeName(string $value): string
+    {
+        return Str::upper(str_replace(' ', '', $value));
     }
 
     private function resolveInteger(?string $value, int $default): int
@@ -393,11 +455,6 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         return $cluster->id;
     }
 
-    private function normalizeName(string $value): string
-    {
-        return preg_replace('/\s+/', '', mb_strtoupper($value));
-    }
-
     private function rememberError(int $rowIndex, array $row, string $message): void
     {
         $code = $this->extractOutletCode($row);
@@ -415,6 +472,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         $this->mutateSummary(function (array &$summary) use ($error): void {
             $summary['errors'] ??= [];
             $summary['errors_export'] ??= [];
+            $summary['mode'] ??= $this->mode;
 
             $summary['error_total']++;
 
@@ -433,22 +491,14 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
      */
     private function buildExportColumns(array $row): array
     {
-        $map = [
-            'badan_usaha' => ['badan_usaha', 'badan_usaha_baru'],
-            'divisi' => ['divisi', 'divisi_baru'],
-            'region' => ['region', 'region_baru'],
-            'cluster' => ['cluster', 'cluster_baru'],
-            'kode_outlet' => ['kode_outlet', 'kode_outlet_baru'],
-            'nama_outlet' => ['nama_outlet', 'nama_outlet_baru'],
-            'alamat_outlet' => ['alamat_outlet', 'alamat_outlet_baru'],
-            'distric' => ['distric', 'distric_baru'],
-            'limit' => ['limit', 'limit_baru'],
-        ];
-
         $columns = [];
 
-        foreach ($map as $key => $candidates) {
-            $columns[$key] = $this->firstFilled($row, $candidates);
+        foreach (self::EXPORT_BASE_FIELDS as $field) {
+            $columns[$field] = $this->sanitizeString($row[$field] ?? null);
+        }
+
+        foreach (self::EXPORT_UPDATE_FIELDS as $field) {
+            $columns[$field] = $this->sanitizeString($row[$field] ?? null);
         }
 
         return $columns;
@@ -538,13 +588,14 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             'error_total' => 0,
             'errors' => [],
             'errors_export' => [],
+            'mode' => $this->mode,
         ];
     }
 
     /**
      * @param  array<int, array{row:int,message:string,kode_outlet:?string,columns:array<string,?string>}>  $errors
      */
-    private function storeErrorReport(array $errors): ?string
+    private function storeErrorReport(array $errors, string $mode): ?string
     {
         if ($this->userId === null || $errors === []) {
             return null;
@@ -557,7 +608,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         );
 
         try {
-            Excel::store(new OutletImportErrorsExport($errors), $path, StorageDisk::default());
+            Excel::store(new OutletImportErrorsExport($errors, $mode), $path, StorageDisk::default());
 
             return $path;
         } catch (Throwable $exception) {

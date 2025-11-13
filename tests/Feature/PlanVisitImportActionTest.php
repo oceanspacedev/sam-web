@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Filament\Resources\PlanVisits\Pages\ListPlanVisits;
 use App\Imports\PlanVisitImport;
 use App\Jobs\CleanupUploadedImportFile;
-use App\Jobs\SendImportNotification;
 use App\Models\User;
 use App\Support\StorageDisk;
 use Filament\Facades\Filament;
@@ -59,11 +58,6 @@ class PlanVisitImportActionTest extends TestCase
 
         Excel::assertQueuedWithChain([
             new CleanupUploadedImportFile($disk, $filePath),
-            new SendImportNotification(
-                $user->id,
-                'Import Plan Visit',
-                'Import plan visit berhasil diproses.'
-            ),
         ]);
     }
 }

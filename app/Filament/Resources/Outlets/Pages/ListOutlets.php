@@ -170,7 +170,7 @@ class ListOutlets extends ListRecords
 
                         Notification::make()
                             ->title('Import sedang diproses')
-                            ->body('Data akan diproses di latar belakang. Jika terjadi kendala, silakan cek log queue.')
+                            ->body('Mulai mengimport data outlet, proses akan berjalan di belakang layar.')
                             ->success()
                             ->send();
                     } catch (Throwable $e) {
@@ -184,7 +184,7 @@ class ListOutlets extends ListRecords
                             SendImportNotification::dispatch(
                                 $userId,
                                 'Import Data Outlet',
-                                'Import data outlet (mode: '.strtoupper($mode).') gagal diproses. Silakan cek log queue.',
+                                'Import data outlet (mode: '.strtoupper($mode).') gagal diproses. Silakan hubungi tim IT.',
                                 false
                             );
                         }

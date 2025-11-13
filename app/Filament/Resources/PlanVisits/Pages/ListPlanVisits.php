@@ -106,20 +106,12 @@ class ListPlanVisits extends ListRecords
                     $userId = Auth::id();
 
                     try {
-                        $pendingDispatch = Excel::queueImport(new PlanVisitImport, $relativePath, $disk);
+                        $pendingDispatch = Excel::queueImport(new PlanVisitImport($userId), $relativePath, $disk);
 
                         if ($pendingDispatch) {
                             $jobs = [
                                 new CleanupUploadedImportFile($disk, $relativePath),
                             ];
-
-                            if ($userId) {
-                                $jobs[] = new SendImportNotification(
-                                    $userId,
-                                    'Import Plan Visit',
-                                    'Import plan visit berhasil diproses.'
-                                );
-                            }
 
                             $pendingDispatch->chain($jobs);
                         }
@@ -139,7 +131,7 @@ class ListPlanVisits extends ListRecords
                         if ($userId) {
                             SendImportNotification::dispatch(
                                 $userId,
-                                'Import Plan Visit',
+                                'Import Plan Visit Gagal',
                                 'Import plan visit gagal diproses. Silakan cek log queue.',
                                 false
                             );

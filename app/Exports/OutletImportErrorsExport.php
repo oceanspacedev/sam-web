@@ -2,7 +2,9 @@
 
 namespace App\Exports;
 
+use App\Exports\Templates\OutletCreatedTemplate;
 use App\Exports\Templates\OutletHierarchyMasterTemplate;
+use App\Exports\Templates\OutletUpdatedTemplate;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -18,12 +20,12 @@ class OutletImportErrorsExport implements WithMultipleSheets
     /**
      * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
      */
-    public function __construct(private array $rows) {}
+    public function __construct(private array $rows, private string $mode) {}
 
     public function sheets(): array
     {
         return [
-            new OutletImportErrorsSummarySheet($this->rows),
+            new OutletImportErrorsSummarySheet($this->rows, $this->mode),
             new OutletHierarchyMasterTemplate,
         ];
     }
@@ -34,19 +36,21 @@ class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, 
     /**
      * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
      */
-    public function __construct(private array $rows) {}
+    public function __construct(private array $rows, private string $mode) {}
 
     public function collection(): Collection
     {
-        return collect($this->rows)->map(function (array $row): array {
+        $columnHeadings = $this->columnHeadings();
+
+        return collect($this->rows)->map(function (array $row) use ($columnHeadings): array {
             $columns = $row['columns'] ?? [];
 
             $exportRow = [
                 'message' => $row['message'],
             ];
 
-            foreach (self::COLUMN_LABELS as $key => $label) {
-                $exportRow[$key] = $columns[$key] ?? '-';
+            foreach ($columnHeadings as $column) {
+                $exportRow[$column] = $columns[$column] ?? '-';
             }
 
             return $exportRow;
@@ -55,9 +59,11 @@ class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, 
 
     public function headings(): array
     {
+        $columnHeadings = $this->columnHeadings();
+
         return array_merge([
             'Pesan',
-        ], array_values(self::COLUMN_LABELS));
+        ], $columnHeadings);
     }
 
     public function title(): string
@@ -65,15 +71,25 @@ class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, 
         return 'Ringkasan Error';
     }
 
-    private const COLUMN_LABELS = [
-        'badan_usaha' => 'Badan Usaha',
-        'divisi' => 'Divisi',
-        'region' => 'Region',
-        'cluster' => 'Cluster',
-        'kode_outlet' => 'Kode Outlet',
-        'nama_outlet' => 'Nama Outlet',
-        'alamat_outlet' => 'Alamat Outlet',
-        'distric' => 'Distric',
-        'limit' => 'Limit',
-    ];
+    /**
+     * @return array<string, string>
+     */
+    private function columnHeadings(): array
+    {
+        return match ($this->mode) {
+            'create' => $this->createdTemplateHeadings(),
+            'update' => $this->updatedTemplateHeadings(),
+            default => $this->updatedTemplateHeadings(),
+        };
+    }
+
+    private function createdTemplateHeadings(): array
+    {
+        return (new OutletCreatedTemplate)->headings();
+    }
+
+    private function updatedTemplateHeadings(): array
+    {
+        return (new OutletUpdatedTemplate)->headings();
+    }
 }

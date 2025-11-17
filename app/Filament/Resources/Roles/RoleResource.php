@@ -133,6 +133,10 @@ class RoleResource extends Resource
                     ->label('Jumlah Izin')
                     ->badge()
                     ->counts('permissions'),
+                TextColumn::make('user_count')
+                    ->label('Jumlah User')
+                    ->badge()
+                    ->counts('user'),
             ])
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)

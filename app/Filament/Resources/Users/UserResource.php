@@ -38,6 +38,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use STS\FilamentImpersonate\Actions\Impersonate as ImpersonateAction;
 
 class UserResource extends Resource
 {
@@ -377,6 +378,8 @@ class UserResource extends Resource
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                ImpersonateAction::make('impersonate')
+                    ->visible(fn (User $record): bool => (bool) $record->role?->can_access_web),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

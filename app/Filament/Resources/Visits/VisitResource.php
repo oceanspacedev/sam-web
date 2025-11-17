@@ -307,6 +307,22 @@ class VisitResource extends Resource
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
+                Filter::make('double_visit')
+                    ->label('Double Visit (User & Outlet & Tanggal)')
+                    ->toggle()
+                    ->query(function (Builder $query): Builder {
+                        return $query
+                            ->whereDate('tanggal_visit', Carbon::today())
+                            ->whereExists(function ($subQuery) {
+                                $subQuery->selectRaw('1')
+                                    ->from('visits as duplicates')
+                                    ->whereColumn('duplicates.user_id', 'visits.user_id')
+                                    ->whereColumn('duplicates.outlet_id', 'visits.outlet_id')
+                                    ->whereColumn('duplicates.tanggal_visit', 'visits.tanggal_visit')
+                                    ->whereColumn('duplicates.id', '!=', 'visits.id')
+                                    ->whereNull('duplicates.deleted_at');
+                            });
+                    }),
                 TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Visit::class)),
                 Filter::make('created_at')

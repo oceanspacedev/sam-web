@@ -48,19 +48,19 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // PlanVisit NOO endpoints removed
 
     // Register
-    Route::get('register/getbu', [RegisterController::class, 'getbu']);
-    Route::get('register/getdiv', [RegisterController::class, 'getdiv']);
-    Route::get('register/getreg', [RegisterController::class, 'getreg']);
-    Route::get('register/getclus', [RegisterController::class, 'getclus']);
-    Route::post('register', [RegisterController::class, 'submitNoo']);
-    Route::get('register/all', [RegisterController::class, 'all']);
-    Route::get('register', [RegisterController::class, 'fetch']);
-    Route::get('register/{kodeOutlet}', [RegisterController::class, 'singleOutlet']);
-    Route::get('register/outlet-options', [RegisterController::class, 'getRegisterOutlet']);
+    Route::get('noo/getbu', [RegisterController::class, 'getbu']);
+    Route::get('noo/getdiv', [RegisterController::class, 'getdiv']);
+    Route::get('noo/getreg', [RegisterController::class, 'getreg']);
+    Route::get('noo/getclus', [RegisterController::class, 'getclus']);
+    Route::post('noo', [RegisterController::class, 'submitNoo']);
+    Route::get('noo/all', [RegisterController::class, 'all']);
+    Route::get('noo', [RegisterController::class, 'fetch']);
+    Route::get('noo/{kodeOutlet}', [RegisterController::class, 'singleOutlet']);
+    Route::get('nooOutlet', [RegisterController::class, 'getRegisterOutlet']);
 
-    Route::post('register/confirm', [RegisterController::class, 'confirmNoo']);
-    Route::post('register/approved', [RegisterController::class, 'approveNoo']);
-    Route::post('register/reject', [RegisterController::class, 'rejectNoo']);
+    Route::post('noo/confirm', [RegisterController::class, 'confirmNoo']);
+    Route::post('noo/approved', [RegisterController::class, 'approveNoo']);
+    Route::post('noo/reject', [RegisterController::class, 'rejectNoo']);
 
     // LEAD
     Route::post('lead', [RegisterController::class, 'submitLead']);

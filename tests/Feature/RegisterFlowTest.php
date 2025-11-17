@@ -124,14 +124,14 @@ class RegisterFlowTest extends FeatureTestCase
             'video' => $video,
         ];
 
-        $resp = $this->post('/api/register', $payload);
+        $resp = $this->post('/api/noo', $payload);
         $resp->assertStatus(200);
 
         $register = Register::latest()->first();
         $this->assertNotNull($register);
 
         // Confirm
-        $confirm = $this->postJson('/api/register/confirm', [
+        $confirm = $this->postJson('/api/noo/confirm', [
             'id' => $register->id,
             'status' => 'CONFIRMED',
             'limit' => 1000000,
@@ -140,7 +140,7 @@ class RegisterFlowTest extends FeatureTestCase
         $confirm->assertStatus(200);
 
         // Approve
-        $approve = $this->postJson('/api/register/approved', [
+        $approve = $this->postJson('/api/noo/approved', [
             'id' => $register->id,
             'status' => 'APPROVED',
         ]);
@@ -188,11 +188,11 @@ class RegisterFlowTest extends FeatureTestCase
             'video' => $video,
         ];
 
-        $resp = $this->post('/api/register', $payload);
+        $resp = $this->post('/api/noo', $payload);
         $resp->assertStatus(200);
 
         $register = Register::latest()->first();
-        $reject = $this->postJson('/api/register/reject', [
+        $reject = $this->postJson('/api/noo/reject', [
             'id' => $register->id,
             'status' => 'REJECTED',
             'alasan' => 'Tidak memenuhi syarat',

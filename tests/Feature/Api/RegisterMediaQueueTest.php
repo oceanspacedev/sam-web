@@ -142,7 +142,7 @@ class RegisterMediaQueueTest extends FeatureTestCase
             'video' => UploadedFile::fake()->create('vid.mp4', 2000, 'video/mp4'),
         ];
 
-        $response = $this->post('/api/register', $payload, ['Accept' => 'application/json']);
+        $response = $this->post('/api/noo', $payload, ['Accept' => 'application/json']);
 
         // Debug: Check response status and content
         echo 'Response status: '.$response->getStatusCode().PHP_EOL;

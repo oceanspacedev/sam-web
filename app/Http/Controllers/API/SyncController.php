@@ -13,6 +13,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Visit;
 use App\Support\StorageDisk;
+use App\Services\FileUploadService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -694,7 +695,7 @@ class SyncController extends Controller
      * Notes:
      * - If `tanggal_visit` is not provided, today is assumed.
      * - If `check_in_time` / `check_out_time` are not provided, both default to now() and duration is 0.
-     * - Photos are stored in `storage/app/public/visits/in` and `storage/app/public/visits/out`.
+    * - Photos are stored using the flat storage naming convention (no nested directories).
      *
      * @unauthenticated
      *
@@ -752,20 +753,10 @@ class SyncController extends Controller
                 return ResponseFormatter::error(null, 'Visit untuk outlet ini sudah dibuat hari ini', 422);
             }
 
-            // Resolve username for file naming
-            $username = optional(User::find($request->user_id))->username ?? (string) $request->user_id;
-
-            $disk = StorageDisk::default();
-
-            // Store images (IN / OUT)
-            $inExt = $request->file('picture_visit_in')->guessExtension() ?: $request->file('picture_visit_in')->extension();
-            $outExt = $request->file('picture_visit_out')->guessExtension() ?: $request->file('picture_visit_out')->extension();
-
-            $imageNameIn = date('Y-m-d').'-'.$username.'-'.'IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$inExt;
-            $imageNameOut = date('Y-m-d').'-'.$username.'-'.'OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$outExt;
-
-            $pathIn = $request->file('picture_visit_in')->storeAs('visits/in', $imageNameIn, $disk);
-            $pathOut = $request->file('picture_visit_out')->storeAs('visits/out', $imageNameOut, $disk);
+            // Store images (IN / OUT) using optimized flat storage names
+            $fileUpload = app(FileUploadService::class);
+            $pathIn = $fileUpload->uploadImageOptimized($request->file('picture_visit_in'), 'visit-in');
+            $pathOut = $fileUpload->uploadImageOptimized($request->file('picture_visit_out'), 'visit-out');
 
             // Determine times and duration
             $checkInTime = $request->filled('check_in_time') ? Carbon::parse($request->check_in_time) : Carbon::now();

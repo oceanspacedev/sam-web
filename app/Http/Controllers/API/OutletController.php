@@ -327,10 +327,6 @@ class OutletController extends Controller
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
-            // Sanitasi kode outlet untuk path
-            $safeKode = preg_replace('/[^A-Za-z0-9._-]/', '_', $outlet->kode_outlet);
-            $baseDir = 'outlets/'.$safeKode;
-
             // Proses foto (mendukung photo0..4 dan photos[])
             $photoFiles = [];
             for ($i = 0; $i <= 4; $i++) {
@@ -346,9 +342,6 @@ class OutletController extends Controller
                     }
                 }
             }
-
-            $photosDir = $baseDir.'/photos';
-            $videosDir = $baseDir.'/videos';
 
             foreach ($photoFiles as $file) {
                 if (! $file->isValid()) {
@@ -369,9 +362,7 @@ class OutletController extends Controller
                 }
 
                 try {
-                    $path = $this->fileUpload->uploadImageOptimized($file, 'outlet-photo', [
-                        'directory' => $photosDir,
-                    ]);
+                    $path = $this->fileUpload->uploadImageOptimized($file, 'outlet-photo');
 
                     $this->deleteOutletMedia($outlet->{$targetField});
                     $outlet->{$targetField} = $path;
@@ -383,9 +374,7 @@ class OutletController extends Controller
             // Proses video (opsional)
             if ($request->hasFile('video')) {
                 try {
-                    $path = $this->fileUpload->uploadVideoOptimized($request->file('video'), 'outlet-video', [
-                        'directory' => $videosDir,
-                    ]);
+                    $path = $this->fileUpload->uploadVideoOptimized($request->file('video'), 'outlet-video');
 
                     $this->deleteOutletMedia($outlet->video);
                     $outlet->video = $path;

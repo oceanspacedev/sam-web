@@ -78,7 +78,7 @@ class LeadMediaQueueTest extends FeatureTestCase
 
         $register = Register::latest()->first();
         $this->assertNotNull($register);
-        $this->assertTrue(Str::startsWith($register->poto_depan, 'register/tmp/'));
+        $this->assertTrue(Str::startsWith($register->poto_depan, 'tmp/'));
 
         $this->assertFalse(
             Outlet::query()->where('kode_outlet', 'LEAD'.$register->id)->exists(),

@@ -73,12 +73,12 @@ class OutletUpdateFotoTest extends FeatureTestCase
 
         $outlet->refresh();
         $this->assertNotNull($outlet->poto_depan);
-        $this->assertStringStartsWith('outlets/OUT001/photos/', $outlet->poto_depan);
+        $this->assertStringStartsWith('op', $outlet->poto_depan);
         $disk = StorageDisk::default();
         $this->assertTrue(Storage::disk($disk)->exists($outlet->poto_depan));
 
         $this->assertNotNull($outlet->video);
-        $this->assertStringStartsWith('outlets/OUT001/videos/', $outlet->video);
+        $this->assertStringStartsWith('ov', $outlet->video);
         $this->assertTrue(Storage::disk($disk)->exists($outlet->video));
     }
 }

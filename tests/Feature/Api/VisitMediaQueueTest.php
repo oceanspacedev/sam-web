@@ -74,7 +74,7 @@ class VisitMediaQueueTest extends FeatureTestCase
 
         $visit = Visit::latest()->first();
         $this->assertNotNull($visit);
-        $this->assertTrue(Str::startsWith($visit->picture_visit_in, 'visits/tmp/in'));
+        $this->assertTrue(Str::startsWith($visit->picture_visit_in, 'tmp/'));
 
         Queue::assertPushed(ProcessMediaJob::class, function (ProcessMediaJob $job) use ($visit) {
             return $job->modelId === $visit->id && $job->modelType === 'visit' && count($job->mediaItems) === 1;
@@ -133,7 +133,7 @@ class VisitMediaQueueTest extends FeatureTestCase
             'tipe_visit' => 'ROUTINE',
             'latlong_in' => '0,0',
             'check_in_time' => now()->subMinutes(30),
-            'picture_visit_in' => 'visits/tmp/in/initial.jpg',
+            'picture_visit_in' => 'tmp/initial.jpg',
         ]);
 
         $response = $this->post('/api/visit', [
@@ -146,7 +146,7 @@ class VisitMediaQueueTest extends FeatureTestCase
         $response->assertOk();
 
         $visit->refresh();
-        $this->assertTrue(Str::startsWith($visit->picture_visit_out, 'visits/tmp/out'));
+        $this->assertTrue(Str::startsWith($visit->picture_visit_out, 'tmp/'));
 
         Queue::assertPushed(ProcessMediaJob::class, function (ProcessMediaJob $job) use ($visit) {
             return $job->modelId === $visit->id && $job->modelType === 'visit' && count($job->mediaItems) === 1;

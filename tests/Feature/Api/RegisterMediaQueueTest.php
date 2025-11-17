@@ -152,7 +152,7 @@ class RegisterMediaQueueTest extends FeatureTestCase
 
         $register = Register::latest()->first();
         $this->assertNotNull($register);
-        $this->assertTrue(Str::startsWith($register->poto_depan, 'register/tmp/'));
+        $this->assertTrue(Str::startsWith($register->poto_depan, 'tmp/'));
 
         // Debug: Check what the response contains
         $responseData = $response->json();

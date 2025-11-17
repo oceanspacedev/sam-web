@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\API\Traits;
 
 use App\Jobs\ProcessMediaJob;
+use App\Services\FileUploadService;
 use App\Services\MediaProcessingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Log;
 
 /**
  * UNIFIED MEDIA UPLOAD TRAIT
@@ -80,9 +82,8 @@ trait HasMediaUpload
         }
 
         // Store temporarily
-        $temporaryPath = app(MediaProcessingService::class)
-            ->fileUpload
-            ->storeTemporary($file, "{$modelType}/tmp/photos");
+        $temporaryPath = app(FileUploadService::class)
+            ->storeTemporary($file, 'tmp');
 
         $temporaryFiles[] = $temporaryPath;
 
@@ -108,9 +109,8 @@ trait HasMediaUpload
         }
 
         // Store temporarily
-        $temporaryPath = app(MediaProcessingService::class)
-            ->fileUpload
-            ->storeTemporary($file, "{$modelType}/tmp/videos");
+        $temporaryPath = app(FileUploadService::class)
+            ->storeTemporary($file, 'tmp');
 
         $temporaryFiles[] = $temporaryPath;
 
@@ -156,12 +156,11 @@ trait HasMediaUpload
     {
         foreach ($temporaryFiles as $tempPath) {
             try {
-                app(MediaProcessingService::class)
-                    ->fileUpload
+                app(FileUploadService::class)
                     ->deleteFile($tempPath);
             } catch (\Exception $e) {
                 // Log error but continue cleanup
-                \Log::error("Failed to cleanup temporary file: {$tempPath}", [
+                Log::error("Failed to cleanup temporary file: {$tempPath}", [
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -182,7 +181,7 @@ trait HasMediaUpload
 
             return true;
         } catch (\Exception $e) {
-            \Log::error('Failed to dispatch media job', [
+            Log::error('Failed to dispatch media job', [
                 'model_type' => $modelType,
                 'model_id' => $modelId,
                 'media_count' => count($mediaQueue),

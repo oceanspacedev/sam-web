@@ -428,13 +428,13 @@ class VisitController extends Controller
      * - DSF/DM and ASC roles can only check in to outlets matching their division
      * - Other roles have access to all outlets
      * - Requires check-in photo, coordinates, and visit type
-     * - Photos stored in visits/in directory with format: YYYY-MM-DD-username-IN-timestamp.ext
+    * - Photos stored using flat storage filenames (no nested directories) with format: YYYY-MM-DD-username-IN-timestamp.ext
      *
      * **Check-out Requirements:**
      * - Must have an existing check-in for today
      * - Calculates visit duration automatically
      * - Requires check-out photo, report, and transaction info
-     * - Photos stored in visits/out directory with format: YYYY-MM-DD-username-OUT-timestamp.ext
+    * - Photos stored using flat storage filenames (no nested directories) with format: YYYY-MM-DD-username-OUT-timestamp.ext
      *
      * @bodyParam kode_outlet string required Outlet code for visit submission. Example: "OUTLET001"
      * @bodyParam picture_visit file required Visit photo (check-in or check-out). Max 5MB, formats: jpg,jpeg,png
@@ -526,7 +526,7 @@ class VisitController extends Controller
                 try {
                     $temporaryPath = $this->fileUpload->storeTemporary(
                         $request->file('picture_visit'),
-                        'visits/tmp/in',
+                        'tmp',
                         ['filename' => $imageName]
                     );
                     $temporaryFiles[] = $temporaryPath;
@@ -632,7 +632,7 @@ class VisitController extends Controller
                     try {
                         $temporaryPath = $this->fileUpload->storeTemporary(
                             $request->file('picture_visit'),
-                            'visits/tmp/out',
+                            'tmp',
                             ['filename' => $imageName]
                         );
                         $temporaryFiles[] = $temporaryPath;

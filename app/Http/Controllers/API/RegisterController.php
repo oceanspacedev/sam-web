@@ -200,7 +200,7 @@ class RegisterController extends Controller
                 }
 
                 try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'register/tmp/photos');
+                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
                 } catch (RuntimeException $exception) {
                     $this->cleanupTemporaryFiles($temporaryFiles);
 
@@ -223,7 +223,7 @@ class RegisterController extends Controller
             if ($request->hasFile('video')) {
                 $video = $request->file('video');
                 try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'register/tmp/videos');
+                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
 
                     // Generate stored video name in the pattern seen in logs
                     $ext = $video->guessExtension() ?: $video->extension();
@@ -305,10 +305,8 @@ class RegisterController extends Controller
                 if (! $file->isValid()) {
                     return ResponseFormatter::error('File KTP tidak valid', 'INVALID_FILE', 422);
                 }
-                $ext = $file->guessExtension() ?: $file->extension();
-                $name = (string) Str::uuid().'.'.$ext;
-                $disk = StorageDisk::default();
-                $path = $file->storeAs('register/ktp', $name, $disk);
+
+                $path = $this->fileUpload->uploadImageOptimized($file, 'register-ktp');
                 $lead['poto_ktp'] = $path;
             }
             $lead['ktp_outlet'] = $request->noktp;
@@ -827,12 +825,15 @@ class RegisterController extends Controller
                 }
 
                 try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'register/tmp/photos');
+                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
                     $temporaryFiles[] = $temporaryPath;
+
+                    $fileType = $this->mapTargetToFileType($target);
+
                     $mediaQueue[] = [
                         'field' => $target,
                         'tmp_path' => $temporaryPath,
-                        'final_directory' => 'register/photos',
+                        'type' => $fileType,
                     ];
                     $data[$target] = $temporaryPath;
                 } catch (RuntimeException $e) {
@@ -846,7 +847,7 @@ class RegisterController extends Controller
             if ($request->hasFile('video')) {
                 try {
                     $video = $request->file('video');
-                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'register/tmp/videos');
+                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
 
                     // Generate stored video name in the pattern seen in logs
                     $timestamp = now()->format('YmdHis');
@@ -862,7 +863,7 @@ class RegisterController extends Controller
                     $mediaQueue[] = [
                         'field' => 'video',
                         'tmp_path' => $temporaryPath,
-                        'final_directory' => 'register/videos',
+                        'type' => 'register-video',
                     ];
                     $data['video'] = $temporaryPath;
                 } catch (RuntimeException $e) {

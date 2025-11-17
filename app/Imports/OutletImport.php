@@ -272,7 +272,15 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 if ($errorCount > 0) {
                     $downloadPath = $this->storeErrorReport($errorsForExport, $mode);
 
+                    $messageParts[] = 'Gagal: '.number_format($errorCount);
                     $messageParts[] = number_format($errorCount).' '.str('baris')->plural($errorCount).' gagal diproses dan perlu diperbaiki.';
+
+                    $errorSamples = $summary['errors'] ?? $this->errors;
+
+                    foreach ($errorSamples as $sample) {
+                        $outletLabel = $sample['kode_outlet'] ? ' ['.$sample['kode_outlet'].']' : '';
+                        $messageParts[] = sprintf('Baris %s%s: %s', $sample['row'], $outletLabel, $sample['message']);
+                    }
 
                     if ($downloadPath) {
                         $messageParts[] = 'Detail lengkap tersedia di file Excel terlampir.';

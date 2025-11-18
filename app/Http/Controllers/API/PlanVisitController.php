@@ -169,18 +169,8 @@ class PlanVisitController extends Controller
             ])
                 ->where('user_id', Auth::user()->id)
                 ->unrealized()
-                ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
-                    $builder
-                        ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                            $sub->where('schedule_scope', 'daily')
-                                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
-                        })
-                        ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                            $sub->where('schedule_scope', 'weekly')
-                                ->whereDate('period_start', '<=', $rangeEnd->toDateString())
-                                ->whereDate('period_end', '>=', $rangeStart->toDateString());
-                        });
-                })
+                ->where('schedule_scope', 'daily')
+                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
                 ->orderBy('period_start')
                 ->get();
 

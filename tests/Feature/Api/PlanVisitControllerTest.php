@@ -68,4 +68,40 @@ class PlanVisitControllerTest extends TestCase
         $this->assertIsInt($response->json('data.tanggal_visit'));
         $this->assertSame('daily', $response->json('data.schedule_scope'));
     }
+
+    public function test_bymonth_returns_only_daily_plan_visits(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        /** @var Outlet $outlet */
+        $outlet = Outlet::factory()->create();
+
+        $month = '05';
+        $year = '2024';
+        $monthInt = (int) $month;
+        $yearInt = (int) $year;
+
+        PlanVisit::create(array_merge(PlanVisit::schedulePayload(Carbon::create($yearInt, $monthInt, 10)), [
+            'user_id' => $user->id,
+            'outlet_id' => $outlet->id,
+        ]));
+
+        PlanVisit::create(array_merge(PlanVisit::schedulePayload(Carbon::create($yearInt, $monthInt, 1), 'weekly'), [
+            'user_id' => $user->id,
+            'outlet_id' => $outlet->id,
+        ]));
+
+        PlanVisit::create(array_merge(PlanVisit::schedulePayload(Carbon::create($yearInt, $monthInt - 1, 28)), [
+            'user_id' => $user->id,
+            'outlet_id' => $outlet->id,
+        ]));
+
+        $this->actingAs($user, 'sanctum');
+
+        $response = $this->getJson("/api/planvisit/filter?bulan={$month}&tahun={$year}");
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $this->assertSame('daily', $response->json('data.0.schedule_scope'));
+    }
 }

@@ -268,6 +268,12 @@ class VisitController extends Controller
     public function fetch(Request $request)
     {
         try {
+            // Legacy frontends still request /visit?isnoo=1 for NOO flow.
+            // Only when the flag is explicitly "1" do we short-circuit.
+            if ($request->query('isnoo') === '1') {
+                return ResponseFormatter::success([], 'NOO visit data is not available');
+            }
+
             $visit = Visit::with([
                 'outlet.badanusaha',
                 'outlet.region',

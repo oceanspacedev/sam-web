@@ -18,13 +18,20 @@ class PlanVisitImportErrorsExport implements WithMultipleSheets
     /**
      * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
      */
-    public function __construct(private array $rows) {}
+    public function __construct(
+        private array $rows,
+        private string $scheduleScope = 'daily'
+    ) {
+        if (! in_array($this->scheduleScope, ['daily', 'weekly'], true)) {
+            $this->scheduleScope = 'daily';
+        }
+    }
 
     public function sheets(): array
     {
         return [
-            new PlanVisitImportErrorsSummarySheet($this->rows),
-            new PlanVisitTemplate,
+            new PlanVisitImportErrorsSummarySheet($this->rows, $this->scheduleScope),
+            new PlanVisitTemplate($this->scheduleScope),
         ];
     }
 }
@@ -34,7 +41,14 @@ class PlanVisitImportErrorsSummarySheet implements FromCollection, ShouldAutoSiz
     /**
      * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
      */
-    public function __construct(private array $rows) {}
+    public function __construct(
+        private array $rows,
+        private string $scheduleScope = 'daily'
+    ) {
+        if (! in_array($this->scheduleScope, ['daily', 'weekly'], true)) {
+            $this->scheduleScope = 'daily';
+        }
+    }
 
     public function collection(): Collection
     {
@@ -72,6 +86,6 @@ class PlanVisitImportErrorsSummarySheet implements FromCollection, ShouldAutoSiz
      */
     private function columnHeadings(): array
     {
-        return (new PlanVisitTemplate)->headings();
+        return (new PlanVisitTemplate($this->scheduleScope))->headings();
     }
 }

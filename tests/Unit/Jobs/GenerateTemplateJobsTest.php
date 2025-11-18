@@ -20,17 +20,18 @@ class GenerateTemplateJobsTest extends TestCase
 
         Carbon::setTestNow(Carbon::parse('2025-11-12 10:00:00'));
 
-        $job = new GeneratePlanVisitTemplate(42);
+        $job = new GeneratePlanVisitTemplate(42, 'weekly');
         $job->handle();
 
-        $expectedPath = 'exports/templates/plan-visit-template-20251112100000.xlsx';
+        $expectedPath = 'exports/templates/plan-visit-template-weekly-20251112100000.xlsx';
 
         Excel::assertStored($expectedPath, StorageDisk::default());
 
         Queue::assertPushed(SendImportNotification::class, function (SendImportNotification $notification) use ($expectedPath): bool {
             return $notification->userId === 42
-                && $notification->title === 'Template Plan Visit Siap'
-                && $notification->downloadPath === $expectedPath;
+                && $notification->title === 'Template Plan Visit WEEKLY Siap'
+                && $notification->downloadPath === $expectedPath
+                && $notification->body === 'Template plan visit (scope: WEEKLY) sudah siap diunduh.';
         });
 
         Carbon::setTestNow();

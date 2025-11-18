@@ -14,6 +14,7 @@ use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Auth;
@@ -48,7 +49,16 @@ class ListPlanVisits extends ListRecords
                 ->icon('heroicon-o-arrow-down-tray')
                 ->slideOver()
                 ->schema([
-                    FileUpload::make('file')
+                    ToggleButtons::make('scope')
+                        ->label('Scope Plan')
+                        ->inline()
+                        ->live()
+                        ->options([
+                            'daily' => 'Daily',
+                            'weekly' => 'Weekly',
+                        ])
+                        ->required(),
+                    FileUpload::make('file_daily')
                         ->label('File (.xlsx/.csv)')
                         ->disk(StorageDisk::default())
                         ->directory('import')
@@ -59,10 +69,11 @@ class ListPlanVisits extends ListRecords
                             'text/csv',
                             'application/csv',
                         ])
-                        ->required()
+                        ->visible(fn (callable $get) => $get('scope') === 'daily')
+                        ->required(fn (callable $get) => $get('scope') === 'daily')
                         ->hintActions([
                             Action::make('download_template')
-                                ->label('Download Template')
+                                ->label('Download Template Daily')
                                 ->action(function () {
                                     $userId = Auth::id();
 
@@ -76,11 +87,49 @@ class ListPlanVisits extends ListRecords
                                         return;
                                     }
 
-                                    GeneratePlanVisitTemplate::dispatch($userId);
+                                    GeneratePlanVisitTemplate::dispatch($userId, 'daily');
 
                                     Notification::make()
                                         ->title('Template sedang diproses')
-                                        ->body('Mulai menyiapkan template import plan visit, proses akan berjalan di belakang layar.')
+                                        ->body('Mulai menyiapkan template import plan visit (Daily), proses akan berjalan di belakang layar.')
+                                        ->success()
+                                        ->send();
+                                }),
+                        ]),
+                    FileUpload::make('file_weekly')
+                        ->label('File (.xlsx/.csv)')
+                        ->disk(StorageDisk::default())
+                        ->directory('import')
+                        ->preserveFilenames()
+                        ->acceptedFileTypes([
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'application/vnd.ms-excel',
+                            'text/csv',
+                            'application/csv',
+                        ])
+                        ->visible(fn (callable $get) => $get('scope') === 'weekly')
+                        ->required(fn (callable $get) => $get('scope') === 'weekly')
+                        ->hintActions([
+                            Action::make('download_template')
+                                ->label('Download Template Weekly')
+                                ->action(function () {
+                                    $userId = Auth::id();
+
+                                    if (! $userId) {
+                                        Notification::make()
+                                            ->title('Permintaan template gagal')
+                                            ->body('Sesi Anda kedaluwarsa. Silakan login ulang lalu coba kembali.')
+                                            ->danger()
+                                            ->send();
+
+                                        return;
+                                    }
+
+                                    GeneratePlanVisitTemplate::dispatch($userId, 'weekly');
+
+                                    Notification::make()
+                                        ->title('Template sedang diproses')
+                                        ->body('Mulai menyiapkan template import plan visit (Weekly), proses akan berjalan di belakang layar.')
                                         ->success()
                                         ->send();
                                 }),
@@ -91,7 +140,11 @@ class ListPlanVisits extends ListRecords
                 ->button('Import')
                 ->action(function (array $data) {
                     $disk = StorageDisk::default();
-                    $relativePath = ltrim($data['file'] ?? '', '/');
+                    $scope = $data['scope'] ?? 'daily';
+                    $scope = $scope === 'weekly' ? 'weekly' : 'daily';
+                    $relativePath = $scope === 'weekly'
+                        ? ltrim((string) ($data['file_weekly'] ?? ''), '/')
+                        : ltrim((string) ($data['file_daily'] ?? ''), '/');
 
                     if ($relativePath === '') {
                         Notification::make()
@@ -106,7 +159,7 @@ class ListPlanVisits extends ListRecords
                     $userId = Auth::id();
 
                     try {
-                        $pendingDispatch = Excel::queueImport(new PlanVisitImport($userId), $relativePath, $disk);
+                        $pendingDispatch = Excel::queueImport(new PlanVisitImport($userId, $scope), $relativePath, $disk);
 
                         if ($pendingDispatch) {
                             $jobs = [
@@ -118,7 +171,7 @@ class ListPlanVisits extends ListRecords
 
                         Notification::make()
                             ->title('Import sedang diproses')
-                            ->body('Kami akan memproses data di latar belakang dan memberi tahu jika terjadi kegagalan melalui log queue.')
+                            ->body('Mulai mengimport data plan visit ('.strtoupper($scope).'), proses akan berjalan di belakang layar.')
                             ->success()
                             ->send();
                     } catch (Throwable $e) {
@@ -132,7 +185,7 @@ class ListPlanVisits extends ListRecords
                             SendImportNotification::dispatch(
                                 $userId,
                                 'Import Plan Visit Gagal',
-                                'Import plan visit gagal diproses. Silakan cek log queue.',
+                                'Import plan visit (scope: '.strtoupper($scope).') gagal diproses. Silakan hubungi tim IT.',
                                 false
                             );
                         }

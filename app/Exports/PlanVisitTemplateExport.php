@@ -13,12 +13,17 @@ class PlanVisitTemplateExport implements ShouldAutoSize, WithMultipleSheets
 {
     use Exportable;
 
-    public function __construct() {}
+    public function __construct(private string $scheduleScope = 'daily')
+    {
+        if (! in_array($this->scheduleScope, ['daily', 'weekly'], true)) {
+            $this->scheduleScope = 'daily';
+        }
+    }
 
     public function sheets(): array
     {
         return [
-            new PlanVisitTemplate,
+            new PlanVisitTemplate($this->scheduleScope),
             new UserMasterTemplate,
             new OutletMasterTemplate,
         ];

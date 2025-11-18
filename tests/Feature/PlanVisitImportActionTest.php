@@ -50,7 +50,10 @@ class PlanVisitImportActionTest extends TestCase
         $action = $importAction->getActionFunction();
         $this->assertNotNull($action);
 
-        $action(['file' => $filePath]);
+        $action([
+            'scope' => 'daily',
+            'file_daily' => $filePath,
+        ]);
 
         Excel::assertQueued($filePath, $disk, function ($import): bool {
             return $import instanceof PlanVisitImport;

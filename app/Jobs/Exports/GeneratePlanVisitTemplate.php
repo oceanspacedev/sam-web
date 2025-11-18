@@ -20,21 +20,30 @@ class GeneratePlanVisitTemplate implements ShouldQueue
     use SerializesModels;
 
     public function __construct(
-        public int $userId
-    ) {}
+        public int $userId,
+        public string $scheduleScope = 'daily'
+    ) {
+        if (! in_array($this->scheduleScope, ['daily', 'weekly'], true)) {
+            $this->scheduleScope = 'daily';
+        }
+    }
 
     public function handle(): void
     {
         $disk = StorageDisk::default();
-        $fileName = 'plan-visit-template-'.now()->format('YmdHis').'.xlsx';
+        $fileName = sprintf(
+            'plan-visit-template-%s-%s.xlsx',
+            $this->scheduleScope,
+            now()->format('YmdHis')
+        );
         $path = 'exports/templates/'.$fileName;
 
-        Excel::store(new PlanVisitTemplateExport, $path, $disk);
+        Excel::store(new PlanVisitTemplateExport($this->scheduleScope), $path, $disk);
 
         SendImportNotification::dispatch(
             $this->userId,
-            'Template Plan Visit Siap',
-            'Template plan visit sudah siap diunduh.',
+            'Template Plan Visit '.strtoupper($this->scheduleScope).' Siap',
+            'Template plan visit (scope: '.strtoupper($this->scheduleScope).') sudah siap diunduh.',
             true,
             $path
         );

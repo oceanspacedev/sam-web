@@ -168,7 +168,8 @@ class PlanVisitImportTest extends TestCase
             'kode_outlet' => 'OTL-001',
             'divisi' => 'GROSIR',
             'nama_outlet' => 'TOKO A',
-            'tanggal_visit' => '2025-01-13',
+            'schedule_week' => 'Week 3',
+            'schedule_year' => '2025',
         ]));
 
         $existing->refresh();
@@ -292,6 +293,176 @@ class PlanVisitImportTest extends TestCase
 
         $this->assertEquals(1, $summary['error_total']);
         $this->assertDatabaseCount('plan_visits', 0);
+    }
+
+    public function test_can_import_weekly_scope_records(): void
+    {
+        $badanUsaha = BadanUsaha::factory()->create(['name' => 'MSI']);
+        $division = Division::factory()->create([
+            'name' => 'GROSIR',
+            'badanusaha_id' => $badanUsaha->id,
+        ]);
+        $region = Region::factory()->create([
+            'name' => 'JAKARTA',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+        ]);
+        $cluster = Cluster::factory()->create([
+            'name' => 'JKT-UTARA',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+        ]);
+
+        /** @var User $user */
+        $user = User::factory()->create([
+            'username' => 'sales01',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+            'cluster_id' => $cluster->id,
+        ]);
+
+        /** @var Outlet $outlet */
+        $outlet = Outlet::factory()->create([
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+            'cluster_id' => $cluster->id,
+            'kode_outlet' => 'OTL-001',
+        ]);
+
+        $import = new PlanVisitImport(null, 'weekly');
+
+        $import->onRow($this->makeRow([
+            'username' => 'sales01',
+            'kode_outlet' => 'OTL-001',
+            'divisi' => 'GROSIR',
+            'nama_outlet' => 'TOKO A',
+            'schedule_week' => 'Week 3',
+            'schedule_year' => '2025',
+        ]));
+
+        /** @var PlanVisit $planVisit */
+        $planVisit = PlanVisit::first();
+
+        $this->assertNotNull($planVisit);
+        $this->assertSame('weekly', $planVisit->schedule_scope);
+        $this->assertEquals('2025-01-13', $planVisit->period_start?->format('Y-m-d'));
+        $this->assertEquals('2025-01-18', $planVisit->period_end?->format('Y-m-d'));
+        $this->assertEquals($user->id, $planVisit->user_id);
+        $this->assertEquals($outlet->id, $planVisit->outlet_id);
+    }
+
+    public function test_weekly_import_requires_schedule_year_column(): void
+    {
+        $badanUsaha = BadanUsaha::factory()->create(['name' => 'MSI']);
+        $division = Division::factory()->create([
+            'name' => 'GROSIR',
+            'badanusaha_id' => $badanUsaha->id,
+        ]);
+        $region = Region::factory()->create([
+            'name' => 'JAKARTA',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+        ]);
+        $cluster = Cluster::factory()->create([
+            'name' => 'JKT-UTARA',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+        ]);
+
+        User::factory()->create([
+            'username' => 'sales01',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+            'cluster_id' => $cluster->id,
+        ]);
+
+        Outlet::factory()->create([
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+            'cluster_id' => $cluster->id,
+            'kode_outlet' => 'OTL-001',
+        ]);
+
+        $import = new PlanVisitImport(null, 'weekly');
+
+        $import->onRow($this->makeRow([
+            'username' => 'sales01',
+            'kode_outlet' => 'OTL-001',
+            'divisi' => 'GROSIR',
+            'schedule_week' => 'Week 4',
+            // schedule_year kosong untuk memicu error
+        ]));
+
+        $summary = Cache::get($import->getSummaryKey());
+
+        $this->assertEquals(1, $summary['error_total']);
+        $this->assertDatabaseCount('plan_visits', 0);
+    }
+
+    public function test_weekly_import_allows_next_monday_even_if_less_than_seven_days(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2025-11-18 09:00:00'));
+
+        $badanUsaha = BadanUsaha::factory()->create(['name' => 'MSI']);
+        $division = Division::factory()->create([
+            'name' => 'GROSIR',
+            'badanusaha_id' => $badanUsaha->id,
+        ]);
+        $region = Region::factory()->create([
+            'name' => 'JAKARTA',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+        ]);
+        $cluster = Cluster::factory()->create([
+            'name' => 'JKT-UTARA',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+        ]);
+
+        /** @var User $user */
+        $user = User::factory()->create([
+            'username' => 'sales01',
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+            'cluster_id' => $cluster->id,
+        ]);
+
+        /** @var Outlet $outlet */
+        $outlet = Outlet::factory()->create([
+            'badanusaha_id' => $badanUsaha->id,
+            'divisi_id' => $division->id,
+            'region_id' => $region->id,
+            'cluster_id' => $cluster->id,
+            'kode_outlet' => 'OTL-001',
+        ]);
+
+        $import = new PlanVisitImport(null, 'weekly');
+
+        $import->onRow($this->makeRow([
+            'username' => 'sales01',
+            'kode_outlet' => 'OTL-001',
+            'divisi' => 'GROSIR',
+            'nama_outlet' => 'TOKO A',
+            'schedule_week' => 'Week 48',
+            'schedule_year' => '2025',
+        ]));
+
+        /** @var PlanVisit $planVisit */
+        $planVisit = PlanVisit::first();
+
+        $this->assertNotNull($planVisit);
+        $this->assertSame('2025-11-24', $planVisit->period_start?->format('Y-m-d'));
+        $this->assertSame('2025-11-29', $planVisit->period_end?->format('Y-m-d'));
+        $this->assertSame($user->id, $planVisit->user_id);
+        $this->assertSame($outlet->id, $planVisit->outlet_id);
     }
 
     private function makeRow(array $data, int $rowIndex = 2): Row

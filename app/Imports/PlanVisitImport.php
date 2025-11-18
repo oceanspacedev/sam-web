@@ -12,7 +12,6 @@ use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -31,6 +30,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private const ERROR_SAMPLE_LIMIT = 20;
 
+    private const SUPPORTED_SCOPES = ['daily', 'weekly'];
+
     private ?int $userId;
 
     private int $processed = 0;
@@ -39,6 +40,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private int $updated = 0;
 
+    private string $scheduleScope;
+
     /**
      * @var array<int, array{row:int,message:string,kode_outlet:?string,columns:array<string,?string>}>
      */
@@ -46,9 +49,10 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private string $summaryKey;
 
-    public function __construct(?int $userId = null)
+    public function __construct(?int $userId = null, string $scheduleScope = 'daily')
     {
         $this->userId = $userId;
+        $this->scheduleScope = in_array($scheduleScope, self::SUPPORTED_SCOPES, true) ? $scheduleScope : 'daily';
         $this->summaryKey = 'plan-visit-import:'.Str::uuid()->toString();
         $this->ensureSummaryInitialized();
     }
@@ -63,22 +67,7 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             $username = $this->requireValue($data, ['username'], 'username');
             $kodeOutlet = $this->requireValue($data, ['kode_outlet'], 'kode_outlet');
             $divisionName = $this->requireValue($data, ['divisi'], 'divisi');
-            $tanggalVisitRaw = $this->requireValue($data, ['tanggal_visit'], 'tanggal_visit');
-
-            if (strlen((string) preg_replace('/\s+/', '', $tanggalVisitRaw)) < 6) {
-                throw new Exception('Tanggal tidak valid, pastikan kolom tanggal_visit bertipe text dengan format yyyy-mm-dd.');
-            }
-
-            $tanggal = Carbon::parse($tanggalVisitRaw);
-            $minimumAllowedDate = now()->startOfDay()->addWeek();
-
-            if ($tanggal->lt($minimumAllowedDate)) {
-                throw new Exception('Tanggal '.$tanggal->format('Y-m-d').' tidak valid. Minimal satu minggu dari hari ini (>= '.$minimumAllowedDate->format('Y-m-d').').');
-            }
-
-            if ($tanggal->weekOfYear <= now()->weekOfYear && now() > now()->startOfDay()->startOfWeek()->addDay(1)->addHour(10)) {
-                throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off Selasa 10.00.');
-            }
+            $tanggal = $this->resolveScheduleDate($data);
 
             $user = User::whereRaw('REPLACE(UPPER(username), " ", "") = ?', [$this->normalizeName($username)])->first();
 
@@ -105,21 +94,13 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
                 throw new Exception('User dengan username '.$username.' tidak terdaftar pada divisi '.$divisionName.'.');
             }
 
-            $isRealmeDivision = (int) $division->id === 4;
-            $schedulePayload = PlanVisit::schedulePayload($tanggal, $isRealmeDivision ? 'weekly' : 'daily');
+            $schedulePayload = PlanVisit::schedulePayload($tanggal, $this->scheduleScope);
 
             $existing = PlanVisit::query()
                 ->where('outlet_id', $outlet->id)
                 ->where('user_id', $user->id)
-                ->when($isRealmeDivision, function (Builder $builder) use ($schedulePayload): void {
-                    $builder
-                        ->where('schedule_scope', 'weekly')
-                        ->whereDate('period_start', $schedulePayload['period_start']);
-                }, function (Builder $builder) use ($schedulePayload): void {
-                    $builder
-                        ->where('schedule_scope', 'daily')
-                        ->whereDate('period_start', $schedulePayload['period_start']);
-                })
+                ->where('schedule_scope', $this->scheduleScope)
+                ->whereDate('period_start', $schedulePayload['period_start'])
                 ->first();
 
             if ($existing) {
@@ -145,6 +126,7 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             Log::warning('Plan visit import error', [
                 'row' => $rowIndex,
                 'kode_outlet' => $data['kode_outlet'] ?? null,
+                'schedule_scope' => $this->scheduleScope,
                 'message' => $exception->getMessage(),
             ]);
         }
@@ -173,6 +155,7 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
                 $messageParts = [
                     'Import plan visit selesai.',
                     'Total '.number_format($processed).' baris diproses.',
+                    'Mode '.strtoupper($this->scheduleScope).'.',
                 ];
 
                 if ($created > 0) {
@@ -218,6 +201,96 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
                 $this->flushSummary();
             },
         ];
+    }
+
+    private function resolveScheduleDate(array $row): Carbon
+    {
+        if ($this->scheduleScope === 'weekly' && $this->hasWeeklyColumns($row)) {
+            $weekDate = $this->resolveWeeklyDate($row);
+            $this->assertScheduleDateIsAllowed($weekDate);
+
+            return $weekDate;
+        }
+
+        $tanggalVisitRaw = $this->requireValue($row, ['tanggal_visit'], 'tanggal_visit');
+
+        if (strlen((string) preg_replace('/\s+/', '', $tanggalVisitRaw)) < 6) {
+            throw new Exception('Tanggal tidak valid, pastikan kolom tanggal_visit bertipe text dengan format yyyy-mm-dd.');
+        }
+
+        $tanggal = Carbon::parse($tanggalVisitRaw);
+        $this->assertScheduleDateIsAllowed($tanggal);
+
+        return $tanggal;
+    }
+
+    private function hasWeeklyColumns(array $row): bool
+    {
+        if (array_key_exists('schedule_week', $row) || array_key_exists('schedule_year', $row)) {
+            return true;
+        }
+
+        return $this->sanitizeString($row['schedule_week'] ?? null) !== null
+            || $this->sanitizeString($row['schedule_year'] ?? null) !== null;
+    }
+
+    private function resolveWeeklyDate(array $row): Carbon
+    {
+        $weekValue = $this->sanitizeString($row['schedule_week'] ?? null);
+        $yearValue = $this->sanitizeString($row['schedule_year'] ?? null);
+
+        if ($weekValue === null || $yearValue === null) {
+            throw new Exception('Kolom schedule_week dan schedule_year wajib diisi untuk import weekly.');
+        }
+
+        $week = $this->extractDigits($weekValue);
+        $year = $this->extractDigits($yearValue);
+
+        if ($week === null || $week < 1 || $week > 53) {
+            throw new Exception('Nilai schedule_week harus antara 1 sampai 53.');
+        }
+
+        if ($year === null || $year < 2000 || $year > 2100) {
+            throw new Exception('Nilai schedule_year tidak valid.');
+        }
+
+        try {
+            $date = Carbon::now()->setISODate($year, $week, Carbon::MONDAY)->startOfDay();
+        } catch (Exception $exception) {
+            throw new Exception('Kombinasi schedule_week dan schedule_year tidak valid.');
+        }
+
+        return $date;
+    }
+
+    private function extractDigits(?string $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $value);
+
+        return $digits === '' ? null : (int) $digits;
+    }
+
+    private function assertScheduleDateIsAllowed(Carbon $tanggal): void
+    {
+        $minimumAllowedDate = now()->startOfDay();
+
+        if ($this->scheduleScope === 'weekly') {
+            $minimumAllowedDate = $minimumAllowedDate->startOfWeek(Carbon::MONDAY)->addWeek();
+        } else {
+            $minimumAllowedDate = $minimumAllowedDate->addWeek();
+        }
+
+        if ($tanggal->lt($minimumAllowedDate)) {
+            throw new Exception('Tanggal '.$tanggal->format('Y-m-d').' tidak valid. Minimal satu minggu dari hari ini (>= '.$minimumAllowedDate->format('Y-m-d').').');
+        }
+
+        if ($tanggal->weekOfYear <= now()->weekOfYear && now() > now()->startOfDay()->startOfWeek()->addDay(1)->addHour(10)) {
+            throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off Selasa 10.00.');
+        }
     }
 
     private function requireValue(array $row, array $keys, string $label): string
@@ -268,6 +341,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             'divisi' => $this->sanitizeString($row['divisi'] ?? null),
             'nama_outlet' => $this->sanitizeString($row['nama_outlet'] ?? null),
             'tanggal_visit' => $this->sanitizeString($row['tanggal_visit'] ?? null),
+            'schedule_week' => $this->sanitizeString($row['schedule_week'] ?? null),
+            'schedule_year' => $this->sanitizeString($row['schedule_year'] ?? null),
         ];
 
         $error = [
@@ -373,7 +448,7 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
         );
 
         try {
-            Excel::store(new PlanVisitImportErrorsExport($errors), $path, StorageDisk::default());
+            Excel::store(new PlanVisitImportErrorsExport($errors, $this->scheduleScope), $path, StorageDisk::default());
 
             return $path;
         } catch (Throwable $exception) {

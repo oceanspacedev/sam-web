@@ -197,7 +197,7 @@ Mobile App → GET /api/sync/{resource} (badanusaha, division, region, cluster, 
 1. **FileUploadService** (`app/Services/FileUploadService.php`)
    - Centralized file upload handling (images & videos)
    - MIME type validation (jpeg, jpg, png)
-   - File size validation (max 5MB)
+   - File size validation (max 3MB)
    - UUID-based filenames
    - Integrated into RegisterController & OutletController
 
@@ -420,8 +420,8 @@ class FileUploadService {
         if (!in_array($file->getMimeType(), ['image/jpeg', 'image/jpg', 'image/png'])) {
             throw new ValidationException('Invalid image format');
         }
-        if ($file->getSize() > 5 * 1024 * 1024) {  // 5MB
-            throw new ValidationException('File size exceeds 5MB');
+        if ($file->getSize() > 3 * 1024 * 1024) {  // 3MB
+            throw new ValidationException('File size exceeds 3MB');
         }
     }
 }
@@ -434,7 +434,7 @@ $photoPath = $this->fileUpload->uploadImage($request->file('foto_depan'), 'regis
 
 **✅ Improvement Actions Completed:**
 - [x] ✅ Created `app/Services/FileUploadService.php` untuk centralized handling
-- [x] ✅ Implemented server-side validation (max 5MB, allowed MIME types: jpg, png)
+- [x] ✅ Implemented server-side validation (max 3MB, allowed MIME types: jpg, png)
 - [x] ✅ UUID-based filenames untuk prevent collisions
 - [x] ✅ Injected service ke RegisterController dan OutletController
 - [x] ✅ Replaced ~75 lines of duplicate upload code dengan service calls

@@ -708,8 +708,8 @@ class SyncController extends Controller
      * @bodyParam string latlong_out required Check-out coordinates ("lat,lng").
      * @bodyParam string laporan_visit required Visit report/notes.
      * @bodyParam string transaksi required Transaction details or status.
-     * @bodyParam file picture_visit_in required Check-in photo (jpg,jpeg,png; max 5MB).
-     * @bodyParam file picture_visit_out required Check-out photo (jpg,jpeg,png; max 5MB).
+     * @bodyParam file picture_visit_in required Check-in photo (jpg,jpeg,png; max 3MB).
+     * @bodyParam file picture_visit_out required Check-out photo (jpg,jpeg,png; max 3MB).
      * @bodyParam mixed tanggal_visit optional Visit date (ms/sec timestamp, datetime, or string). Defaults to today.
      * @bodyParam mixed check_in_time optional Check-in time (ISO 8601 / datetime / timestamp). Defaults to now.
      * @bodyParam mixed check_out_time optional Check-out time (ISO 8601 / datetime / timestamp). Defaults to now.
@@ -729,8 +729,8 @@ class SyncController extends Controller
                 'latlong_out' => ['required', 'string'],
                 'laporan_visit' => ['required', 'string'],
                 'transaksi' => ['required', 'string'],
-                'picture_visit_in' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
-                'picture_visit_out' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+                'picture_visit_in' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
+                'picture_visit_out' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
                 'tanggal_visit' => ['nullable'],
                 'check_in_time' => ['nullable'],
                 'check_out_time' => ['nullable'],

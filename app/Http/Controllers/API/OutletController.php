@@ -256,12 +256,12 @@ class OutletController extends Controller
      * @bodyParam nama_pemilik_outlet string required Outlet owner name. Example: "John Doe"
      * @bodyParam nomer_tlp_outlet string required Outlet phone number. Example: "081234567890"
      * @bodyParam latlong string required Outlet coordinates. Example: "-6.2088,106.8456"
-     * @bodyParam photo0 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
-     * @bodyParam photo1 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
-     * @bodyParam photo2 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
-     * @bodyParam photo3 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
-     * @bodyParam photo4 file optional Outlet photo file (legacy format). Max 5MB, formats: jpg,jpeg,png
-     * @bodyParam photos file[] optional Array of outlet photos (modern format). Max 5MB each, formats: jpg,jpeg,png
+     * @bodyParam photo0 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
+     * @bodyParam photo1 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
+     * @bodyParam photo2 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
+     * @bodyParam photo3 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
+     * @bodyParam photo4 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
+     * @bodyParam photos file[] optional Array of outlet photos (modern format). Max 3MB each, formats: jpg,jpeg,png
      * @bodyParam video file optional Outlet video file. Max 50MB, formats: mp4,mov,webm
      *
      * @response array{
@@ -302,13 +302,13 @@ class OutletController extends Controller
             // Dukungan skema lama: photo0..photo4
             for ($i = 0; $i <= 4; $i++) {
                 if ($request->hasFile('photo'.$i)) {
-                    $dynamicRules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120']; // 5MB
+                    $dynamicRules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072']; // 3MB
                 }
             }
             // Dukungan skema baru: photos[]
             if ($request->hasFile('photos')) {
                 $dynamicRules['photos'] = ['array'];
-                $dynamicRules['photos.*'] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+                $dynamicRules['photos.*'] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
             }
             // Video opsional
             if ($request->hasFile('video')) {

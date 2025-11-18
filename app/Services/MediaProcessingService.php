@@ -248,7 +248,7 @@ class MediaProcessingService
 
     protected function getMaxFileSize(string $type): int
     {
-        return str_contains($type, 'video') ? 50 * 1024 * 1024 : 5 * 1024 * 1024; // 50MB video, 5MB images
+        return str_contains($type, 'video') ? 50 * 1024 * 1024 : 3 * 1024 * 1024; // 50MB video, 3MB images
     }
 
     protected function getAllowedMimeTypes(string $type): array

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Outlet;
 use App\Models\Register;
 use App\Models\Visit;
+use App\Services\FileUploadService;
 use App\Services\MediaProcessingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -56,8 +57,18 @@ class ProcessMediaJob implements ShouldQueue
         }
 
         try {
+            $processedMedia = $this->convertTemporaryFiles($mediaService, $model);
+
+            if (empty($processedMedia)) {
+                \Log::warning("{$this->modelType} media job has no valid media items", [
+                    'model_id' => $this->modelId,
+                ]);
+
+                return;
+            }
+
             // Process all files using unified service
-            $result = $mediaService->processMultipleFileUpdates($model, $this->mediaItems);
+            $result = $mediaService->processMultipleFileUpdates($model, $processedMedia);
 
             // Log successful processing
             if (! empty($result['updated_fields'])) {
@@ -101,10 +112,12 @@ class ProcessMediaJob implements ShouldQueue
 
     protected function cleanupAll(): void
     {
+        $tempDisk = app(FileUploadService::class)->temporaryDisk();
+
         // Cleanup temporary files from all media items
         foreach ($this->mediaItems as $item) {
             if (isset($item['tmp_path'])) {
-                Storage::disk('local')->delete($item['tmp_path']);
+                Storage::disk($tempDisk)->delete($item['tmp_path']);
             }
         }
     }
@@ -118,5 +131,31 @@ class ProcessMediaJob implements ShouldQueue
 
         // Ensure cleanup
         $this->cleanupAll();
+    }
+
+    protected function convertTemporaryFiles(MediaProcessingService $mediaService, $model): array
+    {
+        $processed = [];
+
+        foreach ($this->mediaItems as $item) {
+            if (empty($item['field']) || empty($item['tmp_path']) || empty($item['type'])) {
+                \Log::warning("{$this->modelType} media item missing data", [
+                    'model_id' => $this->modelId,
+                    'item' => $item,
+                ]);
+
+                continue;
+            }
+
+            $processed[$item['field']] = $mediaService->processTemporaryFile(
+                $item['tmp_path'],
+                $item['type'],
+                [
+                    'user_id' => $model->user_id ?? null,
+                ]
+            );
+        }
+
+        return $processed;
     }
 }

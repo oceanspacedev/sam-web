@@ -437,7 +437,7 @@ class VisitController extends Controller
     * - Photos stored using flat storage filenames (no nested directories) with format: YYYY-MM-DD-username-OUT-timestamp.ext
      *
      * @bodyParam kode_outlet string required Outlet code for visit submission. Example: "OUTLET001"
-     * @bodyParam picture_visit file required Visit photo (check-in or check-out). Max 5MB, formats: jpg,jpeg,png
+     * @bodyParam picture_visit file required Visit photo (check-in or check-out). Max 3MB, formats: jpg,jpeg,png
      * @bodyParam latlong_in string required for check-in Check-in coordinates. Example: "-6.2088,106.8456"
      * @bodyParam latlong_out string required for check-out Check-out coordinates. Example: "-6.2088,106.8456"
      * @bodyParam tipe_visit string required for check-in Type of visit. Example: "routine"
@@ -514,7 +514,7 @@ class VisitController extends Controller
                 $outletId = $outlet->id;
                 $request->validate([
                     'kode_outlet' => ['required'],
-                    'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+                    'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
                     'latlong_in' => ['required', 'string'],
                     'tipe_visit' => ['required'],
                 ]);
@@ -618,7 +618,7 @@ class VisitController extends Controller
                     $request->validate([
                         'latlong_out' => ['required'],
                         'laporan_visit' => ['required'],
-                        'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+                        'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
                         'transaksi' => ['required'],
                     ]);
                     if (! $request->hasFile('picture_visit') || ! $request->file('picture_visit')->isValid()) {

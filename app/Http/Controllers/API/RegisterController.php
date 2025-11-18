@@ -62,7 +62,7 @@ use RuntimeException;
  *   - Files containing "fotoktp" → KTP photo (poto_ktp)
  *   - All other photos → Shop sign photo (poto_shop_sign)
  * - **Videos**: Single video upload support with format validation.
- * - **Validation**: Photos max 5MB, videos max 50MB with strict MIME type checking.
+ * - **Validation**: Photos max 3MB, videos max 50MB with strict MIME type checking.
  *
  * @authenticated
  *
@@ -172,7 +172,7 @@ class RegisterController extends Controller
             $rules = [];
             for ($i = 0; $i <= 3; $i++) {
                 if ($request->hasFile('photo'.$i)) {
-                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
                 }
             }
             if ($request->hasFile('video')) {
@@ -295,7 +295,7 @@ class RegisterController extends Controller
             ];
             $fileRules = [];
             if ($request->hasFile('photo')) {
-                $fileRules['photo'] = ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+                $fileRules['photo'] = ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
             }
             $request->validate(array_merge($baseRules, $fileRules));
 
@@ -617,7 +617,7 @@ class RegisterController extends Controller
      *   - Files containing "fotoktp" → poto_ktp (KTP photo)
      *   - All other photos → poto_shop_sign (shop sign photo)
      * - **Videos**: Single video upload support
-     * - **Validation**: Photos max 5MB (JPG/JPEG/PNG), videos max 50MB (MP4/QuickTime/WebM)
+     * - **Validation**: Photos max 3MB (JPG/JPEG/PNG), videos max 50MB (MP4/QuickTime/WebM)
      *
      * **Notification System:**
      * Automatically sends notifications to appropriate stakeholders based on user role:
@@ -645,11 +645,11 @@ class RegisterController extends Controller
      * @bodyParam div string required Division name (for ASM/RKAM roles). Example: "Realme"
      * @bodyParam reg string required Region name (for ASM/RKAM roles). Example: "Jakarta"
      * @bodyParam clus string required Cluster name (for ASM/ASC/RKAM/KAM roles). Example: "Jakarta Pusat"
-     * @bodyParam photo0 file optional Front photo (max 5MB, JPG/JPEG/PNG). Example: "fotodepan_outlet.jpg"
-     * @bodyParam photo1 file optional Right photo (max 5MB, JPG/JPEG/PNG). Example: "fotokanan_outlet.jpg"
-     * @bodyParam photo2 file optional Left photo (max 5MB, JPG/JPEG/PNG). Example: "fotokiri_outlet.jpg"
-     * @bodyParam photo3 file optional KTP photo (max 5MB, JPG/JPEG/PNG). Example: "fotoktp_pemilik.jpg"
-     * @bodyParam photo4 file optional Shop sign photo (max 5MB, JPG/JPEG/PNG). Example: "shop_sign_outlet.jpg"
+     * @bodyParam photo0 file optional Front photo (max 3MB, JPG/JPEG/PNG). Example: "fotodepan_outlet.jpg"
+     * @bodyParam photo1 file optional Right photo (max 3MB, JPG/JPEG/PNG). Example: "fotokanan_outlet.jpg"
+     * @bodyParam photo2 file optional Left photo (max 3MB, JPG/JPEG/PNG). Example: "fotokiri_outlet.jpg"
+     * @bodyParam photo3 file optional KTP photo (max 3MB, JPG/JPEG/PNG). Example: "fotoktp_pemilik.jpg"
+     * @bodyParam photo4 file optional Shop sign photo (max 3MB, JPG/JPEG/PNG). Example: "shop_sign_outlet.jpg"
      * @bodyParam video file optional Video file (max 50MB, MP4/QuickTime/WebM). Example: "outlet_tour.mp4"
      *
      * @response 200 {
@@ -794,7 +794,7 @@ class RegisterController extends Controller
             $rules = [];
             for ($i = 0; $i <= 4; $i++) {
                 if ($request->hasFile('photo'.$i)) {
-                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'];
+                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
                 }
             }
             if ($request->hasFile('video')) {

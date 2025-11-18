@@ -8,4 +8,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreatePlanVisit extends CreateRecord
 {
     protected static string $resource = PlanVisitResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        return PlanVisitResource::prepareSchedulePayload($data);
+    }
 }

@@ -8,6 +8,7 @@ use App\Models\Outlet;
 use App\Models\PlanVisit;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -60,6 +61,8 @@ class PlanVisitController extends Controller
     public function fetch(Request $request): JsonResponse
     {
         try {
+            $today = now()->toDateString();
+
             $planVisit = PlanVisit::with([
                 'outlet.badanusaha',
                 'outlet.region',
@@ -71,7 +74,20 @@ class PlanVisitController extends Controller
                 'user.cluster',
                 'user.role',
             ])->where('user_id', Auth::user()->id)
-                ->whereDate('tanggal_visit', date('Y-m-d'))
+                ->unrealized()
+                ->where(function (Builder $builder) use ($today): void {
+                    $builder
+                        ->where(function (Builder $sub) use ($today): void {
+                            $sub->where('schedule_scope', 'daily')
+                                ->whereDate('period_start', $today);
+                        })
+                        ->orWhere(function (Builder $sub) use ($today): void {
+                            $sub->where('schedule_scope', 'weekly')
+                                ->whereDate('period_start', '<=', $today)
+                                ->whereDate('period_end', '>=', $today);
+                        });
+                })
+                ->orderBy('period_start')
                 ->get();
 
             return ResponseFormatter::success(
@@ -137,6 +153,9 @@ class PlanVisitController extends Controller
                 'tahun' => ['required', 'string'],
             ]);
 
+            $rangeStart = Carbon::createFromDate((int) $request->tahun, (int) $request->bulan, 1)->startOfMonth();
+            $rangeEnd = $rangeStart->copy()->endOfMonth();
+
             $plan = PlanVisit::with([
                 'outlet.badanusaha',
                 'outlet.region',
@@ -147,10 +166,22 @@ class PlanVisitController extends Controller
                 'user.divisi',
                 'user.cluster',
                 'user.role',
-            ])->whereYear('tanggal_visit', '=', $request->tahun)
-                ->whereMonth('tanggal_visit', '=', $request->bulan)
+            ])
                 ->where('user_id', Auth::user()->id)
-                ->orderBy('tanggal_visit')
+                ->unrealized()
+                ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
+                    $builder
+                        ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
+                            $sub->where('schedule_scope', 'daily')
+                                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+                        })
+                        ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
+                            $sub->where('schedule_scope', 'weekly')
+                                ->whereDate('period_start', '<=', $rangeEnd->toDateString())
+                                ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                        });
+                })
+                ->orderBy('period_start')
                 ->get();
 
             return ResponseFormatter::success(
@@ -246,57 +277,64 @@ class PlanVisitController extends Controller
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
-            if (($user->divisi_id == 4 || $outlet->divisi_id == 4)
-                && Carbon::now()->gt(Carbon::parse($request->tanggal_visit)->startOfWeek()->addDay(1)->addHour(10))) {
+            $isRealmeDivision = ($user->divisi_id == 4 || $outlet->divisi_id == 4);
+            $periodStart = Carbon::parse($request->tanggal_visit)->startOfDay();
+            $schedulePayload = PlanVisit::schedulePayload($periodStart, 'daily');
+
+            if ($isRealmeDivision
+                && Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay(1)->setTime(10, 0))) {
                 Log::channel('planvisit')->warning('Plan visit add failed: weekly deadline passed', [
                     'user_id' => $user->id,
                     'outlet_id' => $outlet->id,
-                    'tanggal_visit' => $request->tanggal_visit,
+                    'tanggal_visit' => $schedulePayload['period_start'],
                 ]);
 
                 return ResponseFormatter::error(null, 'Tidak bisa menambahkan plan visit kurang dari minggu yang berjalan');
             }
 
-            if (($user->divisi_id != 4 && $outlet->divisi_id != 4)
-                && Carbon::now()->gt(Carbon::parse($request->tanggal_visit)->subDays(3))) {
+            if (! $isRealmeDivision
+                && Carbon::now()->gt($periodStart->copy()->subDays(3))) {
                 Log::channel('planvisit')->warning('Plan visit add failed: H-3 deadline passed', [
                     'user_id' => $user->id,
                     'outlet_id' => $outlet->id,
-                    'tanggal_visit' => $request->tanggal_visit,
+                    'tanggal_visit' => $schedulePayload['period_start'],
                 ]);
 
                 return ResponseFormatter::error(null, 'Tidak bisa menambahkan plan visit kurang dari h-3 visit');
             }
 
-            $existingPlan = PlanVisit::whereDate('tanggal_visit', Carbon::parse($request->tanggal_visit))
+            $existingPlan = PlanVisit::query()
                 ->where('user_id', $user->id)
                 ->where('outlet_id', $outlet->id)
+                ->where('schedule_scope', 'daily')
+                ->whereDate('period_start', $schedulePayload['period_start'])
                 ->first();
 
             if ($existingPlan) {
                 Log::channel('planvisit')->warning('Plan visit add failed: duplicate', [
                     'user_id' => $user->id,
                     'outlet_id' => $outlet->id,
-                    'tanggal_visit' => $request->tanggal_visit,
+                    'period_start' => $schedulePayload['period_start'],
                 ]);
 
                 return ResponseFormatter::error($existingPlan, 'data sebelumnya sudah ada');
             }
 
-            $addPlan = PlanVisit::create([
+            $addPlan = PlanVisit::create(array_merge($schedulePayload, [
                 'user_id' => (string) $user->id,
                 'outlet_id' => $outlet->id,
-                'tanggal_visit' => Carbon::parse($request->tanggal_visit),
-            ]);
+            ]));
 
             Log::channel('planvisit')->info('Plan visit add success', [
                 'plan_visit_id' => $addPlan->id,
                 'user_id' => $user->id,
                 'outlet_id' => $outlet->id,
-                'tanggal_visit' => $addPlan->tanggal_visit,
+                'schedule_scope' => $addPlan->schedule_scope,
+                'period_start' => $addPlan->period_start,
+                'period_end' => $addPlan->period_end,
             ]);
 
-            return ResponseFormatter::success($addPlan, 'berhasil');
+            return ResponseFormatter::success($addPlan->fresh()->formatForAPI(), 'berhasil');
         } catch (Exception $e) {
             return ResponseFormatter::error(null, $e->getMessage());
         }
@@ -375,10 +413,23 @@ class PlanVisitController extends Controller
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
+            $rangeStart = Carbon::createFromDate((int) $request->tahun, (int) $request->bulan, 1)->startOfMonth();
+            $rangeEnd = $rangeStart->copy()->endOfMonth();
+
             $planVisit = PlanVisit::where('outlet_id', $outlet->id)
-                ->whereYear('tanggal_visit', '=', $request->tahun)
-                ->whereMonth('tanggal_visit', '=', $request->bulan)
                 ->where('user_id', $user->id)
+                ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
+                    $builder
+                        ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
+                            $sub->where('schedule_scope', 'daily')
+                                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+                        })
+                        ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
+                            $sub->where('schedule_scope', 'weekly')
+                                ->whereDate('period_start', '<=', $rangeEnd->toDateString())
+                                ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                        });
+                })
                 ->first();
 
             if (! $planVisit) {
@@ -397,9 +448,19 @@ class PlanVisitController extends Controller
             }
 
             $delete = PlanVisit::where('outlet_id', $outlet->id)
-                ->whereYear('tanggal_visit', $request->tahun)
-                ->whereMonth('tanggal_visit', $request->bulan)
                 ->where('user_id', $user->id)
+                ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
+                    $builder
+                        ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
+                            $sub->where('schedule_scope', 'daily')
+                                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+                        })
+                        ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
+                            $sub->where('schedule_scope', 'weekly')
+                                ->whereDate('period_start', '<=', $rangeEnd->toDateString())
+                                ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                        });
+                })
                 ->delete();
 
             if (! $delete) {
@@ -469,7 +530,11 @@ class PlanVisitController extends Controller
                 ->where('user_id', $user->id)
                 ->first();
 
-            if ((Carbon::now() > Carbon::createFromTimestamp($planVisit->tanggal_visit)->startOfWeek()->addDay(1)->addHour(10))) {
+            $periodStart = $planVisit->period_start
+                ? Carbon::parse($planVisit->period_start)
+                : Carbon::createFromTimestamp($planVisit->tanggal_visit);
+
+            if (Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay(1)->setTime(10, 0))) {
                 Log::channel('planvisit')->warning('Plan visit delete realme failed: deadline passed', [
                     'user_id' => $user->id,
                     'plan_visit_id' => $request->id,

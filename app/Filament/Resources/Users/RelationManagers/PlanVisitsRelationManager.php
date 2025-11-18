@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Users\RelationManagers;
 
+use App\Models\PlanVisit;
+use Carbon\Carbon;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -27,9 +29,18 @@ class PlanVisitsRelationManager extends RelationManager
                     ->searchable(),
                 TextColumn::make('outlet.kode_outlet')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('tanggal_visit')
+                TextColumn::make('period_start')
                     ->label('Tanggal Visit')
-                    ->date('d M Y'),
+                    ->formatStateUsing(function ($state, PlanVisit $record) {
+                        if ($record->isWeekly() && $record->period_start && $record->period_end) {
+                            $start = Carbon::parse($record->period_start)->format('d M Y');
+                            $end = Carbon::parse($record->period_end)->format('d M Y');
+
+                            return $start.' - '.$end;
+                        }
+
+                        return $state ? Carbon::parse($state)->format('d M Y') : '-';
+                    }),
                 TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),

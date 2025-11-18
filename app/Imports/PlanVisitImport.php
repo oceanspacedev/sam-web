@@ -12,6 +12,7 @@ use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -104,31 +105,38 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
                 throw new Exception('User dengan username '.$username.' tidak terdaftar pada divisi '.$divisionName.'.');
             }
 
-            $tanggalVisit = $tanggal->format('Y-m-d');
+            $isRealmeDivision = (int) $division->id === 4;
+            $schedulePayload = PlanVisit::schedulePayload($tanggal, $isRealmeDivision ? 'weekly' : 'daily');
 
             $existing = PlanVisit::query()
                 ->where('outlet_id', $outlet->id)
-                ->whereDate('tanggal_visit', $tanggalVisit)
                 ->where('user_id', $user->id)
+                ->when($isRealmeDivision, function (Builder $builder) use ($schedulePayload): void {
+                    $builder
+                        ->where('schedule_scope', 'weekly')
+                        ->whereDate('period_start', $schedulePayload['period_start']);
+                }, function (Builder $builder) use ($schedulePayload): void {
+                    $builder
+                        ->where('schedule_scope', 'daily')
+                        ->whereDate('period_start', $schedulePayload['period_start']);
+                })
                 ->first();
 
             if ($existing) {
-                $existing->update([
+                $existing->update(array_merge($schedulePayload, [
                     'user_id' => $user->id,
                     'outlet_id' => $outlet->id,
-                    'tanggal_visit' => $tanggalVisit,
-                ]);
+                ]));
 
                 $this->incrementUpdated();
 
                 return;
             }
 
-            PlanVisit::create([
+            PlanVisit::create(array_merge($schedulePayload, [
                 'user_id' => $user->id,
                 'outlet_id' => $outlet->id,
-                'tanggal_visit' => $tanggalVisit,
-            ]);
+            ]));
 
             $this->incrementCreated();
         } catch (Exception $exception) {

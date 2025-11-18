@@ -106,11 +106,12 @@ class PlanVisitImportTest extends TestCase
             'tanggal_visit' => '2025-01-13',
         ]));
 
-        $this->assertDatabaseHas('plan_visits', [
-            'user_id' => $user->id,
-            'outlet_id' => $primaryOutlet->id,
-            'tanggal_visit' => '2025-01-13',
-        ]);
+        $planVisit = PlanVisit::where('user_id', $user->id)
+            ->where('outlet_id', $primaryOutlet->id)
+            ->first();
+
+        $this->assertNotNull($planVisit);
+        $this->assertEquals('2025-01-13', Carbon::parse($planVisit->tanggal_visit)->format('Y-m-d'));
     }
 
     public function test_updates_existing_plan_visit_when_duplicate_exists(): void
@@ -171,7 +172,7 @@ class PlanVisitImportTest extends TestCase
         ]));
 
         $existing->refresh();
-        $this->assertEquals('2025-01-13', $existing->tanggal_visit);
+        $this->assertEquals('2025-01-13', Carbon::parse($existing->tanggal_visit)->format('Y-m-d'));
         $this->assertEquals(1, PlanVisit::count());
     }
 

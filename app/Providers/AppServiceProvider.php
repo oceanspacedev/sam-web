@@ -8,7 +8,9 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Visit;
 use App\Observers\OrganizationalObserver;
+use App\Observers\VisitObserver;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -40,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
         Region::observe(OrganizationalObserver::class);
         Cluster::observe(OrganizationalObserver::class);
         Role::observe(OrganizationalObserver::class);
+        Visit::observe(VisitObserver::class);
 
         Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
             $openApi->secure(

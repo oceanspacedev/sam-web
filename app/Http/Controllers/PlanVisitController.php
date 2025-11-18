@@ -42,7 +42,7 @@ class PlanVisitController extends Controller
         $outlets = Outlet::with('divisi')
             ->orderBy('nama_outlet')->get();
 
-        $planVisits = PlanVisit::with(['user', 'outlet'])->orderBy('tanggal_visit', 'desc')->paginate(10);
+        $planVisits = PlanVisit::with(['user', 'outlet'])->orderBy('period_start', 'desc')->paginate(10);
 
         return view('planvisit.index', [
             'planVisits' => $planVisits,
@@ -57,11 +57,12 @@ class PlanVisitController extends Controller
     public function store(Request $request)
     {
         try {
-            PlanVisit::create([
+            $schedulePayload = PlanVisit::schedulePayload($request->tanggal_visit, 'daily');
+
+            PlanVisit::create(array_merge($schedulePayload, [
                 'user_id' => $request->user_id,
                 'outlet_id' => $request->outlet_id,
-                'tanggal_visit' => $request->tanggal_visit,
-            ]);
+            ]));
 
             return redirect('planvisit')->with(['success' => 'Berhasil menambahkan plan visit']);
         } catch (Exception $e) {

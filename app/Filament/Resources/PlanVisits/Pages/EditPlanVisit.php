@@ -16,4 +16,9 @@ class EditPlanVisit extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return PlanVisitResource::prepareSchedulePayload($data);
+    }
 }

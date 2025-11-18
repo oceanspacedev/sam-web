@@ -73,7 +73,16 @@
                                         <td>{{ $planVisit->user->nama_lengkap ?? null }}</td>
                                         <td>{{ $planVisit->outlet->nama_outlet ?? null }}</td>
                                         <td>{{ $planVisit->outlet->kode_outlet ?? null }}</td>
-                                        <td>{{ date('d M Y', strtotime($planVisit->tanggal_visit )) }}</td>
+                                        <td>
+                                            @if ($planVisit->schedule_scope === 'weekly' && $planVisit->period_start && $planVisit->period_end)
+                                                {{ \Carbon\Carbon::parse($planVisit->period_start)->format('d M Y') }} -
+                                                {{ \Carbon\Carbon::parse($planVisit->period_end)->format('d M Y') }}
+                                            @else
+                                                {{ $planVisit->period_start
+                                                    ? \Carbon\Carbon::parse($planVisit->period_start)->format('d M Y')
+                                                    : date('d M Y', strtotime($planVisit->tanggal_visit)) }}
+                                            @endif
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>

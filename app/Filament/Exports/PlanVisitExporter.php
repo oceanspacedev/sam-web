@@ -3,6 +3,7 @@
 namespace App\Filament\Exports;
 
 use App\Models\PlanVisit;
+use Carbon\Carbon;
 use Filament\Actions\Exports\ExportColumn;
 use Filament\Actions\Exports\Exporter;
 use Filament\Actions\Exports\Models\Export;
@@ -34,9 +35,18 @@ class PlanVisitExporter extends Exporter
                 ->label('Outlet')
                 ->default('-'),
 
-            ExportColumn::make('tanggal_visit')
+            ExportColumn::make('period_start')
                 ->label('Tanggal')
-                ->formatStateUsing(fn ($state) => $state ? date('d M Y', strtotime($state)) : '-'),
+                ->formatStateUsing(function ($state, PlanVisit $record) {
+                    if ($record->isWeekly() && $record->period_start && $record->period_end) {
+                        $start = Carbon::parse($record->period_start)->format('d M Y');
+                        $end = Carbon::parse($record->period_end)->format('d M Y');
+
+                        return $start.' - '.$end;
+                    }
+
+                    return $state ? Carbon::parse($state)->format('d M Y') : '-';
+                }),
         ];
     }
 

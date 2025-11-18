@@ -15,14 +15,15 @@ class PlanVisitControllerTest extends TestCase
 
     public function test_fetch_returns_formatted_tanggal_visit(): void
     {
+        /** @var User $user */
         $user = User::factory()->create();
+        /** @var Outlet $outlet */
         $outlet = Outlet::factory()->create();
 
-        PlanVisit::create([
+        PlanVisit::create(array_merge(PlanVisit::schedulePayload(Carbon::today()), [
             'user_id' => $user->id,
             'outlet_id' => $outlet->id,
-            'tanggal_visit' => Carbon::today(),
-        ]);
+        ]));
 
         $this->actingAs($user, 'sanctum');
 
@@ -32,32 +33,39 @@ class PlanVisitControllerTest extends TestCase
         $response->assertJsonStructure([
             'meta' => ['code', 'status', 'message'],
             'data' => [
-                ['id', 'user_id', 'outlet_id', 'tanggal_visit'],
+                ['id', 'user_id', 'outlet_id', 'tanggal_visit', 'schedule_scope', 'period_start', 'period_end'],
             ],
         ]);
 
         $payload = $response->json('data')[0];
         $this->assertIsInt($payload['tanggal_visit']);
+        $this->assertIsInt($payload['period_start']);
+        $this->assertSame('daily', $payload['schedule_scope']);
     }
 
     public function test_add_returns_new_record_with_formatted_date(): void
     {
+        /** @var User $user */
         $user = User::factory()->create();
+        /** @var Outlet $outlet */
         $outlet = Outlet::factory()->create();
 
         $this->actingAs($user, 'sanctum');
 
+        $futureDate = Carbon::today()->addDays(5);
+
         $response = $this->postJson('/api/planvisit', [
-            'tanggal_visit' => Carbon::today()->toDateString(),
+            'tanggal_visit' => $futureDate->toDateString(),
             'kode_outlet' => $outlet->kode_outlet,
         ]);
 
         $response->assertOk();
         $response->assertJsonStructure([
             'meta' => ['code', 'status', 'message'],
-            'data' => ['id', 'user_id', 'outlet_id', 'tanggal_visit'],
+            'data' => ['id', 'user_id', 'outlet_id', 'tanggal_visit', 'schedule_scope', 'period_start', 'period_end'],
         ]);
 
         $this->assertIsInt($response->json('data.tanggal_visit'));
+        $this->assertSame('daily', $response->json('data.schedule_scope'));
     }
 }

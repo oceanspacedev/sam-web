@@ -238,52 +238,109 @@ class OrganizationalScopeTest extends TestCase
      *
      * @todo Refine API response structure assertions after production validation
      */
-    public function test_dsf_sees_only_their_cluster_outlets(): void
+    public function test_asc_and_dsf_share_identical_scope_rules(): void
     {
+        $ascRole = Role::factory()->create([
+            'name' => 'ASC',
+            'can_access_web' => 1,
+        ]);
+
         $dsfRole = Role::factory()->create([
             'name' => 'DSF/DM',
             'can_access_web' => 1,
         ]);
 
-        $user = User::factory()->create([
-            'role_id' => $dsfRole->id,
-            'badanusaha_id' => $this->bu->id,
-            'divisi_id' => $this->division->id,
-            'region_id' => $this->region->id,
-            'cluster_id' => $this->cluster->id,
-        ]);
-
-        $visibleOutlet = Outlet::factory()->create([
-            'badanusaha_id' => $this->bu->id,
-            'divisi_id' => $this->division->id,
-            'region_id' => $this->region->id,
-            'cluster_id' => $this->cluster->id,
-        ]);
-
-        $otherCluster = Cluster::factory()->create([
+        $secondaryCluster = Cluster::factory()->create([
             'region_id' => $this->region->id,
             'divisi_id' => $this->division->id,
             'badanusaha_id' => $this->bu->id,
             'name' => 'Secondary Cluster',
         ]);
+
+        $hiddenCluster = Cluster::factory()->create([
+            'region_id' => $this->region->id,
+            'divisi_id' => $this->division->id,
+            'badanusaha_id' => $this->bu->id,
+            'name' => 'Hidden Cluster',
+        ]);
+
+        $visibleOutlets = [
+            Outlet::factory()->create([
+                'badanusaha_id' => $this->bu->id,
+                'divisi_id' => $this->division->id,
+                'region_id' => $this->region->id,
+                'cluster_id' => $this->cluster->id,
+            ]),
+            Outlet::factory()->create([
+                'badanusaha_id' => $this->bu->id,
+                'divisi_id' => $this->division->id,
+                'region_id' => $this->region->id,
+                'cluster_id' => $secondaryCluster->id,
+            ]),
+        ];
+
         Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
             'divisi_id' => $this->division->id,
             'region_id' => $this->region->id,
-            'cluster_id' => $otherCluster->id,
+            'cluster_id' => $hiddenCluster->id,
         ]);
 
-        Sanctum::actingAs($user);
+        $ascUser = User::factory()->create([
+            'role_id' => $ascRole->id,
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $this->division->id,
+            'region_id' => $this->region->id,
+            'cluster_id' => $this->cluster->id,
+            'cluster_id2' => $secondaryCluster->id,
+        ]);
 
-        $response = $this->getJson('/api/outlet');
+        Sanctum::actingAs($ascUser);
+        $ascResponse = $this->getJson('/api/outlet');
 
-        $response
+        $ascResponse
             ->assertStatus(200)
-            ->assertJsonPath('meta.message', 1);
+            ->assertJsonPath('meta.message', count($visibleOutlets));
 
-        $data = $response->json('data');
-        $this->assertCount(1, $data);
-        $this->assertEquals($visibleOutlet->id, $data[0]['id']);
+        $ascIds = collect($ascResponse->json('data'))
+            ->pluck('id')
+            ->sort()
+            ->values();
+
+        $expectedIds = collect($visibleOutlets)
+            ->pluck('id')
+            ->sort()
+            ->values();
+
+        $this->assertEquals($expectedIds->all(), $ascIds->all());
+
+        $dsfUser = User::factory()->create([
+            'role_id' => $dsfRole->id,
+            'badanusaha_id' => $this->bu->id,
+            'divisi_id' => $this->division->id,
+            'region_id' => $this->region->id,
+            'cluster_id' => $this->cluster->id,
+            'cluster_id2' => $secondaryCluster->id,
+        ]);
+
+        Sanctum::actingAs($dsfUser);
+        $dsfResponse = $this->getJson('/api/outlet');
+
+        $dsfResponse
+            ->assertStatus(200)
+            ->assertJsonPath('meta.message', count($visibleOutlets));
+
+        $dsfIds = collect($dsfResponse->json('data'))
+            ->pluck('id')
+            ->sort()
+            ->values();
+
+        $this->assertEquals($ascIds->all(), $dsfIds->all());
+
+        $this->assertEquals(
+            Outlet::query()->visibleTo($ascUser)->pluck('id')->sort()->values()->all(),
+            Outlet::query()->visibleTo($dsfUser)->pluck('id')->sort()->values()->all()
+        );
     }
 
     public function test_is_visible_to_method_works_correctly(): void

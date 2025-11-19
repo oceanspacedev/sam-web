@@ -331,9 +331,9 @@ class RegisterController extends Controller
      * Each role has specific filtering logic for data access and visibility.
      *
      * **Role-Based Filtering Logic:**
-     * - **ASM (ID: 1)**: Filters NOOs by TM_id. Special case for user ID 158 (sodikc) with regions [13, 27, 26, 23, 24] and division 4 (Realme).
-     * - **ASC (ID: 2)**: Filters by business unit, division, and region hierarchy.
-     * - **DSF/DM (ID: 3)**: Most restrictive - filters by complete hierarchy including cluster.
+    * - **ASM (ID: 1)**: Filters NOOs by TM_id. Special case for user ID 158 (sodikc) with regions [13, 27, 26, 23, 24] and division 4 (Realme).
+    * - **ASC (ID: 2)**: Filters by business unit, division, region, and optional user clusters.
+    * - **DSF/DM (ID: 3)**: Same filtering as ASC (business unit, division, region, optional clusters).
      * - **COO (ID: 6)**: Full access to all NOOs without filtering.
      * - **CSO (ID: 8)**: Filters by Realme division (division_id = 4).
      * - **RKAM (ID: 9)**: Similar to ASM - filters by TM_id.
@@ -1706,8 +1706,8 @@ class RegisterController extends Controller
      *
      * **Role-Based Filtering Logic:**
      * - **ASM (ID: 1)**: Filters by TM_id to show unapproved NOOs from their territory managers
-     * - **ASC (ID: 2)**: Filters by business unit, division, and region hierarchy
-     * - **DSF/DM (ID: 3)**: Most restrictive - filters by complete hierarchy including cluster
+    * - **ASC (ID: 2)**: Filters by business unit, division, region, and optional user clusters
+    * - **DSF/DM (ID: 3)**: Same filtering as ASC (business unit, division, region, optional clusters)
      * - **Default**: Fallback to business units 2 and 4 with specific status filters
      *
      * **Key Filter:**
@@ -1763,6 +1763,7 @@ class RegisterController extends Controller
             $divisiId = $user->divisi_id;
             $regionId = $user->region_id;
             $clusterId = $user->cluster_id;
+            $clusterIdSecondary = $user->cluster_id2;
             $roleId = $user->role_id;
 
             $query = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('approved_by', null);
@@ -1777,20 +1778,20 @@ class RegisterController extends Controller
                     break;
                     // ASC
                 case 2:
-                    $registers = $query
-                        ->where('badanusaha_id', $badanusahaId)
-                        ->where('divisi_id', $divisiId)
-                        ->where('region_id', $regionId)
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                    // DSF/DM
                 case 3:
-                    $registers = $query
+                    // ASC and DSF/DM share the same regional scope with optional cluster narrowing
+                    $filteredQuery = $query
                         ->where('badanusaha_id', $badanusahaId)
                         ->where('divisi_id', $divisiId)
-                        ->where('region_id', $regionId)
-                        ->where('cluster_id', $clusterId)
+                        ->where('region_id', $regionId);
+
+                    $clusterIds = array_values(array_filter([$clusterId, $clusterIdSecondary]));
+
+                    if ($clusterIds !== []) {
+                        $filteredQuery->whereIn('cluster_id', $clusterIds);
+                    }
+
+                    $registers = $filteredQuery
                         ->orderBy('nama_outlet')
                         ->get();
                     break;

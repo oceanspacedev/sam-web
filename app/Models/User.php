@@ -55,8 +55,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         // Outlets are linked via organizational hierarchy, not a direct user_id.
         // Role-specific scopes:
         // - ASM: semua outlet di divisi & badan usaha yang sama
-        // - ASC: semua outlet di region & divisi & badan usaha yang sama
-        // - DSF/DM: semua outlet di cluster (termasuk cluster_id2) & region & divisi & badan usaha yang sama
+        // - ASC & DSF/DM: semua outlet di region & divisi & badan usaha yang sama, dengan pembatasan cluster opsional
         // - Default: ketat (region + cluster utama)
 
         $relation = $this->hasMany(Outlet::class, 'divisi_id', 'divisi_id')
@@ -69,8 +68,6 @@ class User extends Authenticatable implements FilamentUser, HasName
                 return $relation;
 
             case 'ASC':
-                return $relation->where('region_id', $this->region_id);
-
             case 'DSF/DM':
                 $clusterIds = array_values(array_filter([$this->cluster_id, $this->cluster_id2]));
 

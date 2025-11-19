@@ -592,6 +592,10 @@ class RegisterResource extends Resource
 
                         return $query;
                     }),
+                Filter::make('duplicates')
+                    ->label('Data Duplikat')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => self::applyDuplicateFilter($query)),
                 TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Register::class)),
             ])
@@ -721,6 +725,24 @@ class RegisterResource extends Resource
             ->where(function ($query) {
                 $query->whereNull('keterangan')
                     ->orWhere('keterangan', '!=', 'LEAD');
+            });
+    }
+
+    public static function applyDuplicateFilter(Builder $query): Builder
+    {
+        $table = $query->getModel()->getTable();
+
+        return $query
+            ->whereNotNull("{$table}.created_by")
+            ->whereNotNull("{$table}.nama_outlet")
+            ->whereNotNull("{$table}.alamat_outlet")
+            ->whereExists(function ($subQuery) use ($table): void {
+                $subQuery->selectRaw(1)
+                    ->from("{$table} as duplicates")
+                    ->whereColumn('duplicates.created_by', "{$table}.created_by")
+                    ->whereColumn('duplicates.nama_outlet', "{$table}.nama_outlet")
+                    ->whereColumn('duplicates.alamat_outlet', "{$table}.alamat_outlet")
+                    ->whereColumn('duplicates.id', '!=', "{$table}.id");
             });
     }
 

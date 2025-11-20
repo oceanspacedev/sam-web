@@ -4,10 +4,9 @@ namespace App\Filament\Exports;
 
 use App\Models\Register;
 use Filament\Actions\Exports\ExportColumn;
-use Filament\Actions\Exports\Exporter;
 use Filament\Actions\Exports\Models\Export;
 
-class RegisterExporter extends Exporter
+class RegisterExporter extends BaseExporter
 {
     protected static ?string $model = Register::class;
 

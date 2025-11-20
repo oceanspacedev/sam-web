@@ -4,12 +4,16 @@ namespace App\Filament\Exports;
 
 use App\Models\User;
 use Filament\Actions\Exports\ExportColumn;
-use Filament\Actions\Exports\Exporter;
 use Filament\Actions\Exports\Models\Export;
 
-class UserExporter extends Exporter
+class UserExporter extends BaseExporter
 {
     protected static ?string $model = User::class;
+
+    public static function modifyQueryUsing(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->with(['role', 'divisis', 'regions', 'clusters', 'badanUsahas', 'tm']);
+    }
 
     public static function getColumns(): array
     {
@@ -17,10 +21,18 @@ class UserExporter extends Exporter
             ExportColumn::make('username')->label('Username')->default('-'),
             ExportColumn::make('nama_lengkap')->label('Nama Lengkap')->default('-'),
             ExportColumn::make('role.name')->label('Role')->default('-'),
-            ExportColumn::make('divisi.name')->label('Divisi')->default('-'),
-            ExportColumn::make('region.name')->label('Region')->default('-'),
-            ExportColumn::make('cluster.name')->label('Cluster')->default('-'),
-            ExportColumn::make('badanusaha.name')->label('Badan Usaha')->default('-'),
+            ExportColumn::make('divisis')
+                ->label('Divisi')
+                ->formatStateUsing(fn ($record) => $record->divisis->pluck('name')->join(', ') ?: '-'),
+            ExportColumn::make('regions')
+                ->label('Region')
+                ->formatStateUsing(fn ($record) => $record->regions->pluck('name')->join(', ') ?: '-'),
+            ExportColumn::make('clusters')
+                ->label('Cluster')
+                ->formatStateUsing(fn ($record) => $record->clusters->pluck('name')->join(', ') ?: '-'),
+            ExportColumn::make('badanUsahas')
+                ->label('Badan Usaha')
+                ->formatStateUsing(fn ($record) => $record->badanUsahas->pluck('name')->join(', ') ?: '-'),
             ExportColumn::make('tm.nama_lengkap')->label('TM')->default('-'),
             ExportColumn::make('created_at')
                 ->label('Dibuat pada')

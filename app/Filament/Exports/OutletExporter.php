@@ -3,13 +3,11 @@
 namespace App\Filament\Exports;
 
 use App\Models\Outlet;
-use App\Models\User;
 use Carbon\Carbon;
 use Filament\Actions\Exports\ExportColumn;
-use Filament\Actions\Exports\Exporter;
 use Filament\Actions\Exports\Models\Export;
 
-class OutletExporter extends Exporter
+class OutletExporter extends BaseExporter
 {
     protected static ?string $model = Outlet::class;
 
@@ -32,43 +30,6 @@ class OutletExporter extends Exporter
             ExportColumn::make('latlong')->label('Latlong'),
             ExportColumn::make('nama_pemilik_outlet')->label('Nama Pemilik Outlet'),
             ExportColumn::make('nomer_tlp_outlet')->label('Nomor Telepon Outlet'),
-            ExportColumn::make('tm')
-                ->label('TM')
-                ->formatStateUsing(function ($state, $record) {
-                    $tm = User::whereHas('role', function ($query) {
-                        $query->where('organizational_scope_level', 'region');
-                    })
-                        ->where('divisi_id', $record->divisi_id)
-                        ->where('region_id', $record->region_id)
-                        ->first();
-
-                    return $tm?->tm?->nama_lengkap ?? 'VACANT';
-                }),
-            ExportColumn::make('asc')
-                ->label('ASC')
-                ->formatStateUsing(function ($state, $record) {
-                    $asc = User::whereHas('role', function ($query) {
-                        $query->where('organizational_scope_level', 'region');
-                    })
-                        ->where('divisi_id', $record->divisi_id)
-                        ->where('region_id', $record->region_id)
-                        ->first();
-
-                    return $asc?->nama_lengkap ?? 'VACANT';
-                }),
-            ExportColumn::make('dsf')
-                ->label('DSF')
-                ->formatStateUsing(function ($state, $record) {
-                    $dsf = User::whereHas('role', function ($query) {
-                        $query->where('organizational_scope_level', 'cluster');
-                    })
-                        ->where('divisi_id', $record->divisi_id)
-                        ->where('region_id', $record->region_id)
-                        ->where('cluster_id', $record->cluster_id)
-                        ->first();
-
-                    return $dsf?->nama_lengkap ?? 'VACANT';
-                }),
             ExportColumn::make('created_at')
                 ->formatStateUsing(function ($state) {
                     return Carbon::parse($state)->format('d M Y');

@@ -5,10 +5,9 @@ namespace App\Filament\Exports;
 use App\Models\PlanVisit;
 use Carbon\Carbon;
 use Filament\Actions\Exports\ExportColumn;
-use Filament\Actions\Exports\Exporter;
 use Filament\Actions\Exports\Models\Export;
 
-class PlanVisitExporter extends Exporter
+class PlanVisitExporter extends BaseExporter
 {
     protected static ?string $model = PlanVisit::class;
 

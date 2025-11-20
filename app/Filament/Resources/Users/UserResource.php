@@ -8,6 +8,7 @@ use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\Pages\ViewUser;
 use App\Filament\Resources\Users\RelationManagers\OutletsRelationManager;
 use App\Filament\Resources\Users\RelationManagers\PlanVisitsRelationManager;
+use App\Filament\Resources\Users\RelationManagers\TeamMembersRelationManager;
 use App\Filament\Resources\Users\RelationManagers\VisitsRelationManager;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -496,6 +497,7 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
+            TeamMembersRelationManager::class,
             OutletsRelationManager::class,
             PlanVisitsRelationManager::class,
             VisitsRelationManager::class,

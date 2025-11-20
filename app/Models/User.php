@@ -185,6 +185,11 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->belongsTo(User::class, 'tm_id')->withTrashed();
     }
 
+    public function teamMembers(): HasMany
+    {
+        return $this->hasMany(User::class, 'tm_id');
+    }
+
     /**
      * The attributes that are mass assignable.
      *

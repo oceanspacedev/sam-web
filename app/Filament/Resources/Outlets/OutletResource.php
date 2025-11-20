@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Outlets;
 use App\Filament\Resources\Outlets\Pages\CreateOutlet;
 use App\Filament\Resources\Outlets\Pages\EditOutlet;
 use App\Filament\Resources\Outlets\Pages\ListOutlets;
+use App\Filament\Resources\Outlets\Pages\ViewOutlet;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -686,6 +687,7 @@ class OutletResource extends Resource
             'index' => ListOutlets::route('/'),
             'create' => CreateOutlet::route('/create'),
             'edit' => EditOutlet::route('/{record}/edit'),
+            'view' => ViewOutlet::route('/{record}'),
         ];
     }
 }

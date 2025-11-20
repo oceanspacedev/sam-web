@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class CleanupUserOrganizationalPivots extends Command
 {
@@ -62,18 +61,19 @@ class CleanupUserOrganizationalPivots extends Command
         $bar->start();
 
         foreach ($users as $user) {
-            if (!$user->role) {
+            if (! $user->role) {
                 $stats['no_role']++;
                 $this->newLine();
                 $this->warn("User {$user->id} ({$user->nama_lengkap}) has no role - skipping");
                 $bar->advance();
+
                 continue;
             }
 
             $scopeLevel = $user->role->organizational_scope_level ?? 'cluster';
             $stats[$scopeLevel]++;
 
-            if (!$isDryRun) {
+            if (! $isDryRun) {
                 $this->cleanupForUser($user, $scopeLevel);
             } else {
                 $this->simulateCleanup($user, $scopeLevel);
@@ -88,7 +88,7 @@ class CleanupUserOrganizationalPivots extends Command
         // Display statistics
         $this->table(
             ['Scope Level', 'User Count'],
-            collect($stats)->map(fn($count, $level) => [$level, $count])->values()
+            collect($stats)->map(fn ($count, $level) => [$level, $count])->values()
         );
 
         if ($isDryRun) {
@@ -163,10 +163,10 @@ class CleanupUserOrganizationalPivots extends Command
                 break;
         }
 
-        if (!empty($toDetach)) {
+        if (! empty($toDetach)) {
             $detachInfo = collect($toDetach)
-                ->filter(fn($level) => $counts[$level] > 0)
-                ->map(fn($level) => "{$level}: {$counts[$level]}")
+                ->filter(fn ($level) => $counts[$level] > 0)
+                ->map(fn ($level) => "{$level}: {$counts[$level]}")
                 ->join(', ');
 
             if ($detachInfo) {

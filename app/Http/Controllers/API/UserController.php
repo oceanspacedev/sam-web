@@ -179,7 +179,7 @@ class UserController extends Controller
         try {
             $credentials = request(['username', 'password']);
 
-            if (!Auth::attempt($credentials)) {
+            if (! Auth::attempt($credentials)) {
                 return ResponseFormatter::error([
                     'message' => 'Unauthorized',
                 ], 'Gagal login, cek kembali username dan password anda', 500);
@@ -189,7 +189,7 @@ class UserController extends Controller
                 ->where('username', $request->username)
                 ->first();
 
-            if (!Hash::check($request->password, $user->password)) {
+            if (! Hash::check($request->password, $user->password)) {
                 throw new Exception('Invalid Credentials');
             }
 

@@ -45,12 +45,12 @@ class ListVisits extends ListRecords
             'EXTRACALL' => Tab::make()
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'EXTRACALL'))
                 ->badge($this->getStatusBadgeCount($query, 'EXTRACALL'))
-                ->badgeColor('warning'),
+                ->badgeColor('info'),
 
             'PLANNED' => Tab::make()
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'PLANNED'))
                 ->badge($this->getStatusBadgeCount($query, 'PLANNED'))
-                ->badgeColor('info'),
+                ->badgeColor('primary'),
         ];
     }
 

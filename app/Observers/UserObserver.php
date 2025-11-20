@@ -32,7 +32,7 @@ class UserObserver
         // Reload role relation to ensure we have the latest data
         $user->load('role');
 
-        if (!$user->role) {
+        if (! $user->role) {
             Log::warning('User has no role assigned', ['user_id' => $user->id]);
 
             return;

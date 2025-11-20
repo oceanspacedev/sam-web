@@ -924,11 +924,19 @@ class RegisterController extends Controller
                     // notif tm
                     array_push($notifId, $user->tm->id_notif);
                     // notif asc (region-level role)
+                    // Get user's organizational IDs from many-to-many relationships
+                    $userDivisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                    $userRegionIds = $user->regions()->pluck('regions.id')->toArray();
+
                     $asc = User::whereHas('role', function ($query) {
                         $query->where('organizational_scope_level', 'region');
                     })
-                        ->where('divisi_id', $user->divisi_id)
-                        ->where('region_id', $user->region_id)
+                        ->whereHas('divisis', function ($query) use ($userDivisiIds) {
+                            $query->whereIn('divisions.id', $userDivisiIds);
+                        })
+                        ->whereHas('regions', function ($query) use ($userRegionIds) {
+                            $query->whereIn('regions.id', $userRegionIds);
+                        })
                         ->first()?->id_notif;
                     if ($asc) {
                         array_push($notifId, $asc);
@@ -1775,11 +1783,12 @@ class RegisterController extends Controller
     {
         try {
             $user = Auth::user();
-            $badanusahaId = $user->badanusaha_id;
-            $divisiId = $user->divisi_id;
-            $regionId = $user->region_id;
-            $clusterId = $user->cluster_id;
-            $clusterIdSecondary = $user->cluster_id2;
+            // Get organizational IDs from many-to-many relationships
+            $badanusahaId = $user->badanUsahas->first()?->id;
+            $divisiId = $user->divisis->first()?->id;
+            $regionId = $user->regions->first()?->id;
+            $clusterId = $user->clusters->first()?->id;
+            $clusterIdSecondary = null; // cluster_id2 column was removed, set to null
             $roleId = $user->role_id;
 
             $query = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('approved_by', null);

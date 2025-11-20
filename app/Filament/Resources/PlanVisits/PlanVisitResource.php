@@ -64,11 +64,11 @@ class PlanVisitResource extends Resource
                                     ->toArray();
                             })
                             ->getOptionLabelUsing(function ($value) {
-                                if (!$value) {
+                                if (! $value) {
                                     return null;
                                 }
                                 $user = User::with(['badanUsahas:id,name', 'divisis:id,name'])->find($value);
-                                if (!$user) {
+                                if (! $user) {
                                     return null;
                                 }
                                 $badanusahaName = $user->badanUsahas->first()->name ?? 'Tidak ada badan usaha';
@@ -101,11 +101,11 @@ class PlanVisitResource extends Resource
                                     ->toArray();
                             })
                             ->getOptionLabelUsing(function ($value) {
-                                if (!$value) {
+                                if (! $value) {
                                     return null;
                                 }
                                 $outlet = Outlet::with(['badanusaha:id,name', 'divisi:id,name'])->find($value);
-                                if (!$outlet) {
+                                if (! $outlet) {
                                     return null;
                                 }
                                 $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
@@ -124,7 +124,7 @@ class PlanVisitResource extends Resource
                 Section::make('Visit Details')
                     ->schema([
                         Hidden::make('outlet_division_id')
-                            ->default(fn(?PlanVisit $record) => $record?->outlet?->divisi_id)
+                            ->default(fn (?PlanVisit $record) => $record?->outlet?->divisi_id)
                             ->dehydrated(false),
                         Radio::make('schedule_scope')
                             ->label('Jenis Plan')
@@ -138,9 +138,9 @@ class PlanVisitResource extends Resource
                             ->helperText('Weekly otomatis mencatat rentang Senin - Sabtu berdasarkan pilihan minggu.'),
                         Select::make('schedule_week_selector')
                             ->label('Pilih Minggu')
-                            ->options(fn(): array => static::weeklyScheduleOptions())
-                            ->visible(fn(callable $get): bool => $get('schedule_scope') === 'weekly')
-                            ->required(fn(callable $get): bool => $get('schedule_scope') === 'weekly')
+                            ->options(fn (): array => static::weeklyScheduleOptions())
+                            ->visible(fn (callable $get): bool => $get('schedule_scope') === 'weekly')
+                            ->required(fn (callable $get): bool => $get('schedule_scope') === 'weekly')
                             ->live()
                             ->afterStateUpdated(function ($state, callable $set): void {
                                 $mondayDate = static::weekSelectorMondayDate($state);
@@ -155,7 +155,7 @@ class PlanVisitResource extends Resource
                             ->required()
                             ->label('Tanggal Visit')
                             ->placeholder('Pilih tanggal visit')
-                            ->visible(fn(callable $get): bool => $get('schedule_scope') !== 'weekly')
+                            ->visible(fn (callable $get): bool => $get('schedule_scope') !== 'weekly')
                             ->helperText('Tanggal kunjungan harian akan dicatat sesuai pilihan.'),
                     ])
                     ->collapsible()
@@ -191,7 +191,7 @@ class PlanVisitResource extends Resource
 
     public static function weekSelectorMondayDate(?string $value): ?string
     {
-        if (!$value || !str_contains($value, '_')) {
+        if (! $value || ! str_contains($value, '_')) {
             return null;
         }
 
@@ -218,7 +218,7 @@ class PlanVisitResource extends Resource
                             $start = Carbon::parse($record->period_start)->format('d M Y');
                             $end = Carbon::parse($record->period_end)->format('d M Y');
 
-                            return $start . ' - ' . $end;
+                            return $start.' - '.$end;
                         }
 
                         return $state ? Carbon::parse($state)->format('d M Y') : '-';
@@ -245,8 +245,8 @@ class PlanVisitResource extends Resource
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
-                            ->when($data['from'] ?? null, fn(Builder $builder, string $date): Builder => $builder->whereDate('period_start', '>=', $date))
-                            ->when($data['until'] ?? null, fn(Builder $builder, string $date): Builder => $builder->whereDate('period_start', '<=', $date));
+                            ->when($data['from'] ?? null, fn (Builder $builder, string $date): Builder => $builder->whereDate('period_start', '>=', $date))
+                            ->when($data['until'] ?? null, fn (Builder $builder, string $date): Builder => $builder->whereDate('period_start', '<=', $date));
                     }),
                 Filter::make('user')
                     ->label('User')
@@ -256,13 +256,13 @@ class PlanVisitResource extends Resource
                             ->searchable()
                             ->placeholder('Semua User')
                             ->options(
-                                fn(): array => User::query()
+                                fn (): array => User::query()
                                     ->orderBy('nama_lengkap')
                                     ->pluck('nama_lengkap', 'id')
                                     ->toArray()
                             ),
                     ])
-                    ->query(fn(Builder $query, array $data): Builder => $query->when($data['user_id'] ?? null, fn(Builder $builder, $userId): Builder => $builder->where('user_id', $userId))),
+                    ->query(fn (Builder $query, array $data): Builder => $query->when($data['user_id'] ?? null, fn (Builder $builder, $userId): Builder => $builder->where('user_id', $userId))),
             ])
             ->recordActions([
                 EditAction::make(),
@@ -309,14 +309,14 @@ class PlanVisitResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             return parent::getEloquentQuery();
         }
 
         $role = $user->role;
         $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
-        if (!$role || $scopeLevel === 'all') {
+        if (! $role || $scopeLevel === 'all') {
             return parent::getEloquentQuery();
         }
 
@@ -331,25 +331,25 @@ class PlanVisitResource extends Resource
             ->select('plan_visits.*', 'users.id as user_id');
 
         // Apply filters based on user pivot assignments
-        if (!empty($badanUsahaIds)) {
+        if (! empty($badanUsahaIds)) {
             $query->whereHas('user.badanUsahas', function ($q) use ($badanUsahaIds) {
                 $q->whereIn('badan_usahas.id', $badanUsahaIds);
             });
         }
 
-        if (!empty($divisiIds)) {
+        if (! empty($divisiIds)) {
             $query->whereHas('user.divisis', function ($q) use ($divisiIds) {
                 $q->whereIn('divisions.id', $divisiIds);
             });
         }
 
-        if (!empty($regionIds)) {
+        if (! empty($regionIds)) {
             $query->whereHas('user.regions', function ($q) use ($regionIds) {
                 $q->whereIn('regions.id', $regionIds);
             });
         }
 
-        if (!empty($clusterIds)) {
+        if (! empty($clusterIds)) {
             $query->whereHas('user.clusters', function ($q) use ($clusterIds) {
                 $q->whereIn('clusters.id', $clusterIds);
             });

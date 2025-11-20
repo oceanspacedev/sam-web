@@ -24,7 +24,7 @@ class ViewRegister extends ViewRecord
         /** @var Register $record */
         $record = $this->getRecord();
 
-        return 'Detail Register: ' . $record->nama_outlet;
+        return 'Detail Register: '.$record->nama_outlet;
     }
 
     protected function getHeaderActions(): array
@@ -35,7 +35,7 @@ class ViewRegister extends ViewRecord
                 ->label('Confirm')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
+                ->visible(fn ($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
                 ->form([
                     TextInput::make('kode_outlet')
                         ->regex('/^[0-9]+$/')
@@ -58,7 +58,7 @@ class ViewRegister extends ViewRecord
                     ]);
 
                     Notification::make()
-                        ->title($record->nama_outlet . ' Confirm')
+                        ->title($record->nama_outlet.' Confirm')
                         ->success()
                         ->send();
                 }),
@@ -66,7 +66,7 @@ class ViewRegister extends ViewRecord
                 ->label('Approve')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
+                ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
                 ->action(function ($record, $data): void {
                     /** @var User|null $authUser */
                     $authUser = Auth::user();
@@ -78,7 +78,7 @@ class ViewRegister extends ViewRecord
                     ]);
 
                     Notification::make()
-                        ->title($record->nama_outlet . ' Approved')
+                        ->title($record->nama_outlet.' Approved')
                         ->success()
                         ->send();
                 }),
@@ -86,7 +86,7 @@ class ViewRegister extends ViewRecord
                 ->label('Reject')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
+                ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
                 ->form([
                     Textarea::make('alasan')
                         ->required(),
@@ -102,7 +102,7 @@ class ViewRegister extends ViewRecord
                         'keterangan' => $data['alasan'],
                     ]);
                     Notification::make()
-                        ->title($record->nama_outlet . ' Rejected')
+                        ->title($record->nama_outlet.' Rejected')
                         ->success()
                         ->send();
                 }),

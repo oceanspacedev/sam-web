@@ -68,10 +68,10 @@ class PlanVisitController extends Controller
                 'outlet.region',
                 'outlet.divisi',
                 'outlet.cluster',
-                'user.badanusaha',
-                'user.region',
-                'user.divisi',
-                'user.cluster',
+                'user.badanUsahas',
+                'user.regions',
+                'user.divisis',
+                'user.clusters',
                 'user.role',
             ])->where('user_id', Auth::user()->id)
                 ->unrealized()
@@ -161,10 +161,10 @@ class PlanVisitController extends Controller
                 'outlet.region',
                 'outlet.divisi',
                 'outlet.cluster',
-                'user.badanusaha',
-                'user.region',
-                'user.divisi',
-                'user.cluster',
+                'user.badanUsahas',
+                'user.regions',
+                'user.divisis',
+                'user.clusters',
                 'user.role',
             ])
                 ->where('user_id', Auth::user()->id)
@@ -267,12 +267,16 @@ class PlanVisitController extends Controller
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
-            $isRealmeDivision = ($user->divisi_id == 4 || $outlet->divisi_id == 4);
+            // Check if user has Realme division (ID 4) using many-to-many relationship
+            $userDivisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+            $isRealmeDivision = (in_array(4, $userDivisiIds) || $outlet->divisi_id == 4);
             $periodStart = Carbon::parse($request->tanggal_visit)->startOfDay();
             $schedulePayload = PlanVisit::schedulePayload($periodStart, 'daily');
 
-            if ($isRealmeDivision
-                && Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay(1)->setTime(10, 0))) {
+            if (
+                $isRealmeDivision
+                && Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay(1)->setTime(10, 0))
+            ) {
                 Log::channel('planvisit')->warning('Plan visit add failed: weekly deadline passed', [
                     'user_id' => $user->id,
                     'outlet_id' => $outlet->id,
@@ -282,8 +286,10 @@ class PlanVisitController extends Controller
                 return ResponseFormatter::error(null, 'Tidak bisa menambahkan plan visit kurang dari minggu yang berjalan');
             }
 
-            if (! $isRealmeDivision
-                && Carbon::now()->gt($periodStart->copy()->subDays(3))) {
+            if (
+                ! $isRealmeDivision
+                && Carbon::now()->gt($periodStart->copy()->subDays(3))
+            ) {
                 Log::channel('planvisit')->warning('Plan visit add failed: H-3 deadline passed', [
                     'user_id' => $user->id,
                     'outlet_id' => $outlet->id,

@@ -82,10 +82,10 @@ class VisitController extends Controller
                     'outlet.region',
                     'outlet.divisi',
                     'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
                     'user.role',
                 ])->whereHas('user', function ($query) {
                     $query->where('divisi_id', '8')
@@ -104,10 +104,10 @@ class VisitController extends Controller
                     'outlet.region',
                     'outlet.divisi',
                     'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
                     'user.role',
                 ])->whereHas('user', function ($query) {
                     $query->where('divisi_id', '11');
@@ -125,10 +125,10 @@ class VisitController extends Controller
                     'outlet.region',
                     'outlet.divisi',
                     'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
                     'user.role',
                 ])->whereHas('user', function ($query) {
                     $query->where('tm_id', Auth::user()->id);
@@ -146,10 +146,10 @@ class VisitController extends Controller
                     'outlet.region',
                     'outlet.divisi',
                     'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
                     'user.role',
                 ])->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
@@ -164,10 +164,10 @@ class VisitController extends Controller
                     'outlet.region',
                     'outlet.divisi',
                     'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
                     'user.role',
                 ])->whereHas('outlet', function ($query) {
                     $query->where('divisi_id', 4);
@@ -185,10 +185,10 @@ class VisitController extends Controller
                     'outlet.region',
                     'outlet.divisi',
                     'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
                     'user.role',
                 ])->whereHas('outlet', function ($query) {
                     $query->where('divisi_id', 7);
@@ -199,20 +199,28 @@ class VisitController extends Controller
 
                 // VisitNoo removed
             } else {
+                // Use many-to-many region relationship instead of direct region_id property
+                $userRegionIds = Auth::user()->regions()->pluck('regions.id')->toArray();
+
                 $visit = Visit::with([
                     'outlet.badanusaha',
                     'outlet.region',
                     'outlet.divisi',
                     'outlet.cluster',
-                    'user.badanusaha',
-                    'user.region',
-                    'user.divisi',
-                    'user.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
                     'user.role',
-                ])->whereHas('user', function ($query) {
-                    $query->where('region_id', Auth::user()->region_id);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
+                ]);
+
+                if (! empty($userRegionIds)) {
+                    $visit->whereHas('user.regions', function ($query) use ($userRegionIds) {
+                        $query->whereIn('regions.id', $userRegionIds);
+                    });
+                }
+
+                $visit = $visit->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
                     ->latest()
                     ->get();
 
@@ -279,10 +287,10 @@ class VisitController extends Controller
                 'outlet.region',
                 'outlet.divisi',
                 'outlet.cluster',
-                'user.badanusaha',
-                'user.region',
-                'user.divisi',
-                'user.cluster',
+                'user.badanUsahas',
+                'user.regions',
+                'user.divisis',
+                'user.clusters',
                 'user.role',
             ])
                 ->where('user_id', Auth::user()->id)
@@ -501,9 +509,15 @@ class VisitController extends Controller
                 $mediaQueue = [];
                 $user = Auth::user();
                 if ($user->role->name === 'DSF/DM' || $user->role->name === 'ASC') {
-                    $outlet = Outlet::where('kode_outlet', $request->kode_outlet)
-                        ->where('divisi_id', $user->divisi_id)
-                        ->first();
+                    // Use many-to-many divisi relationship instead of direct divisi_id property
+                    $userDivisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                    if (! empty($userDivisiIds)) {
+                        $outlet = Outlet::where('kode_outlet', $request->kode_outlet)
+                            ->whereIn('divisi_id', $userDivisiIds)
+                            ->first();
+                    } else {
+                        $outlet = null; // No division assigned, cannot find outlet
+                    }
                 } else {
                     $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
                 }

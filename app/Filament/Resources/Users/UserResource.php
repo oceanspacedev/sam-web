@@ -61,32 +61,32 @@ class UserResource extends Resource
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                                TextInput::make('username')
-                                                    ->required()
-                                                    ->maxLength(255)
-                                                    ->label('Username')
-                                                    ->unique(ignoreRecord: true)
-                                                    ->dehydrateStateUsing(fn($state) => strtolower($state))
-                                                    ->placeholder('Masukkan username yang unik')
-                                                    ->regex('/^[\S]+$/')
-                                                    ->helperText('Username tidak boleh mengandung spasi'),
-                                                TextInput::make('nama_lengkap')
-                                                    ->required()
-                                                    ->maxLength(255)
-                                                    ->label('Nama Lengkap')
-                                                    ->placeholder('Masukkan nama lengkap')
-                                                    ->dehydrateStateUsing(fn($state) => strtoupper($state)),
-                                                TextInput::make('password')
-                                                    ->password()
-                                                    ->dehydrateStateUsing(fn($state) => Hash::make($state))
-                                                    ->dehydrated(fn($state) => filled($state))
-                                                    ->maxLength(255)
-                                                    ->label('Password')
-                                                    ->placeholder('Masukkan password')
-                                                    ->required(fn(string $context): bool => $context === 'create')
-                                                    ->revealable()
-                                                    ->columnSpan(['default' => 1, 'md' => 2]),
-                                            ]),
+                                        TextInput::make('username')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->label('Username')
+                                            ->unique(ignoreRecord: true)
+                                            ->dehydrateStateUsing(fn ($state) => strtolower($state))
+                                            ->placeholder('Masukkan username yang unik')
+                                            ->regex('/^[\S]+$/')
+                                            ->helperText('Username tidak boleh mengandung spasi'),
+                                        TextInput::make('nama_lengkap')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->label('Nama Lengkap')
+                                            ->placeholder('Masukkan nama lengkap')
+                                            ->dehydrateStateUsing(fn ($state) => strtoupper($state)),
+                                        TextInput::make('password')
+                                            ->password()
+                                            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
+                                            ->dehydrated(fn ($state) => filled($state))
+                                            ->maxLength(255)
+                                            ->label('Password')
+                                            ->placeholder('Masukkan password')
+                                            ->required(fn (string $context): bool => $context === 'create')
+                                            ->revealable()
+                                            ->columnSpan(['default' => 1, 'md' => 2]),
+                                    ]),
                                 ]),
                             Section::make('Peran & Relasi TM')
                                 ->schema([
@@ -94,33 +94,33 @@ class UserResource extends Resource
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                                Select::make('role_id')
-                                                    ->relationship('role', 'name')
-                                                    ->searchable()
-                                                    ->preload()
-                                                    ->required()
-                                                    ->reactive()  // Make reactive to trigger field visibility
-                                                    ->label('Role')
-                                                    ->placeholder('Pilih role')
-                                                    ->options(function (callable $get) {
-                                                        $user = Auth::user();
+                                        Select::make('role_id')
+                                            ->relationship('role', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->reactive()  // Make reactive to trigger field visibility
+                                            ->label('Role')
+                                            ->placeholder('Pilih role')
+                                            ->options(function (callable $get) {
+                                                $user = Auth::user();
 
-                                                        if ($user->role->name !== 'SUPER ADMIN') {
-                                                            return Role::whereIn('name', ['AR', 'ASC', 'ASM', 'DSF/DM'])
-                                                                ->orderBy('name')
-                                                                ->pluck('name', 'id')->toArray();
-                                                        }
+                                                if ($user->role->name !== 'SUPER ADMIN') {
+                                                    return Role::whereIn('name', ['AR', 'ASC', 'ASM', 'DSF/DM'])
+                                                        ->orderBy('name')
+                                                        ->pluck('name', 'id')->toArray();
+                                                }
 
-                                                        return Role::orderBy('name')->pluck('name', 'id')->toArray();
-                                                    }),
-                                                Select::make('tm_id')
-                                                    ->label('TM')
-                                                    ->relationship('tm', 'nama_lengkap')
-                                                    ->searchable()
-                                                    ->preload()
-                                                    ->required()
-                                                    ->placeholder('Pilih TM'),
-                                            ]),
+                                                return Role::orderBy('name')->pluck('name', 'id')->toArray();
+                                            }),
+                                        Select::make('tm_id')
+                                            ->label('TM')
+                                            ->relationship('tm', 'nama_lengkap')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->placeholder('Pilih TM'),
+                                    ]),
                                 ]),
                         ])
                             ->columnSpan(['default' => 1, 'xl' => 8]),
@@ -138,7 +138,7 @@ class UserResource extends Resource
                                             ->placeholder('Pilih badan usaha')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (!$roleId) {
+                                                if (! $roleId) {
                                                     return false; // Hide until role is selected
                                                 }
                                                 $role = Role::find($roleId);
@@ -147,7 +147,7 @@ class UserResource extends Resource
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (!$roleId) {
+                                                if (! $roleId) {
                                                     return false;
                                                 }
                                                 $role = Role::find($roleId);
@@ -181,7 +181,7 @@ class UserResource extends Resource
                                             ->placeholder('Pilih divisi')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (!$roleId) {
+                                                if (! $roleId) {
                                                     return false; // Hide until role is selected
                                                 }
                                                 $role = Role::find($roleId);
@@ -190,7 +190,7 @@ class UserResource extends Resource
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (!$roleId) {
+                                                if (! $roleId) {
                                                     return false;
                                                 }
                                                 $role = Role::find($roleId);
@@ -221,7 +221,7 @@ class UserResource extends Resource
                                             ->placeholder('Pilih region')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (!$roleId) {
+                                                if (! $roleId) {
                                                     return false; // Hide until role is selected
                                                 }
                                                 $role = Role::find($roleId);
@@ -230,7 +230,7 @@ class UserResource extends Resource
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (!$roleId) {
+                                                if (! $roleId) {
                                                     return false;
                                                 }
                                                 $role = Role::find($roleId);
@@ -260,7 +260,7 @@ class UserResource extends Resource
                                             ->placeholder('Pilih cluster')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (!$roleId) {
+                                                if (! $roleId) {
                                                     return false; // Hide until role is selected
                                                 }
                                                 $role = Role::find($roleId);
@@ -269,7 +269,7 @@ class UserResource extends Resource
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (!$roleId) {
+                                                if (! $roleId) {
                                                     return false;
                                                 }
                                                 $role = Role::find($roleId);
@@ -327,22 +327,22 @@ class UserResource extends Resource
                                 TextEntry::make('badan_usahas_list')
                                     ->label('Badan Usaha')
                                     ->badge()
-                                    ->state(fn($record) => $record->badanUsahas->pluck('name')->toArray())
+                                    ->state(fn ($record) => $record->badanUsahas->pluck('name')->toArray())
                                     ->separator(','),
                                 TextEntry::make('divisis_list')
                                     ->label('Divisi')
                                     ->badge()
-                                    ->state(fn($record) => $record->divisis->pluck('name')->toArray())
+                                    ->state(fn ($record) => $record->divisis->pluck('name')->toArray())
                                     ->separator(','),
                                 TextEntry::make('regions_list')
                                     ->label('Region')
                                     ->badge()
-                                    ->state(fn($record) => $record->regions->pluck('name')->toArray())
+                                    ->state(fn ($record) => $record->regions->pluck('name')->toArray())
                                     ->separator(','),
                                 TextEntry::make('clusters_list')
                                     ->label('Cluster')
                                     ->badge()
-                                    ->state(fn($record) => $record->clusters->pluck('name')->toArray())
+                                    ->state(fn ($record) => $record->clusters->pluck('name')->toArray())
                                     ->separator(','),
                             ]),
                     ])
@@ -360,7 +360,7 @@ class UserResource extends Resource
                 //     ->searchable(),
                 TextColumn::make('role.name')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
+                    ->color(fn (string $state): string => match ($state) {
                         'SUPER ADMIN' => 'danger',
                         'APP DEVELOPER' => 'info',
                         default => 'primary',
@@ -465,13 +465,13 @@ class UserResource extends Resource
                     }),
 
                 TrashedFilter::make()
-                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], User::class)),
+                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], User::class)),
             ])
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
                 ImpersonateAction::make('impersonate')
-                    ->visible(fn(User $record): bool => (bool) $record->role?->can_access_web),
+                    ->visible(fn (User $record): bool => (bool) $record->role?->can_access_web),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -497,7 +497,7 @@ class UserResource extends Resource
             ->where(function ($query) {
                 /** @var User|null $user */
                 $user = Auth::user();
-                if (!$user || !$user->role) {
+                if (! $user || ! $user->role) {
                     return;
                 }
 
@@ -516,13 +516,13 @@ class UserResource extends Resource
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
                 // Apply filters based on scope level
-                if (!empty($badanUsahaIds)) {
+                if (! empty($badanUsahaIds)) {
                     $query->whereHas('badanUsahas', function ($q) use ($badanUsahaIds) {
                         $q->whereIn('badan_usahas.id', $badanUsahaIds);
                     });
                 }
 
-                if (!empty($divisiIds)) {
+                if (! empty($divisiIds)) {
                     $query->whereHas('divisis', function ($q) use ($divisiIds) {
                         $q->whereIn('divisions.id', $divisiIds);
                     });
@@ -530,13 +530,13 @@ class UserResource extends Resource
 
                 // Apply region/cluster filters only for non-divisi scope
                 if ($scopeLevel === 'cluster') {
-                    if (!empty($regionIds)) {
+                    if (! empty($regionIds)) {
                         $query->whereHas('regions', function ($q) use ($regionIds) {
                             $q->whereIn('regions.id', $regionIds);
                         });
                     }
 
-                    if (!empty($clusterIds)) {
+                    if (! empty($clusterIds)) {
                         $query->whereHas('clusters', function ($q) use ($clusterIds) {
                             $q->whereIn('clusters.id', $clusterIds);
                         });

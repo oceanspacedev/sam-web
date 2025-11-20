@@ -21,11 +21,14 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
+use Filament\Infolists\Components\ImageEntry;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
@@ -43,10 +46,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
-use Filament\Infolists\Infolist;
-use Filament\Infolists\Components\TextEntry;
-use Filament\Infolists\Components\ImageEntry;
-use Filament\Actions\ViewAction;
 
 class RegisterResource extends Resource
 {
@@ -92,8 +91,8 @@ class RegisterResource extends Resource
                                     TextInput::make('ktp_outlet')
                                         ->maxLength(255)
                                         ->label('KTP Pemilik Outlet')
-                                        ->visible(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan')))
-                                        ->required(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan'))),
+                                        ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                        ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan'))),
                                     TextInput::make('latlong')
                                         ->required()
                                         ->maxLength(255)
@@ -106,74 +105,74 @@ class RegisterResource extends Resource
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                                FileUpload::make('poto_shop_sign')
-                                                    ->image()
-                                                    ->disk(StorageDisk::default())
-                                                    ->label('Foto Tanda Toko')
-                                                    ->required(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan')))
-                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                        $userId = Auth::id();
-                                                        $filenameGenerator = new FilenameGeneratorService;
+                                        FileUpload::make('poto_shop_sign')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->label('Foto Tanda Toko')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $userId = Auth::id();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
-                                                        return $filenameGenerator->generate($file, 'register-photo', $userId);
-                                                        // Output: rp241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
-                                                    }),
-                                                FileUpload::make('poto_depan')
-                                                    ->image()
-                                                    ->disk(StorageDisk::default())
-                                                    ->label('Foto Depan')
-                                                    ->required(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan')))
-                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                        $userId = Auth::id();
-                                                        $filenameGenerator = new FilenameGeneratorService;
+                                                return $filenameGenerator->generate($file, 'register-photo', $userId);
+                                                // Output: rp241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
+                                            }),
+                                        FileUpload::make('poto_depan')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->label('Foto Depan')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $userId = Auth::id();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
-                                                        return $filenameGenerator->generate($file, 'register-photo', $userId);
-                                                    }),
-                                                FileUpload::make('poto_kiri')
-                                                    ->image()
-                                                    ->disk(StorageDisk::default())
-                                                    ->label('Foto Kiri')
-                                                    ->required(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan')))
-                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                        $userId = Auth::id();
-                                                        $filenameGenerator = new FilenameGeneratorService;
+                                                return $filenameGenerator->generate($file, 'register-photo', $userId);
+                                            }),
+                                        FileUpload::make('poto_kiri')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->label('Foto Kiri')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $userId = Auth::id();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
-                                                        return $filenameGenerator->generate($file, 'register-photo', $userId);
-                                                    }),
-                                                FileUpload::make('poto_kanan')
-                                                    ->image()
-                                                    ->disk(StorageDisk::default())
-                                                    ->label('Foto Kanan')
-                                                    ->required(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan')))
-                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                        $userId = Auth::id();
-                                                        $filenameGenerator = new FilenameGeneratorService;
+                                                return $filenameGenerator->generate($file, 'register-photo', $userId);
+                                            }),
+                                        FileUpload::make('poto_kanan')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->label('Foto Kanan')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $userId = Auth::id();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
-                                                        return $filenameGenerator->generate($file, 'register-photo', $userId);
-                                                    }),
-                                                FileUpload::make('poto_ktp')
-                                                    ->image()
-                                                    ->disk(StorageDisk::default())
-                                                    ->label('Foto KTP Pemilik')
-                                                    ->required(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan')))
-                                                    ->visible(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan')))
-                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                        $userId = Auth::id();
-                                                        $filenameGenerator = new FilenameGeneratorService;
+                                                return $filenameGenerator->generate($file, 'register-photo', $userId);
+                                            }),
+                                        FileUpload::make('poto_ktp')
+                                            ->image()
+                                            ->disk(StorageDisk::default())
+                                            ->label('Foto KTP Pemilik')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $userId = Auth::id();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
-                                                        return $filenameGenerator->generate($file, 'register-ktp', $userId);
-                                                    }),
-                                                FileUpload::make('video')
-                                                    ->disk(StorageDisk::default())
-                                                    ->label('Video Toko')
-                                                    ->required(fn(Get $get): bool => !RegisterResource::isLead($get('keterangan')))
-                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                        $userId = Auth::id();
-                                                        $filenameGenerator = new FilenameGeneratorService;
+                                                return $filenameGenerator->generate($file, 'register-ktp', $userId);
+                                            }),
+                                        FileUpload::make('video')
+                                            ->disk(StorageDisk::default())
+                                            ->label('Video Toko')
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                $userId = Auth::id();
+                                                $filenameGenerator = new FilenameGeneratorService;
 
-                                                        return $filenameGenerator->generate($file, 'register-video', $userId);
-                                                    }),
-                                            ]),
+                                                return $filenameGenerator->generate($file, 'register-video', $userId);
+                                            }),
+                                    ]),
                                 ]),
                             Section::make('Promotor dan Frontliner')
                                 ->schema([
@@ -212,10 +211,10 @@ class RegisterResource extends Resource
                                         ->label('Dibuat Oleh')
                                         ->searchable()
                                         ->required()
-                                        ->options(fn(): array => self::getCreatorOptions())
+                                        ->options(fn (): array => self::getCreatorOptions())
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, ?string $state): void {
-                                            if (!$state) {
+                                            if (! $state) {
                                                 $set('tm_id', null);
 
                                                 return;
@@ -223,7 +222,7 @@ class RegisterResource extends Resource
 
                                             $creator = self::findCreatorByName($state);
 
-                                            if (!$creator) {
+                                            if (! $creator) {
                                                 $set('tm_id', null);
 
                                                 return;
@@ -245,8 +244,8 @@ class RegisterResource extends Resource
                                             'NOO' => 'primary',
                                         ])
                                         ->default('NOO')
-                                        ->formatStateUsing(fn(?string $state): string => $state === 'LEAD' ? 'LEAD' : 'NOO')
-                                        ->dehydrateStateUsing(fn(?string $state): ?string => $state === 'LEAD' ? 'LEAD' : null),
+                                        ->formatStateUsing(fn (?string $state): string => $state === 'LEAD' ? 'LEAD' : 'NOO')
+                                        ->dehydrateStateUsing(fn (?string $state): ?string => $state === 'LEAD' ? 'LEAD' : null),
                                 ])
                                 ->columns(1),
                             Section::make('Struktur Organisasi')
@@ -263,7 +262,7 @@ class RegisterResource extends Resource
                                                     /** @var User|null $user */
                                                     $user = Auth::user();
 
-                                                    if (!$user) {
+                                                    if (! $user) {
                                                         return [];
                                                     }
 
@@ -291,7 +290,7 @@ class RegisterResource extends Resource
                                                 ->options(function (callable $get) {
                                                     $badanusahaId = $get('badanusaha_id');
 
-                                                    if (!$badanusahaId) {
+                                                    if (! $badanusahaId) {
                                                         return [];
                                                     }
 
@@ -312,7 +311,7 @@ class RegisterResource extends Resource
                                                 ->options(function (callable $get) {
                                                     $divisiId = $get('divisi_id');
 
-                                                    if (!$divisiId) {
+                                                    if (! $divisiId) {
                                                         return [];
                                                     }
 
@@ -332,7 +331,7 @@ class RegisterResource extends Resource
                                                 ->options(function (callable $get) {
                                                     $regionId = $get('region_id');
 
-                                                    if (!$regionId) {
+                                                    if (! $regionId) {
                                                         return [];
                                                     }
 
@@ -349,7 +348,7 @@ class RegisterResource extends Resource
                                         ->required()
                                         ->searchable()
                                         ->preload()
-                                        ->options(fn(Get $get): array => self::getTmOptions($get('created_by'), $get('tm_id')))
+                                        ->options(fn (Get $get): array => self::getTmOptions($get('created_by'), $get('tm_id')))
                                         ->live(),
                                 ]),
                         ])
@@ -397,7 +396,7 @@ class RegisterResource extends Resource
             }
         }
 
-        if ($currentTmId && !array_key_exists($currentTmId, $options)) {
+        if ($currentTmId && ! array_key_exists($currentTmId, $options)) {
             $currentTm = User::query()->find($currentTmId);
 
             if ($currentTm) {
@@ -405,7 +404,7 @@ class RegisterResource extends Resource
             }
         }
 
-        if (!empty($options)) {
+        if (! empty($options)) {
             return $options;
         }
 
@@ -441,7 +440,7 @@ class RegisterResource extends Resource
                                         ->label('KTP Pemilik Outlet'),
                                     TextEntry::make('latlong')
                                         ->label('Koordinat Lat/Long')
-                                        ->url(fn($state) => $state ? "https://www.google.com/maps/place/{$state}" : null, shouldOpenInNewTab: true)
+                                        ->url(fn ($state) => $state ? "https://www.google.com/maps/place/{$state}" : null, shouldOpenInNewTab: true)
                                         ->color('primary'),
                                 ])
                                 ->columns(2),
@@ -451,26 +450,26 @@ class RegisterResource extends Resource
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                                ImageEntry::make('poto_shop_sign')
-                                                    ->label('Foto Tanda Toko')
-                                                    ->disk(StorageDisk::default()),
-                                                ImageEntry::make('poto_depan')
-                                                    ->label('Foto Depan')
-                                                    ->disk(StorageDisk::default()),
-                                                ImageEntry::make('poto_kiri')
-                                                    ->label('Foto Kiri')
-                                                    ->disk(StorageDisk::default()),
-                                                ImageEntry::make('poto_kanan')
-                                                    ->label('Foto Kanan')
-                                                    ->disk(StorageDisk::default()),
-                                                ImageEntry::make('poto_ktp')
-                                                    ->label('Foto KTP Pemilik')
-                                                    ->disk(StorageDisk::default()),
-                                                TextEntry::make('video')
-                                                    ->label('Video Toko')
-                                                    ->formatStateUsing(fn($state) => $state ? new HtmlString('<a href="' . StorageDisk::url($state) . '" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
-                                                    ->html(),
-                                            ]),
+                                        ImageEntry::make('poto_shop_sign')
+                                            ->label('Foto Tanda Toko')
+                                            ->disk(StorageDisk::default()),
+                                        ImageEntry::make('poto_depan')
+                                            ->label('Foto Depan')
+                                            ->disk(StorageDisk::default()),
+                                        ImageEntry::make('poto_kiri')
+                                            ->label('Foto Kiri')
+                                            ->disk(StorageDisk::default()),
+                                        ImageEntry::make('poto_kanan')
+                                            ->label('Foto Kanan')
+                                            ->disk(StorageDisk::default()),
+                                        ImageEntry::make('poto_ktp')
+                                            ->label('Foto KTP Pemilik')
+                                            ->disk(StorageDisk::default()),
+                                        TextEntry::make('video')
+                                            ->label('Video Toko')
+                                            ->formatStateUsing(fn ($state) => $state ? new HtmlString('<a href="'.StorageDisk::url($state).'" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
+                                            ->html(),
+                                    ]),
                                 ]),
                             Section::make('Promotor dan Frontliner')
                                 ->schema([
@@ -501,7 +500,7 @@ class RegisterResource extends Resource
                                     TextEntry::make('keterangan')
                                         ->label('Keterangan')
                                         ->badge()
-                                        ->color(fn(string $state): string => match ($state) {
+                                        ->color(fn (string $state): string => match ($state) {
                                             'LEAD' => 'warning',
                                             'NOO' => 'primary',
                                             default => 'gray',
@@ -509,7 +508,7 @@ class RegisterResource extends Resource
                                     TextEntry::make('status')
                                         ->label('Status')
                                         ->badge()
-                                        ->color(fn(string $state): string => match ($state) {
+                                        ->color(fn (string $state): string => match ($state) {
                                             'APPROVED' => 'success',
                                             'REJECTED' => 'danger',
                                             'CONFIRMED' => 'info',
@@ -583,38 +582,38 @@ class RegisterResource extends Resource
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->color('primary')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('KTP'))
-                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('KTP'))
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('VIDEO'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
                     ->color('primary')
-                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('oppo')
                     ->label('Oppo')
@@ -636,9 +635,9 @@ class RegisterResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
-                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
                     ->color('primary')
-                    ->url(fn($state): string => 'https://www.google.com/maps/place/' . $state, shouldOpenInNewTab: true)
+                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('limit')
                     ->label('Limit')
@@ -719,9 +718,9 @@ class RegisterResource extends Resource
                 Filter::make('duplicates')
                     ->label('Data Duplikat')
                     ->toggle()
-                    ->query(fn(Builder $query): Builder => self::applyDuplicateFilter($query)),
+                    ->query(fn (Builder $query): Builder => self::applyDuplicateFilter($query)),
                 TrashedFilter::make()
-                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], Register::class)),
+                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Register::class)),
             ])
             ->recordActions([
                 ViewAction::make(),
@@ -730,7 +729,7 @@ class RegisterResource extends Resource
                     ->label('Confirm')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
+                    ->visible(fn ($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
                     ->schema([
                         TextInput::make('kode_outlet')
                             ->regex('/^[0-9]+$/')
@@ -753,7 +752,7 @@ class RegisterResource extends Resource
                         ]);
 
                         Notification::make()
-                            ->title($record->nama_outlet . ' Confirm')
+                            ->title($record->nama_outlet.' Confirm')
                             ->success()
                             ->send();
                     }),
@@ -761,7 +760,7 @@ class RegisterResource extends Resource
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
+                    ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
                     ->action(function ($record, $data): void {
                         /** @var User|null $authUser */
                         $authUser = Auth::user();
@@ -773,7 +772,7 @@ class RegisterResource extends Resource
                         ]);
 
                         Notification::make()
-                            ->title($record->nama_outlet . ' Approved')
+                            ->title($record->nama_outlet.' Approved')
                             ->success()
                             ->send();
                     }),
@@ -781,7 +780,7 @@ class RegisterResource extends Resource
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
+                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
                     ->schema([
                         Textarea::make('alasan')
                             ->required(),
@@ -797,7 +796,7 @@ class RegisterResource extends Resource
                             'keterangan' => $data['alasan'],
                         ]);
                         Notification::make()
-                            ->title($record->nama_outlet . ' Rejected')
+                            ->title($record->nama_outlet.' Rejected')
                             ->success()
                             ->send();
                     }),
@@ -824,7 +823,7 @@ class RegisterResource extends Resource
             ->where(function ($query) {
                 /** @var User|null $user */
                 $user = Auth::user();
-                if (!$user) {
+                if (! $user) {
                     return;
                 }
 
@@ -843,19 +842,19 @@ class RegisterResource extends Resource
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
                 // Apply filters based on assignments
-                if (!empty($badanUsahaIds)) {
+                if (! empty($badanUsahaIds)) {
                     $query->whereIn('registers.badanusaha_id', $badanUsahaIds);
                 }
 
-                if (!empty($divisiIds)) {
+                if (! empty($divisiIds)) {
                     $query->whereIn('registers.divisi_id', $divisiIds);
                 }
 
-                if (!empty($regionIds)) {
+                if (! empty($regionIds)) {
                     $query->whereIn('registers.region_id', $regionIds);
                 }
 
-                if (!empty($clusterIds)) {
+                if (! empty($clusterIds)) {
                     $query->whereIn('registers.cluster_id', $clusterIds);
                 }
             })

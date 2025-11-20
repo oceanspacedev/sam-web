@@ -26,7 +26,7 @@ class EditRole extends EditRecord
             ->unique();
         session()->put('permissions_to_sync', $permissions);
 
-        return Arr::only($data, ['name', 'can_access_web', 'filter_type', 'filter_data']);
+        return Arr::only($data, ['name', 'can_access_web', 'organizational_scope_level']);
     }
 
     protected function afterSave(): void

@@ -60,24 +60,27 @@ class OutletHierarchyMasterTemplate implements FromCollection, ShouldAutoSize, W
         if (Auth::check()) {
             $user = Auth::user();
             $role = $user->role;
+            $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
-            switch ($role->filter_type) {
-                case 'badanusaha':
-                    $query->whereIn('clusters.badanusaha_id', $role->filter_data ?? []);
-                    break;
-                case 'divisi':
-                    $query->whereIn('clusters.divisi_id', $role->filter_data ?? []);
-                    break;
-                case 'region':
-                    $query->whereIn('clusters.region_id', $role->filter_data ?? []);
-                    break;
-                case 'cluster':
-                    $query->whereIn('clusters.id', $role->filter_data ?? []);
-                    break;
-                case 'all':
-                default:
-                    // No additional filters
-                    break;
+            if ($scopeLevel !== 'all') {
+                // Get user's organizational assignments from pivot tables
+                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn('clusters.badanusaha_id', $badanUsahaIds);
+                }
+                if (! empty($divisiIds)) {
+                    $query->whereIn('clusters.divisi_id', $divisiIds);
+                }
+                if (! empty($regionIds)) {
+                    $query->whereIn('clusters.region_id', $regionIds);
+                }
+                if (! empty($clusterIds)) {
+                    $query->whereIn('clusters.id', $clusterIds);
+                }
             }
         }
 

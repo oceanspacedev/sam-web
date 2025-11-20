@@ -65,28 +65,30 @@ class OutletUpdatedTemplate implements FromCollection, ShouldAutoSize, WithHeadi
             ->leftJoin('clusters', 'outlets.cluster_id', '=', 'clusters.id');
 
         // Terapkan filter yang sama seperti di OutletResource berdasarkan role user
-        // Untuk template, kita asumsikan user sudah login dan memiliki role
         if (Auth::check()) {
             $user = Auth::user();
             $role = $user->role;
+            $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
-            switch ($role->filter_type) {
-                case 'badanusaha':
-                    $query->whereIn('outlets.badanusaha_id', $role->filter_data ?? []);
-                    break;
-                case 'divisi':
-                    $query->whereIn('outlets.divisi_id', $role->filter_data ?? []);
-                    break;
-                case 'region':
-                    $query->whereIn('outlets.region_id', $role->filter_data ?? []);
-                    break;
-                case 'cluster':
-                    $query->whereIn('outlets.cluster_id', $role->filter_data ?? []);
-                    break;
-                case 'all':
-                default:
-                    // Tidak ada filter tambahan
-                    break;
+            if ($scopeLevel !== 'all') {
+                // Get user's organizational assignments from pivot tables
+                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn('outlets.badanusaha_id', $badanUsahaIds);
+                }
+                if (! empty($divisiIds)) {
+                    $query->whereIn('outlets.divisi_id', $divisiIds);
+                }
+                if (! empty($regionIds)) {
+                    $query->whereIn('outlets.region_id', $regionIds);
+                }
+                if (! empty($clusterIds)) {
+                    $query->whereIn('outlets.cluster_id', $clusterIds);
+                }
             }
         }
 

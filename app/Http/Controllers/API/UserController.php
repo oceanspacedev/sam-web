@@ -72,7 +72,7 @@ class UserController extends Controller
      */
     public function fetch(Request $request)
     {
-        $user = User::with(['cluster', 'region', 'role', 'divisi', 'badanusaha'])->where('id', Auth::user()->id)->first();
+        $user = User::with(['clusters', 'regions', 'role', 'divisis', 'badanUsahas'])->where('id', Auth::user()->id)->first();
 
         return ResponseFormatter::success(['user' => $user->formatForAPI(), 'message' => 'Data profile user berhasil diambil']);
     }
@@ -178,17 +178,18 @@ class UserController extends Controller
 
         try {
             $credentials = request(['username', 'password']);
-            if (! Auth::attempt($credentials)) {
+
+            if (!Auth::attempt($credentials)) {
                 return ResponseFormatter::error([
                     'message' => 'Unauthorized',
                 ], 'Gagal login, cek kembali username dan password anda', 500);
             }
 
-            $user = User::with(['region', 'cluster', 'role', 'divisi', 'badanusaha', 'tm'])
+            $user = User::with(['regions', 'clusters', 'role', 'divisis', 'badanUsahas', 'tm'])
                 ->where('username', $request->username)
                 ->first();
 
-            if (! Hash::check($request->password, $user->password)) {
+            if (!Hash::check($request->password, $user->password)) {
                 throw new Exception('Invalid Credentials');
             }
 
@@ -205,7 +206,7 @@ class UserController extends Controller
         } catch (Exception $error) {
             return ResponseFormatter::error([
                 'message' => 'Something went wrong',
-                'error' => $error,
+                'error' => $error->getMessage(),
             ], 'Authentication Failed', 500);
         }
     }

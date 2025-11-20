@@ -35,33 +35,39 @@ class OutletExporter extends Exporter
             ExportColumn::make('tm')
                 ->label('TM')
                 ->formatStateUsing(function ($state, $record) {
-                    $tm = User::where('divisi_id', $record->divisi_id)
+                    $tm = User::whereHas('role', function ($query) {
+                        $query->where('organizational_scope_level', 'region');
+                    })
+                        ->where('divisi_id', $record->divisi_id)
                         ->where('region_id', $record->region_id)
-                        ->where('role_id', 2)
                         ->first();
 
-                    return $tm->tm->nama_lengkap ?? 'VACANT';
+                    return $tm?->tm?->nama_lengkap ?? 'VACANT';
                 }),
             ExportColumn::make('asc')
                 ->label('ASC')
                 ->formatStateUsing(function ($state, $record) {
-                    $asc = User::where('divisi_id', $record->divisi_id)
+                    $asc = User::whereHas('role', function ($query) {
+                        $query->where('organizational_scope_level', 'region');
+                    })
+                        ->where('divisi_id', $record->divisi_id)
                         ->where('region_id', $record->region_id)
-                        ->where('role_id', 2)
                         ->first();
 
-                    return $asc->nama_lengkap ?? 'VACANT';
+                    return $asc?->nama_lengkap ?? 'VACANT';
                 }),
             ExportColumn::make('dsf')
                 ->label('DSF')
                 ->formatStateUsing(function ($state, $record) {
-                    $dsf = User::where('divisi_id', $record->divisi_id)
+                    $dsf = User::whereHas('role', function ($query) {
+                        $query->where('organizational_scope_level', 'cluster');
+                    })
+                        ->where('divisi_id', $record->divisi_id)
                         ->where('region_id', $record->region_id)
                         ->where('cluster_id', $record->cluster_id)
-                        ->where('role_id', 3)
                         ->first();
 
-                    return $dsf->nama_lengkap ?? 'VACANT';
+                    return $dsf?->nama_lengkap ?? 'VACANT';
                 }),
             ExportColumn::make('created_at')
                 ->formatStateUsing(function ($state) {

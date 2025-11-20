@@ -9,42 +9,62 @@ trait HasOrganizationalScope
 {
     /**
      * Scope query berdasarkan organizational hierarchy user.
+     * Uses many-to-many pivot tables as source of truth.
+     * Empty pivot tables = user has 'all' scope (no filtering).
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        // Filter berdasarkan badan usaha (semua role)
-        $query->where($this->getTable().'.badanusaha_id', $user->badanusaha_id);
+        // Check if user has a role
+        if (! $user->role) {
+            return $query->whereRaw('1 = 0'); // Return empty result
+        }
 
-        $roleName = $user->role?->name;
+        // If role has full access, no filtering needed
+        if ($user->role->hasFullAccess()) {
+            return $query;
+        }
+
         $table = $this->getTable();
-        $clusterIds = array_values(array_filter([$user->cluster_id, $user->cluster_id2]));
+        $scopeLevel = $user->role->getOrganizationalScopeLevel();
 
-        switch ($roleName) {
-            case 'SUPER ADMIN':
-                // No additional filtering - can see all
-                break;
+        // Get user's organizational assignments from pivot tables (source of truth)
+        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+        $regionIds = $user->regions()->pluck('regions.id')->toArray();
+        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
-            case 'ASM':
-                // Area Sales Manager: filter by division only
-                $query->where($table.'.divisi_id', $user->divisi_id);
-                break;
-
-            case 'ASC':
-            case 'DSF/DM':
-                // Area Sales Coordinator / District Sales Field Manager: filter by division + region + optional clusters
-                $query->where($table.'.divisi_id', $user->divisi_id)
-                    ->where($table.'.region_id', $user->region_id);
-
-                if ($clusterIds !== []) {
-                    $query->whereIn($table.'.cluster_id', $clusterIds);
+        // Apply hierarchical filtering based on scope level
+        // Empty arrays mean no filtering (user has 'all' access for that level)
+        switch ($scopeLevel) {
+            case 'badanusaha':
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn($table.'.badanusaha_id', $badanUsahaIds);
                 }
                 break;
 
-            default:
-                // Default: strict filtering (division + region + cluster)
-                $query->where($table.'.divisi_id', $user->divisi_id)
-                    ->where($table.'.region_id', $user->region_id)
-                    ->where($table.'.cluster_id', $user->cluster_id);
+            case 'divisi':
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn($table.'.badanusaha_id', $badanUsahaIds);
+                }
+                if (! empty($divisiIds)) {
+                    $query->whereIn($table.'.divisi_id', $divisiIds);
+                }
+                break;
+
+            case 'cluster':
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn($table.'.badanusaha_id', $badanUsahaIds);
+                }
+                if (! empty($divisiIds)) {
+                    $query->whereIn($table.'.divisi_id', $divisiIds);
+                }
+                if (! empty($regionIds)) {
+                    $query->whereIn($table.'.region_id', $regionIds);
+                }
+                if (! empty($clusterIds)) {
+                    $query->whereIn($table.'.cluster_id', $clusterIds);
+                }
+                break;
         }
 
         return $query;
@@ -52,30 +72,38 @@ trait HasOrganizationalScope
 
     /**
      * Check if user dapat melihat record ini.
+     * Uses many-to-many pivot tables as source of truth.
      */
     public function isVisibleTo(User $user): bool
     {
-        // Super admin can see everything
-        if ($user->role?->name === 'SUPER ADMIN') {
-            return true;
-        }
-
-        // Must match badan usaha
-        if ($this->badanusaha_id !== $user->badanusaha_id) {
+        // Check if user has a role
+        if (! $user->role) {
             return false;
         }
 
-        $roleName = $user->role?->name;
-        $clusterIds = array_values(array_filter([$user->cluster_id, $user->cluster_id2]));
+        // Full access roles can see everything
+        if ($user->role->hasFullAccess()) {
+            return true;
+        }
 
-        return match ($roleName) {
-            'ASM' => $this->divisi_id === $user->divisi_id,
-            'ASC', 'DSF/DM' => $this->divisi_id === $user->divisi_id
-                && $this->region_id === $user->region_id
-                && ($clusterIds === [] || in_array($this->cluster_id, $clusterIds, true)),
-            default => $this->divisi_id === $user->divisi_id
-                && $this->region_id === $user->region_id
-                && $this->cluster_id === $user->cluster_id,
+        // Get user's organizational assignments from pivot tables
+        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+        $regionIds = $user->regions()->pluck('regions.id')->toArray();
+        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+        $scopeLevel = $user->role->getOrganizationalScopeLevel();
+
+        // Empty pivot = 'all' access (return true)
+        return match ($scopeLevel) {
+            'badanusaha' => empty($badanUsahaIds) || in_array($this->badanusaha_id, $badanUsahaIds, true),
+            'divisi' => (empty($badanUsahaIds) || in_array($this->badanusaha_id, $badanUsahaIds, true))
+            && (empty($divisiIds) || in_array($this->divisi_id, $divisiIds, true)),
+            'cluster' => (empty($badanUsahaIds) || in_array($this->badanusaha_id, $badanUsahaIds, true))
+            && (empty($divisiIds) || in_array($this->divisi_id, $divisiIds, true))
+            && (empty($regionIds) || in_array($this->region_id, $regionIds, true))
+            && (empty($clusterIds) || in_array($this->cluster_id, $clusterIds, true)),
+            default => false,
         };
     }
 }

@@ -16,7 +16,6 @@ use App\Models\User;
 use App\Services\FileUploadService;
 use App\Services\MediaProcessingService;
 use App\Services\OrganizationalCacheService;
-use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -137,6 +136,12 @@ class RegisterController extends Controller
                 'poto_ktp' => '-',
             ];
 
+            // Helper to get first ID from pivot
+            $userBadanUsahaId = $user->badanUsahas->first()?->id;
+            $userDivisiId = $user->divisis->first()?->id;
+            $userRegionId = $user->regions->first()?->id;
+            $userClusterId = $user->clusters->first()?->id;
+
             switch ($user->role_id) {
                 case 1:
                     $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
@@ -150,22 +155,22 @@ class RegisterController extends Controller
                     break;
 
                 case 2:
-                    $data['badanusaha_id'] = $user->badanusaha_id;
-                    $data['divisi_id'] = $user->divisi_id;
-                    $data['region_id'] = $user->region_id;
-                    $data['cluster_id'] = Cluster::where('badanusaha_id', $user->badanusaha_id)
-                        ->where('divisi_id', $user->divisi_id)
-                        ->where('region_id', $user->region_id)
+                    $data['badanusaha_id'] = $userBadanUsahaId;
+                    $data['divisi_id'] = $userDivisiId;
+                    $data['region_id'] = $userRegionId;
+                    $data['cluster_id'] = Cluster::where('badanusaha_id', $userBadanUsahaId)
+                        ->where('divisi_id', $userDivisiId)
+                        ->where('region_id', $userRegionId)
                         ->where('name', $request->clus)
                         ->first()->id;
                     error_log($data['cluster_id']);
                     break;
 
                 default:
-                    $data['badanusaha_id'] = $user->badanusaha_id;
-                    $data['divisi_id'] = $user->divisi_id;
-                    $data['region_id'] = $user->region_id;
-                    $data['cluster_id'] = $user->cluster_id;
+                    $data['badanusaha_id'] = $userBadanUsahaId;
+                    $data['divisi_id'] = $userDivisiId;
+                    $data['region_id'] = $userRegionId;
+                    $data['cluster_id'] = $userClusterId;
                     break;
             }
 
@@ -331,9 +336,9 @@ class RegisterController extends Controller
      * Each role has specific filtering logic for data access and visibility.
      *
      * **Role-Based Filtering Logic:**
-    * - **ASM (ID: 1)**: Filters NOOs by TM_id. Special case for user ID 158 (sodikc) with regions [13, 27, 26, 23, 24] and division 4 (Realme).
-    * - **ASC (ID: 2)**: Filters by business unit, division, region, and optional user clusters.
-    * - **DSF/DM (ID: 3)**: Same filtering as ASC (business unit, division, region, optional clusters).
+     * - **ASM (ID: 1)**: Filters NOOs by TM_id. Special case for user ID 158 (sodikc) with regions [13, 27, 26, 23, 24] and division 4 (Realme).
+     * - **ASC (ID: 2)**: Filters by business unit, division, region, and optional user clusters.
+     * - **DSF/DM (ID: 3)**: Same filtering as ASC (business unit, division, region, optional clusters).
      * - **COO (ID: 6)**: Full access to all NOOs without filtering.
      * - **CSO (ID: 8)**: Filters by Realme division (division_id = 4).
      * - **RKAM (ID: 9)**: Similar to ASM - filters by TM_id.
@@ -739,6 +744,12 @@ class RegisterController extends Controller
                 'created_by' => $user->nama_lengkap,
                 'tm_id' => $user->tm->id,
             ];
+            // Helper to get first ID from pivot
+            $userBadanUsahaId = $user->badanUsahas->first()?->id;
+            $userDivisiId = $user->divisis->first()?->id;
+            $userRegionId = $user->regions->first()?->id;
+            $userClusterId = $user->clusters->first()?->id;
+
             switch ($user->role_id) {
                 // ASM
                 case 1:
@@ -754,10 +765,10 @@ class RegisterController extends Controller
 
                     // ASC
                 case 2:
-                    $data['badanusaha_id'] = $user->badanusaha_id;
-                    $data['divisi_id'] = $user->divisi_id;
-                    $data['region_id'] = $user->region_id;
-                    $data['cluster_id'] = Cluster::where('badanusaha_id', $user->badanusaha_id)->where('divisi_id', $user->divisi_id)->where('region_id', $user->region_id)->where('name', $request->clus)->first()->id;
+                    $data['badanusaha_id'] = $userBadanUsahaId;
+                    $data['divisi_id'] = $userDivisiId;
+                    $data['region_id'] = $userRegionId;
+                    $data['cluster_id'] = Cluster::where('badanusaha_id', $userBadanUsahaId)->where('divisi_id', $userDivisiId)->where('region_id', $userRegionId)->where('name', $request->clus)->first()->id;
                     error_log($data['cluster_id']);
                     break;
 
@@ -775,18 +786,18 @@ class RegisterController extends Controller
 
                     // KAM
                 case 10:
-                    $data['badanusaha_id'] = $user->badanusaha_id;
-                    $data['divisi_id'] = $user->divisi_id;
-                    $data['region_id'] = $user->region_id;
-                    $data['cluster_id'] = Cluster::where('badanusaha_id', $user->badanusaha_id)->where('divisi_id', $user->divisi_id)->where('region_id', $user->region_id)->where('name', $request->clus)->first()->id;
+                    $data['badanusaha_id'] = $userBadanUsahaId;
+                    $data['divisi_id'] = $userDivisiId;
+                    $data['region_id'] = $userRegionId;
+                    $data['cluster_id'] = Cluster::where('badanusaha_id', $userBadanUsahaId)->where('divisi_id', $userDivisiId)->where('region_id', $userRegionId)->where('name', $request->clus)->first()->id;
                     error_log($data['cluster_id']);
                     break;
 
                 default:
-                    $data['badanusaha_id'] = $user->badanusaha_id;
-                    $data['divisi_id'] = $user->divisi_id;
-                    $data['region_id'] = $user->region_id;
-                    $data['cluster_id'] = $user->cluster_id;
+                    $data['badanusaha_id'] = $userBadanUsahaId;
+                    $data['divisi_id'] = $userDivisiId;
+                    $data['region_id'] = $userRegionId;
+                    $data['cluster_id'] = $userClusterId;
                     break;
             }
 
@@ -912,8 +923,13 @@ class RegisterController extends Controller
                     array_push($notifId, User::where('role_id', 4)->first()->id_notif);
                     // notif tm
                     array_push($notifId, $user->tm->id_notif);
-                    // notif asc
-                    $asc = User::where('role_id', 2)->where('divisi_id', $user->divisi_id)->where('region_id', $user->region_id)->first()->id_notif ?? null;
+                    // notif asc (region-level role)
+                    $asc = User::whereHas('role', function ($query) {
+                        $query->where('organizational_scope_level', 'region');
+                    })
+                        ->where('divisi_id', $user->divisi_id)
+                        ->where('region_id', $user->region_id)
+                        ->first()?->id_notif;
                     if ($asc) {
                         array_push($notifId, $asc);
                     }
@@ -1063,8 +1079,8 @@ class RegisterController extends Controller
 
             $this->dispatchNotification(
                 'Register '.$register->nama_outlet.' sudah dikonfirmasi oleh '.
-                    Auth::user()->nama_lengkap.PHP_EOL.
-                    'Dengan limit : Rp '.number_format($request->limit, 0, ',', '.'),
+                Auth::user()->nama_lengkap.PHP_EOL.
+                'Dengan limit : Rp '.number_format($request->limit, 0, ',', '.'),
                 $recipients
             );
 
@@ -1250,7 +1266,7 @@ class RegisterController extends Controller
             if ($insert && $notif !== []) {
                 $this->dispatchNotification(
                     'Register '.$register->nama_outlet.' sudah disetujui oleh '.
-                        Auth::user()->nama_lengkap,
+                    Auth::user()->nama_lengkap,
                     $notif
                 );
             }
@@ -1706,8 +1722,8 @@ class RegisterController extends Controller
      *
      * **Role-Based Filtering Logic:**
      * - **ASM (ID: 1)**: Filters by TM_id to show unapproved NOOs from their territory managers
-    * - **ASC (ID: 2)**: Filters by business unit, division, region, and optional user clusters
-    * - **DSF/DM (ID: 3)**: Same filtering as ASC (business unit, division, region, optional clusters)
+     * - **ASC (ID: 2)**: Filters by business unit, division, region, and optional user clusters
+     * - **DSF/DM (ID: 3)**: Same filtering as ASC (business unit, division, region, optional clusters)
      * - **Default**: Fallback to business units 2 and 4 with specific status filters
      *
      * **Key Filter:**

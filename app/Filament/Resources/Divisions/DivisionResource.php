@@ -54,15 +54,13 @@ class DivisionResource extends Resource
                         $user = auth()->user();
                         $role = $user->role;
 
-                        if ($role->filter_type === 'badanusaha') {
-                            return BadanUsaha::whereIn('id', $role->filter_data ?? [])
-                                ->pluck('name', 'id');
-                        } elseif ($role->filter_type === 'all') {
+                        // If role has 'all' scope, show all
+                        if ($role->organizational_scope_level === 'all') {
                             return BadanUsaha::pluck('name', 'id');
                         }
 
-                        return BadanUsaha::where('id', $user->badanusaha_id)
-                            ->pluck('name', 'id');
+                        // Use pivot table for current user's assignments
+                        return $user->badanUsahas()->pluck('name', 'id');
                     }),
                 TextInput::make('name')
                     ->required()
@@ -138,10 +136,17 @@ class DivisionResource extends Resource
         return parent::getEloquentQuery()
             ->where(function ($query) {
                 $user = auth()->user();
-                if ($user->role->name == 'SUPER ADMIN') {
+                $role = $user->role;
+
+                // Super admin or role with 'all' scope sees everything
+                if ($user->role->name == 'SUPER ADMIN' || $role->organizational_scope_level === 'all') {
                     return;
-                } else {
-                    $query->where('divisions.badanusaha_id', $user->badanusaha_id);
+                }
+
+                // Filter by user's badanusaha assignments
+                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn('divisions.badanusaha_id', $badanUsahaIds);
                 }
             });
     }

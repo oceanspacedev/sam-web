@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Registers;
 use App\Filament\Resources\Registers\Pages\CreateRegister;
 use App\Filament\Resources\Registers\Pages\EditRegister;
 use App\Filament\Resources\Registers\Pages\ListRegisters;
+use App\Filament\Resources\Registers\Pages\ViewRegister;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -42,6 +43,10 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ImageEntry;
+use Filament\Actions\ViewAction;
 
 class RegisterResource extends Resource
 {
@@ -264,15 +269,13 @@ class RegisterResource extends Resource
 
                                                     $role = $user->role;
 
-                                                    if ($role->filter_type === 'badanusaha') {
-                                                        return BadanUsaha::whereIn('id', $role->filter_data ?? [])->pluck('name', 'id');
-                                                    }
-
-                                                    if ($role->filter_type === 'all') {
+                                                    // If role has 'all' scope, show all
+                                                    if ($role->organizational_scope_level === 'all') {
                                                         return BadanUsaha::pluck('name', 'id');
                                                     }
 
-                                                    return BadanUsaha::where('id', $user->badanusaha_id)->pluck('name', 'id');
+                                                    // Use pivot table for current user's assignments
+                                                    return $user->badanUsahas()->pluck('name', 'id');
                                                 })
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('divisi_id', null);
@@ -410,6 +413,127 @@ class RegisterResource extends Resource
             ->orderBy('nama_lengkap')
             ->pluck('nama_lengkap', 'id')
             ->toArray();
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Grid::make(12)
+                    ->schema([
+                        Group::make([
+                            Section::make('Data Outlet')
+                                ->schema([
+                                    TextEntry::make('nama_outlet')
+                                        ->label('Nama Outlet'),
+                                    TextEntry::make('distric')
+                                        ->label('Distrik'),
+                                    TextEntry::make('alamat_outlet')
+                                        ->label('Alamat Outlet')
+                                        ->columnSpanFull(),
+                                    TextEntry::make('nama_pemilik_outlet')
+                                        ->label('Nama Pemilik Outlet'),
+                                    TextEntry::make('nomer_tlp_outlet')
+                                        ->label('Nomor Telepon Outlet'),
+                                    TextEntry::make('nomer_wakil_outlet')
+                                        ->label('Nomor Wakil Outlet'),
+                                    TextEntry::make('ktp_outlet')
+                                        ->label('KTP Pemilik Outlet'),
+                                    TextEntry::make('latlong')
+                                        ->label('Koordinat Lat/Long')
+                                        ->url(fn($state) => $state ? "https://www.google.com/maps/place/{$state}" : null, shouldOpenInNewTab: true)
+                                        ->color('primary'),
+                                ])
+                                ->columns(2),
+                            Section::make('Dokumentasi')
+                                ->schema([
+                                    Grid::make([
+                                        'default' => 1,
+                                        'md' => 2,
+                                    ])->schema([
+                                                ImageEntry::make('poto_shop_sign')
+                                                    ->label('Foto Tanda Toko')
+                                                    ->disk(StorageDisk::default()),
+                                                ImageEntry::make('poto_depan')
+                                                    ->label('Foto Depan')
+                                                    ->disk(StorageDisk::default()),
+                                                ImageEntry::make('poto_kiri')
+                                                    ->label('Foto Kiri')
+                                                    ->disk(StorageDisk::default()),
+                                                ImageEntry::make('poto_kanan')
+                                                    ->label('Foto Kanan')
+                                                    ->disk(StorageDisk::default()),
+                                                ImageEntry::make('poto_ktp')
+                                                    ->label('Foto KTP Pemilik')
+                                                    ->disk(StorageDisk::default()),
+                                                TextEntry::make('video')
+                                                    ->label('Video Toko')
+                                                    ->formatStateUsing(fn($state) => $state ? new HtmlString('<a href="' . StorageDisk::url($state) . '" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
+                                                    ->html(),
+                                            ]),
+                                ]),
+                            Section::make('Promotor dan Frontliner')
+                                ->schema([
+                                    TextEntry::make('oppo')
+                                        ->label('Oppo'),
+                                    TextEntry::make('vivo')
+                                        ->label('Vivo'),
+                                    TextEntry::make('realme')
+                                        ->label('Realme'),
+                                    TextEntry::make('samsung')
+                                        ->label('Samsung'),
+                                    TextEntry::make('xiaomi')
+                                        ->label('Xiaomi'),
+                                    TextEntry::make('fl')
+                                        ->label('FL'),
+                                ])
+                                ->columns(2),
+                        ])
+                            ->columnSpan(['default' => 12, 'xl' => 8]),
+                        Group::make([
+                            Section::make('Informasi Tambahan')
+                                ->schema([
+                                    TextEntry::make('created_by')
+                                        ->label('Dibuat Oleh'),
+                                    TextEntry::make('created_at')
+                                        ->label('Tanggal Dibuat')
+                                        ->date('d M Y'),
+                                    TextEntry::make('keterangan')
+                                        ->label('Keterangan')
+                                        ->badge()
+                                        ->color(fn(string $state): string => match ($state) {
+                                            'LEAD' => 'warning',
+                                            'NOO' => 'primary',
+                                            default => 'gray',
+                                        }),
+                                    TextEntry::make('status')
+                                        ->label('Status')
+                                        ->badge()
+                                        ->color(fn(string $state): string => match ($state) {
+                                            'APPROVED' => 'success',
+                                            'REJECTED' => 'danger',
+                                            'CONFIRMED' => 'info',
+                                            default => 'gray',
+                                        }),
+                                ]),
+                            Section::make('Struktur Organisasi')
+                                ->schema([
+                                    TextEntry::make('badanusaha.name')
+                                        ->label('Badan Usaha'),
+                                    TextEntry::make('divisi.name')
+                                        ->label('Divisi'),
+                                    TextEntry::make('region.name')
+                                        ->label('Region'),
+                                    TextEntry::make('cluster.name')
+                                        ->label('Cluster'),
+                                    TextEntry::make('tm.nama_lengkap')
+                                        ->label('TM'),
+                                ]),
+                        ])
+                            ->columnSpan(['default' => 12, 'xl' => 4]),
+                    ])
+                    ->columnSpanFull(),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -600,6 +724,7 @@ class RegisterResource extends Resource
                     ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], Register::class)),
             ])
             ->recordActions([
+                ViewAction::make(),
                 EditAction::make(),
                 Action::make('confirm')
                     ->label('Confirm')
@@ -608,7 +733,7 @@ class RegisterResource extends Resource
                     ->visible(fn($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
                     ->schema([
                         TextInput::make('kode_outlet')
-                            ->regex('/^[\S]+$/', 'Kode outlet tidak boleh mengandung spasi')
+                            ->regex('/^[0-9]+$/')
                             ->helperText('Kode outlet tidak boleh mengandung spasi')
                             ->required(),
                         TextInput::make('limit')
@@ -704,22 +829,34 @@ class RegisterResource extends Resource
                 }
 
                 $role = $user->role;
-                switch ($role->filter_type) {
-                    case 'badanusaha':
-                        $query->whereIn('registers.badanusaha_id', $role->filter_data ?? []);
-                        break;
-                    case 'divisi':
-                        $query->whereIn('registers.divisi_id', $role->filter_data ?? []);
-                        break;
-                    case 'region':
-                        $query->whereIn('registers.region_id', $role->filter_data ?? []);
-                        break;
-                    case 'cluster':
-                        $query->whereIn('registers.cluster_id', $role->filter_data ?? []);
-                        break;
-                    case 'all':
-                    default:
-                        return;
+                $scopeLevel = $role->organizational_scope_level ?? 'cluster';
+
+                // If role has 'all' access, no filtering needed
+                if ($scopeLevel === 'all') {
+                    return;
+                }
+
+                // Get user's organizational assignments from pivot tables
+                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+                // Apply filters based on assignments
+                if (!empty($badanUsahaIds)) {
+                    $query->whereIn('registers.badanusaha_id', $badanUsahaIds);
+                }
+
+                if (!empty($divisiIds)) {
+                    $query->whereIn('registers.divisi_id', $divisiIds);
+                }
+
+                if (!empty($regionIds)) {
+                    $query->whereIn('registers.region_id', $regionIds);
+                }
+
+                if (!empty($clusterIds)) {
+                    $query->whereIn('registers.cluster_id', $clusterIds);
                 }
             })
             ->where(function ($query) {
@@ -751,6 +888,7 @@ class RegisterResource extends Resource
         return [
             'index' => ListRegisters::route('/'),
             'create' => CreateRegister::route('/create'),
+            'view' => ViewRegister::route('/{record}'),
             'edit' => EditRegister::route('/{record}/edit'),
         ];
     }

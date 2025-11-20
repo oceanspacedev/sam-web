@@ -7,10 +7,7 @@ use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
-use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Pages\ViewRecord;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Schema;
 use Maatwebsite\Excel\Facades\Excel;
 use STS\FilamentImpersonate\Actions\Impersonate;
 
@@ -44,23 +41,5 @@ class ViewUser extends ViewRecord
             Impersonate::make('impersonate')
                 ->visible(fn (User $record): bool => (bool) $record->role?->can_access_web),
         ];
-    }
-
-    public function infolist(Schema $schema): Schema
-    {
-        return $schema
-            ->schema([
-                Section::make('Informasi User')
-                    ->schema([
-                        TextEntry::make('nama_lengkap')->label('Nama Lengkap'),
-                        TextEntry::make('username')->label('Username'),
-                        TextEntry::make('role.name')->label('Role'),
-                        TextEntry::make('badanusaha.name')->label('Badan Usaha'),
-                        TextEntry::make('divisi.name')->label('Divisi'),
-                        TextEntry::make('region.name')->label('Region'),
-                        TextEntry::make('cluster.name')->label('Cluster'),
-                        TextEntry::make('tm.nama_lengkap')->label('TM'),
-                    ])->columns(2),
-            ]);
     }
 }

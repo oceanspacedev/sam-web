@@ -6,8 +6,8 @@ use App\Jobs\ProcessMediaJob;
 use App\Services\FileUploadService;
 use App\Services\MediaProcessingService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 
 /**
  * UNIFIED MEDIA UPLOAD TRAIT

@@ -83,29 +83,61 @@ class Outlet extends Model
         return $this->belongsTo(Division::class)->withTrashed();
     }
 
+    /**
+     * @deprecated Use scopeWithTerritory instead. This method uses hardcoded role_id.
+     * Legacy scope for backward compatibility - will be removed in future version.
+     */
     public function scopeWithTmAscDsf(Builder $query): Builder
     {
         return $query
             ->leftJoin('users as tm_users', function ($join) {
                 $join->on('tm_users.divisi_id', '=', 'outlets.divisi_id')
                     ->on('tm_users.region_id', '=', 'outlets.region_id')
-                    ->where('tm_users.role_id', 2);
+                    ->where('tm_users.role_id', 2); // Hardcoded - deprecated
             })
             ->leftJoin('users as asc_users', function ($join) {
                 $join->on('asc_users.divisi_id', '=', 'outlets.divisi_id')
                     ->on('asc_users.region_id', '=', 'outlets.region_id')
-                    ->where('asc_users.role_id', 2);
+                    ->where('asc_users.role_id', 2); // Hardcoded - deprecated
             })
             ->leftJoin('users as dsf_users', function ($join) {
                 $join->on('dsf_users.divisi_id', '=', 'outlets.divisi_id')
                     ->on('dsf_users.region_id', '=', 'outlets.region_id')
                     ->on('dsf_users.cluster_id', '=', 'outlets.cluster_id')
-                    ->where('dsf_users.role_id', 3);
+                    ->where('dsf_users.role_id', 3); // Hardcoded - deprecated
             })
-            ->select('outlets.*',
+            ->select(
+                'outlets.*',
                 'tm_users.nama_lengkap as tm_nama_lengkap',
                 'asc_users.nama_lengkap as asc_nama_lengkap',
                 'dsf_users.nama_lengkap as dsf_nama_lengkap'
+            );
+    }
+
+    /**
+     * Dynamic scope to attach territory users based on organizational_scope_level
+     * Replaces hardcoded scopeWithTmAscDsf
+     */
+    public function scopeWithTerritory(Builder $query): Builder
+    {
+        return $query
+            ->leftJoin('users as region_users', function ($join) {
+                $join->on('region_users.divisi_id', '=', 'outlets.divisi_id')
+                    ->on('region_users.region_id', '=', 'outlets.region_id')
+                    ->join('roles as region_role', 'region_users.role_id', '=', 'region_role.id')
+                    ->where('region_role.organizational_scope_level', 'region');
+            })
+            ->leftJoin('users as cluster_users', function ($join) {
+                $join->on('cluster_users.divisi_id', '=', 'outlets.divisi_id')
+                    ->on('cluster_users.region_id', '=', 'outlets.region_id')
+                    ->on('cluster_users.cluster_id', '=', 'outlets.cluster_id')
+                    ->join('roles as cluster_role', 'cluster_users.role_id', '=', 'cluster_role.id')
+                    ->where('cluster_role.organizational_scope_level', 'cluster');
+            })
+            ->select(
+                'outlets.*',
+                'region_users.nama_lengkap as region_manager_name',
+                'cluster_users.nama_lengkap as cluster_manager_name'
             );
     }
 

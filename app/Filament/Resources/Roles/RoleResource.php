@@ -5,11 +5,7 @@ namespace App\Filament\Resources\Roles;
 use App\Filament\Resources\Roles\Pages\CreateRole;
 use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\Roles\Pages\ListRoles;
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
 use App\Models\Permission;
-use App\Models\Region;
 use App\Models\Role;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -48,66 +44,21 @@ class RoleResource extends Resource
                             ->helperText('Pilih untuk mengizinkan atau menonaktifkan akses web untuk role ini.')
                             ->reactive()
                             ->required(),
-                        Select::make('filter_type')
+                        Select::make('organizational_scope_level')
+                            ->label('Organizational Scope Level')
+                            ->helperText('Tentukan tingkat hierarki akses data untuk role ini.')
                             ->options([
+                                'all' => 'All (Full Access)',
                                 'badanusaha' => 'Badan Usaha',
                                 'divisi' => 'Divisi',
                                 'region' => 'Region',
                                 'cluster' => 'Cluster',
-                                'all' => 'All Data',
                             ])
+                            ->default('cluster')
                             ->visible(fn ($get) => $get('can_access_web') !== false)
                             ->reactive()
-                            ->label('Filter Type')
                             ->required(),
-                        Select::make('filter_data')
-                            ->label('Filter Data')
-                            ->options(function ($get) {
-                                $filterType = $get('filter_type');
 
-                                switch ($filterType) {
-                                    case 'badanusaha':
-                                        return BadanUsaha::pluck('name', 'id');
-
-                                    case 'divisi':
-                                        return Division::with(['badanusaha'])
-                                            ->get()
-                                            ->mapWithKeys(function ($division) {
-                                                $badanusahaName = $division->badanusaha ? $division->badanusaha->name : 'Tidak ada badan usaha';
-
-                                                return [$division->id => "{$division->name} [{$badanusahaName}]"];
-                                            });
-
-                                    case 'region':
-                                        return Region::with(['badanusaha'])
-                                            ->get()
-                                            ->mapWithKeys(function ($region) {
-                                                $badanusahaName = $region->badanusaha ? $region->badanusaha->name : 'Tidak ada badan usaha';
-                                                $divisiName = $region->divisi ? $region->divisi->name : 'Tidak ada divisi';
-
-                                                return [$region->id => "{$region->name} [{$badanusahaName}/{$divisiName}]"];
-                                            });
-
-                                    case 'cluster':
-                                        return Cluster::with(['badanusaha', 'divisi', 'region'])
-                                            ->get()
-                                            ->mapWithKeys(function ($cluster) {
-                                                $badanusahaName = $cluster->badanusaha ? $cluster->badanusaha->name : 'Tidak ada badan usaha';
-                                                $divisiName = $cluster->divisi ? $cluster->divisi->name : 'Tidak ada divisi';
-                                                $regionName = $cluster->region ? $cluster->region->name : 'Tidak ada region';
-
-                                                return [$cluster->id => "{$cluster->name} - {$regionName} [{$badanusahaName}/{$divisiName}]"];
-                                            });
-
-                                    default:
-                                        return [];
-                                }
-                            })
-                            ->placeholder('Pilih Data')
-                            ->reactive()
-                            ->visible(fn ($get) => $get('filter_type') && $get('filter_type') !== 'all' && $get('can_access_web') !== false)
-                            ->required(fn ($get) => $get('filter_type') !== 'all')
-                            ->multiple(),
                     ])
                     ->label('Role Settings')
                     ->columns(2),
@@ -126,9 +77,18 @@ class RoleResource extends Resource
                 IconColumn::make('can_access_web')
                     ->label('Akses Web')
                     ->boolean(),
-                TextColumn::make('filter_type')
-                    ->label('Filter Type')
-                    ->badge(),
+                TextColumn::make('organizational_scope_level')
+                    ->label('Scope Level')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'all' => 'success',
+                        'badanusaha' => 'info',
+                        'divisi' => 'warning',
+                        'region' => 'primary',
+                        'cluster' => 'gray',
+                        default => 'gray',
+                    }),
+
                 TextColumn::make('permissions_count')
                     ->label('Jumlah Izin')
                     ->badge()

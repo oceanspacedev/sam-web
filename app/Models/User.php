@@ -50,38 +50,75 @@ class User extends Authenticatable implements FilamentUser, HasName
         });
     }
 
+    /**
+     * Get outlets accessible to this user based on their organizational assignments.
+     * Uses pivot tables to determine access via badanusaha, divisi, region, and cluster.
+     */
     public function outlet(): HasMany
     {
-        // Outlets are linked via organizational hierarchy, not a direct user_id.
-        // Role-specific scopes:
-        // - ASM: semua outlet di divisi & badan usaha yang sama
-        // - ASC & DSF/DM: semua outlet di region & divisi & badan usaha yang sama, dengan pembatasan cluster opsional
-        // - Default: ketat (region + cluster utama)
+        $role = $this->role;
+        $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
-        $relation = $this->hasMany(Outlet::class, 'divisi_id', 'divisi_id')
-            ->where('badanusaha_id', $this->badanusaha_id);
+        // Get user's organizational IDs from pivot tables
+        $badanUsahaIds = $this->badanUsahas()->pluck('badan_usahas.id')->toArray();
+        $divisiIds = $this->divisis()->pluck('divisions.id')->toArray();
+        $regionIds = $this->regions()->pluck('regions.id')->toArray();
+        $clusterIds = $this->clusters()->pluck('clusters.id')->toArray();
 
-        $roleName = $this->role?->name;
+        // Start with base hasMany relationship
+        $relation = $this->hasMany(Outlet::class, 'id', 'id');
 
-        switch ($roleName) {
-            case 'ASM':
-                return $relation;
+        // HACK: Remove the default foreign key constraint added by HasMany
+        // Standard HasMany adds "where outlets.id = user.id" which is incorrect for this virtual relation.
+        // We remove this specific constraint to allow our RBAC logic to define the scope.
+        $query = $relation->getQuery();
+        $baseQuery = $query->getQuery();
 
-            case 'ASC':
-            case 'DSF/DM':
-                $clusterIds = array_values(array_filter([$this->cluster_id, $this->cluster_id2]));
+        $baseQuery->wheres = array_values(array_filter($baseQuery->wheres, function ($where) {
+            // Remove the constraint that matches foreign key (outlets.id)
+            return !($where['type'] === 'Basic' &&
+                str_ends_with($where['column'], '.id') &&
+                $where['operator'] === '=');
+        }));
 
-                return $relation
-                    ->where('region_id', $this->region_id)
-                    ->when(! empty($clusterIds), function ($q) use ($clusterIds) {
-                        $q->whereIn('cluster_id', $clusterIds);
-                    });
-
-            default:
-                return $relation
-                    ->where('region_id', $this->region_id)
-                    ->where('cluster_id', $this->cluster_id);
+        // Also remove the binding for the removed constraint
+        // The binding value is $this->id
+        $bindings = $baseQuery->getRawBindings()['where'];
+        $keyToRemove = array_search($this->id, $bindings);
+        if ($keyToRemove !== false) {
+            unset($bindings[$keyToRemove]);
+            $baseQuery->setBindings(array_values($bindings), 'where');
         }
+
+        // Apply RBAC constraints using where callback
+        $relation->where(function ($query) use ($scopeLevel, $badanUsahaIds, $divisiIds, $regionIds, $clusterIds) {
+            // If full access, no filtering needed
+            if ($scopeLevel === 'all') {
+                return;
+            }
+
+            // Apply badan usaha filter
+            if (!empty($badanUsahaIds)) {
+                $query->whereIn('badanusaha_id', $badanUsahaIds);
+            }
+
+            // Apply divisi filter
+            if (!empty($divisiIds)) {
+                $query->whereIn('divisi_id', $divisiIds);
+            }
+
+            // Apply region and cluster filters for cluster-level scope
+            if ($scopeLevel === 'cluster') {
+                if (!empty($regionIds)) {
+                    $query->whereIn('region_id', $regionIds);
+                }
+                if (!empty($clusterIds)) {
+                    $query->whereIn('cluster_id', $clusterIds);
+                }
+            }
+        });
+
+        return $relation;
     }
 
     public function registerTm(): HasMany
@@ -107,22 +144,33 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(PlanVisit::class);
     }
 
-    public function cluster(): BelongsTo
+    // === New Many-to-Many Organizational Relations ===
+
+    public function badanUsahas(): BelongsToMany
     {
-        return $this->belongsTo(Cluster::class)->withTrashed();
+        return $this->belongsToMany(BadanUsaha::class, 'user_badan_usaha', 'user_id', 'badanusaha_id')
+            ->withTimestamps();
     }
 
-    public function cluster2(): BelongsTo
+    public function divisis(): BelongsToMany
     {
-        return $this->belongsTo(Cluster::class, 'cluster_id2')->withTrashed();
+        return $this->belongsToMany(Division::class, 'user_divisi', 'user_id', 'divisi_id')
+            ->withTimestamps();
     }
 
-    public function region(): BelongsTo
+    public function regions(): BelongsToMany
     {
-        return $this->belongsTo(Region::class)->withTrashed();
+        return $this->belongsToMany(Region::class, 'user_regions', 'user_id', 'region_id')
+            ->withTimestamps();
     }
 
-    public function role(): BelongsTo
+    public function clusters(): BelongsToMany
+    {
+        return $this->belongsToMany(Cluster::class, 'user_clusters', 'user_id', 'cluster_id')
+            ->withTimestamps();
+    }
+
+    public function role(): BelongsTo|Builder
     {
         return $this->belongsTo(Role::class)->withTrashed();
     }
@@ -132,17 +180,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->belongsToMany(Permission::class, 'role_permissions', 'role_id', 'permission_id', 'role_id');
     }
 
-    public function divisi(): BelongsTo
-    {
-        return $this->belongsTo(Division::class)->withTrashed();
-    }
-
-    public function badanusaha(): BelongsTo
-    {
-        return $this->belongsTo(BadanUsaha::class)->withTrashed();
-    }
-
-    public function tm(): BelongsTo
+    public function tm(): BelongsTo|Builder
     {
         return $this->belongsTo(User::class, 'tm_id')->withTrashed();
     }
@@ -193,27 +231,39 @@ class User extends Authenticatable implements FilamentUser, HasName
         return [
             'username' => $this->username,
             'nama_lengkap' => $this->nama_lengkap,
-            'region' => $this->region ? [
-                'id' => $this->region->id,
-                'name' => $this->region->name,
+            // Use many-to-many pivot relations
+            'badanusaha' => $this->badanUsahas->first() ? [
+                'id' => $this->badanUsahas->first()->id,
+                'name' => $this->badanUsahas->first()->name,
             ] : null,
-            'cluster' => $this->cluster ? [
-                'id' => $this->cluster->id,
-                'name' => $this->cluster->name,
+            'divisi' => $this->divisis->first() ? [
+                'id' => $this->divisis->first()->id,
+                'name' => $this->divisis->first()->name,
+            ] : null,
+            'region' => $this->regions->first() ? [
+                'id' => $this->regions->first()->id,
+                'name' => $this->regions->first()->name,
+            ] : null,
+            'cluster' => $this->clusters->first() ? [
+                'id' => $this->clusters->first()->id,
+                'name' => $this->clusters->first()->name,
             ] : null,
             'role' => $this->role ? [
                 'id' => $this->role->id,
                 'name' => $this->role->name,
             ] : null,
-            'divisi' => $this->divisi ? [
-                'id' => $this->divisi->id,
-                'name' => $this->divisi->name,
-            ] : null,
-            'badanusaha' => $this->badanusaha ? [
-                'id' => $this->badanusaha->id,
-                'name' => $this->badanusaha->name,
-            ] : null,
             'id_notif' => $this->id_notif,
         ];
+    }
+
+    /**
+     * Override Jetstream's defaultProfilePhotoUrl to use nama_lengkap instead of name
+     * Fixes deprecation warning when name field is null
+     */
+    protected function defaultProfilePhotoUrl(): string
+    {
+        $name = $this->nama_lengkap ?? $this->username ?? 'User';
+
+        return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&color=7F9CF5&background=EBF4FF';
     }
 }

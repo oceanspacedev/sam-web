@@ -51,28 +51,32 @@ class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings
             ->whereNotNull('users.nama_lengkap')
             ->where('users.nama_lengkap', '!=', '');
 
-        // Terapkan filter yang sama seperti di OutletUpdatedTemplate berdasarkan role user
+        // Terapkan filter yang sama seperti di UserResource berdasarkan role user
         if (Auth::check()) {
             $user = Auth::user();
             $role = $user->role;
+            $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
-            switch ($role->filter_type) {
-                case 'badanusaha':
-                    $query->where('users.badanusaha_id', $user->badanusaha_id);
-                    break;
-                case 'divisi':
-                    $query->whereIn('users.divisi_id', $role->filter_data ?? []);
-                    break;
-                case 'region':
-                    $query->whereIn('users.region_id', $role->filter_data ?? []);
-                    break;
-                case 'cluster':
-                    $query->whereIn('users.cluster_id', $role->filter_data ?? []);
-                    break;
-                case 'all':
-                default:
-                    // Tidak ada filter tambahan
-                    break;
+            if ($scopeLevel !== 'all') {
+                // Get user's organizational assignments from pivot tables
+                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+                // Note: Users table still uses single foreign keys for joins
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn('users.badanusaha_id', $badanUsahaIds);
+                }
+                if (! empty($divisiIds)) {
+                    $query->whereIn('users.divisi_id', $divisiIds);
+                }
+                if (! empty($regionIds)) {
+                    $query->whereIn('users.region_id', $regionIds);
+                }
+                if (! empty($clusterIds)) {
+                    $query->whereIn('users.cluster_id', $clusterIds);
+                }
             }
         }
 

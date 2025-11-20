@@ -22,14 +22,14 @@ class OutletController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return Response
+     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
     public function index(Request $request)
     {
         if ($request->bulkDelete) {
             $data = explode('-', preg_replace('/\s+/', '', $request->bulkDelete));
             $date1 = Carbon::parse($data[0])->format('Y-m-d');
-            $date2 = Carbon::parse($data[1])->addDay(1)->format('Y-m-d');
+            $date2 = Carbon::parse($data[1])->addDay()->format('Y-m-d');
             $divisi = $request->divisi_id;
             $outlet = Outlet::whereBetween('created_at', [$date1, $date2])
                 ->where('divisi_id', $divisi)
@@ -40,14 +40,14 @@ class OutletController extends Controller
         }
 
         $outlets = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi']);
-        $users = User::with(['tm'])->get();
+        $users = User::with(['tm', 'badanUsahas', 'divisis', 'regions', 'clusters'])->get();
 
         return view('outlet.index', [
             'outlets' => $outlets->filter()->orderBy('kode_outlet')->simplePaginate(100),
             'title' => 'Outlet',
             'users' => $users,
             'active' => 'outlet',
-            'divisis' => Division::all()->except(5),
+            'divisis' => Division::where('id', '!=', 5)->get(),
         ]);
     }
 
@@ -75,7 +75,7 @@ class OutletController extends Controller
      * Display the specified resource.
      *
      * @param  int  $id
-     * @return Response
+     * @return \Illuminate\Contracts\View\View
      */
     public function show($id)
     {
@@ -91,7 +91,7 @@ class OutletController extends Controller
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
-     * @return Response
+     * @return \Illuminate\Contracts\View\View
      */
     public function edit($id)
     {
@@ -116,7 +116,7 @@ class OutletController extends Controller
      * Update the specified resource in storage.
      *
      * @param  int  $id
-     * @return Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, $id)
     {
@@ -154,7 +154,7 @@ class OutletController extends Controller
      * Remove the specified resource from storage.
      *
      * @param  int  $id
-     * @return Response
+     * @return string
      */
     public function destroyall()
     {

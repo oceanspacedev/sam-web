@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Visits;
 use App\Filament\Resources\Visits\Pages\CreateVisit;
 use App\Filament\Resources\Visits\Pages\EditVisit;
 use App\Filament\Resources\Visits\Pages\ListVisits;
+use App\Filament\Resources\Visits\Pages\ViewVisit;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Models\Visit;
@@ -36,6 +37,10 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ImageEntry;
+use Filament\Actions\ViewAction;
+use Filament\Schemas\Components\Grid;
 
 class VisitResource extends Resource
 {
@@ -82,29 +87,29 @@ class VisitResource extends Resource
                                     ->placeholder('Cari User berdasarkan nama lengkap')
                                     ->getSearchResultsUsing(function (string $search) {
                                         return User::query()
-                                            ->with(['badanusaha:id,name', 'divisi:id,name'])
+                                            ->with(['badanUsahas:id,name', 'divisis:id,name'])
                                             ->where('nama_lengkap', 'like', "%{$search}%")
                                             ->orderBy('nama_lengkap')
                                             ->limit(50)
                                             ->get()
                                             ->mapWithKeys(function ($user) {
-                                                $badanusahaName = $user->badanusaha->name ?? 'Tidak ada badan usaha';
-                                                $divisiName = $user->divisi->name ?? 'Tidak ada divisi';
+                                                $badanusahaName = $user->badanUsahas->first()->name ?? 'Tidak ada badan usaha';
+                                                $divisiName = $user->divisis->first()->name ?? 'Tidak ada divisi';
 
                                                 return [$user->id => "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}"];
                                             })
                                             ->toArray();
                                     })
                                     ->getOptionLabelUsing(function ($value) {
-                                        if (! $value) {
+                                        if (!$value) {
                                             return null;
                                         }
-                                        $user = User::with(['badanusaha:id,name', 'divisi:id,name'])->find($value);
-                                        if (! $user) {
+                                        $user = User::with(['badanUsahas:id,name', 'divisis:id,name'])->find($value);
+                                        if (!$user) {
                                             return null;
                                         }
-                                        $badanusahaName = $user->badanusaha->name ?? 'Tidak ada badan usaha';
-                                        $divisiName = $user->divisi->name ?? 'Tidak ada divisi';
+                                        $badanusahaName = $user->badanUsahas->first()->name ?? 'Tidak ada badan usaha';
+                                        $divisiName = $user->divisis->first()->name ?? 'Tidak ada divisi';
 
                                         return "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}";
                                     }),
@@ -132,11 +137,11 @@ class VisitResource extends Resource
                                             ->toArray();
                                     })
                                     ->getOptionLabelUsing(function ($value) {
-                                        if (! $value) {
+                                        if (!$value) {
                                             return null;
                                         }
                                         $outlet = Outlet::with(['badanusaha:id,name', 'divisi:id,name'])->find($value);
-                                        if (! $outlet) {
+                                        if (!$outlet) {
                                             return null;
                                         }
                                         $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
@@ -165,14 +170,14 @@ class VisitResource extends Resource
                                     ->maxLength(255)
                                     ->label('LatLong Out')
                                     ->placeholder('Latitude and Longitude at the end')
-                                    ->visible(fn (string $context): bool => $context === 'edit'),
+                                    ->visible(fn(string $context): bool => $context === 'edit'),
                                 DateTimePicker::make('check_in_time')
                                     ->label('Check-in Time')
                                     ->default(now()),
                                 DateTimePicker::make('check_out_time')
                                     ->label('Check-out Time')
                                     ->default(now())
-                                    ->visible(fn (string $context): bool => $context === 'edit'),
+                                    ->visible(fn(string $context): bool => $context === 'edit'),
                             ])
                             ->columns(2),
                     ])
@@ -209,7 +214,7 @@ class VisitResource extends Resource
                                         return $filenameGenerator->generate($file, 'visit-out', $userId);
                                         // Output: vo241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
                                     })
-                                    ->visible(fn (string $context): bool => $context === 'edit'),
+                                    ->visible(fn(string $context): bool => $context === 'edit'),
                             ]),
                         Section::make('Transaction Information')
                             ->schema([
@@ -234,11 +239,90 @@ class VisitResource extends Resource
                                     ->columnSpanFull()
                                     ->label('Laporan Visit'),
                             ])
-                            ->visible(fn (string $context): bool => $context === 'edit'),
+                            ->visible(fn(string $context): bool => $context === 'edit'),
                     ])
                     ->columnSpan(['lg' => 1]),
             ])
             ->columns(3);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Grid::make(12)
+                    ->schema([
+                        Group::make([
+                            Section::make('Visit Information')
+                                ->schema([
+                                    TextEntry::make('tanggal_visit')
+                                        ->label('Tanggal Visit')
+                                        ->date('d M Y'),
+                                    TextEntry::make('tipe_visit')
+                                        ->label('Tipe Visit')
+                                        ->badge()
+                                        ->color(fn(string $state): string => match ($state) {
+                                            'PLANNED' => 'primary',
+                                            'EXTRACALL' => 'info',
+                                            default => 'gray',
+                                        }),
+                                    TextEntry::make('user.nama_lengkap')
+                                        ->label('User'),
+                                    TextEntry::make('outlet.nama_outlet')
+                                        ->label('Outlet'),
+                                ])
+                                ->columns(2),
+                            Section::make('Location & Timing')
+                                ->schema([
+                                    TextEntry::make('latlong_in')
+                                        ->label('Lokasi Check-In')
+                                        ->url(fn($state) => $state ? "https://www.google.com/maps/place/{$state}" : null, shouldOpenInNewTab: true)
+                                        ->color('primary'),
+                                    TextEntry::make('latlong_out')
+                                        ->label('Lokasi Check-Out')
+                                        ->url(fn($state) => $state ? "https://www.google.com/maps/place/{$state}" : null, shouldOpenInNewTab: true)
+                                        ->color('primary'),
+                                    TextEntry::make('check_in_time')
+                                        ->label('Check-in Time')
+                                        ->time(),
+                                    TextEntry::make('check_out_time')
+                                        ->label('Check-out Time')
+                                        ->time(),
+                                ])
+                                ->columns(2),
+                        ])
+                            ->columnSpan(['lg' => 8]),
+                        Group::make([
+                            Section::make('Files')
+                                ->schema([
+                                    ImageEntry::make('picture_visit_in')
+                                        ->label('Picture at Start of Visit')
+                                        ->disk(StorageDisk::default())
+                                        ->columnSpanFull(),
+                                    ImageEntry::make('picture_visit_out')
+                                        ->label('Picture at End of Visit')
+                                        ->disk(StorageDisk::default())
+                                        ->columnSpanFull(),
+                                ]),
+                            Section::make('Transaction Information')
+                                ->schema([
+                                    TextEntry::make('transaksi')
+                                        ->label('Transaksi')
+                                        ->badge()
+                                        ->color(fn(string $state): string => match ($state) {
+                                            'YES' => 'success',
+                                            'NO' => 'danger',
+                                            default => 'gray',
+                                        }),
+                                    TextEntry::make('laporan_visit')
+                                        ->label('Laporan Visit')
+                                        ->columnSpanFull(),
+                                ]),
+                        ])
+                            ->columnSpan(['lg' => 4]),
+                    ])
+                    ->columnSpanFull(),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -259,14 +343,14 @@ class VisitResource extends Resource
                 TextColumn::make('latlong_in')
                     ->label('Lokasi Check-In')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->url(fn($state): string => 'https://www.google.com/maps/place/' . $state, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong_out')
                     ->label('Lokasi Check-Out')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->url(fn($state): string => 'https://www.google.com/maps/place/' . $state, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('check_in_time')
                     ->label('Jam Check-In')
@@ -279,14 +363,14 @@ class VisitResource extends Resource
                 TextColumn::make('picture_visit_in')
                     ->label('Foto Check-In')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('picture_visit_out')
                     ->label('Foto Check-Out')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('transaksi')
                     ->label('Transaksi'),
@@ -324,7 +408,7 @@ class VisitResource extends Resource
                             });
                     }),
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Visit::class)),
+                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], Visit::class)),
                 Filter::make('created_at')
                     ->schema([
                         DatePicker::make('tanggal_visit_from')
@@ -336,16 +420,17 @@ class VisitResource extends Resource
                         return $query
                             ->when(
                                 $data['tanggal_visit_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('tanggal_visit', '>=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('tanggal_visit', '>=', $date),
                             )
                             ->when(
                                 $data['tanggal_visit_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('tanggal_visit', '<=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('tanggal_visit', '<=', $date),
                             );
                     }),
 
             ])
             ->recordActions([
+                ViewAction::make(),
                 EditAction::make(),
             ])
             ->toolbarActions([
@@ -362,31 +447,51 @@ class VisitResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        if (! $user) {
+        if (!$user) {
             return parent::getEloquentQuery();
         }
 
         $role = $user->role;
+        $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
-        if ($role->filter_type === 'all') {
+        if ($scopeLevel === 'all') {
             return parent::getEloquentQuery();
         }
 
+        // Get user's organizational assignments from pivot tables
+        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+        $regionIds = $user->regions()->pluck('regions.id')->toArray();
+        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
         $query = parent::getEloquentQuery()
             ->join('users', 'visits.user_id', '=', 'users.id')
-            ->select('visits.*', 'users.id as user_id')
-            ->when($role->filter_type === 'badanusaha', function (Builder $builder) use ($user): void {
-                $builder->where('users.badanusaha_id', $user->badanusaha_id);
-            })
-            ->when($role->filter_type === 'divisi', function (Builder $builder) use ($role): void {
-                $builder->whereIn('users.divisi_id', $role->filter_data ?? []);
-            })
-            ->when($role->filter_type === 'region', function (Builder $builder) use ($role): void {
-                $builder->whereIn('users.region_id', $role->filter_data ?? []);
-            })
-            ->when($role->filter_type === 'cluster', function (Builder $builder) use ($role): void {
-                $builder->whereIn('users.cluster_id', $role->filter_data ?? []);
+            ->select('visits.*', 'users.id as user_id');
+
+        // Apply filters based on user pivot assignments
+        if (!empty($badanUsahaIds)) {
+            $query->whereHas('user.badanUsahas', function ($q) use ($badanUsahaIds) {
+                $q->whereIn('badan_usahas.id', $badanUsahaIds);
             });
+        }
+
+        if (!empty($divisiIds)) {
+            $query->whereHas('user.divisis', function ($q) use ($divisiIds) {
+                $q->whereIn('divisions.id', $divisiIds);
+            });
+        }
+
+        if (!empty($regionIds)) {
+            $query->whereHas('user.regions', function ($q) use ($regionIds) {
+                $q->whereIn('regions.id', $regionIds);
+            });
+        }
+
+        if (!empty($clusterIds)) {
+            $query->whereHas('user.clusters', function ($q) use ($clusterIds) {
+                $q->whereIn('clusters.id', $clusterIds);
+            });
+        }
 
         return $query;
     }
@@ -403,6 +508,7 @@ class VisitResource extends Resource
         return [
             'index' => ListVisits::route('/'),
             'create' => CreateVisit::route('/create'),
+            'view' => ViewVisit::route('/{record}'),
             'edit' => EditVisit::route('/{record}/edit'),
         ];
     }

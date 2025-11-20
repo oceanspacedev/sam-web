@@ -434,13 +434,13 @@ class VisitController extends Controller
      * - DSF/DM and ASC roles can only check in to outlets matching their division
      * - Other roles have access to all outlets
      * - Requires check-in photo, coordinates, and visit type
-    * - Photos stored using flat storage filenames (no nested directories) with format: YYYY-MM-DD-username-IN-timestamp.ext
+     * - Photos stored using flat storage filenames (no nested directories) with format: YYYY-MM-DD-username-IN-timestamp.ext
      *
      * **Check-out Requirements:**
      * - Must have an existing check-in for today
      * - Calculates visit duration automatically
      * - Requires check-out photo, report, and transaction info
-    * - Photos stored using flat storage filenames (no nested directories) with format: YYYY-MM-DD-username-OUT-timestamp.ext
+     * - Photos stored using flat storage filenames (no nested directories) with format: YYYY-MM-DD-username-OUT-timestamp.ext
      *
      * @bodyParam kode_outlet string required Outlet code for visit submission. Example: "OUTLET001"
      * @bodyParam picture_visit file required Visit photo (check-in or check-out). Max 3MB, formats: jpg,jpeg,png

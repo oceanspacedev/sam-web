@@ -57,15 +57,13 @@ class ClusterResource extends Resource
                         $user = auth()->user();
                         $role = $user->role;
 
-                        if ($role->filter_type === 'badanusaha') {
-                            return BadanUsaha::whereIn('id', $role->filter_data ?? [])
-                                ->pluck('name', 'id');
-                        } elseif ($role->filter_type === 'all') {
+                        // If role has 'all' scope, show all
+                        if ($role->organizational_scope_level === 'all') {
                             return BadanUsaha::pluck('name', 'id');
                         }
 
-                        return BadanUsaha::where('id', $user->badanusaha_id)
-                            ->pluck('name', 'id');
+                        // Use pivot table for current user's assignments
+                        return $user->badanUsahas()->pluck('name', 'id');
                     })
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('divisi_id', null);
@@ -199,22 +197,34 @@ class ClusterResource extends Resource
             ->where(function ($query) {
                 $user = auth()->user();
                 $role = $user->role;
-                switch ($role->filter_type) {
-                    case 'badanusaha':
-                        $query->whereIn('clusters.badanusaha_id', $role->filter_data ?? []);
-                        break;
-                    case 'divisi':
-                        $query->whereIn('clusters.divisi_id', $role->filter_data ?? []);
-                        break;
-                    case 'region':
-                        $query->whereIn('clusters.region_id', $role->filter_data ?? []);
-                        break;
-                    case 'cluster':
-                        $query->whereIn('clusters.id', $role->filter_data ?? []);
-                        break;
-                    case 'all':
-                    default:
-                        return;
+                $scopeLevel = $role->organizational_scope_level ?? 'cluster';
+
+                // If role has 'all' access, no filtering needed
+                if ($scopeLevel === 'all') {
+                    return;
+                }
+
+                // Get user's organizational assignments from pivot tables
+                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+                // Apply filters based on assignments
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn('clusters.badanusaha_id', $badanUsahaIds);
+                }
+
+                if (! empty($divisiIds)) {
+                    $query->whereIn('clusters.divisi_id', $divisiIds);
+                }
+
+                if (! empty($regionIds)) {
+                    $query->whereIn('clusters.region_id', $regionIds);
+                }
+
+                if (! empty($clusterIds)) {
+                    $query->whereIn('clusters.id', $clusterIds);
                 }
             });
     }

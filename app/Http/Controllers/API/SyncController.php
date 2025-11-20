@@ -12,8 +12,8 @@ use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Visit;
-use App\Support\StorageDisk;
 use App\Services\FileUploadService;
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -102,10 +102,28 @@ class SyncController extends Controller
         $v = strtoupper(trim((string) $value));
 
         $truthy = [
-            'YES', 'Y', 'TRUE', 'OK', 'SUCCESS', 'SUCCEED', 'BERHASIL', 'YA', 'DONE', 'SUKSES',
+            'YES',
+            'Y',
+            'TRUE',
+            'OK',
+            'SUCCESS',
+            'SUCCEED',
+            'BERHASIL',
+            'YA',
+            'DONE',
+            'SUKSES',
         ];
         $falsy = [
-            'NO', 'N', 'FALSE', 'FAIL', 'FAILED', 'TIDAK', 'GA', 'NOK', 'CANCEL', 'BATAL',
+            'NO',
+            'N',
+            'FALSE',
+            'FAIL',
+            'FAILED',
+            'TIDAK',
+            'GA',
+            'NOK',
+            'CANCEL',
+            'BATAL',
         ];
 
         if (in_array($v, $truthy, true)) {
@@ -418,37 +436,41 @@ class SyncController extends Controller
     public function getUser()
     {
         try {
-            $users = User::select('id', 'nama_lengkap', 'username', 'role_id', 'badanusaha_id', 'divisi_id', 'region_id', 'cluster_id', 'cluster_id2', 'tm_id', 'created_at', 'updated_at')
+            $users = User::select('id', 'nama_lengkap', 'username', 'role_id', 'tm_id', 'created_at', 'updated_at')
                 ->where('id', '!=', 691)
                 ->with([
                     'role:id,name',
-                    'badanusaha:id,name',
-                    'divisi:id,name',
-                    'region:id,name',
-                    'cluster:id,name',
-                    'cluster2:id,name',
+                    'badanUsahas:id,name',
+                    'divisis:id,name',
+                    'regions:id,name',
+                    'clusters:id,name',
                     'tm:id,nama_lengkap',
                 ])
                 ->orderBy('id')
                 ->get()
                 ->map(function ($item) {
+                    $badanUsaha = $item->badanUsahas->first();
+                    $divisi = $item->divisis->first();
+                    $region = $item->regions->first();
+                    $cluster = $item->clusters->first();
+
                     return [
                         'id' => $item->id,
                         'nama_lengkap' => $item->nama_lengkap,
                         'username' => $item->username,
                         'role_id' => $item->role_id,
-                        'badanusaha_id' => $item->badanusaha_id,
-                        'divisi_id' => $item->divisi_id,
-                        'region_id' => $item->region_id,
-                        'cluster_id' => $item->cluster_id,
-                        'cluster_id2' => $item->cluster_id2,
+                        'badanusaha_id' => $badanUsaha?->id,
+                        'divisi_id' => $divisi?->id,
+                        'region_id' => $region?->id,
+                        'cluster_id' => $cluster?->id,
+                        'cluster_id2' => null,
                         'tm_id' => $item->tm_id,
                         'role' => $item->role,
-                        'badanusaha' => $item->badanusaha,
-                        'divisi' => $item->divisi,
-                        'region' => $item->region,
-                        'cluster' => $item->cluster,
-                        'cluster2' => $item->cluster2,
+                        'badanusaha' => $badanUsaha,
+                        'divisi' => $divisi,
+                        'region' => $region,
+                        'cluster' => $cluster,
+                        'cluster2' => null,
                         'tm' => $item->tm,
                         'created_at' => $this->formatDate($item->created_at),
                         'updated_at' => $this->formatDate($item->updated_at),
@@ -695,7 +717,7 @@ class SyncController extends Controller
      * Notes:
      * - If `tanggal_visit` is not provided, today is assumed.
      * - If `check_in_time` / `check_out_time` are not provided, both default to now() and duration is 0.
-    * - Photos are stored using the flat storage naming convention (no nested directories).
+     * - Photos are stored using the flat storage naming convention (no nested directories).
      *
      * @unauthenticated
      *

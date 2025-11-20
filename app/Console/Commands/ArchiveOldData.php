@@ -29,7 +29,7 @@ class ArchiveOldData extends Command
         $dryRun = $this->option('dry-run');
         $cutoffDate = \Carbon\Carbon::now()->subDays($days)->startOfDay();
 
-        $this->info("Archiving data older than: " . $cutoffDate->toDateTimeString());
+        $this->info('Archiving data older than: '.$cutoffDate->toDateTimeString());
 
         $this->archiveTable('visits', 'visits_archives', 'tanggal_visit', $cutoffDate, $dryRun);
         $this->archiveTable('plan_visits', 'plan_visits_archives', 'tanggal_visit', $cutoffDate, $dryRun);
@@ -45,6 +45,7 @@ class ArchiveOldData extends Command
 
         if ($count === 0) {
             $this->info("No records found to archive in $source.");
+
             return;
         }
 
@@ -52,6 +53,7 @@ class ArchiveOldData extends Command
 
         if ($dryRun) {
             $this->info("Dry run: would archive $count records from $source to $target.");
+
             return;
         }
 

@@ -87,12 +87,22 @@ class UserImport implements ToModel, WithHeadingRow
             'nama_lengkap' => strtoupper($row['nama_lengkap']),
             'username' => strtolower($row['username']),
             'role_id' => $this->getRoleId($row['role']),
-            'badanusaha_id' => $badanusaha_id,
-            'divisi_id' => $divisi_id,
-            'region_id' => $region_id,
-            'cluster_id' => $cluster_id,
             'tm_id' => $tm_id,
         ]);
+
+        // Sync organizational data
+        if ($badanusaha_id) {
+            $user->badanUsahas()->sync([$badanusaha_id]);
+        }
+        if ($divisi_id) {
+            $user->divisis()->sync([$divisi_id]);
+        }
+        if ($region_id) {
+            $user->regions()->sync([$region_id]);
+        }
+        if ($cluster_id) {
+            $user->clusters()->sync([$cluster_id]);
+        }
     }
 
     /**
@@ -132,18 +142,30 @@ class UserImport implements ToModel, WithHeadingRow
         // Get the TM ID if available
         $tm_id = $this->getTmId($row['tm']);
 
-        // Create and return a new user
-        return new User([
+        // Create a new user
+        $user = User::create([
             'nama_lengkap' => strtoupper($row['nama_lengkap']),
             'username' => strtolower($row['username']),
             'role_id' => $this->getRoleId($row['role']),
-            'badanusaha_id' => $badanusaha_id,
-            'divisi_id' => $divisi_id,
-            'region_id' => $region_id,
-            'cluster_id' => $cluster_id,
             'tm_id' => $tm_id,
             'password' => $row['password'] ? bcrypt($row['password']) : bcrypt('complete123'),
         ]);
+
+        // Sync organizational data
+        if ($badanusaha_id) {
+            $user->badanUsahas()->sync([$badanusaha_id]);
+        }
+        if ($divisi_id) {
+            $user->divisis()->sync([$divisi_id]);
+        }
+        if ($region_id) {
+            $user->regions()->sync([$region_id]);
+        }
+        if ($cluster_id) {
+            $user->clusters()->sync([$cluster_id]);
+        }
+
+        return $user;
     }
 
     private function getBadanUsahaId($name)

@@ -16,7 +16,7 @@ class UserExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMa
      */
     public function collection()
     {
-        return User::with(['role', 'region', 'cluster', 'divisi', 'badanusaha'])->orderBy('nama_lengkap')->get();
+        return User::with(['role', 'regions', 'clusters', 'divisis', 'badanUsahas'])->orderBy('nama_lengkap')->get();
     }
 
     public function headings(): array
@@ -28,8 +28,7 @@ class UserExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMa
             'badan_usaha',
             'divisi',
             'region',
-            'cluster1',
-            'cluster2',
+            'cluster',
             'tm',
         ];
     }
@@ -40,11 +39,10 @@ class UserExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMa
             $user->nama_lengkap ?? ' ',
             $user->username ?? ' ',
             $user->role->name ?? ' ',
-            $user->badanusaha->name ?? ' ',
-            $user->divisi->name ?? ' ',
-            $user->region->name ?? ' ',
-            $user->cluster->name ?? ' ',
-            $user->cluster2 ? $user->cluster2->name : ' ',
+            $user->badanUsahas->pluck('name')->join(', ') ?: ' ',
+            $user->divisis->pluck('name')->join(', ') ?: ' ',
+            $user->regions->pluck('name')->join(', ') ?: ' ',
+            $user->clusters->pluck('name')->join(', ') ?: ' ',
             $user->tm->nama_lengkap ?? ' ',
         ];
     }

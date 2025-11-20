@@ -86,21 +86,17 @@ class OutletController extends Controller
     /**
      * Retrieve role-based outlet access with filtered results
      *
-     * Returns outlets filtered based on the authenticated user's role and permissions.
-     * Each role has specific filtering criteria to ensure users only access authorized outlets.
+     * Returns outlets filtered based on the authenticated user's role and organizational scope level.
+     * Each role has specific filtering criteria determined by its organizational_scope_level configuration.
      *
-     * **Role-based access patterns:**
-     * - **ASM (role_id: 1)**: Requires divisi and region parameters
-     * - **ASC (role_id: 2)**: Filtered by user's badanusaha, divisi, region, and cluster IDs
-     * - **DSF/DM (role_id: 3)**: Same filtering as ASC role
-     * - **COO (role_id: 6)**: Requires divisi and region parameters
-     * - **CSO (role_id: 8)**: Requires divisi and region parameters
-     * - **RKAM (role_id: 9)**: Requires divisi and region parameters
-     * - **KAM (role_id: 10)**: Filtered by user's badanusaha, divisi, and region IDs
-     * - **CSO FAST EV (role_id: 11)**: Requires divisi and region parameters
+     * **Organizational Scope Levels:**
+     * - **all**: Full access to all outlets (e.g., SUPER ADMIN, COO)
+     * - **divisi**: Division-level access, requires divisi and region parameters (e.g., ASM, RKAM, CSO)
+     * - **cluster**: Filtered by user's badanusaha, divisi, region, and optional cluster IDs (e.g., ASC, DSF/DM)
+     * - **badanusaha**: Filtered by user's business entity only
      *
-     * @queryParam divisi string Required for roles: ASM, COO, CSO, RKAM, CSO FAST EV. Division name to filter outlets. Example: "Realme"
-     * @queryParam region string Required for roles: ASM, COO, CSO, RKAM, CSO FAST EV. Region name to filter outlets. Example: "Jakarta"
+     * @queryParam divisi string Required for division-level roles. Division name to filter outlets. Example: "Realme"
+     * @queryParam region string Required for division-level roles. Region name to filter outlets. Example: "Jakarta"
      *
      * @response array{
      *   data: array{
@@ -144,9 +140,10 @@ class OutletController extends Controller
             // Eager load relationships untuk menghindari N+1
             $query = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi']);
 
-            // Roles yang memerlukan divisi & region dari request
-            $roleName = $user->role?->name;
-            $requiresDivisionRegion = in_array($roleName, ['ASM', 'COO', 'CSO', 'RKAM', 'CSO FAST EV'], true);
+            // Check if user requires division & region parameters
+            // Roles with 'divisi' scope level need these parameters for specific filtering
+            $scopeLevel = $user->role?->getOrganizationalScopeLevel();
+            $requiresDivisionRegion = $scopeLevel === 'divisi';
 
             if ($requiresDivisionRegion) {
                 $divisi = Division::where('name', $request->divisi)->first();

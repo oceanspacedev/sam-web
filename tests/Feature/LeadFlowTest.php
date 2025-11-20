@@ -25,26 +25,26 @@ class LeadFlowTest extends FeatureTestCase
         $tm = User::create([
             'username' => 'tm1',
             'nama_lengkap' => 'TM One',
-            'badanusaha_id' => $seed['bu']->id,
-            'divisi_id' => $seed['div']->id,
-            'region_id' => $seed['reg']->id,
-            'cluster_id' => $seed['clus']->id,
             'role_id' => $seed['role']->id,
             'tm_id' => 1,
             'password' => bcrypt('secret'),
         ]);
+        $tm->badanUsahas()->attach($seed['bu']->id);
+        $tm->divisis()->attach($seed['div']->id);
+        $tm->regions()->attach($seed['reg']->id);
+        $tm->clusters()->attach($seed['clus']->id);
 
         $user = User::create([
             'username' => 'user1',
             'nama_lengkap' => 'User One',
-            'badanusaha_id' => $seed['bu']->id,
-            'divisi_id' => $seed['div']->id,
-            'region_id' => $seed['reg']->id,
-            'cluster_id' => $seed['clus']->id,
             'role_id' => $seed['role']->id,
             'tm_id' => $tm->id,
             'password' => bcrypt('secret'),
         ]);
+        $user->badanUsahas()->attach($seed['bu']->id);
+        $user->divisis()->attach($seed['div']->id);
+        $user->regions()->attach($seed['reg']->id);
+        $user->clusters()->attach($seed['clus']->id);
 
         Sanctum::actingAs($user);
 

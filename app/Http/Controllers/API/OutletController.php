@@ -162,6 +162,7 @@ class OutletController extends Controller
                     ->get();
             } else {
                 // Gunakan organizational scope trait
+                // For users with 'all' access, visibleTo returns all outlets (ignoring query params)
                 $outlet = $query->visibleTo($user)->orderBy('nama_outlet')->get();
             }
 

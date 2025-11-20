@@ -36,54 +36,54 @@ class RegisterFlowTest extends FeatureTestCase
         $tm = User::create([
             'username' => 'tm1',
             'nama_lengkap' => 'TM One',
-            'badanusaha_id' => $bu->id,
-            'divisi_id' => $div->id,
-            'region_id' => $reg->id,
-            'cluster_id' => $clus->id,
             'role_id' => $role->id,
             'tm_id' => 1,
             'password' => bcrypt('secret'),
         ]);
+        $tm->badanUsahas()->attach($bu->id);
+        $tm->divisis()->attach($div->id);
+        $tm->regions()->attach($reg->id);
+        $tm->clusters()->attach($clus->id);
 
         $user = User::create([
             'username' => 'user1',
             'nama_lengkap' => 'User One',
-            'badanusaha_id' => $bu->id,
-            'divisi_id' => $div->id,
-            'region_id' => $reg->id,
-            'cluster_id' => $clus->id,
             'role_id' => $role->id,
             'tm_id' => $tm->id,
             'password' => bcrypt('secret'),
         ]);
+        $user->badanUsahas()->attach($bu->id);
+        $user->divisis()->attach($div->id);
+        $user->regions()->attach($reg->id);
+        $user->clusters()->attach($clus->id);
 
         // ASC user to satisfy optional lookup in controller
-        User::create([
+        $asc = User::create([
             'username' => 'asc1',
             'nama_lengkap' => 'ASC One',
-            'badanusaha_id' => $bu->id,
-            'divisi_id' => $div->id,
-            'region_id' => $reg->id,
-            'cluster_id' => $clus->id,
             'role_id' => 2,
             'tm_id' => $tm->id,
             'id_notif' => 'asc-notif',
             'password' => bcrypt('secret'),
         ]);
+        $asc->badanUsahas()->attach($bu->id);
+        $asc->divisis()->attach($div->id);
+        $asc->regions()->attach($reg->id);
+        $asc->clusters()->attach($clus->id);
 
         // AR user for notif lookup
-        User::create([
+        $ar = User::create([
             'username' => 'ar1',
             'nama_lengkap' => 'AR One',
-            'badanusaha_id' => $bu->id,
-            'divisi_id' => $div->id,
-            'region_id' => $reg->id,
-            'cluster_id' => $clus->id,
             'role_id' => 4,
             'tm_id' => $tm->id,
             'id_notif' => 'ar-notif',
             'password' => bcrypt('secret'),
         ]);
+        $ar->badanUsahas()->attach($bu->id);
+        $ar->divisis()->attach($div->id);
+        $ar->regions()->attach($reg->id);
+        $ar->clusters()->attach($clus->id);
 
         Sanctum::actingAs($user);
 

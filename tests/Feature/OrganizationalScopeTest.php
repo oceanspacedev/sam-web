@@ -58,15 +58,15 @@ class OrganizationalScopeTest extends TestCase
         $superAdminRole = Role::factory()->create([
             'name' => 'SUPER ADMIN',
             'can_access_web' => 1,
+            'organizational_scope_level' => 'all',
         ]);
 
         $user = User::factory()->create([
             'role_id' => $superAdminRole->id,
-            'badanusaha_id' => $this->bu->id,
-            'divisi_id' => $this->division->id,
-            'region_id' => $this->region->id,
-            'cluster_id' => $this->cluster->id,
         ]);
+        // Super admins with 'all' scope still need BU attachment to scope to their business unit
+        // but no lower-level attachments (division/region/cluster) to see all within BU
+        $user->badanUsahas()->attach($this->bu->id);
 
         $primaryOutlet = Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
@@ -98,8 +98,9 @@ class OrganizationalScopeTest extends TestCase
             'cluster_id' => $otherCluster->id,
         ]);
 
-        // Outlet from another badan usaha should be excluded automatically
-        Outlet::factory()->create();
+        // Note: With 'all' scope level, super admin sees all outlets regardless of BU
+        // Even though query params are provided, they are ignored for 'all' access users
+        $thirdOutlet = Outlet::factory()->create();
 
         Sanctum::actingAs($user);
         $response = $this->getJson('/api/outlet?divisi='.urlencode($this->division->name).'&region='.urlencode($this->region->name));
@@ -107,12 +108,12 @@ class OrganizationalScopeTest extends TestCase
         $response
             ->assertStatus(200)
             ->assertJsonPath('meta.status', 'success')
-            ->assertJsonPath('meta.message', 2);
+            ->assertJsonPath('meta.message', 3);
 
         $data = collect($response->json('data'));
-        $this->assertCount(2, $data);
+        $this->assertCount(3, $data);
         $this->assertEqualsCanonicalizing(
-            [$primaryOutlet->id, $secondaryOutlet->id],
+            [$primaryOutlet->id, $secondaryOutlet->id, $thirdOutlet->id],
             $data->pluck('id')->all()
         );
     }
@@ -127,15 +128,16 @@ class OrganizationalScopeTest extends TestCase
         $asmRole = Role::factory()->create([
             'name' => 'ASM',
             'can_access_web' => 1,
+            'organizational_scope_level' => 'divisi',
         ]);
 
         $user = User::factory()->create([
             'role_id' => $asmRole->id,
-            'badanusaha_id' => $this->bu->id,
-            'divisi_id' => $this->division->id,
-            'region_id' => $this->region->id,
-            'cluster_id' => $this->cluster->id,
         ]);
+        $user->badanUsahas()->attach($this->bu->id);
+        $user->divisis()->attach($this->division->id);
+        $user->regions()->attach($this->region->id);
+        $user->clusters()->attach($this->cluster->id);
 
         $visibleOutlet = Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
@@ -186,15 +188,16 @@ class OrganizationalScopeTest extends TestCase
         $ascRole = Role::factory()->create([
             'name' => 'ASC',
             'can_access_web' => 1,
+            'organizational_scope_level' => 'cluster',
         ]);
 
         $user = User::factory()->create([
             'role_id' => $ascRole->id,
-            'badanusaha_id' => $this->bu->id,
-            'divisi_id' => $this->division->id,
-            'region_id' => $this->region->id,
-            'cluster_id' => $this->cluster->id,
         ]);
+        $user->badanUsahas()->attach($this->bu->id);
+        $user->divisis()->attach($this->division->id);
+        $user->regions()->attach($this->region->id);
+        $user->clusters()->attach($this->cluster->id);
 
         $visibleOutlet = Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,
@@ -243,11 +246,13 @@ class OrganizationalScopeTest extends TestCase
         $ascRole = Role::factory()->create([
             'name' => 'ASC',
             'can_access_web' => 1,
+            'organizational_scope_level' => 'cluster',
         ]);
 
         $dsfRole = Role::factory()->create([
             'name' => 'DSF/DM',
             'can_access_web' => 1,
+            'organizational_scope_level' => 'cluster',
         ]);
 
         $secondaryCluster = Cluster::factory()->create([
@@ -288,12 +293,11 @@ class OrganizationalScopeTest extends TestCase
 
         $ascUser = User::factory()->create([
             'role_id' => $ascRole->id,
-            'badanusaha_id' => $this->bu->id,
-            'divisi_id' => $this->division->id,
-            'region_id' => $this->region->id,
-            'cluster_id' => $this->cluster->id,
-            'cluster_id2' => $secondaryCluster->id,
         ]);
+        $ascUser->badanUsahas()->attach($this->bu->id);
+        $ascUser->divisis()->attach($this->division->id);
+        $ascUser->regions()->attach($this->region->id);
+        $ascUser->clusters()->attach([$this->cluster->id, $secondaryCluster->id]);
 
         Sanctum::actingAs($ascUser);
         $ascResponse = $this->getJson('/api/outlet');
@@ -316,12 +320,11 @@ class OrganizationalScopeTest extends TestCase
 
         $dsfUser = User::factory()->create([
             'role_id' => $dsfRole->id,
-            'badanusaha_id' => $this->bu->id,
-            'divisi_id' => $this->division->id,
-            'region_id' => $this->region->id,
-            'cluster_id' => $this->cluster->id,
-            'cluster_id2' => $secondaryCluster->id,
         ]);
+        $dsfUser->badanUsahas()->attach($this->bu->id);
+        $dsfUser->divisis()->attach($this->division->id);
+        $dsfUser->regions()->attach($this->region->id);
+        $dsfUser->clusters()->attach([$this->cluster->id, $secondaryCluster->id]);
 
         Sanctum::actingAs($dsfUser);
         $dsfResponse = $this->getJson('/api/outlet');
@@ -345,16 +348,16 @@ class OrganizationalScopeTest extends TestCase
 
     public function test_is_visible_to_method_works_correctly(): void
     {
-        $ascRole = new Role(['name' => 'ASC', 'can_access_web' => 1]);
+        $ascRole = new Role(['name' => 'ASC', 'can_access_web' => 1, 'organizational_scope_level' => 'cluster']);
         $ascRole->id = 2;
         $ascRole->save();
 
         $user = User::factory()->create([
             'role_id' => $ascRole->id,
-            'badanusaha_id' => $this->bu->id,
-            'divisi_id' => $this->division->id,
-            'region_id' => $this->region->id,
         ]);
+        $user->badanUsahas()->attach($this->bu->id);
+        $user->divisis()->attach($this->division->id);
+        $user->regions()->attach($this->region->id);
 
         $visibleOutlet = Outlet::factory()->create([
             'badanusaha_id' => $this->bu->id,

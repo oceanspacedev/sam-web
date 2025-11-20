@@ -57,54 +57,54 @@ class RegisterMediaQueueTest extends FeatureTestCase
         $tm = User::create([
             'username' => 'tm-queue',
             'nama_lengkap' => 'TM One',
-            'badanusaha_id' => $bu->id,
-            'divisi_id' => $division->id,
-            'region_id' => $region->id,
-            'cluster_id' => $cluster->id,
             'role_id' => $roleDm->id,
             'tm_id' => 1,
             'id_notif' => 'tm-notif',
             'password' => bcrypt('secret'),
         ]);
+        $tm->badanUsahas()->attach($bu->id);
+        $tm->divisis()->attach($division->id);
+        $tm->regions()->attach($region->id);
+        $tm->clusters()->attach($cluster->id);
 
         $user = User::create([
             'username' => 'user-queue',
             'nama_lengkap' => 'User One',
-            'badanusaha_id' => $bu->id,
-            'divisi_id' => $division->id,
-            'region_id' => $region->id,
-            'cluster_id' => $cluster->id,
             'role_id' => $roleDm->id,
             'tm_id' => $tm->id,
             'id_notif' => 'user-notif',
             'password' => bcrypt('secret'),
         ]);
+        $user->badanUsahas()->attach($bu->id);
+        $user->divisis()->attach($division->id);
+        $user->regions()->attach($region->id);
+        $user->clusters()->attach($cluster->id);
 
-        User::create([
+        $asc = User::create([
             'username' => 'asc-queue',
             'nama_lengkap' => 'ASC One',
-            'badanusaha_id' => $bu->id,
-            'divisi_id' => $division->id,
-            'region_id' => $region->id,
-            'cluster_id' => $cluster->id,
             'role_id' => $roleAsc->id,
             'tm_id' => $tm->id,
             'id_notif' => 'asc-notif',
             'password' => bcrypt('secret'),
         ]);
+        $asc->badanUsahas()->attach($bu->id);
+        $asc->divisis()->attach($division->id);
+        $asc->regions()->attach($region->id);
+        $asc->clusters()->attach($cluster->id);
 
-        User::create([
+        $ar = User::create([
             'username' => 'ar-queue',
             'nama_lengkap' => 'AR One',
-            'badanusaha_id' => $bu->id,
-            'divisi_id' => $division->id,
-            'region_id' => $region->id,
-            'cluster_id' => $cluster->id,
             'role_id' => $roleAr->id,
             'tm_id' => $tm->id,
             'id_notif' => 'ar-notif',
             'password' => bcrypt('secret'),
         ]);
+        $ar->badanUsahas()->attach($bu->id);
+        $ar->divisis()->attach($division->id);
+        $ar->regions()->attach($region->id);
+        $ar->clusters()->attach($cluster->id);
 
         Sanctum::actingAs($user);
 

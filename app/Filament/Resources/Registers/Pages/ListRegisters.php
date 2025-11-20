@@ -41,30 +41,42 @@ class ListRegisters extends ListRecords
 
         return [
             'pending' => Tab::make()
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'PENDING'))
-                ->badge($this->getStatusBadgeCount($query, 'PENDING'))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'PENDING')->where(fn ($q) => $q->whereNull('keterangan')->orWhere('keterangan', '!=', 'LEAD')))
+                ->badge($this->getStatusBadgeCount($query, 'PENDING', true))
                 ->badgeColor('warning'),
 
             'confirmed' => Tab::make()
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'CONFIRMED'))
-                ->badge($this->getStatusBadgeCount($query, 'CONFIRMED'))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'CONFIRMED')->where(fn ($q) => $q->whereNull('keterangan')->orWhere('keterangan', '!=', 'LEAD')))
+                ->badge($this->getStatusBadgeCount($query, 'CONFIRMED', true))
                 ->badgeColor('info'),
 
             'approved' => Tab::make()
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'APPROVED'))
-                ->badge($this->getStatusBadgeCount($query, 'APPROVED'))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'APPROVED')->where(fn ($q) => $q->whereNull('keterangan')->orWhere('keterangan', '!=', 'LEAD')))
+                ->badge($this->getStatusBadgeCount($query, 'APPROVED', true))
                 ->badgeColor('success'),
 
             'rejected' => Tab::make()
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'REJECTED'))
-                ->badge($this->getStatusBadgeCount($query, 'REJECTED'))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'REJECTED')->where(fn ($q) => $q->whereNull('keterangan')->orWhere('keterangan', '!=', 'LEAD')))
+                ->badge($this->getStatusBadgeCount($query, 'REJECTED', true))
                 ->badgeColor('danger'),
+
+            'lead' => Tab::make()
+                ->label('LEAD')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'PENDING')->where('keterangan', 'LEAD'))
+                ->badge($query->clone()->where('status', 'PENDING')->where('keterangan', 'LEAD')->count())
+                ->badgeColor('primary'),
         ];
     }
 
     // Fungsi untuk menghitung jumlah berdasarkan status dengan filter yang sudah diterapkan
-    private function getStatusBadgeCount(Builder $query, string $status): int
+    private function getStatusBadgeCount(Builder $query, string $status, bool $excludeLead = false): int
     {
-        return $query->clone()->where('status', $status)->count();
+        $q = $query->clone()->where('status', $status);
+
+        if ($excludeLead) {
+            $q->where(fn ($sq) => $sq->whereNull('keterangan')->orWhere('keterangan', '!=', 'LEAD'));
+        }
+
+        return $q->count();
     }
 }

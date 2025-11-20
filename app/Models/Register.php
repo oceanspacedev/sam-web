@@ -75,8 +75,6 @@ class Register extends Model
         return $this->hasOne(Outlet::class);
     }
 
-
-
     public function formatForAPI(): array
     {
         return [

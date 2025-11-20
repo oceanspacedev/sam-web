@@ -6,7 +6,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-
 class MaintainOutletLifecycle extends Command
 {
     /**
@@ -132,8 +131,9 @@ class MaintainOutletLifecycle extends Command
         $count = $outlets->count();
         $this->line("  Found {$count} outlets to reactivate.");
 
-        if ($count === 0)
+        if ($count === 0) {
             return 0;
+        }
 
         $bar = $this->output->createProgressBar($count);
         $bar->start();
@@ -185,8 +185,9 @@ class MaintainOutletLifecycle extends Command
         $count = $outlets->count();
         $this->line("  Found {$count} UNPRODUCTIVE outlets to cleanup (skips recently visited/updated).");
 
-        if ($count === 0)
+        if ($count === 0) {
             return 0;
+        }
 
         $bar = $this->output->createProgressBar($count);
         $bar->start();
@@ -237,8 +238,9 @@ class MaintainOutletLifecycle extends Command
         $count = $outlets->count();
         $this->line("  Found {$count} inactive outlets to warn.");
 
-        if ($count === 0)
+        if ($count === 0) {
             return 0;
+        }
 
         $bar = $this->output->createProgressBar($count);
         $bar->start();
@@ -291,8 +293,9 @@ class MaintainOutletLifecycle extends Command
         $count = $outlets->count();
         $this->line("  Found {$count} outlets to archive.");
 
-        if ($count === 0)
+        if ($count === 0) {
             return 0;
+        }
 
         $bar = $this->output->createProgressBar($count);
         $bar->start();
@@ -324,7 +327,7 @@ class MaintainOutletLifecycle extends Command
         $mediaPaths = [];
 
         foreach ($mediaFields as $field) {
-            if (!empty($outlet->$field)) {
+            if (! empty($outlet->$field)) {
                 $mediaPaths[] = $outlet->$field;
             }
         }

@@ -5,7 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Run the migrations.
      *
@@ -30,7 +31,7 @@ return new class extends Migration {
             'cluster_id2',
         ];
 
-        $existingColumns = array_filter($columnsToDrop, fn(string $column) => Schema::hasColumn('users', $column));
+        $existingColumns = array_filter($columnsToDrop, fn (string $column) => Schema::hasColumn('users', $column));
 
         if (empty($existingColumns)) {
             return;

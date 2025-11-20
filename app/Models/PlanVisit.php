@@ -28,8 +28,6 @@ class PlanVisit extends Model
         'realized_at' => 'datetime',
     ];
 
-
-
     public function scopeFilter(Builder $query, ?string $term = null): Builder
     {
         $term ??= request('search');

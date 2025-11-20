@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Registers;
 
 use App\Filament\Resources\Registers\Pages\CreateRegister;
 use App\Filament\Resources\Registers\Pages\EditRegister;
+use App\Filament\Resources\Registers\Pages\ListRegisters;
 use App\Filament\Resources\Registers\Pages\ViewRegister;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -14,7 +15,6 @@ use App\Models\User;
 use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
-use App\Filament\Resources\Registers\Pages\ListRegisters;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -727,16 +727,78 @@ class RegisterResource extends Resource
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('update_ktp')
+                    ->label('Update KTP')
+                    ->icon('heroicon-o-identification')
+                    ->color('primary')
+                    ->visible(fn ($record) => $record->keterangan === 'LEAD')
+                    ->form([
+                        TextInput::make('ktp_outlet')
+                            ->label('Nomor KTP Outlet')
+                            ->required()
+                            ->maxLength(255),
+                        FileUpload::make('poto_ktp')
+                            ->label('Foto KTP')
+                            ->image()
+                            ->disk(StorageDisk::default())
+                            ->required()
+                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                $userId = Auth::id();
+                                $filenameGenerator = new FilenameGeneratorService;
+
+                                return $filenameGenerator->generate($file, 'register-ktp', $userId);
+                            }),
+                    ])
+                    ->action(function ($record, $data): void {
+                        $record->update([
+                            'ktp_outlet' => $data['ktp_outlet'],
+                            'poto_ktp' => $data['poto_ktp'],
+                            'keterangan' => null,
+                        ]);
+
+                        Notification::make()
+                            ->title('KTP Updated')
+                            ->success()
+                            ->send();
+                    }),
                 Action::make('approve')
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve_noo', $record))
+                    ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('approve_noo', $record) && $record->keterangan !== 'LEAD')
+                    ->form([
+                        TextInput::make('kode_outlet')
+                            ->regex('/^\S+$/')
+                            ->helperText('Kode outlet tidak boleh mengandung spasi')
+                            ->default(fn ($record) => $record->kode_outlet)
+                            ->required()
+                            ->rules(function ($record) {
+                                return [
+                                    function (string $attribute, $value, \Closure $fail) use ($record) {
+                                        $exists = \App\Models\Outlet::where('kode_outlet', $value)
+                                            ->where('divisi_id', $record->divisi_id)
+                                            ->exists();
+
+                                        if ($exists) {
+                                            $fail("Kode outlet {$value} sudah digunakan.");
+                                        }
+                                    },
+                                ];
+                            }),
+                        TextInput::make('limit')
+                            ->numeric()
+                            ->default(fn ($record) => $record->limit)
+                            ->required(),
+                    ])
                     ->action(function ($record, $data): void {
                         /** @var User|null $authUser */
                         $authUser = Auth::user();
 
                         $record->update([
+                            'kode_outlet' => $data['kode_outlet'],
+                            'limit' => $data['limit'],
+                            'confirmed_at' => $record->confirmed_at ?? Carbon::now(),
+                            'confirmed_by' => $record->confirmed_by ?? $authUser?->nama_lengkap,
                             'approved_at' => Carbon::now(),
                             'approved_by' => $authUser?->nama_lengkap,
                             'status' => 'APPROVED',
@@ -751,7 +813,7 @@ class RegisterResource extends Resource
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject_noo', $record))
+                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject_noo', $record) && $record->keterangan !== 'LEAD')
                     ->schema([
                         Textarea::make('alasan')
                             ->required(),
@@ -941,10 +1003,6 @@ class RegisterResource extends Resource
                 if (! empty($clusterIds)) {
                     $query->whereIn('registers.cluster_id', $clusterIds);
                 }
-            })
-            ->where(function ($query) {
-                $query->whereNull('keterangan')
-                    ->orWhere('keterangan', '!=', 'LEAD');
             });
     }
 

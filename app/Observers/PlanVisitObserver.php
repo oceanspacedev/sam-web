@@ -23,7 +23,7 @@ class PlanVisitObserver
      */
     public function updating(PlanVisit $plan): void
     {
-        if (!$plan->isDirty('tanggal_visit') && !$plan->isDirty('schedule_scope')) {
+        if (! $plan->isDirty('tanggal_visit') && ! $plan->isDirty('schedule_scope')) {
             return;
         }
 

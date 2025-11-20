@@ -30,12 +30,20 @@ class PlanVisitExporter extends BaseExporter
                 ->label('Cluster')
                 ->default('-'),
 
+            ExportColumn::make('outlet.kode_outlet')
+                ->label('Kode Outlet')
+                ->default('-'),
+
             ExportColumn::make('outlet.nama_outlet')
                 ->label('Outlet')
                 ->default('-'),
 
+            ExportColumn::make('schedule_scope')
+                ->label('Tipe')
+                ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+
             ExportColumn::make('period_start')
-                ->label('Tanggal')
+                ->label('Tanggal / Periode')
                 ->formatStateUsing(function ($state, PlanVisit $record) {
                     if ($record->isWeekly() && $record->period_start && $record->period_end) {
                         $start = Carbon::parse($record->period_start)->format('d M Y');

@@ -170,7 +170,7 @@ class DataOverview extends StatsOverviewWidget implements HasActions
     }
 
     /**
-     * @param class-string $modelClass
+     * @param  class-string  $modelClass
      */
     protected function calculateMetric(string $modelClass, string $dateColumn, array $range, ?callable $constraint = null): array
     {
@@ -339,17 +339,20 @@ class DataOverview extends StatsOverviewWidget implements HasActions
                 return ['Periode sebelumnya: 0', null, 'gray'];
             }
 
-            return ["Periode sebelumnya: 0, selisih: +{$current}", null, 'primary'];
+            return ["Periode sebelumnya: 0, selisih: +{$current}", 'heroicon-o-arrow-up', 'success'];
         }
 
         $difference = $current - $previous;
         $percentage = round(($difference / $previous) * 100, 1);
         $sign = $difference >= 0 ? '+' : '';
 
+        $icon = $difference > 0 ? 'heroicon-o-arrow-up' : ($difference < 0 ? 'heroicon-o-arrow-down' : null);
+        $color = $difference > 0 ? 'success' : ($difference < 0 ? 'danger' : 'gray');
+
         return [
             "Periode sebelumnya: {$previous}, selisih: {$sign}{$difference} ({$sign}{$percentage}%)",
-            null,
-            'primary',
+            $icon,
+            $color,
         ];
     }
 

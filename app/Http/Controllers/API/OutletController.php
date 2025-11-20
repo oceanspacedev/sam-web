@@ -22,8 +22,7 @@ class OutletController extends Controller
 {
     public function __construct(
         protected FileUploadService $fileUpload
-    ) {
-    }
+    ) {}
 
     /**
      * Retrieve all outlets with complete relationship data
@@ -148,11 +147,11 @@ class OutletController extends Controller
 
             if ($requiresDivisionRegion) {
                 $divisi = Division::where('name', $request->divisi)->first();
-                if (!$divisi) {
+                if (! $divisi) {
                     return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
                 }
                 $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
-                if (!$region) {
+                if (! $region) {
                     return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
                 }
 
@@ -223,11 +222,13 @@ class OutletController extends Controller
     public function singleOutlet(Request $request, $nama)
     {
         try {
+            $user = Auth::user();
             $outlet = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi'])
+                ->visibleTo($user)
                 ->where('kode_outlet', $nama)
                 ->first();
 
-            if (!$outlet) {
+            if (! $outlet) {
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
@@ -300,8 +301,8 @@ class OutletController extends Controller
             $dynamicRules = [];
             // Dukungan skema lama: photo0..photo4
             for ($i = 0; $i <= 4; $i++) {
-                if ($request->hasFile('photo' . $i)) {
-                    $dynamicRules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072']; // 3MB
+                if ($request->hasFile('photo'.$i)) {
+                    $dynamicRules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072']; // 3MB
                 }
             }
             // Dukungan skema baru: photos[]
@@ -316,8 +317,8 @@ class OutletController extends Controller
 
             $request->validate(array_merge($baseRules, $dynamicRules));
 
-            $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
-            if (!$outlet) {
+            $outlet = Outlet::visibleTo($user)->where('kode_outlet', $request->kode_outlet)->first();
+            if (! $outlet) {
                 Log::channel('outlet')->warning('Outlet update foto failed: outlet not found', [
                     'user_id' => $user->id,
                     'kode_outlet' => $request->kode_outlet,
@@ -329,7 +330,7 @@ class OutletController extends Controller
             // Proses foto (mendukung photo0..4 dan photos[])
             $photoFiles = [];
             for ($i = 0; $i <= 4; $i++) {
-                $f = $request->file('photo' . $i);
+                $f = $request->file('photo'.$i);
                 if ($f) {
                     $photoFiles[] = $f;
                 }
@@ -343,7 +344,7 @@ class OutletController extends Controller
             }
 
             foreach ($photoFiles as $file) {
-                if (!$file->isValid()) {
+                if (! $file->isValid()) {
                     return ResponseFormatter::error(null, 'File foto tidak valid', 422);
                 }
                 $original = $file->getClientOriginalName();
@@ -418,7 +419,7 @@ class OutletController extends Controller
 
     protected function deleteOutletMedia(?string $path): void
     {
-        if (!$path || $path === '-' || $path === '0') {
+        if (! $path || $path === '-' || $path === '0') {
             return;
         }
 

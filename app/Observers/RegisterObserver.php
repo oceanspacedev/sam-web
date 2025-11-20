@@ -13,21 +13,22 @@ class RegisterObserver
      */
     public function updating(Register $model): void
     {
-        if (!$model->isDirty('status') || $model->status !== 'APPROVED') {
+        if (! $model->isDirty('status') || $model->status !== 'APPROVED') {
             return;
         }
 
         $outletQuery = Outlet::query()
             ->select(['id'])
+            ->where('divisi_id', $model->divisi_id)
             ->where(function (Builder $query) use ($model): void {
                 $query->where('register_id', $model->id)
                     ->orWhere('kode_outlet', $model->kode_outlet)
-                    ->orWhere('kode_outlet', 'LEAD' . $model->id);
+                    ->orWhere('kode_outlet', 'LEAD'.$model->id);
             })
             ->orderByRaw('case when register_id = ? then 1 when kode_outlet = ? then 2 when kode_outlet = ? then 3 else 4 end', [
                 $model->id,
                 $model->kode_outlet,
-                'LEAD' . $model->id,
+                'LEAD'.$model->id,
             ]);
 
         $outlet = $model->outlet()->first() ?? $outletQuery->first();

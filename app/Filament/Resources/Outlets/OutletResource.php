@@ -63,7 +63,7 @@ class OutletResource extends Resource
                                 ->schema([
                                     TextInput::make('kode_outlet')
                                         ->required()
-                                        ->regex('/^[0-9]+$/')
+                                        ->regex('/^\S+$/')
                                         ->helperText('Kode outlet tidak boleh mengandung spasi')
                                         ->rule(function (callable $get) {
                                             return function ($attribute, $value, $fail) use ($get) {

@@ -35,7 +35,7 @@ class VisitObserver
 
     protected function markRelatedPlanVisit(Visit $visit): void
     {
-        if (!$visit->user_id || !$visit->outlet_id || !$visit->tanggal_visit) {
+        if (! $visit->user_id || ! $visit->outlet_id || ! $visit->tanggal_visit) {
             return;
         }
 
@@ -63,7 +63,7 @@ class VisitObserver
             ->orderBy('period_start')
             ->first();
 
-        if (!$plan) {
+        if (! $plan) {
             return;
         }
 
@@ -79,7 +79,7 @@ class VisitObserver
      */
     protected function calculateDurasiVisit(Visit $visit): void
     {
-        if (!empty($visit->check_in_time) && !empty($visit->check_out_time)) {
+        if (! empty($visit->check_in_time) && ! empty($visit->check_out_time)) {
             try {
                 $checkIn = Carbon::parse($visit->check_in_time);
                 $checkOut = Carbon::parse($visit->check_out_time);

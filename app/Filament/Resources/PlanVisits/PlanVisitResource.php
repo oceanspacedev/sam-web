@@ -210,12 +210,22 @@ class PlanVisitResource extends Resource
                 TextColumn::make('outlet.nama_outlet')
                     ->label('Outlet')
                     ->searchable(),
-                TextColumn::make('outlet.kode_outlet'),
+                TextColumn::make('outlet.kode_outlet')
+                    ->label('Kode Outlet')
+                    ->searchable(),
+                TextColumn::make('schedule_scope')
+                    ->label('Tipe')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->colors([
+                        'info' => 'weekly',
+                        'success' => 'daily',
+                    ]),
                 TextColumn::make('period_start')
-                    ->label('Tanggal Visit')
+                    ->label('Tanggal / Periode')
                     ->formatStateUsing(function ($state, PlanVisit $record) {
                         if ($record->isWeekly() && $record->period_start && $record->period_end) {
-                            $start = Carbon::parse($record->period_start)->format('d M Y');
+                            $start = Carbon::parse($record->period_start)->format('d M');
                             $end = Carbon::parse($record->period_end)->format('d M Y');
 
                             return $start.' - '.$end;
@@ -223,6 +233,12 @@ class PlanVisitResource extends Resource
 
                         return $state ? Carbon::parse($state)->format('d M Y') : '-';
                     }),
+                TextColumn::make('realized_at')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state ? 'Realized' : 'Pending')
+                    ->color(fn ($state) => $state ? 'success' : 'warning')
+                    ->icon(fn ($state) => $state ? 'heroicon-o-check-circle' : 'heroicon-o-clock'),
                 TextColumn::make('created_at')
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),

@@ -28,24 +28,7 @@ class PlanVisit extends Model
         'realized_at' => 'datetime',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (PlanVisit $plan): void {
-            if ($plan->schedule_scope) {
-                return;
-            }
 
-            $plan->fill(self::schedulePayload($plan->tanggal_visit ?? now(), 'daily'));
-        });
-
-        static::updating(function (PlanVisit $plan): void {
-            if (! $plan->isDirty('tanggal_visit') && ! $plan->isDirty('schedule_scope')) {
-                return;
-            }
-
-            $plan->fill(self::schedulePayload($plan->tanggal_visit ?? now(), $plan->schedule_scope ?? 'daily'));
-        });
-    }
 
     public function scopeFilter(Builder $query, ?string $term = null): Builder
     {

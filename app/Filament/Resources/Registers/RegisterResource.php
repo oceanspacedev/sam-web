@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Registers;
 
 use App\Filament\Resources\Registers\Pages\CreateRegister;
 use App\Filament\Resources\Registers\Pages\EditRegister;
-use App\Filament\Resources\Registers\Pages\ListRegisters;
 use App\Filament\Resources\Registers\Pages\ViewRegister;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -15,7 +14,9 @@ use App\Models\User;
 use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
+use App\Filament\Resources\Registers\Pages\ListRegisters;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -42,6 +43,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -725,42 +727,11 @@ class RegisterResource extends Resource
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
-                Action::make('confirm')
-                    ->label('Confirm')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn ($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
-                    ->schema([
-                        TextInput::make('kode_outlet')
-                            ->regex('/^[0-9]+$/')
-                            ->helperText('Kode outlet tidak boleh mengandung spasi')
-                            ->required(),
-                        TextInput::make('limit')
-                            ->numeric()
-                            ->required(),
-                    ])
-                    ->action(function ($record, $data): void {
-                        /** @var User|null $authUser */
-                        $authUser = Auth::user();
-
-                        $record->update([
-                            'kode_outlet' => $data['kode_outlet'],
-                            'limit' => $data['limit'],
-                            'confirmed_at' => Carbon::now(),
-                            'confirmed_by' => $authUser?->nama_lengkap,
-                            'status' => 'CONFIRMED',
-                        ]);
-
-                        Notification::make()
-                            ->title($record->nama_outlet.' Confirm')
-                            ->success()
-                            ->send();
-                    }),
                 Action::make('approve')
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
+                    ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve_noo', $record))
                     ->action(function ($record, $data): void {
                         /** @var User|null $authUser */
                         $authUser = Auth::user();
@@ -780,7 +751,7 @@ class RegisterResource extends Resource
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
+                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject_noo', $record))
                     ->schema([
                         Textarea::make('alasan')
                             ->required(),
@@ -803,6 +774,119 @@ class RegisterResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('bulk_approve')
+                        ->label('Approve')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->visible(function (?ListRegisters $livewire = null): bool {
+                            $activeTab = $livewire?->activeTab;
+
+                            return Gate::allows('approve_noo') && $activeTab === 'confirmed';
+                        })
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records): void {
+                            /** @var User|null $authUser */
+                            $authUser = Auth::user();
+
+                            $approved = 0;
+                            $skipped = 0;
+                            $skippedNames = [];
+
+                            $records->each(function (Register $record) use (&$approved, &$skipped, &$skippedNames, $authUser): void {
+                                if ($record->status !== 'CONFIRMED') {
+                                    $skipped++;
+                                    $skippedNames[] = $record->nama_outlet ?? 'ID '.$record->id;
+
+                                    return;
+                                }
+
+                                $record->update([
+                                    'approved_at' => Carbon::now(),
+                                    'approved_by' => $authUser?->nama_lengkap,
+                                    'status' => 'APPROVED',
+                                ]);
+
+                                $approved++;
+                            });
+
+                            if ($approved > 0) {
+                                Notification::make()
+                                    ->title("{$approved} register di-approve")
+                                    ->success()
+                                    ->send();
+                            }
+
+                            if ($skipped > 0) {
+                                $list = implode(', ', array_slice($skippedNames, 0, 3));
+                                $more = count($skippedNames) > 3 ? ' dan lainnya' : '';
+
+                                Notification::make()
+                                    ->title("{$skipped} data dilewati")
+                                    ->body("Status bukan CONFIRMED: {$list}{$more}")
+                                    ->danger()
+                                    ->send();
+                            }
+                        }),
+                    BulkAction::make('bulk_reject')
+                        ->label('Reject')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->visible(function (?ListRegisters $livewire = null): bool {
+                            $activeTab = $livewire?->activeTab;
+
+                            return Gate::allows('reject_noo') && in_array($activeTab, ['pending', 'confirmed'], true);
+                        })
+                        ->form([
+                            Textarea::make('alasan')
+                                ->label('Alasan')
+                                ->required(),
+                        ])
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records, array $data): void {
+                            /** @var User|null $authUser */
+                            $authUser = Auth::user();
+
+                            $rejected = 0;
+                            $skipped = 0;
+                            $skippedNames = [];
+
+                            $records->each(function (Register $record) use (&$rejected, &$skipped, &$skippedNames, $authUser, $data): void {
+                                if (in_array($record->status, ['APPROVED', 'REJECTED'], true)) {
+                                    $skipped++;
+                                    $skippedNames[] = $record->nama_outlet ?? 'ID '.$record->id;
+
+                                    return;
+                                }
+
+                                $record->update([
+                                    'confirmed_at' => Carbon::now(),
+                                    'confirmed_by' => $authUser?->nama_lengkap,
+                                    'status' => 'REJECTED',
+                                    'keterangan' => $data['alasan'],
+                                ]);
+
+                                $rejected++;
+                            });
+
+                            if ($rejected > 0) {
+                                Notification::make()
+                                    ->title("{$rejected} register di-reject")
+                                    ->success()
+                                    ->send();
+                            }
+
+                            if ($skipped > 0) {
+                                $list = implode(', ', array_slice($skippedNames, 0, 3));
+                                $more = count($skippedNames) > 3 ? ' dan lainnya' : '';
+
+                                Notification::make()
+                                    ->title("{$skipped} data dilewati")
+                                    ->body("Status sudah APPROVED/REJECTED: {$list}{$more}")
+                                    ->danger()
+                                    ->send();
+                            }
+                        }),
                     DeleteBulkAction::make(),
                     ForceDeleteBulkAction::make(),
                     RestoreBulkAction::make(),

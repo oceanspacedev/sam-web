@@ -35,31 +35,6 @@ class Visit extends Model
         return $this->belongsTo(Outlet::class)->withTrashed();
     }
 
-    protected static function booted(): void
-    {
-        static::saving(function ($visit) {
-            $visit->calculateDurasiVisit();
-        });
-    }
-
-    protected function calculateDurasiVisit(): void
-    {
-        if (! empty($this->check_in_time) && ! empty($this->check_out_time)) {
-            try {
-                $checkIn = Carbon::parse($this->check_in_time);
-                $checkOut = Carbon::parse($this->check_out_time);
-
-                $durationInMinutes = $checkIn->diffInMinutes($checkOut);
-
-                $this->durasi_visit = $durationInMinutes;
-            } catch (Exception $e) {
-                $this->durasi_visit = null;
-            }
-        } else {
-            $this->durasi_visit = null;
-        }
-    }
-
     public function formatForAPI(): array
     {
         return [

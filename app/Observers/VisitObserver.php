@@ -9,6 +9,15 @@ use Illuminate\Database\Eloquent\Builder;
 
 class VisitObserver
 {
+    /**
+     * Handle the Visit "saving" event.
+     * Calculate visit duration before saving.
+     */
+    public function saving(Visit $visit): void
+    {
+        $this->calculateDurasiVisit($visit);
+    }
+
     public function created(Visit $visit): void
     {
         $this->markRelatedPlanVisit($visit);
@@ -26,7 +35,7 @@ class VisitObserver
 
     protected function markRelatedPlanVisit(Visit $visit): void
     {
-        if (! $visit->user_id || ! $visit->outlet_id || ! $visit->tanggal_visit) {
+        if (!$visit->user_id || !$visit->outlet_id || !$visit->tanggal_visit) {
             return;
         }
 
@@ -54,7 +63,7 @@ class VisitObserver
             ->orderBy('period_start')
             ->first();
 
-        if (! $plan) {
+        if (!$plan) {
             return;
         }
 
@@ -63,5 +72,26 @@ class VisitObserver
             : ($visit->check_in_time ? Carbon::parse($visit->check_in_time) : now());
 
         $plan->markAsRealized($visit, $realizedAt);
+    }
+
+    /**
+     * Calculate visit duration based on check-in and check-out times.
+     */
+    protected function calculateDurasiVisit(Visit $visit): void
+    {
+        if (!empty($visit->check_in_time) && !empty($visit->check_out_time)) {
+            try {
+                $checkIn = Carbon::parse($visit->check_in_time);
+                $checkOut = Carbon::parse($visit->check_out_time);
+
+                $durationInMinutes = $checkIn->diffInMinutes($checkOut);
+
+                $visit->durasi_visit = $durationInMinutes;
+            } catch (\Exception $e) {
+                $visit->durasi_visit = null;
+            }
+        } else {
+            $visit->durasi_visit = null;
+        }
     }
 }

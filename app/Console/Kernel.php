@@ -25,6 +25,20 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
         $schedule->command('data:archive')->monthly()->at('02:00');
+
+        // ===================================
+        // Outlet Lifecycle Maintenance
+        // ===================================
+        // Single command that runs all steps sequentially:
+        // 1. Reactivate UNMAINTAIN with visits
+        // 2. Cleanup UNPRODUCTIVE
+        // 3. MAINTAIN → UNMAINTAIN (daily)
+        // 4. UNMAINTAIN → Archive (Monday only)
+
+        $schedule->command('outlets:maintain-lifecycle')
+            ->daily()
+            ->at('02:00')
+            ->appendOutputTo(storage_path('logs/outlet-lifecycle.log'));
     }
 
     /**
@@ -34,7 +48,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands()
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
     }

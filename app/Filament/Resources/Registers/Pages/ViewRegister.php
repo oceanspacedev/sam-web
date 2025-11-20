@@ -35,7 +35,7 @@ class ViewRegister extends ViewRecord
                 ->label('Confirm')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn ($record) => $record->status === 'PENDING' && Gate::allows('confirm', $record))
+                ->visible(fn ($record) => $record->status === 'PENDING' && Gate::allows('confirm_noo', $record))
                 ->form([
                     TextInput::make('kode_outlet')
                         ->regex('/^[0-9]+$/')
@@ -66,7 +66,7 @@ class ViewRegister extends ViewRecord
                 ->label('Approve')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve', $record))
+                ->visible(fn ($record) => $record->status === 'CONFIRMED' && Gate::allows('approve_noo', $record))
                 ->action(function ($record, $data): void {
                     /** @var User|null $authUser */
                     $authUser = Auth::user();
@@ -86,7 +86,7 @@ class ViewRegister extends ViewRecord
                 ->label('Reject')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject', $record))
+                ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject_noo', $record))
                 ->form([
                     Textarea::make('alasan')
                         ->required(),

@@ -75,23 +75,30 @@ class VisitController extends Controller
         try {
 
             $user = Auth::user();
+            $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
+            $baseRelations = [
+                'outlet.badanusaha',
+                'outlet.region',
+                'outlet.divisi',
+                'outlet.cluster',
+                'user.badanUsahas',
+                'user.regions',
+                'user.divisis',
+                'user.clusters',
+                'user.role',
+            ];
+
+            $scopeLevel = $user->role?->organizational_scope_level ?? 'cluster';
+            $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+            $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+            $regionIds = $user->regions()->pluck('regions.id')->toArray();
+            $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
             // Robby (GM ZTE)
             if ($user->id == 2 && $user->role_id == 8) {
-                $visit = Visit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanUsahas',
-                    'user.regions',
-                    'user.divisis',
-                    'user.clusters',
-                    'user.role',
-                ])->whereHas('user', function ($query) {
-                    $query->where('divisi_id', '8')
-                        ->whereIn('region_id', [63, 64, 66, 67, 68, 78, 79, 80, 81]);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
+                $visit = Visit::with($baseRelations)
+                    ->whereHas('user.divisis', fn ($query) => $query->where('divisions.id', 8))
+                    ->whereHas('user.regions', fn ($query) => $query->whereIn('regions.id', [63, 64, 66, 67, 68, 78, 79, 80, 81]))
+                    ->whereDate('tanggal_visit', $date)
                     ->latest()
                     ->get();
 
@@ -99,20 +106,9 @@ class VisitController extends Controller
             }
             // Hendra Setia (GM Techno)
             elseif ($user->id == 689 && $user->role_id == 8) {
-                $visit = Visit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanUsahas',
-                    'user.regions',
-                    'user.divisis',
-                    'user.clusters',
-                    'user.role',
-                ])->whereHas('user', function ($query) {
-                    $query->where('divisi_id', '11');
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
+                $visit = Visit::with($baseRelations)
+                    ->whereHas('user.divisis', fn ($query) => $query->where('divisions.id', 11))
+                    ->whereDate('tanggal_visit', $date)
                     ->latest()
                     ->get();
 
@@ -120,20 +116,11 @@ class VisitController extends Controller
             }
             // ASM || RKAM
             elseif ($user->role_id == 1 || $user->role_id == 9) {
-                $visit = Visit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanUsahas',
-                    'user.regions',
-                    'user.divisis',
-                    'user.clusters',
-                    'user.role',
-                ])->whereHas('user', function ($query) {
-                    $query->where('tm_id', Auth::user()->id);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
+                $visit = Visit::with($baseRelations)
+                    ->whereHas('user', function ($query) use ($user) {
+                        $query->where('tm_id', $user->id);
+                    })
+                    ->whereDate('tanggal_visit', $date)
                     ->latest()
                     ->get();
 
@@ -141,17 +128,8 @@ class VisitController extends Controller
             }
             // COO
             elseif ($user->role_id == 6) {
-                $visit = Visit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanUsahas',
-                    'user.regions',
-                    'user.divisis',
-                    'user.clusters',
-                    'user.role',
-                ])->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
+                $visit = Visit::with($baseRelations)
+                    ->whereDate('tanggal_visit', $date)
                     ->latest()
                     ->get();
 
@@ -159,20 +137,11 @@ class VisitController extends Controller
             }
             // CSO
             elseif ($user->role_id == 8) {
-                $visit = Visit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanUsahas',
-                    'user.regions',
-                    'user.divisis',
-                    'user.clusters',
-                    'user.role',
-                ])->whereHas('outlet', function ($query) {
-                    $query->where('divisi_id', 4);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
+                $visit = Visit::with($baseRelations)
+                    ->whereHas('outlet', function ($query) {
+                        $query->where('divisi_id', 4);
+                    })
+                    ->whereDate('tanggal_visit', $date)
                     ->latest()
                     ->get();
 
@@ -180,49 +149,59 @@ class VisitController extends Controller
             }
             // CSO FAST EV
             elseif ($user->role_id == 11) {
-                $visit = Visit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanUsahas',
-                    'user.regions',
-                    'user.divisis',
-                    'user.clusters',
-                    'user.role',
-                ])->whereHas('outlet', function ($query) {
-                    $query->where('divisi_id', 7);
-                })
-                    ->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
+                $visit = Visit::with($baseRelations)
+                    ->whereHas('outlet', function ($query) {
+                        $query->where('divisi_id', 7);
+                    })
+                    ->whereDate('tanggal_visit', $date)
                     ->latest()
                     ->get();
 
                 // VisitNoo removed
             } else {
-                // Use many-to-many region relationship instead of direct region_id property
-                $userRegionIds = Auth::user()->regions()->pluck('regions.id')->toArray();
+                $visit = Visit::with($baseRelations)
+                    ->whereDate('tanggal_visit', $date);
 
-                $visit = Visit::with([
-                    'outlet.badanusaha',
-                    'outlet.region',
-                    'outlet.divisi',
-                    'outlet.cluster',
-                    'user.badanUsahas',
-                    'user.regions',
-                    'user.divisis',
-                    'user.clusters',
-                    'user.role',
-                ]);
+                if ($user->role && $user->role->hasFullAccess()) {
+                    $visit = $visit->latest()->get();
+                } else {
+                    $visit->where(function ($query) use ($scopeLevel, $badanUsahaIds, $divisiIds, $regionIds, $clusterIds) {
+                        if ($scopeLevel === 'badanusaha') {
+                            if (! empty($badanUsahaIds)) {
+                                $query->whereHas('user.badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
+                            }
 
-                if (! empty($userRegionIds)) {
-                    $visit->whereHas('user.regions', function ($query) use ($userRegionIds) {
-                        $query->whereIn('regions.id', $userRegionIds);
+                            return;
+                        }
+
+                        if ($scopeLevel === 'divisi') {
+                            if (! empty($badanUsahaIds)) {
+                                $query->whereHas('user.badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
+                            }
+                            if (! empty($divisiIds)) {
+                                $query->whereHas('user.divisis', fn ($q) => $q->whereIn('divisions.id', $divisiIds));
+                            }
+
+                            return;
+                        }
+
+                        // cluster level (default) - apply all levels when provided
+                        if (! empty($badanUsahaIds)) {
+                            $query->whereHas('user.badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
+                        }
+                        if (! empty($divisiIds)) {
+                            $query->whereHas('user.divisis', fn ($q) => $q->whereIn('divisions.id', $divisiIds));
+                        }
+                        if (! empty($regionIds)) {
+                            $query->whereHas('user.regions', fn ($q) => $q->whereIn('regions.id', $regionIds));
+                        }
+                        if (! empty($clusterIds)) {
+                            $query->whereHas('user.clusters', fn ($q) => $q->whereIn('clusters.id', $clusterIds));
+                        }
                     });
-                }
 
-                $visit = $visit->whereDate('tanggal_visit', $request->date ? date('Y-m-d', strtotime($request->date)) : date('Y-m-d'))
-                    ->latest()
-                    ->get();
+                    $visit = $visit->latest()->get();
+                }
 
                 // VisitNoo removed
             }

@@ -47,7 +47,7 @@ class RoleResource extends Resource
                                 ->helperText('Pilih role induk jika ada struktur atasan (mis. TM → ASM).')
                                 ->options(function (?Role $record) {
                                     return Role::query()
-                                        ->when($record, fn($query) => $query->where('id', '!=', $record->id))
+                                        ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
                                         ->orderBy('name')
                                         ->pluck('name', 'id');
                                 })
@@ -58,7 +58,7 @@ class RoleResource extends Resource
                         ->columns(2),
                     Section::make('Permissions')
                         ->schema(static::getPermissionSchema())
-                        ->visible(fn($get) => $get('can_access_web') !== false),
+                        ->visible(fn ($get) => $get('can_access_web') !== false),
                 ])->columnSpan(3),
                 Group::make([
                     Section::make('Akses & Scope')
@@ -101,7 +101,7 @@ class RoleResource extends Resource
                 TextColumn::make('organizational_scope_level')
                     ->label('Scope Level')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
+                    ->color(fn (string $state): string => match ($state) {
                         'all' => 'success',
                         'badanusaha' => 'info',
                         'divisi' => 'warning',

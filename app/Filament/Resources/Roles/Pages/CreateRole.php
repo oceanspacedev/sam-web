@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Roles\Pages;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Models\Permission;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Arr;
 
 class CreateRole extends CreateRecord
 {
@@ -18,7 +17,12 @@ class CreateRole extends CreateRecord
             ->unique();
         session()->put('permissions_to_sync', $permissions);
 
-        return Arr::only($data, ['name', 'can_access_web', 'organizational_scope_level']);
+        return [
+            'name' => $data['name'],
+            'parent_role_id' => $data['parent_role_id'] ?? null,
+            'can_access_web' => $data['can_access_web'],
+            'organizational_scope_level' => $data['organizational_scope_level'],
+        ];
     }
 
     protected function afterCreate(): void

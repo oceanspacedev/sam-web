@@ -115,11 +115,22 @@ class UserResource extends Resource
                                             }),
                                         Select::make('tm_id')
                                             ->label('TM')
-                                            ->relationship('tm', 'nama_lengkap')
+                                            ->options(function (callable $get) {
+                                                $roleId = $get('role_id');
+                                                $parentRoleId = $roleId ? Role::find($roleId)?->parent_role_id : null;
+
+                                                $query = User::query()->select('id', 'nama_lengkap')->orderBy('nama_lengkap');
+
+                                                if ($parentRoleId) {
+                                                    $query->where('role_id', $parentRoleId);
+                                                }
+
+                                                return $query->pluck('nama_lengkap', 'id');
+                                            })
                                             ->searchable()
                                             ->preload()
-                                            ->required()
-                                            ->placeholder('Pilih TM'),
+                                            ->required(fn (callable $get) => (bool) Role::find($get('role_id'))?->parent_role_id)
+                                            ->placeholder('Pilih TM berdasarkan hirarki role'),
                                     ]),
                                 ]),
                         ])

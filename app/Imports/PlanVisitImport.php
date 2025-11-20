@@ -90,7 +90,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
                 throw new Exception('Outlet '.$kodeOutlet.' di divisi '.$divisionName.' tidak ditemukan.');
             }
 
-            if ((int) $user->divisi_id !== (int) $outlet->divisi_id) {
+            $userDivisionIds = $user->divisis()->pluck('divisions.id')->toArray();
+            if (! in_array((int) $outlet->divisi_id, $userDivisionIds, true)) {
                 throw new Exception('User dengan username '.$username.' tidak terdaftar pada divisi '.$divisionName.'.');
             }
 

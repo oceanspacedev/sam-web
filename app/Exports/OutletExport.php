@@ -91,14 +91,17 @@ class OutletExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMappi
      */
     private function getUserByRole($outlet, $roleId, $relation = null)
     {
-        $userQuery = User::where('divisi_id', $outlet->divisi_id)
-            ->where('region_id', $outlet->region_id)
-            ->where('role_id', $roleId);
-
-        // Jika ada cluster_id untuk role_id 3
-        if ($roleId == 3) {
-            $userQuery->where('cluster_id', $outlet->cluster_id);
-        }
+        $userQuery = User::query()
+            ->where('role_id', $roleId)
+            ->when($outlet->divisi_id, function ($query) use ($outlet) {
+                $query->whereHas('divisis', fn ($q) => $q->where('divisions.id', $outlet->divisi_id));
+            })
+            ->when($outlet->region_id, function ($query) use ($outlet) {
+                $query->whereHas('regions', fn ($q) => $q->where('regions.id', $outlet->region_id));
+            })
+            ->when($roleId == 3 && $outlet->cluster_id, function ($query) use ($outlet) {
+                $query->whereHas('clusters', fn ($q) => $q->where('clusters.id', $outlet->cluster_id));
+            });
 
         $user = $userQuery->first();
 

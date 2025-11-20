@@ -35,19 +35,12 @@ class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings
     {
         // Ambil data user dengan filter yang sama seperti di PlanVisitResource
         $query = User::query()
-            ->with(['badanusaha', 'divisi', 'region', 'cluster'])
+            ->with(['badanUsahas:id,name', 'divisis:id,name', 'regions:id,name', 'clusters:id,name'])
             ->select([
+                'users.id',
                 'users.username',
                 'users.nama_lengkap',
-                'badan_usahas.name as badan_usaha_name',
-                'divisions.name as divisi_name',
-                'regions.name as region_name',
-                'clusters.name as cluster_name',
             ])
-            ->leftJoin('badan_usahas', 'users.badanusaha_id', '=', 'badan_usahas.id')
-            ->leftJoin('divisions', 'users.divisi_id', '=', 'divisions.id')
-            ->leftJoin('regions', 'users.region_id', '=', 'regions.id')
-            ->leftJoin('clusters', 'users.cluster_id', '=', 'clusters.id')
             ->whereNotNull('users.nama_lengkap')
             ->where('users.nama_lengkap', '!=', '');
 
@@ -64,18 +57,17 @@ class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings
                 $regionIds = $user->regions()->pluck('regions.id')->toArray();
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
-                // Note: Users table still uses single foreign keys for joins
                 if (! empty($badanUsahaIds)) {
-                    $query->whereIn('users.badanusaha_id', $badanUsahaIds);
+                    $query->whereHas('badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
                 }
                 if (! empty($divisiIds)) {
-                    $query->whereIn('users.divisi_id', $divisiIds);
+                    $query->whereHas('divisis', fn ($q) => $q->whereIn('divisions.id', $divisiIds));
                 }
                 if (! empty($regionIds)) {
-                    $query->whereIn('users.region_id', $regionIds);
+                    $query->whereHas('regions', fn ($q) => $q->whereIn('regions.id', $regionIds));
                 }
                 if (! empty($clusterIds)) {
-                    $query->whereIn('users.cluster_id', $clusterIds);
+                    $query->whereHas('clusters', fn ($q) => $q->whereIn('clusters.id', $clusterIds));
                 }
             }
         }
@@ -85,13 +77,18 @@ class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings
 
         // Transform data
         return $users->map(function ($user) {
+            $badanUsaha = $user->badanUsahas->first();
+            $divisi = $user->divisis->first();
+            $region = $user->regions->first();
+            $cluster = $user->clusters->first();
+
             return [
                 $user->username,                        // username
                 $user->nama_lengkap,                    // nama_lengkap
-                $user->badan_usaha_name ?? '',          // badan_usaha
-                $user->divisi_name ?? '',               // divisi
-                $user->region_name ?? '',               // region
-                $user->cluster_name ?? '',              // cluster
+                $badanUsaha->name ?? '',                // badan_usaha
+                $divisi->name ?? '',                    // divisi
+                $region->name ?? '',                    // region
+                $cluster->name ?? '',                   // cluster
             ];
         });
     }

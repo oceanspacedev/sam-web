@@ -108,6 +108,29 @@ class BadanUsahaResource extends Resource
             ]);
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->where(function ($query) {
+                $user = auth()->user();
+                $role = $user->role;
+                $scopeLevel = $role->organizational_scope_level ?? 'badan_usaha';
+
+                // If role has 'all' access, no filtering needed
+                if ($scopeLevel === 'all') {
+                    return;
+                }
+
+                // Get user's organizational assignments from pivot tables
+                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+
+                // Apply filters based on assignments
+                if (! empty($badanUsahaIds)) {
+                    $query->whereIn('badan_usahas.id', $badanUsahaIds);
+                }
+            });
+    }
+
     public static function getPages(): array
     {
         return [

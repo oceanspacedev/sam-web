@@ -81,6 +81,7 @@ class VisitResource extends Resource
                                     ->default('EXTRACALL'),
                                 Select::make('user_id')
                                     ->searchable()
+                                    ->preload()
                                     ->required()
                                     ->reactive()
                                     ->label('Pilih User')
@@ -115,6 +116,7 @@ class VisitResource extends Resource
                                     }),
                                 Select::make('outlet_id')
                                     ->searchable()
+                                    ->preload()
                                     ->required()
                                     ->label('Pilih Outlet')
                                     ->placeholder('Cari Outlet berdasarkan nama/kode')
@@ -476,9 +478,7 @@ class VisitResource extends Resource
         $regionIds = $user->regions()->pluck('regions.id')->toArray();
         $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
-        $query = parent::getEloquentQuery()
-            ->join('users', 'visits.user_id', '=', 'users.id')
-            ->select('visits.*', 'users.id as user_id');
+        $query = parent::getEloquentQuery();
 
         // Apply filters based on user pivot assignments
         if (! empty($badanUsahaIds)) {

@@ -137,16 +137,24 @@ class DivisionResource extends Resource
             ->where(function ($query) {
                 $user = auth()->user();
                 $role = $user->role;
+                $scopeLevel = $role->organizational_scope_level ?? 'division';
 
-                // Super admin or role with 'all' scope sees everything
-                if ($user->role->name == 'SUPER ADMIN' || $role->organizational_scope_level === 'all') {
+                // If role has 'all' access, no filtering needed
+                if ($scopeLevel === 'all') {
                     return;
                 }
 
-                // Filter by user's badanusaha assignments
+                // Get user's organizational assignments from pivot tables
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+
+                // Apply filters based on assignments
                 if (! empty($badanUsahaIds)) {
                     $query->whereIn('divisions.badanusaha_id', $badanUsahaIds);
+                }
+
+                if (! empty($divisiIds)) {
+                    $query->whereIn('divisions.id', $divisiIds);
                 }
             });
     }

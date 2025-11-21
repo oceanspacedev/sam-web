@@ -77,4 +77,9 @@ class RegisterPolicy
     {
         return Gate::allows('reject_noo');
     }
+
+    public function upgradeNoo(User $user, Register $register)
+    {
+        return Gate::allows('upgrade_noo');
+    }
 }

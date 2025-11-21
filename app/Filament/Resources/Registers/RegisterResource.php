@@ -731,7 +731,7 @@ class RegisterResource extends Resource
                     ->label('Update KTP')
                     ->icon('heroicon-o-identification')
                     ->color('primary')
-                    ->visible(fn ($record) => $record->keterangan === 'LEAD')
+                    ->visible(fn ($record) => $record->keterangan === 'LEAD' && Gate::allows('upgrade_noo'))
                     ->form([
                         TextInput::make('ktp_outlet')
                             ->label('Nomor KTP Outlet')

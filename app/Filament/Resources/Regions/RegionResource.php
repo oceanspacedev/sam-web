@@ -166,22 +166,29 @@ class RegionResource extends Resource
             ->where(function ($query) {
                 $user = auth()->user();
                 $role = $user->role;
+                $scopeLevel = $role->organizational_scope_level ?? 'region';
 
-                // Super admin or role with 'all' scope sees everything
-                if ($user->role->name == 'SUPER ADMIN' || $role->organizational_scope_level === 'all') {
+                // If role has 'all' access, no filtering needed
+                if ($scopeLevel === 'all') {
                     return;
                 }
 
-                // Filter by user's badanusaha and divisi assignments
+                // Get user's organizational assignments from pivot tables
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
                 $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                $regionIds = $user->regions()->pluck('regions.id')->toArray();
 
+                // Apply filters based on assignments
                 if (! empty($badanUsahaIds)) {
                     $query->whereIn('regions.badanusaha_id', $badanUsahaIds);
                 }
 
                 if (! empty($divisiIds)) {
                     $query->whereIn('regions.divisi_id', $divisiIds);
+                }
+
+                if (! empty($regionIds)) {
+                    $query->whereIn('regions.id', $regionIds);
                 }
             });
     }

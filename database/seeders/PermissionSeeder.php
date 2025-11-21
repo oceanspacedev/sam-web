@@ -99,6 +99,7 @@ class PermissionSeeder extends Seeder
             'confirm_noo',
             'approve_noo',
             'reject_noo',
+            'upgrade_noo',
         ];
 
         $superAdminRole = Role::where('name', 'SUPER ADMIN')->first();

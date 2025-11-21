@@ -44,6 +44,7 @@ class PlanVisitResource extends Resource
                     ->schema([
                         Select::make('user_id')
                             ->searchable()
+                            ->preload()
                             ->required()
                             ->reactive()
                             ->label('Pilih User')
@@ -78,6 +79,7 @@ class PlanVisitResource extends Resource
                             }),
                         Select::make('outlet_id')
                             ->searchable()
+                            ->preload()
                             ->required()
                             ->live()
                             ->label('Pilih Outlet')
@@ -342,9 +344,7 @@ class PlanVisitResource extends Resource
         $regionIds = $user->regions()->pluck('regions.id')->toArray();
         $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
-        $query = parent::getEloquentQuery()
-            ->leftJoin('users', 'plan_visits.user_id', '=', 'users.id')
-            ->select('plan_visits.*', 'users.id as user_id');
+        $query = parent::getEloquentQuery();
 
         // Apply filters based on user pivot assignments
         if (! empty($badanUsahaIds)) {

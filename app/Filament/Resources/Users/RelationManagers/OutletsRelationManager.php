@@ -23,6 +23,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
@@ -67,38 +68,38 @@ class OutletsRelationManager extends RelationManager
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO KTP'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('VIDEO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('limit')
@@ -109,8 +110,8 @@ class OutletsRelationManager extends RelationManager
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->url(fn($state): string => 'https://www.google.com/maps/place/' . $state, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
@@ -132,7 +133,15 @@ class OutletsRelationManager extends RelationManager
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->options(BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray())
+                            ->options(function () {
+                                $user = Auth::user();
+
+                                if ($user && $user->role->organizational_scope_level === 'all') {
+                                    return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray();
+                                }
+
+                                return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id')->toArray();
+                            })
                             ->reactive()
                             ->searchable()
                             ->placeholder('Pilih Business Entity')
@@ -144,13 +153,21 @@ class OutletsRelationManager extends RelationManager
                             ->label('Divisi')
                             ->options(function (callable $get) {
                                 $businessEntityId = $get('businessEntity');
-                                if ($businessEntityId) {
-                                    return Division::where('badanusaha_id', $businessEntityId)
-                                        ->orderBy('name', 'asc')
-                                        ->pluck('name', 'id');
+                                if (!$businessEntityId) {
+                                    return [];
                                 }
 
-                                return [];
+                                $user = Auth::user();
+                                $query = Division::where('badanusaha_id', $businessEntityId);
+
+                                if ($user && $user->role->organizational_scope_level !== 'all') {
+                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                                    if (!empty($divisiIds)) {
+                                        $query->whereIn('divisions.id', $divisiIds);
+                                    }
+                                }
+
+                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
                             })
                             ->reactive()
                             ->searchable()
@@ -164,13 +181,21 @@ class OutletsRelationManager extends RelationManager
                             ->placeholder('Pilih Region')
                             ->options(function (callable $get) {
                                 $divisionId = $get('division');
-                                if ($divisionId) {
-                                    return Region::where('divisi_id', $divisionId)
-                                        ->orderBy('name', 'asc')
-                                        ->pluck('name', 'id');
+                                if (!$divisionId) {
+                                    return [];
                                 }
 
-                                return [];
+                                $user = Auth::user();
+                                $query = Region::where('divisi_id', $divisionId);
+
+                                if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
+                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                                    if (!empty($regionIds)) {
+                                        $query->whereIn('regions.id', $regionIds);
+                                    }
+                                }
+
+                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
                             })
                             ->reactive(),
                     ])
@@ -188,7 +213,7 @@ class OutletsRelationManager extends RelationManager
                         return $query;
                     }),
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
+                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
 
             ], layout: FiltersLayout::Modal)
             ->filtersFormWidth(Width::Large)
@@ -239,7 +264,7 @@ class OutletsRelationManager extends RelationManager
                                 ]);
                             }
                         })
-                        ->authorize(fn () => Gate::allows('reset_any_outlet')),
+                        ->authorize(fn() => Gate::allows('reset_any_outlet')),
                 ]),
             ]);
     }

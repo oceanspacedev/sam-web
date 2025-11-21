@@ -124,68 +124,68 @@ class OutletResource extends Resource
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                        FileUpload::make('poto_shop_sign')
-                                            ->image()
-                                            ->disk(StorageDisk::default())
-                                            ->label('Foto Tanda Toko')
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = Auth::id();
-                                                $filenameGenerator = new FilenameGeneratorService;
+                                                FileUpload::make('poto_shop_sign')
+                                                    ->image()
+                                                    ->disk(StorageDisk::default())
+                                                    ->label('Foto Tanda Toko')
+                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                        $userId = Auth::id();
+                                                        $filenameGenerator = new FilenameGeneratorService;
 
-                                                return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                                // Output: op241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
-                                            }),
-                                        FileUpload::make('poto_depan')
-                                            ->image()
-                                            ->disk(StorageDisk::default())
-                                            ->label('Foto Depan')
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = Auth::id();
-                                                $filenameGenerator = new FilenameGeneratorService;
+                                                        return $filenameGenerator->generate($file, 'outlet-photo', $userId);
+                                                        // Output: op241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
+                                                    }),
+                                                FileUpload::make('poto_depan')
+                                                    ->image()
+                                                    ->disk(StorageDisk::default())
+                                                    ->label('Foto Depan')
+                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                        $userId = Auth::id();
+                                                        $filenameGenerator = new FilenameGeneratorService;
 
-                                                return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            }),
-                                        FileUpload::make('poto_kiri')
-                                            ->image()
-                                            ->disk(StorageDisk::default())
-                                            ->label('Foto Kiri')
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = Auth::id();
-                                                $filenameGenerator = new FilenameGeneratorService;
+                                                        return $filenameGenerator->generate($file, 'outlet-photo', $userId);
+                                                    }),
+                                                FileUpload::make('poto_kiri')
+                                                    ->image()
+                                                    ->disk(StorageDisk::default())
+                                                    ->label('Foto Kiri')
+                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                        $userId = Auth::id();
+                                                        $filenameGenerator = new FilenameGeneratorService;
 
-                                                return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            }),
-                                        FileUpload::make('poto_kanan')
-                                            ->image()
-                                            ->disk(StorageDisk::default())
-                                            ->label('Foto Kanan')
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = Auth::id();
-                                                $filenameGenerator = new FilenameGeneratorService;
+                                                        return $filenameGenerator->generate($file, 'outlet-photo', $userId);
+                                                    }),
+                                                FileUpload::make('poto_kanan')
+                                                    ->image()
+                                                    ->disk(StorageDisk::default())
+                                                    ->label('Foto Kanan')
+                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                        $userId = Auth::id();
+                                                        $filenameGenerator = new FilenameGeneratorService;
 
-                                                return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            }),
-                                        FileUpload::make('poto_ktp')
-                                            ->image()
-                                            ->disk(StorageDisk::default())
-                                            ->label('Foto KTP Pemilik')
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = Auth::id();
-                                                $filenameGenerator = new FilenameGeneratorService;
+                                                        return $filenameGenerator->generate($file, 'outlet-photo', $userId);
+                                                    }),
+                                                FileUpload::make('poto_ktp')
+                                                    ->image()
+                                                    ->disk(StorageDisk::default())
+                                                    ->label('Foto KTP Pemilik')
+                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                        $userId = Auth::id();
+                                                        $filenameGenerator = new FilenameGeneratorService;
 
-                                                return $filenameGenerator->generate($file, 'outlet-ktp', $userId);
-                                            }),
-                                        FileUpload::make('video')
-                                            ->disk(StorageDisk::default())
-                                            ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mkv'])
-                                            ->label('Video Toko')
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
-                                                $userId = Auth::id();
-                                                $filenameGenerator = new FilenameGeneratorService;
+                                                        return $filenameGenerator->generate($file, 'outlet-ktp', $userId);
+                                                    }),
+                                                FileUpload::make('video')
+                                                    ->disk(StorageDisk::default())
+                                                    ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mkv'])
+                                                    ->label('Video Toko')
+                                                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                                        $userId = Auth::id();
+                                                        $filenameGenerator = new FilenameGeneratorService;
 
-                                                return $filenameGenerator->generate($file, 'outlet-video', $userId);
-                                            }),
-                                    ]),
+                                                        return $filenameGenerator->generate($file, 'outlet-video', $userId);
+                                                    }),
+                                            ]),
                                 ]),
                         ])
                             ->columnSpan(['default' => 1, 'xl' => 8]),
@@ -203,7 +203,7 @@ class OutletResource extends Resource
                                                 ->options(function (callable $get) {
                                                     /** @var \App\Models\User|null $user */
                                                     $user = Auth::user();
-                                                    if (! $user) {
+                                                    if (!$user) {
                                                         return [];
                                                     }
                                                     $role = $user->role;
@@ -214,7 +214,7 @@ class OutletResource extends Resource
                                                     }
 
                                                     // Use pivot table for current user's assignments
-                                                    return $user->badanUsahas()->pluck('name', 'id');
+                                                    return $user->badanUsahas()->pluck('name', 'badan_usahas.id');
                                                 })
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('divisi_id', null);
@@ -230,13 +230,22 @@ class OutletResource extends Resource
                                                 ->options(function (callable $get) {
                                                     $badanusahaId = $get('badanusaha_id');
 
-                                                    if (! $badanusahaId) {
+                                                    if (!$badanusahaId) {
                                                         return [];
                                                     }
 
-                                                    return Division::where('badanusaha_id', $badanusahaId)
-                                                        ->orderBy('name')
-                                                        ->pluck('name', 'id');
+                                                    $user = Auth::user();
+                                                    $query = Division::where('badanusaha_id', $badanusahaId);
+
+                                                    // Apply user scope filtering
+                                                    if ($user && $user->role->organizational_scope_level !== 'all') {
+                                                        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                                                        if (!empty($divisiIds)) {
+                                                            $query->whereIn('divisions.id', $divisiIds);
+                                                        }
+                                                    }
+
+                                                    return $query->orderBy('name')->pluck('name', 'id');
                                                 })
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('region_id', null);
@@ -251,13 +260,22 @@ class OutletResource extends Resource
                                                 ->options(function (callable $get) {
                                                     $divisiId = $get('divisi_id');
 
-                                                    if (! $divisiId) {
+                                                    if (!$divisiId) {
                                                         return [];
                                                     }
 
-                                                    return Region::where('divisi_id', $divisiId)
-                                                        ->orderBy('name')
-                                                        ->pluck('name', 'id');
+                                                    $user = Auth::user();
+                                                    $query = Region::where('divisi_id', $divisiId);
+
+                                                    // Apply user scope filtering
+                                                    if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
+                                                        $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                                                        if (!empty($regionIds)) {
+                                                            $query->whereIn('regions.id', $regionIds);
+                                                        }
+                                                    }
+
+                                                    return $query->orderBy('name')->pluck('name', 'id');
                                                 })
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('cluster_id', null);
@@ -271,13 +289,22 @@ class OutletResource extends Resource
                                                 ->options(function (callable $get) {
                                                     $regionId = $get('region_id');
 
-                                                    if (! $regionId) {
+                                                    if (!$regionId) {
                                                         return [];
                                                     }
 
-                                                    return Cluster::where('region_id', $regionId)
-                                                        ->orderBy('name')
-                                                        ->pluck('name', 'id');
+                                                    $user = Auth::user();
+                                                    $query = Cluster::where('region_id', $regionId);
+
+                                                    // Apply user scope filtering
+                                                    if ($user && $user->role->organizational_scope_level === 'cluster') {
+                                                        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+                                                        if (!empty($clusterIds)) {
+                                                            $query->whereIn('clusters.id', $clusterIds);
+                                                        }
+                                                    }
+
+                                                    return $query->orderBy('name')->pluck('name', 'id');
                                                 }),
                                         ]),
                                 ]),
@@ -286,29 +313,29 @@ class OutletResource extends Resource
                                     Grid::make([
                                         'default' => 1,
                                     ])->schema([
-                                        Select::make('status_outlet')
-                                            ->label('Status Outlet')
-                                            ->searchable()
-                                            ->options([
-                                                'MAINTAIN' => 'MAINTAIN',
-                                                'UNMAINTAIN' => 'UNMAINTAIN',
-                                                'UNPRODUCTIVE' => 'UNPRODUCTIVE',
-                                            ])
-                                            ->required(),
-                                        TextInput::make('limit')
-                                            ->required()
-                                            ->numeric()
-                                            ->label('Limit')
-                                            ->default('0')
-                                            ->placeholder('Masukkan limit outlet'),
-                                        TextInput::make('radius')
-                                            ->required()
-                                            ->numeric()
-                                            ->label('Radius')
-                                            ->default('100')
-                                            ->helperText('Default 100 meter untuk checkin sales visit')
-                                            ->placeholder('Masukkan radius outlet'),
-                                    ]),
+                                                Select::make('status_outlet')
+                                                    ->label('Status Outlet')
+                                                    ->searchable()
+                                                    ->options([
+                                                        'MAINTAIN' => 'MAINTAIN',
+                                                        'UNMAINTAIN' => 'UNMAINTAIN',
+                                                        'UNPRODUCTIVE' => 'UNPRODUCTIVE',
+                                                    ])
+                                                    ->required(),
+                                                TextInput::make('limit')
+                                                    ->required()
+                                                    ->numeric()
+                                                    ->label('Limit')
+                                                    ->default('0')
+                                                    ->placeholder('Masukkan limit outlet'),
+                                                TextInput::make('radius')
+                                                    ->required()
+                                                    ->numeric()
+                                                    ->label('Radius')
+                                                    ->default('100')
+                                                    ->helperText('Default 100 meter untuk checkin sales visit')
+                                                    ->placeholder('Masukkan radius outlet'),
+                                            ]),
                                 ]),
                         ])
                             ->columnSpan(['default' => 1, 'xl' => 4]),
@@ -334,7 +361,7 @@ class OutletResource extends Resource
                                         ->label('Distrik'),
                                     TextEntry::make('latlong')
                                         ->label('Latitude/Longitude')
-                                        ->url(fn ($state) => $state ? "https://www.google.com/maps/place/{$state}" : null, shouldOpenInNewTab: true)
+                                        ->url(fn($state) => $state ? "https://www.google.com/maps/place/{$state}" : null, shouldOpenInNewTab: true)
                                         ->color('primary'),
                                     TextEntry::make('alamat_outlet')
                                         ->label('Alamat Outlet')
@@ -355,26 +382,26 @@ class OutletResource extends Resource
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                        ImageEntry::make('poto_shop_sign')
-                                            ->label('Foto Tanda Toko')
-                                            ->disk(StorageDisk::default()),
-                                        ImageEntry::make('poto_depan')
-                                            ->label('Foto Depan')
-                                            ->disk(StorageDisk::default()),
-                                        ImageEntry::make('poto_kiri')
-                                            ->label('Foto Kiri')
-                                            ->disk(StorageDisk::default()),
-                                        ImageEntry::make('poto_kanan')
-                                            ->label('Foto Kanan')
-                                            ->disk(StorageDisk::default()),
-                                        ImageEntry::make('poto_ktp')
-                                            ->label('Foto KTP Pemilik')
-                                            ->disk(StorageDisk::default()),
-                                        TextEntry::make('video')
-                                            ->label('Video Toko')
-                                            ->formatStateUsing(fn ($state) => $state ? new HtmlString('<a href="'.StorageDisk::url($state).'" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
-                                            ->html(),
-                                    ]),
+                                                ImageEntry::make('poto_shop_sign')
+                                                    ->label('Foto Tanda Toko')
+                                                    ->disk(StorageDisk::default()),
+                                                ImageEntry::make('poto_depan')
+                                                    ->label('Foto Depan')
+                                                    ->disk(StorageDisk::default()),
+                                                ImageEntry::make('poto_kiri')
+                                                    ->label('Foto Kiri')
+                                                    ->disk(StorageDisk::default()),
+                                                ImageEntry::make('poto_kanan')
+                                                    ->label('Foto Kanan')
+                                                    ->disk(StorageDisk::default()),
+                                                ImageEntry::make('poto_ktp')
+                                                    ->label('Foto KTP Pemilik')
+                                                    ->disk(StorageDisk::default()),
+                                                TextEntry::make('video')
+                                                    ->label('Video Toko')
+                                                    ->formatStateUsing(fn($state) => $state ? new HtmlString('<a href="' . StorageDisk::url($state) . '" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
+                                                    ->html(),
+                                            ]),
                                 ]),
                         ])
                             ->columnSpan(['default' => 12, 'xl' => 8]),
@@ -395,7 +422,7 @@ class OutletResource extends Resource
                                     TextEntry::make('status_outlet')
                                         ->label('Status Outlet')
                                         ->badge()
-                                        ->color(fn (string $state): string => match ($state) {
+                                        ->color(fn(string $state): string => match ($state) {
                                             'MAINTAIN' => 'success',
                                             'UNMAINTAIN' => 'warning',
                                             'UNPRODUCTIVE' => 'danger',
@@ -437,7 +464,7 @@ class OutletResource extends Resource
                 TextColumn::make('status_outlet')
                     ->label('Status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn(string $state): string => match ($state) {
                         'MAINTAIN' => 'success',
                         'UNMAINTAIN' => 'warning',
                         'UNPRODUCTIVE' => 'danger',
@@ -458,38 +485,38 @@ class OutletResource extends Resource
                     ->label('Distrik'),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('FOTO KTP'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('VIDEO'))
+                    ->url(fn($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('limit')
@@ -499,8 +526,8 @@ class OutletResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn(string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->url(fn($state): string => 'https://www.google.com/maps/place/' . $state, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
@@ -578,7 +605,7 @@ class OutletResource extends Resource
                         return $query;
                     }),
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
+                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
 
             ])
             ->recordActions([
@@ -627,7 +654,7 @@ class OutletResource extends Resource
                                 ]);
                             });
                         })
-                        ->authorize(fn () => Gate::allows('reset_any_outlet')),
+                        ->authorize(fn() => Gate::allows('reset_any_outlet')),
                 ]),
             ]);
     }
@@ -638,7 +665,7 @@ class OutletResource extends Resource
             ->where(function ($query) {
                 /** @var \App\Models\User|null $user */
                 $user = Auth::user();
-                if (! $user) {
+                if (!$user) {
                     return;
                 }
                 $role = $user->role;
@@ -656,19 +683,19 @@ class OutletResource extends Resource
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
                 // Apply filters based on assignments
-                if (! empty($badanUsahaIds)) {
+                if (!empty($badanUsahaIds)) {
                     $query->whereIn('outlets.badanusaha_id', $badanUsahaIds);
                 }
 
-                if (! empty($divisiIds)) {
+                if (!empty($divisiIds)) {
                     $query->whereIn('outlets.divisi_id', $divisiIds);
                 }
 
-                if (! empty($regionIds)) {
+                if (!empty($regionIds)) {
                     $query->whereIn('outlets.region_id', $regionIds);
                 }
 
-                if (! empty($clusterIds)) {
+                if (!empty($clusterIds)) {
                     $query->whereIn('outlets.cluster_id', $clusterIds);
                 }
             });

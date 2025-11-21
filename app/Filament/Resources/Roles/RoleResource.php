@@ -7,6 +7,7 @@ use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
@@ -21,6 +22,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class RoleResource extends Resource
@@ -220,6 +223,40 @@ class RoleResource extends Resource
                 return [$operation => $label];
             })
             ->toArray();
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->where(function (Builder $query) {
+                /** @var User|null $user */
+                $user = Auth::user();
+
+                if (! $user || ! $user->role) {
+                    return;
+                }
+
+                // Super Admin can see all
+                if ($user->role->name === 'SUPER ADMIN') {
+                    return;
+                }
+
+                // Get all descendant role IDs
+                $descendantIds = self::getAllDescendantIds($user->role);
+
+                $query->whereIn('roles.id', $descendantIds);
+            });
+    }
+
+    public static function getAllDescendantIds(Role $role): array
+    {
+        $ids = [];
+        foreach ($role->children as $child) {
+            $ids[] = $child->id;
+            $ids = array_merge($ids, self::getAllDescendantIds($child));
+        }
+
+        return $ids;
     }
 
     public static function getRelations(): array

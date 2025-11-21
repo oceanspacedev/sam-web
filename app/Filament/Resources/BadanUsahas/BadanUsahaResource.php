@@ -36,7 +36,7 @@ class BadanUsahaResource extends Resource
                     ->maxLength(255)
                     ->unique(ignoreRecord: true)
                     ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: badan usaha a → BADAN_USAHA_A')
-                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state))))
+                    ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state))))
                     ->columnSpanFull(),
             ]);
     }
@@ -79,13 +79,15 @@ class BadanUsahaResource extends Resource
             ->filters([
                 Filter::make('has_divisions')
                     ->label('Has Divisions')
-                    ->query(fn (Builder $query) => $query->has('divisions')),
+                    ->query(fn(Builder $query) => $query->has('divisions')),
                 Filter::make('empty')
                     ->label('Empty (No Divisions)')
-                    ->query(fn (Builder $query) => $query->doesntHave('divisions')),
+                    ->query(fn(Builder $query) => $query->doesntHave('divisions')),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->slideOver()
+                    ->modalWidth('md'),
                 DeleteAction::make()
                     ->requiresConfirmation()
                     ->action(function (BadanUsaha $record) {
@@ -125,7 +127,7 @@ class BadanUsahaResource extends Resource
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
 
                 // Apply filters based on assignments
-                if (! empty($badanUsahaIds)) {
+                if (!empty($badanUsahaIds)) {
                     $query->whereIn('badan_usahas.id', $badanUsahaIds);
                 }
             });

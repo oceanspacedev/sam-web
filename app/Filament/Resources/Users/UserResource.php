@@ -62,32 +62,32 @@ class UserResource extends Resource
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                        TextInput::make('username')
-                                            ->required()
-                                            ->maxLength(255)
-                                            ->label('Username')
-                                            ->unique(ignoreRecord: true)
-                                            ->dehydrateStateUsing(fn ($state) => strtolower($state))
-                                            ->placeholder('Masukkan username yang unik')
-                                            ->regex('/^[\S]+$/')
-                                            ->helperText('Username tidak boleh mengandung spasi'),
-                                        TextInput::make('nama_lengkap')
-                                            ->required()
-                                            ->maxLength(255)
-                                            ->label('Nama Lengkap')
-                                            ->placeholder('Masukkan nama lengkap')
-                                            ->dehydrateStateUsing(fn ($state) => strtoupper($state)),
-                                        TextInput::make('password')
-                                            ->password()
-                                            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
-                                            ->dehydrated(fn ($state) => filled($state))
-                                            ->maxLength(255)
-                                            ->label('Password')
-                                            ->placeholder('Masukkan password')
-                                            ->required(fn (string $context): bool => $context === 'create')
-                                            ->revealable()
-                                            ->columnSpan(['default' => 1, 'md' => 2]),
-                                    ]),
+                                                TextInput::make('username')
+                                                    ->required()
+                                                    ->maxLength(255)
+                                                    ->label('Username')
+                                                    ->unique(ignoreRecord: true)
+                                                    ->dehydrateStateUsing(fn($state) => strtolower($state))
+                                                    ->placeholder('Masukkan username yang unik')
+                                                    ->regex('/^[\S]+$/')
+                                                    ->helperText('Username tidak boleh mengandung spasi'),
+                                                TextInput::make('nama_lengkap')
+                                                    ->required()
+                                                    ->maxLength(255)
+                                                    ->label('Nama Lengkap')
+                                                    ->placeholder('Masukkan nama lengkap')
+                                                    ->dehydrateStateUsing(fn($state) => strtoupper($state)),
+                                                TextInput::make('password')
+                                                    ->password()
+                                                    ->dehydrateStateUsing(fn($state) => Hash::make($state))
+                                                    ->dehydrated(fn($state) => filled($state))
+                                                    ->maxLength(255)
+                                                    ->label('Password')
+                                                    ->placeholder('Masukkan password')
+                                                    ->required(fn(string $context): bool => $context === 'create')
+                                                    ->revealable()
+                                                    ->columnSpan(['default' => 1, 'md' => 2]),
+                                            ]),
                                 ]),
                             Section::make('Peran & Relasi TM')
                                 ->schema([
@@ -95,44 +95,52 @@ class UserResource extends Resource
                                         'default' => 1,
                                         'md' => 2,
                                     ])->schema([
-                                        Select::make('role_id')
-                                            ->relationship('role', 'name')
-                                            ->searchable()
-                                            ->preload()
-                                            ->required()
-                                            ->reactive()  // Make reactive to trigger field visibility
-                                            ->label('Role')
-                                            ->placeholder('Pilih role')
-                                            ->options(function (callable $get) {
-                                                $user = Auth::user();
+                                                Select::make('role_id')
+                                                    ->relationship('role', 'name')
+                                                    ->searchable()
+                                                    ->preload()
+                                                    ->required()
+                                                    ->reactive()  // Make reactive to trigger field visibility
+                                                    ->label('Role')
+                                                    ->placeholder('Pilih role')
+                                                    ->options(function (callable $get) {
+                                                        $user = Auth::user();
 
-                                                if ($user->role->name !== 'SUPER ADMIN') {
-                                                    return Role::whereIn('name', ['AR', 'ASC', 'ASM', 'DSF/DM'])
-                                                        ->orderBy('name')
-                                                        ->pluck('name', 'id')->toArray();
-                                                }
+                                                        if ($user->role->name === 'SUPER ADMIN') {
+                                                            return Role::orderBy('name')->pluck('name', 'id')->toArray();
+                                                        }
 
-                                                return Role::orderBy('name')->pluck('name', 'id')->toArray();
-                                            }),
-                                        Select::make('tm_id')
-                                            ->label('TM')
-                                            ->options(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                $parentRoleId = $roleId ? Role::find($roleId)?->parent_role_id : null;
+                                                        $descendantIds = \App\Filament\Resources\Roles\RoleResource::getAllDescendantIds($user->role);
 
-                                                $query = User::query()->select('id', 'nama_lengkap')->orderBy('nama_lengkap');
+                                                        return Role::whereIn('roles.id', $descendantIds)
+                                                            ->orderBy('name')
+                                                            ->pluck('name', 'id')
+                                                            ->toArray();
+                                                    }),
+                                                Select::make('tm_id')
+                                                    ->label('TM')
+                                                    ->disabled(fn(callable $get) => !filled($get('role_id')))
+                                                    ->options(function (callable $get) {
+                                                        $roleId = $get('role_id');
+                                                        if (!$roleId) {
+                                                            return [];
+                                                        }
 
-                                                if ($parentRoleId) {
-                                                    $query->where('role_id', $parentRoleId);
-                                                }
+                                                        $parentRoleId = Role::find($roleId)?->parent_role_id;
 
-                                                return $query->pluck('nama_lengkap', 'id');
-                                            })
-                                            ->searchable()
-                                            ->preload()
-                                            ->required(fn (callable $get) => (bool) Role::find($get('role_id'))?->parent_role_id)
-                                            ->placeholder('Pilih TM berdasarkan hirarki role'),
-                                    ]),
+                                                        if (!$parentRoleId) {
+                                                            return [];
+                                                        }
+
+                                                        return User::where('role_id', $parentRoleId)
+                                                            ->orderBy('nama_lengkap')
+                                                            ->pluck('nama_lengkap', 'id');
+                                                    })
+                                                    ->searchable()
+                                                    ->preload()
+                                                    ->required(fn(callable $get) => (bool) Role::find($get('role_id'))?->parent_role_id)
+                                                    ->placeholder('Pilih TM berdasarkan hirarki role'),
+                                            ]),
                                 ]),
                         ])
                             ->columnSpan(['default' => 1, 'xl' => 8]),
@@ -150,7 +158,7 @@ class UserResource extends Resource
                                             ->placeholder('Pilih badan usaha')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (! $roleId) {
+                                                if (!$roleId) {
                                                     return false; // Hide until role is selected
                                                 }
                                                 $role = Role::find($roleId);
@@ -159,7 +167,7 @@ class UserResource extends Resource
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (! $roleId) {
+                                                if (!$roleId) {
                                                     return false;
                                                 }
                                                 $role = Role::find($roleId);
@@ -176,7 +184,7 @@ class UserResource extends Resource
                                                 }
 
                                                 // Use pivot table for current user's assignments
-                                                return $user->badanUsahas()->pluck('name', 'id');
+                                                return $user->badanUsahas()->pluck('name', 'badan_usahas.id');
                                             })
                                             ->afterStateUpdated(function ($state, callable $set) {
                                                 $set('divisis', []);
@@ -193,7 +201,7 @@ class UserResource extends Resource
                                             ->placeholder('Pilih divisi')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (! $roleId) {
+                                                if (!$roleId) {
                                                     return false; // Hide until role is selected
                                                 }
                                                 $role = Role::find($roleId);
@@ -202,7 +210,7 @@ class UserResource extends Resource
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (! $roleId) {
+                                                if (!$roleId) {
                                                     return false;
                                                 }
                                                 $role = Role::find($roleId);
@@ -215,9 +223,18 @@ class UserResource extends Resource
                                                     return [];
                                                 }
 
-                                                return Division::whereIn('badanusaha_id', $badanUsahaIds)
-                                                    ->orderBy('name')
-                                                    ->pluck('name', 'id');
+                                                $user = Auth::user();
+                                                $query = Division::whereIn('badanusaha_id', $badanUsahaIds);
+
+                                                // Apply user scope filtering
+                                                if ($user && $user->role->organizational_scope_level !== 'all') {
+                                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                                                    if (!empty($divisiIds)) {
+                                                        $query->whereIn('divisions.id', $divisiIds);
+                                                    }
+                                                }
+
+                                                return $query->orderBy('name')->pluck('name', 'id');
                                             })
                                             ->afterStateUpdated(function ($state, callable $set) {
                                                 $set('regions', []);
@@ -233,7 +250,7 @@ class UserResource extends Resource
                                             ->placeholder('Pilih region')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (! $roleId) {
+                                                if (!$roleId) {
                                                     return false; // Hide until role is selected
                                                 }
                                                 $role = Role::find($roleId);
@@ -242,7 +259,7 @@ class UserResource extends Resource
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (! $roleId) {
+                                                if (!$roleId) {
                                                     return false;
                                                 }
                                                 $role = Role::find($roleId);
@@ -255,9 +272,18 @@ class UserResource extends Resource
                                                     return [];
                                                 }
 
-                                                return Region::whereIn('divisi_id', $divisiIds)
-                                                    ->orderBy('name')
-                                                    ->pluck('name', 'id');
+                                                $user = Auth::user();
+                                                $query = Region::whereIn('divisi_id', $divisiIds);
+
+                                                // Apply user scope filtering
+                                                if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
+                                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                                                    if (!empty($regionIds)) {
+                                                        $query->whereIn('regions.id', $regionIds);
+                                                    }
+                                                }
+
+                                                return $query->orderBy('name')->pluck('name', 'id');
                                             })
                                             ->afterStateUpdated(function ($state, callable $set) {
                                                 $set('clusters', []);
@@ -272,7 +298,7 @@ class UserResource extends Resource
                                             ->placeholder('Pilih cluster')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (! $roleId) {
+                                                if (!$roleId) {
                                                     return false; // Hide until role is selected
                                                 }
                                                 $role = Role::find($roleId);
@@ -281,7 +307,7 @@ class UserResource extends Resource
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
-                                                if (! $roleId) {
+                                                if (!$roleId) {
                                                     return false;
                                                 }
                                                 $role = Role::find($roleId);
@@ -294,9 +320,18 @@ class UserResource extends Resource
                                                     return [];
                                                 }
 
-                                                return Cluster::whereIn('region_id', $regionIds)
-                                                    ->orderBy('name')
-                                                    ->pluck('name', 'id');
+                                                $user = Auth::user();
+                                                $query = Cluster::whereIn('region_id', $regionIds);
+
+                                                // Apply user scope filtering
+                                                if ($user && $user->role->organizational_scope_level === 'cluster') {
+                                                    $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+                                                    if (!empty($clusterIds)) {
+                                                        $query->whereIn('clusters.id', $clusterIds);
+                                                    }
+                                                }
+
+                                                return $query->orderBy('name')->pluck('name', 'id');
                                             }),
                                     ]),
                             ])
@@ -353,22 +388,22 @@ class UserResource extends Resource
                                 TextEntry::make('badan_usahas_list')
                                     ->label('Badan Usaha')
                                     ->badge()
-                                    ->state(fn ($record) => $record->badanUsahas->pluck('name')->toArray())
+                                    ->state(fn($record) => $record->badanUsahas->pluck('name')->toArray())
                                     ->separator(','),
                                 TextEntry::make('divisis_list')
                                     ->label('Divisi')
                                     ->badge()
-                                    ->state(fn ($record) => $record->divisis->pluck('name')->toArray())
+                                    ->state(fn($record) => $record->divisis->pluck('name')->toArray())
                                     ->separator(','),
                                 TextEntry::make('regions_list')
                                     ->label('Region')
                                     ->badge()
-                                    ->state(fn ($record) => $record->regions->pluck('name')->toArray())
+                                    ->state(fn($record) => $record->regions->pluck('name')->toArray())
                                     ->separator(','),
                                 TextEntry::make('clusters_list')
                                     ->label('Cluster')
                                     ->badge()
-                                    ->state(fn ($record) => $record->clusters->pluck('name')->toArray())
+                                    ->state(fn($record) => $record->clusters->pluck('name')->toArray())
                                     ->separator(','),
                             ]),
                     ])
@@ -447,7 +482,15 @@ class UserResource extends Resource
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->options(BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray())
+                            ->options(function () {
+                                $user = Auth::user();
+
+                                if ($user && $user->role->organizational_scope_level === 'all') {
+                                    return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray();
+                                }
+
+                                return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id')->toArray();
+                            })
                             ->reactive()
                             ->searchable()
                             ->placeholder('Pilih Business Entity')
@@ -459,13 +502,21 @@ class UserResource extends Resource
                             ->label('Divisi')
                             ->options(function (callable $get) {
                                 $businessEntityId = $get('businessEntity');
-                                if ($businessEntityId) {
-                                    return Division::where('badanusaha_id', $businessEntityId)
-                                        ->orderBy('name', 'asc')
-                                        ->pluck('name', 'id');
+                                if (!$businessEntityId) {
+                                    return [];
                                 }
 
-                                return [];
+                                $user = Auth::user();
+                                $query = Division::where('badanusaha_id', $businessEntityId);
+
+                                if ($user && $user->role->organizational_scope_level !== 'all') {
+                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                                    if (!empty($divisiIds)) {
+                                        $query->whereIn('divisions.id', $divisiIds);
+                                    }
+                                }
+
+                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
                             })
                             ->reactive()
                             ->searchable()
@@ -479,13 +530,21 @@ class UserResource extends Resource
                             ->placeholder('Pilih Region')
                             ->options(function (callable $get) {
                                 $divisionId = $get('division');
-                                if ($divisionId) {
-                                    return Region::where('divisi_id', $divisionId)
-                                        ->orderBy('name', 'asc')
-                                        ->pluck('name', 'id');
+                                if (!$divisionId) {
+                                    return [];
                                 }
 
-                                return [];
+                                $user = Auth::user();
+                                $query = Region::where('divisi_id', $divisionId);
+
+                                if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
+                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                                    if (!empty($regionIds)) {
+                                        $query->whereIn('regions.id', $regionIds);
+                                    }
+                                }
+
+                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
                             })
                             ->reactive(),
                     ])
@@ -510,13 +569,13 @@ class UserResource extends Resource
                     }),
 
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], User::class)),
+                    ->hidden(fn() => !Gate::any(['restore_any_visit', 'force_delete_any_visit'], User::class)),
             ])
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
                 ImpersonateAction::make('impersonate')
-                    ->visible(fn (User $record): bool => (bool) $record->role?->can_access_web),
+                    ->visible(fn(User $record): bool => (bool) $record->role?->can_access_web),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -543,7 +602,7 @@ class UserResource extends Resource
             ->where(function ($query) {
                 /** @var User|null $user */
                 $user = Auth::user();
-                if (! $user || ! $user->role) {
+                if (!$user || !$user->role) {
                     return;
                 }
 
@@ -562,26 +621,26 @@ class UserResource extends Resource
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
                 // Apply filters based on scope level
-                if (! empty($badanUsahaIds)) {
+                if (!empty($badanUsahaIds)) {
                     $query->whereHas('badanUsahas', function ($q) use ($badanUsahaIds) {
                         $q->whereIn('badan_usahas.id', $badanUsahaIds);
                     });
                 }
 
-                if (! empty($divisiIds)) {
+                if (!empty($divisiIds)) {
                     $query->whereHas('divisis', function ($q) use ($divisiIds) {
                         $q->whereIn('divisions.id', $divisiIds);
                     });
                 }
 
                 // Apply region/cluster filters based on scope
-                if (in_array($scopeLevel, ['region', 'cluster'], true) && ! empty($regionIds)) {
+                if (in_array($scopeLevel, ['region', 'cluster'], true) && !empty($regionIds)) {
                     $query->whereHas('regions', function ($q) use ($regionIds) {
                         $q->whereIn('regions.id', $regionIds);
                     });
                 }
 
-                if ($scopeLevel === 'cluster' && ! empty($clusterIds)) {
+                if ($scopeLevel === 'cluster' && !empty($clusterIds)) {
                     $query->whereHas('clusters', function ($q) use ($clusterIds) {
                         $q->whereIn('clusters.id', $clusterIds);
                     });

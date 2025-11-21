@@ -36,6 +36,7 @@ class ClusterResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Select::make('badanusaha_id')
                     ->label('Badan Usaha')
@@ -44,15 +45,23 @@ class ClusterResource extends Resource
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
-                    ->createOptionForm([
-                        TextInput::make('name')
-                            ->required()
-                            ->unique()
-                            ->maxLength(255)
-                            ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                            ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
-                    ])
-                    ->helperText('Pilih Badan Usaha atau tambah baru.')
+                    ->createOptionForm(
+                        auth()->user()->can('create', \App\Models\BadanUsaha::class)
+                        ? [
+                            TextInput::make('name')
+                                ->required()
+                                ->unique()
+                                ->maxLength(255)
+                                ->helperText('Auto-format ke UPPERCASE tanpa spasi')
+                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                        ]
+                        : null
+                    )
+                    ->helperText(
+                        auth()->user()->can('create', \App\Models\BadanUsaha::class)
+                        ? 'Pilih Badan Usaha atau tambah baru.'
+                        : 'Pilih Badan Usaha.'
+                    )
                     ->options(function (callable $get) {
                         $user = auth()->user();
                         $role = $user->role;
@@ -63,7 +72,7 @@ class ClusterResource extends Resource
                         }
 
                         // Use pivot table for current user's assignments
-                        return $user->badanUsahas()->pluck('name', 'id');
+                        return $user->badanUsahas()->pluck('name', 'badan_usahas.id');
                     })
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('divisi_id', null);
@@ -77,15 +86,54 @@ class ClusterResource extends Resource
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih divisi')
-                    ->helperText('Divisi akan muncul setelah Badan Usaha dipilih.')
+                    ->createOptionForm(
+                        auth()->user()->can('create', \App\Models\Division::class)
+                        ? [
+                            TextInput::make('name')
+                                ->required()
+                                ->unique()
+                                ->maxLength(255)
+                                ->helperText('Auto-format ke UPPERCASE tanpa spasi')
+                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                        ]
+                        : null
+                    )
+                    ->createOptionUsing(function (array $data, callable $get) {
+                        $badanusahaId = $get('badanusaha_id');
+                        if (!$badanusahaId) {
+                            throw new \Exception('Pilih Badan Usaha terlebih dahulu.');
+                        }
+
+                        $division = \App\Models\Division::create([
+                            'name' => $data['name'],
+                            'badanusaha_id' => $badanusahaId,
+                        ]);
+
+                        return $division->id;
+                    })
+                    ->helperText(
+                        auth()->user()->can('create', \App\Models\Division::class)
+                        ? 'Divisi akan muncul setelah Badan Usaha dipilih. Atau tambah baru jika belum ada.'
+                        : 'Divisi akan muncul setelah Badan Usaha dipilih.'
+                    )
                     ->options(function (callable $get) {
                         $badanusahaId = $get('badanusaha_id');
-                        if (! $badanusahaId) {
+                        if (!$badanusahaId) {
                             return [];
                         }
 
-                        return Division::where('badanusaha_id', $badanusahaId)
-                            ->pluck('name', 'id');
+                        $user = auth()->user();
+                        $query = Division::where('badanusaha_id', $badanusahaId);
+
+                        // Apply user scope filtering
+                        if ($user && $user->role->organizational_scope_level !== 'all') {
+                            $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                            if (!empty($divisiIds)) {
+                                $query->whereIn('divisions.id', $divisiIds);
+                            }
+                        }
+
+                        return $query->pluck('name', 'id');
                     })
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('region_id', null);
@@ -97,22 +145,61 @@ class ClusterResource extends Resource
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih region')
-                    ->helperText('Region akan muncul setelah Divisi dipilih.')
+                    ->createOptionForm(
+                        auth()->user()->can('create', \App\Models\Region::class)
+                        ? [
+                            TextInput::make('name')
+                                ->required()
+                                ->unique()
+                                ->maxLength(255)
+                                ->helperText('Auto-format ke UPPERCASE tanpa spasi')
+                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                        ]
+                        : null
+                    )
+                    ->createOptionUsing(function (array $data, callable $get) {
+                        $divisiId = $get('divisi_id');
+                        if (!$divisiId) {
+                            throw new \Exception('Pilih Divisi terlebih dahulu.');
+                        }
+
+                        $region = \App\Models\Region::create([
+                            'name' => $data['name'],
+                            'divisi_id' => $divisiId,
+                        ]);
+
+                        return $region->id;
+                    })
+                    ->helperText(
+                        auth()->user()->can('create', \App\Models\Region::class)
+                        ? 'Region akan muncul setelah Divisi dipilih. Atau tambah baru jika belum ada.'
+                        : 'Region akan muncul setelah Divisi dipilih.'
+                    )
                     ->options(function (callable $get) {
                         $divisiId = $get('divisi_id');
-                        if (! $divisiId) {
+                        if (!$divisiId) {
                             return [];
                         }
 
-                        return Region::where('divisi_id', $divisiId)
-                            ->pluck('name', 'id');
+                        $user = auth()->user();
+                        $query = Region::where('divisi_id', $divisiId);
+
+                        // Apply user scope filtering
+                        if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
+                            $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                            if (!empty($regionIds)) {
+                                $query->whereIn('regions.id', $regionIds);
+                            }
+                        }
+
+                        return $query->pluck('name', 'id');
                     }),
                 TextInput::make('name')
                     ->required()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255)
                     ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: cluster 1 → CLUSTER_1')
-                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                    ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
             ]);
     }
 
@@ -174,13 +261,15 @@ class ClusterResource extends Resource
                     ->label('Region'),
                 Filter::make('has_outlets')
                     ->label('Has Outlets')
-                    ->query(fn (Builder $query) => $query->has('outlets')),
+                    ->query(fn(Builder $query) => $query->has('outlets')),
                 Filter::make('empty')
                     ->label('Empty (No Outlets)')
-                    ->query(fn (Builder $query) => $query->doesntHave('outlets')),
+                    ->query(fn(Builder $query) => $query->doesntHave('outlets')),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->slideOver()
+                    ->modalWidth('md'),
                 DeleteAction::make()
                     ->requiresConfirmation(),
             ])
@@ -211,19 +300,19 @@ class ClusterResource extends Resource
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
                 // Apply filters based on assignments
-                if (! empty($badanUsahaIds)) {
+                if (!empty($badanUsahaIds)) {
                     $query->whereIn('clusters.badanusaha_id', $badanUsahaIds);
                 }
 
-                if (! empty($divisiIds)) {
+                if (!empty($divisiIds)) {
                     $query->whereIn('clusters.divisi_id', $divisiIds);
                 }
 
-                if (! empty($regionIds)) {
+                if (!empty($regionIds)) {
                     $query->whereIn('clusters.region_id', $regionIds);
                 }
 
-                if (! empty($clusterIds)) {
+                if (!empty($clusterIds)) {
                     $query->whereIn('clusters.id', $clusterIds);
                 }
             });

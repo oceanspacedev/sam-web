@@ -179,7 +179,7 @@ class UserController extends Controller
         try {
             $credentials = request(['username', 'password']);
 
-            if (! Auth::attempt($credentials)) {
+            if (!Auth::attempt($credentials)) {
                 return ResponseFormatter::error([
                     'message' => 'Unauthorized',
                 ], 'Gagal login, cek kembali username dan password anda', 500);
@@ -189,7 +189,7 @@ class UserController extends Controller
                 ->where('username', $request->username)
                 ->first();
 
-            if (! Hash::check($request->password, $user->password)) {
+            if (!Hash::check($request->password, $user->password)) {
                 throw new Exception('Invalid Credentials');
             }
 
@@ -210,50 +210,6 @@ class UserController extends Controller
             ], 'Authentication Failed', 500);
         }
     }
-
-    // public function login(Request $request)
-    // {
-    //     // Validate the request parameters
-    //     $request->validate([
-    //         'version' => 'required|string|in:1.0.3',
-    //         'username' => 'required|string',
-    //         'password' => 'required|string',
-    //         /**
-    //          * @var string
-    //          * @example "68a4636e-c000-4dbf-bff9-c374e4a8c5ff"
-    //          */
-    //         'notif_id' => 'required|string',
-    //     ]);
-
-    //     try {
-    //         $credentials = request(['username', 'password']);
-
-    //         if (!Auth::attempt($credentials)) {
-    //             return ResponseFormatter::error(null, 'Gagal login, cek kembali username dan password anda', 401);
-    //         }
-
-    //         $user = User::with(['region', 'cluster', 'role', 'divisi', 'badanusaha', 'tm'])
-    //             ->where('username', $request->username)
-    //             ->first();
-
-    //         if (!Hash::check($request->password, $user->password)) {
-    //             return ResponseFormatter::error(null, 'Invalid credentials', 401);
-    //         }
-
-    //         $user->id_notif = $request->notif_id;
-    //         $user->update();
-
-    //         $tokenResult = $user->createToken('authToken')->plainTextToken;
-
-    //         return ResponseFormatter::success([
-    //             'access_token' => $tokenResult,
-    //             'token_type' => 'Bearer',
-    //             'user' => $user
-    //         ], 'Authenticated');
-    //     } catch (Exception $error) {
-    //         return ResponseFormatter::error(null, 'Authentication failed', 500);
-    //     }
-    // }
 
     /**
      * Revoke current access token
@@ -288,40 +244,4 @@ class UserController extends Controller
 
         return ResponseFormatter::success($token, 'Token Revoked');
     }
-
-    // public function register(Request $request)
-    // {
-    //     try {
-    //         $request->validate([
-    //             'username' => ['required', 'string', 'min:3', 'max:255', 'unique:users'],
-    //             'nama_lengkap' => ['required', 'string'],
-    //             'region' => ['required', 'string'],
-    //             'cluster_id' => ['required'],
-    //             'password' => $this->passwordRules()
-    //         ]);
-
-    //         User::create([
-    //             'username' => $request->username,
-    //             'nama_lengkap' => $request->nama_lengkap,
-    //             'region' => $request->region,
-    //             'cluster_id' => $request->cluster_id,
-    //             'password' => Hash::make($request->password),
-    //         ]);
-
-    //         $user = User::where('username', $request->username)->first();
-
-    //         $tokenResult = $user->createToken('authToken')->plainTextToken;
-
-    //         return ResponseFormatter::success([
-    //             'access_token' => $tokenResult,
-    //             'token_type' => 'Bearer',
-    //             'user' => $user
-    //         ], 'User Registered');
-    //     } catch (Exception $error) {
-    //         return ResponseFormatter::error([
-    //             'message' => 'Something went wrong',
-    //             'error' => $error,
-    //         ], 'Authentication Failed', 500);
-    //     }
-    // }
 }

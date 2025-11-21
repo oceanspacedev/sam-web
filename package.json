@@ -1,4 +1,7 @@
 {
+    "name": "web-sam",
+    "version": "2.0.0",
+    "description": "SAM (Sales Assistant Mobile) - Backend & Admin Panel",
     "private": true,
     "scripts": {
         "dev": "vite",

@@ -76,7 +76,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
         $baseQuery->wheres = array_values(array_filter($baseQuery->wheres, function ($where) {
             // Remove the constraint that matches foreign key (outlets.id)
-            return ! ($where['type'] === 'Basic' &&
+            return !($where['type'] === 'Basic' &&
                 str_ends_with($where['column'], '.id') &&
                 $where['operator'] === '=');
         }));
@@ -98,21 +98,21 @@ class User extends Authenticatable implements FilamentUser, HasName
             }
 
             // Apply badan usaha filter
-            if (! empty($badanUsahaIds)) {
+            if (!empty($badanUsahaIds)) {
                 $query->whereIn('badanusaha_id', $badanUsahaIds);
             }
 
             // Apply divisi filter
-            if (! empty($divisiIds)) {
+            if (!empty($divisiIds)) {
                 $query->whereIn('divisi_id', $divisiIds);
             }
 
             // Apply region and cluster filters for cluster-level scope
             if ($scopeLevel === 'cluster') {
-                if (! empty($regionIds)) {
+                if (!empty($regionIds)) {
                     $query->whereIn('region_id', $regionIds);
                 }
-                if (! empty($clusterIds)) {
+                if (!empty($clusterIds)) {
                     $query->whereIn('cluster_id', $clusterIds);
                 }
             }
@@ -126,13 +126,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Register::class, 'tm_id');
     }
 
-    /**
-     * @deprecated Use registerTm() instead.
-     */
-    public function nootm(): HasMany
-    {
-        return $this->registerTm();
-    }
+
 
     public function visit(): HasMany
     {
@@ -269,6 +263,6 @@ class User extends Authenticatable implements FilamentUser, HasName
     {
         $name = $this->nama_lengkap ?? $this->username ?? 'User';
 
-        return 'https://ui-avatars.com/api/?name='.urlencode($name).'&color=7F9CF5&background=EBF4FF';
+        return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&color=7F9CF5&background=EBF4FF';
     }
 }

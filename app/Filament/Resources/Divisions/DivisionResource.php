@@ -65,11 +65,11 @@ class DivisionResource extends Resource
 
                         // If role has 'all' scope, show all
                         if ($role->organizational_scope_level === 'all') {
-                            return BadanUsaha::pluck('name', 'id');
+                            return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id');
                         }
 
                         // Use pivot table for current user's assignments
-                        return $user->badanUsahas()->pluck('name', 'badan_usahas.id');
+                        return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
                     }),
                 TextInput::make('name')
                     ->required()

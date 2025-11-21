@@ -210,11 +210,11 @@ class OutletResource extends Resource
 
                                                     // If role has 'all' scope, show all
                                                     if ($role->organizational_scope_level === 'all') {
-                                                        return BadanUsaha::pluck('name', 'id');
+                                                        return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id');
                                                     }
 
                                                     // Use pivot table for current user's assignments
-                                                    return $user->badanUsahas()->pluck('name', 'badan_usahas.id');
+                                                    return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
                                                 })
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('divisi_id', null);
@@ -245,7 +245,7 @@ class OutletResource extends Resource
                                                         }
                                                     }
 
-                                                    return $query->orderBy('name')->pluck('name', 'id');
+                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
                                                 })
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('region_id', null);
@@ -275,7 +275,7 @@ class OutletResource extends Resource
                                                         }
                                                     }
 
-                                                    return $query->orderBy('name')->pluck('name', 'id');
+                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
                                                 })
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('cluster_id', null);
@@ -304,7 +304,7 @@ class OutletResource extends Resource
                                                         }
                                                     }
 
-                                                    return $query->orderBy('name')->pluck('name', 'id');
+                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
                                                 }),
                                         ]),
                                 ]),

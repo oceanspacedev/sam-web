@@ -161,23 +161,28 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 $this->requireValue($data, ['nama_outlet_baru', 'nama_outlet'], 'nama_outlet', $existing?->nama_outlet)
             ),
             'alamat_outlet' => $this->uppercase(
-                $this->firstFilled($data, ['alamat_outlet_baru', 'alamat_outlet'], $existing?->alamat_outlet)
+                $this->firstFilled($data, ['alamat_outlet_baru', 'alamat_outlet'], $existing?->alamat_outlet, 'alamat_outlet')
             ),
             'distric' => $this->uppercase(
-                $this->firstFilled($data, ['distric_baru', 'distric'], $existing?->distric)
+                $this->firstFilled($data, ['distric_baru', 'distric'], $existing?->distric, 'distric')
             ),
             'limit' => $this->resolveInteger(
-                $this->firstFilled($data, ['limit_baru', 'limit']),
+                $this->firstFilled($data, ['limit_baru', 'limit'], label: 'limit'),
                 $existing?->limit ?? 0
             ),
             'status_outlet' => $this->uppercase(
-                $this->firstFilled($data, ['status_outlet_baru', 'status_outlet', 'status'], $existing?->status_outlet ?? 'MAINTAIN')
+                $this->firstFilled(
+                    $data,
+                    ['status_outlet_baru', 'status_outlet', 'status'],
+                    $existing?->status_outlet ?? 'MAINTAIN',
+                    'status_outlet'
+                )
             ),
             'nama_pemilik_outlet' => $this->uppercase(
-                $this->firstFilled($data, ['nama_pemilik_outlet_baru', 'nama_pemilik_outlet'], $existing?->nama_pemilik_outlet)
+                $this->firstFilled($data, ['nama_pemilik_outlet_baru', 'nama_pemilik_outlet'], $existing?->nama_pemilik_outlet, 'nama_pemilik_outlet')
             ),
             'nomer_tlp_outlet' => $this->sanitizeString(
-                $this->firstFilled($data, ['nomer_tlp_outlet_baru', 'nomer_tlp_outlet'], $existing?->nomer_tlp_outlet)
+                $this->firstFilled($data, ['nomer_tlp_outlet_baru', 'nomer_tlp_outlet'], $existing?->nomer_tlp_outlet, 'nomer_tlp_outlet')
             ),
         ];
 
@@ -197,8 +202,8 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             return null;
         }
 
-        $payload['radius'] = $this->resolveInteger($this->firstFilled($data, ['radius']), 100);
-        $payload['latlong'] = $this->sanitizeString($this->firstFilled($data, ['latlong']));
+        $payload['radius'] = $this->resolveInteger($this->firstFilled($data, ['radius'], label: 'radius'), 100);
+        $payload['latlong'] = $this->sanitizeString($this->firstFilled($data, ['latlong'], label: 'latlong'));
 
         $attributes = array_filter(
             $payload,
@@ -324,7 +329,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
     private function requireValue(array $row, array $keys, string $label, ?string $default = null): string
     {
-        $value = $this->firstFilled($row, $keys, $default);
+        $value = $this->firstFilled($row, $keys, $default, $label);
 
         if ($value === null) {
             throw new Exception("Kolom {$label} wajib diisi.");
@@ -333,8 +338,10 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         return $value;
     }
 
-    private function firstFilled(array $row, array $keys, ?string $default = null): ?string
+    private function firstFilled(array $row, array $keys, ?string $default = null, ?string $label = null): ?string
     {
+        $label ??= $keys[0] ?? 'kolom';
+
         foreach ($keys as $key) {
             if (! array_key_exists($key, $row)) {
                 continue;
@@ -343,11 +350,19 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             $value = $this->sanitizeString($row[$key]);
 
             if ($value !== null && $value !== '') {
+                $this->rejectFormulaString($value, $label);
+
                 return $value;
             }
         }
 
-        return $default !== null ? $this->sanitizeString($default) : null;
+        $value = $default !== null ? $this->sanitizeString($default) : null;
+
+        if ($value !== null && $value !== '') {
+            $this->rejectFormulaString($value, $label);
+        }
+
+        return $value;
     }
 
     private function sanitizeString($value): ?string
@@ -359,6 +374,41 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function rejectFormulaString(string $value, string $label): void
+    {
+        if ($this->startsWithFormula($value)) {
+            throw new Exception("Kolom {$label} tidak boleh menggunakan rumus Excel. Tempelkan sebagai nilai biasa (Paste Values).");
+        }
+    }
+
+    private function startsWithFormula(string $value): bool
+    {
+        $trimmed = ltrim($value);
+
+        if ($trimmed === '') {
+            return false;
+        }
+
+        $firstChar = $trimmed[0];
+
+        if ($firstChar === '=' || $firstChar === '@') {
+            return true;
+        }
+
+        if (in_array($firstChar, ['+', '-'], true)) {
+            $withoutSign = substr($trimmed, 1);
+
+            // Allow signed numbers or phone-like strings that are commonly prefixed with + or -.
+            if ($withoutSign !== '' && preg_match('/^[0-9 .()_-]+$/', $withoutSign)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private function uppercase(?string $value): ?string

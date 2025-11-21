@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Region;
@@ -27,7 +28,7 @@ class CleanupOrphanTerritories extends Command
             $this->newLine();
         }
 
-        // Bottom-up cleanup: clusters → regions → divisions
+        // Bottom-up cleanup: clusters → regions → divisions → badan usaha
         $removedClusters = $this->cleanupClusters($dryRun);
         $this->newLine();
 
@@ -35,6 +36,9 @@ class CleanupOrphanTerritories extends Command
         $this->newLine();
 
         $removedDivisions = $this->cleanupDivisions($dryRun);
+        $this->newLine();
+
+        $removedBadanUsaha = $this->cleanupBadanUsaha($dryRun);
         $this->newLine();
 
         $removedRoles = $this->cleanupRoles($dryRun);
@@ -47,6 +51,7 @@ class CleanupOrphanTerritories extends Command
                 ['Clusters without outlets', $removedClusters],
                 ['Regions without clusters', $removedRegions],
                 ['Divisions without regions', $removedDivisions],
+                ['Badan Usaha without divisions', $removedBadanUsaha],
                 ['Roles without users', $removedRoles],
             ]
         );
@@ -85,6 +90,41 @@ class CleanupOrphanTerritories extends Command
                     $this->line("\n  [DRY RUN] Would delete division: {$division->id} - {$division->name}");
                 } else {
                     $division->delete();
+                }
+                $bar->advance();
+            }
+        });
+
+        $bar->finish();
+
+        return $count;
+    }
+
+    protected function cleanupBadanUsaha(bool $dryRun): int
+    {
+        $this->info('→ Cleaning badan usaha with no divisions...');
+
+        $badanUsahas = BadanUsaha::whereNull('deleted_at')
+            ->doesntHave('divisi')
+            ->orderBy('id');
+
+        $count = $badanUsahas->count();
+        $this->line("  Found {$count} badan usaha to remove.");
+
+        if ($count === 0) {
+            return 0;
+        }
+
+        $bar = $this->output->createProgressBar($count);
+        $bar->start();
+
+        $badanUsahas->chunkById(200, function ($chunk) use ($dryRun, &$bar) {
+            /** @var BadanUsaha $badanUsaha */
+            foreach ($chunk as $badanUsaha) {
+                if ($dryRun) {
+                    $this->line("\n  [DRY RUN] Would delete badan usaha: {$badanUsaha->id} - {$badanUsaha->name}");
+                } else {
+                    $badanUsaha->delete();
                 }
                 $bar->advance();
             }

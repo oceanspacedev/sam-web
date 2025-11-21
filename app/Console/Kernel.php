@@ -39,6 +39,23 @@ class Kernel extends ConsoleKernel
             ->daily()
             ->at('02:00')
             ->appendOutputTo(storage_path('logs/outlet-lifecycle.log'));
+
+        // ===================================
+        // Data Cleanup Maintenance
+        // ===================================
+        // Cleanup orphaned territories (divisions/regions/clusters without children)
+        $schedule->command('territories:cleanup-orphans')
+            ->weekly()
+            ->sundays()
+            ->at('03:00')
+            ->appendOutputTo(storage_path('logs/territory-cleanup.log'));
+
+        // Cleanup user organizational pivot tables based on role scope levels
+        $schedule->command('users:cleanup-pivots')
+            ->weekly()
+            ->sundays()
+            ->at('03:30')
+            ->appendOutputTo(storage_path('logs/user-pivot-cleanup.log'));
     }
 
     /**

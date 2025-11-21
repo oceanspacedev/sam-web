@@ -155,7 +155,7 @@ class UserResource extends Resource
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && in_array($role->organizational_scope_level, ['badanusaha', 'divisi', 'cluster']);
+                                                return $role && in_array($role->organizational_scope_level, ['badanusaha', 'divisi', 'region', 'cluster']);
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
@@ -164,7 +164,7 @@ class UserResource extends Resource
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && in_array($role->organizational_scope_level, ['badanusaha', 'divisi', 'cluster']);
+                                                return $role && in_array($role->organizational_scope_level, ['badanusaha', 'divisi', 'region', 'cluster']);
                                             })
                                             ->options(function (callable $get) {
                                                 $user = Auth::user();
@@ -198,7 +198,7 @@ class UserResource extends Resource
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && in_array($role->organizational_scope_level, ['divisi', 'cluster']);
+                                                return $role && in_array($role->organizational_scope_level, ['divisi', 'region', 'cluster']);
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
@@ -207,7 +207,7 @@ class UserResource extends Resource
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && in_array($role->organizational_scope_level, ['divisi', 'cluster']);
+                                                return $role && in_array($role->organizational_scope_level, ['divisi', 'region', 'cluster']);
                                             })
                                             ->options(function (callable $get) {
                                                 $badanUsahaIds = $get('badanUsahas');
@@ -238,7 +238,7 @@ class UserResource extends Resource
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && $role->organizational_scope_level === 'cluster';
+                                                return $role && in_array($role->organizational_scope_level, ['region', 'cluster'], true);
                                             })
                                             ->required(function (callable $get) {
                                                 $roleId = $get('role_id');
@@ -247,7 +247,7 @@ class UserResource extends Resource
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && $role->organizational_scope_level === 'cluster';
+                                                return $role && in_array($role->organizational_scope_level, ['region', 'cluster'], true);
                                             })
                                             ->options(function (callable $get) {
                                                 $divisiIds = $get('divisis');
@@ -325,7 +325,21 @@ class UserResource extends Resource
                                     ->label('Nama Lengkap')
                                     ->columnSpan(2),
                                 TextEntry::make('username')->label('Username'),
-                                TextEntry::make('role.name')->label('Role'),
+                                TextEntry::make('role.name')
+                                    ->label('Role')
+                                    ->badge()
+                                    ->color(function ($record): string {
+                                        $scopeLevel = $record->role?->organizational_scope_level ?? 'cluster';
+
+                                        return match ($scopeLevel) {
+                                            'all' => 'danger',        // Merah - akses penuh
+                                            'badanusaha' => 'warning', // Orange/Kuning - scope luas
+                                            'divisi' => 'info',        // Biru - scope sedang
+                                            'region' => 'success',     // Hijau - scope lebih spesifik
+                                            'cluster' => 'gray',       // Abu-abu - scope paling spesifik
+                                            default => 'primary',      // Default fallback
+                                        };
+                                    }),
                                 TextEntry::make('tm.nama_lengkap')
                                     ->label('TM')
                                     ->columnSpan(2),
@@ -372,10 +386,29 @@ class UserResource extends Resource
                 //     ->searchable(),
                 TextColumn::make('role.name')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'SUPER ADMIN' => 'danger',
-                        'APP DEVELOPER' => 'info',
-                        default => 'primary',
+                    ->color(function ($record): string {
+                        $scopeLevel = $record->role?->organizational_scope_level ?? 'cluster';
+
+                        return match ($scopeLevel) {
+                            'all' => 'danger',        // Merah - akses penuh
+                            'badanusaha' => 'warning', // Orange/Kuning - scope luas
+                            'divisi' => 'info',        // Biru - scope sedang
+                            'region' => 'success',     // Hijau - scope lebih spesifik
+                            'cluster' => 'gray',       // Abu-abu - scope paling spesifik
+                            default => 'primary',      // Default fallback
+                        };
+                    })
+                    ->tooltip(function ($record): string {
+                        $scopeLevel = $record->role?->organizational_scope_level ?? 'cluster';
+
+                        return match ($scopeLevel) {
+                            'all' => 'Akses penuh ke semua data',
+                            'badanusaha' => 'Akses berdasarkan Badan Usaha',
+                            'divisi' => 'Akses berdasarkan Divisi',
+                            'region' => 'Akses berdasarkan Region',
+                            'cluster' => 'Akses berdasarkan Cluster',
+                            default => 'Scope akses tidak diketahui',
+                        };
                     }),
                 TextColumn::make('badanUsahas.name')
                     ->label('Badan Usaha')
@@ -541,19 +574,17 @@ class UserResource extends Resource
                     });
                 }
 
-                // Apply region/cluster filters only for non-divisi scope
-                if ($scopeLevel === 'cluster') {
-                    if (! empty($regionIds)) {
-                        $query->whereHas('regions', function ($q) use ($regionIds) {
-                            $q->whereIn('regions.id', $regionIds);
-                        });
-                    }
+                // Apply region/cluster filters based on scope
+                if (in_array($scopeLevel, ['region', 'cluster'], true) && ! empty($regionIds)) {
+                    $query->whereHas('regions', function ($q) use ($regionIds) {
+                        $q->whereIn('regions.id', $regionIds);
+                    });
+                }
 
-                    if (! empty($clusterIds)) {
-                        $query->whereHas('clusters', function ($q) use ($clusterIds) {
-                            $q->whereIn('clusters.id', $clusterIds);
-                        });
-                    }
+                if ($scopeLevel === 'cluster' && ! empty($clusterIds)) {
+                    $query->whereHas('clusters', function ($q) use ($clusterIds) {
+                        $q->whereIn('clusters.id', $clusterIds);
+                    });
                 }
             });
     }

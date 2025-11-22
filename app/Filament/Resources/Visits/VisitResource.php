@@ -87,9 +87,37 @@ class VisitResource extends Resource
                                     ->label('Pilih User')
                                     ->placeholder('Cari User berdasarkan nama lengkap')
                                     ->getSearchResultsUsing(function (string $search) {
-                                        return User::query()
+                                        $currentUser = Auth::user();
+
+                                        // SECURITY FIX: Apply scope filtering to user search
+                                        $query = User::query()
                                             ->with(['badanUsahas:id,name', 'divisis:id,name'])
-                                            ->where('nama_lengkap', 'like', "%{$search}%")
+                                            ->where('nama_lengkap', 'like', "%{$search}%");
+
+                                        // Apply scope filtering based on current user's role
+                                        if ($currentUser && $currentUser->role && $currentUser->role->organizational_scope_level !== 'all') {
+                                            $badanUsahaIds = $currentUser->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                                            $divisiIds = $currentUser->divisis()->pluck('divisions.id')->toArray();
+                                            $regionIds = $currentUser->regions()->pluck('regions.id')->toArray();
+                                            $clusterIds = $currentUser->clusters()->pluck('clusters.id')->toArray();
+
+                                            $query->where(function ($q) use ($badanUsahaIds, $divisiIds, $regionIds, $clusterIds) {
+                                                if (! empty($badanUsahaIds)) {
+                                                    $q->whereHas('badanUsahas', fn ($sq) => $sq->whereIn('badan_usahas.id', $badanUsahaIds));
+                                                }
+                                                if (! empty($divisiIds)) {
+                                                    $q->whereHas('divisis', fn ($sq) => $sq->whereIn('divisions.id', $divisiIds));
+                                                }
+                                                if (! empty($regionIds)) {
+                                                    $q->whereHas('regions', fn ($sq) => $sq->whereIn('regions.id', $regionIds));
+                                                }
+                                                if (! empty($clusterIds)) {
+                                                    $q->whereHas('clusters', fn ($sq) => $sq->whereIn('clusters.id', $clusterIds));
+                                                }
+                                            });
+                                        }
+
+                                        return $query
                                             ->orderBy('nama_lengkap')
                                             ->limit(50)
                                             ->get()
@@ -121,12 +149,38 @@ class VisitResource extends Resource
                                     ->label('Pilih Outlet')
                                     ->placeholder('Cari Outlet berdasarkan nama/kode')
                                     ->getSearchResultsUsing(function (string $search) {
-                                        return Outlet::query()
+                                        $currentUser = Auth::user();
+
+                                        // SECURITY FIX: Apply scope filtering to outlet search
+                                        $query = Outlet::query()
                                             ->with(['badanusaha:id,name', 'divisi:id,name'])
                                             ->where(function ($q) use ($search) {
                                                 $q->where('nama_outlet', 'like', "%{$search}%")
                                                     ->orWhere('kode_outlet', 'like', "%{$search}%");
-                                            })
+                                            });
+
+                                        // Apply scope filtering based on current user's role
+                                        if ($currentUser && $currentUser->role && $currentUser->role->organizational_scope_level !== 'all') {
+                                            $badanUsahaIds = $currentUser->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                                            $divisiIds = $currentUser->divisis()->pluck('divisions.id')->toArray();
+                                            $regionIds = $currentUser->regions()->pluck('regions.id')->toArray();
+                                            $clusterIds = $currentUser->clusters()->pluck('clusters.id')->toArray();
+
+                                            if (! empty($badanUsahaIds)) {
+                                                $query->whereIn('badanusaha_id', $badanUsahaIds);
+                                            }
+                                            if (! empty($divisiIds)) {
+                                                $query->whereIn('divisi_id', $divisiIds);
+                                            }
+                                            if (! empty($regionIds)) {
+                                                $query->whereIn('region_id', $regionIds);
+                                            }
+                                            if (! empty($clusterIds)) {
+                                                $query->whereIn('cluster_id', $clusterIds);
+                                            }
+                                        }
+
+                                        return $query
                                             ->orderBy('nama_outlet')
                                             ->limit(50)
                                             ->get()
@@ -461,12 +515,18 @@ class VisitResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        if (! $user) {
-            return parent::getEloquentQuery();
+        // CRITICAL: Block access if user or role is null
+        if (! $user || ! $user->role) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0');
         }
 
         $role = $user->role;
-        $scopeLevel = $role->organizational_scope_level ?? 'cluster';
+        $scopeLevel = $role->organizational_scope_level;
+
+        // CRITICAL: Block access if scope level is null
+        if (! $scopeLevel) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0');
+        }
 
         if ($scopeLevel === 'all') {
             return parent::getEloquentQuery();
@@ -477,6 +537,12 @@ class VisitResource extends Resource
         $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
         $regionIds = $user->regions()->pluck('regions.id')->toArray();
         $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+        // CRITICAL: If user has no assignments at all, block access
+        $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
+        if (! $hasAnyAssignment) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0');
+        }
 
         $query = parent::getEloquentQuery();
 

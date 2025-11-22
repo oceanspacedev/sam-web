@@ -8,7 +8,6 @@ use App\Http\Controllers\API\SyncController;
 use App\Http\Controllers\API\TestUploadController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\VisitController;
-use App\Http\Controllers\OutletController as outlet;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -65,6 +64,10 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // LEAD
     Route::post('lead', [RegisterController::class, 'submitLead']);
     Route::post('lead/update', [RegisterController::class, 'upgradeLead']);
+
+    // SETTINGS - Organization hierarchy helpers (MOVED FROM UNAUTHENTICATED - SECURITY FIX)
+    Route::get('divisi', [SettingController::class, 'getdivisi']);
+    Route::get('region', [SettingController::class, 'getregion']);
 });
 
 // Route::post('user/register', [UserController::class, 'register']);
@@ -73,24 +76,21 @@ Route::post('user/login', [UserController::class, 'login'])->middleware('throttl
 Route::post('notif', [SendNotif::class, 'sendMessage']);
 Route::post('test-upload', TestUploadController::class);
 
-Route::get('divisi', [SettingController::class, 'getdivisi']);
-Route::get('region', [SettingController::class, 'getregion']);
-
-// Sync API Routes - untuk sinkronisasi data
-Route::prefix('sync')->middleware('throttle:expensive')->group(function () {
-    Route::get('badanusaha', [SyncController::class, 'getBadanUsaha']);
-    Route::get('division', [SyncController::class, 'getDivision']);
-    Route::get('region', [SyncController::class, 'getRegion']);
-    Route::get('cluster', [SyncController::class, 'getCluster']);
-    Route::get('role', [SyncController::class, 'getRole']);
-    Route::get('user', [SyncController::class, 'getUser']);
-    Route::get('outlet', [SyncController::class, 'getOutlet']);
-    Route::post('outlet/reset', [SyncController::class, 'resetOutlet']);
-    Route::get('visit', [SyncController::class, 'getVisit']);
-    Route::get('planvisit', [SyncController::class, 'getPlanVisit']);
-    Route::post('visit/create', [SyncController::class, 'createVisit']);
-    Route::post('visit/instant', [SyncController::class, 'createInstantVisit']);
-    Route::post('visit/instant-delete', [SyncController::class, 'deleteInstantDuplicateVisit']);
-    // Route::get('all', [SyncController::class, 'getAllSyncData']);
-    // Route::get('by-badanusaha', [SyncController::class, 'getDataByBadanUsaha']);
-});
+// // Sync API Routes - untuk sinkronisasi data
+// Route::prefix('sync')->middleware('throttle:expensive')->group(function () {
+//     Route::get('badanusaha', [SyncController::class, 'getBadanUsaha']);
+//     Route::get('division', [SyncController::class, 'getDivision']);
+//     Route::get('region', [SyncController::class, 'getRegion']);
+//     Route::get('cluster', [SyncController::class, 'getCluster']);
+//     Route::get('role', [SyncController::class, 'getRole']);
+//     Route::get('user', [SyncController::class, 'getUser']);
+//     Route::get('outlet', [SyncController::class, 'getOutlet']);
+//     Route::post('outlet/reset', [SyncController::class, 'resetOutlet']);
+//     Route::get('visit', [SyncController::class, 'getVisit']);
+//     Route::get('planvisit', [SyncController::class, 'getPlanVisit']);
+//     Route::post('visit/create', [SyncController::class, 'createVisit']);
+//     Route::post('visit/instant', [SyncController::class, 'createInstantVisit']);
+//     Route::post('visit/instant-delete', [SyncController::class, 'deleteInstantDuplicateVisit']);
+//     Route::get('all', [SyncController::class, 'getAllSyncData']);
+//     Route::get('by-badanusaha', [SyncController::class, 'getDataByBadanUsaha']);
+// });

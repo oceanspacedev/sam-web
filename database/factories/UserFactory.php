@@ -2,10 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
-use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;

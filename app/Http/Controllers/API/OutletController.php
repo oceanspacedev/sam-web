@@ -68,8 +68,41 @@ class OutletController extends Controller
     public function all()
     {
         try {
-            $outlet = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi'])
-                ->get();
+            $user = Auth::user();
+
+            // CRITICAL: Block access if user or role is null
+            if (! $user || ! $user->role) {
+                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+            }
+
+            $scopeLevel = $user->role->organizational_scope_level;
+
+            // CRITICAL: Block access if scope level is null
+            if (! $scopeLevel) {
+                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+            }
+
+            // If role has 'all' access, return all outlets
+            if ($scopeLevel === 'all') {
+                $outlet = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi'])->get();
+            } else {
+                // Apply scope filtering like in fetch() method
+                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+                // CRITICAL: If user has no assignments at all, return empty
+                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
+                if (! $hasAnyAssignment) {
+                    return ResponseFormatter::success([], 'berhasil');
+                }
+
+                // Apply organizational scope filtering using visibleTo()
+                $query = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi']);
+                $query->visibleTo($user);
+                $outlet = $query->get();
+            }
 
             return ResponseFormatter::success(
                 $outlet->map->formatForAPI(),

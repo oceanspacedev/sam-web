@@ -52,7 +52,7 @@ class RegionResource extends Resource
                                 ->unique()
                                 ->maxLength(255)
                                 ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                                ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
                         ]
                         : null
                     )
@@ -91,13 +91,13 @@ class RegionResource extends Resource
                                 ->unique()
                                 ->maxLength(255)
                                 ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                                ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
                         ]
                         : null
                     )
                     ->createOptionUsing(function (array $data, callable $get) {
                         $badanusahaId = $get('badanusaha_id');
-                        if (!$badanusahaId) {
+                        if (! $badanusahaId) {
                             throw new \Exception('Pilih Badan Usaha terlebih dahulu.');
                         }
 
@@ -115,7 +115,7 @@ class RegionResource extends Resource
                     )
                     ->options(function (callable $get) {
                         $badanusahaId = $get('badanusaha_id');
-                        if (!$badanusahaId) {
+                        if (! $badanusahaId) {
                             return [];
                         }
 
@@ -125,7 +125,7 @@ class RegionResource extends Resource
                         // Apply user scope filtering
                         if ($user && $user->role->organizational_scope_level !== 'all') {
                             $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                            if (!empty($divisiIds)) {
+                            if (! empty($divisiIds)) {
                                 $query->whereIn('divisions.id', $divisiIds);
                             }
                         }
@@ -137,7 +137,7 @@ class RegionResource extends Resource
                     ->unique(ignoreRecord: true)
                     ->maxLength(255)
                     ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: region jakarta → REGION_JAKARTA')
-                    ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state))))
+                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state))))
                     ->columnSpanFull(),
             ]);
     }
@@ -191,10 +191,10 @@ class RegionResource extends Resource
                     ->label('Divisi'),
                 Filter::make('has_clusters')
                     ->label('Has Clusters')
-                    ->query(fn(Builder $query) => $query->has('clusters')),
+                    ->query(fn (Builder $query) => $query->has('clusters')),
                 Filter::make('empty')
                     ->label('Empty (No Clusters)')
-                    ->query(fn(Builder $query) => $query->doesntHave('clusters')),
+                    ->query(fn (Builder $query) => $query->doesntHave('clusters')),
             ])
             ->recordActions([
                 EditAction::make()
@@ -229,15 +229,15 @@ class RegionResource extends Resource
                 $regionIds = $user->regions()->pluck('regions.id')->toArray();
 
                 // Apply filters based on assignments
-                if (!empty($badanUsahaIds)) {
+                if (! empty($badanUsahaIds)) {
                     $query->whereIn('regions.badanusaha_id', $badanUsahaIds);
                 }
 
-                if (!empty($divisiIds)) {
+                if (! empty($divisiIds)) {
                     $query->whereIn('regions.divisi_id', $divisiIds);
                 }
 
-                if (!empty($regionIds)) {
+                if (! empty($regionIds)) {
                     $query->whereIn('regions.id', $regionIds);
                 }
             });

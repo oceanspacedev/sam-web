@@ -50,7 +50,7 @@ class DivisionResource extends Resource
                                 ->unique()
                                 ->maxLength(255)
                                 ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                                ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
                         ]
                         : null
                     )
@@ -76,7 +76,7 @@ class DivisionResource extends Resource
                     ->unique(ignoreRecord: true)
                     ->maxLength(255)
                     ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: divisi a → DIVISI_A')
-                    ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
             ]);
     }
 
@@ -123,10 +123,10 @@ class DivisionResource extends Resource
                     ->preload(),
                 Filter::make('has_regions')
                     ->label('Has Regions')
-                    ->query(fn(Builder $query) => $query->has('regions')),
+                    ->query(fn (Builder $query) => $query->has('regions')),
                 Filter::make('empty')
                     ->label('Empty (No Regions)')
-                    ->query(fn(Builder $query) => $query->doesntHave('regions')),
+                    ->query(fn (Builder $query) => $query->doesntHave('regions')),
             ])
             ->recordActions([
                 EditAction::make()
@@ -160,11 +160,11 @@ class DivisionResource extends Resource
                 $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
 
                 // Apply filters based on assignments
-                if (!empty($badanUsahaIds)) {
+                if (! empty($badanUsahaIds)) {
                     $query->whereIn('divisions.badanusaha_id', $badanUsahaIds);
                 }
 
-                if (!empty($divisiIds)) {
+                if (! empty($divisiIds)) {
                     $query->whereIn('divisions.id', $divisiIds);
                 }
             });

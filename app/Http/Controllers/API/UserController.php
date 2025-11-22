@@ -165,7 +165,7 @@ class UserController extends Controller
         try {
             $credentials = $request->only(['username', 'password']);
 
-            if (!Auth::attempt($credentials)) {
+            if (! Auth::attempt($credentials)) {
                 return ResponseFormatter::error([
                     'message' => 'Unauthorized',
                 ], 'Gagal login, cek kembali username dan password anda', 500);

@@ -59,6 +59,4 @@ class Role extends Model
     {
         return $this->organizational_scope_level === 'all';
     }
-
-
 }

@@ -75,6 +75,19 @@ class VisitController extends Controller
         try {
 
             $user = Auth::user();
+
+            // CRITICAL: Block access if user or role is null
+            if (! $user || ! $user->role) {
+                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+            }
+
+            $scopeLevel = $user->role->organizational_scope_level;
+
+            // CRITICAL: Block access if scope level is null
+            if (! $scopeLevel) {
+                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+            }
+
             $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
             $baseRelations = [
                 'outlet.badanusaha',
@@ -88,11 +101,18 @@ class VisitController extends Controller
                 'user.role',
             ];
 
-            $scopeLevel = $user->role?->organizational_scope_level ?? 'cluster';
             $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
             $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
             $regionIds = $user->regions()->pluck('regions.id')->toArray();
             $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+            // CRITICAL: If user has no assignments at all and not full access, return empty
+            if ($scopeLevel !== 'all' && ! $user->role->hasFullAccess()) {
+                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
+                if (! $hasAnyAssignment) {
+                    return ResponseFormatter::success([], 'fetch monitoring visit success');
+                }
+            }
             // Robby (GM ZTE)
             if ($user->id == 2 && $user->role_id == 8) {
                 $visit = Visit::with($baseRelations)

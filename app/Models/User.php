@@ -101,8 +101,6 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Register::class, 'tm_id');
     }
 
-
-
     public function visit(): HasMany
     {
         return $this->hasMany(Visit::class);
@@ -238,6 +236,6 @@ class User extends Authenticatable implements FilamentUser, HasName
     {
         $name = $this->nama_lengkap ?? $this->username ?? 'User';
 
-        return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&color=7F9CF5&background=EBF4FF';
+        return 'https://ui-avatars.com/api/?name='.urlencode($name).'&color=7F9CF5&background=EBF4FF';
     }
 }

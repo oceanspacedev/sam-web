@@ -58,20 +58,20 @@ class Outlet extends Model
         }
 
         // Apply hierarchical filtering based on scope level
-        if (!empty($ids['badanusaha'])) {
+        if (! empty($ids['badanusaha'])) {
             $query->whereIn('badanusaha_id', $ids['badanusaha']);
         }
 
-        if (!empty($ids['divisi'])) {
+        if (! empty($ids['divisi'])) {
             $query->whereIn('divisi_id', $ids['divisi']);
         }
 
         // Apply region and cluster filters for cluster-level scope
         if ($scopeLevel === 'cluster') {
-            if (!empty($ids['region'])) {
+            if (! empty($ids['region'])) {
                 $query->whereIn('region_id', $ids['region']);
             }
-            if (!empty($ids['cluster'])) {
+            if (! empty($ids['cluster'])) {
                 $query->whereIn('cluster_id', $ids['cluster']);
             }
         }
@@ -118,8 +118,6 @@ class Outlet extends Model
     {
         return $this->belongsTo(Division::class)->withTrashed();
     }
-
-
 
     /**
      * Dynamic scope to attach territory users based on organizational_scope_level

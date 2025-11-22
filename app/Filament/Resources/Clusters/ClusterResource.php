@@ -53,7 +53,7 @@ class ClusterResource extends Resource
                                 ->unique()
                                 ->maxLength(255)
                                 ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                                ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
                         ]
                         : null
                     )
@@ -94,13 +94,13 @@ class ClusterResource extends Resource
                                 ->unique()
                                 ->maxLength(255)
                                 ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                                ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
                         ]
                         : null
                     )
                     ->createOptionUsing(function (array $data, callable $get) {
                         $badanusahaId = $get('badanusaha_id');
-                        if (!$badanusahaId) {
+                        if (! $badanusahaId) {
                             throw new \Exception('Pilih Badan Usaha terlebih dahulu.');
                         }
 
@@ -118,7 +118,7 @@ class ClusterResource extends Resource
                     )
                     ->options(function (callable $get) {
                         $badanusahaId = $get('badanusaha_id');
-                        if (!$badanusahaId) {
+                        if (! $badanusahaId) {
                             return [];
                         }
 
@@ -128,7 +128,7 @@ class ClusterResource extends Resource
                         // Apply user scope filtering
                         if ($user && $user->role->organizational_scope_level !== 'all') {
                             $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                            if (!empty($divisiIds)) {
+                            if (! empty($divisiIds)) {
                                 $query->whereIn('divisions.id', $divisiIds);
                             }
                         }
@@ -153,13 +153,13 @@ class ClusterResource extends Resource
                                 ->unique()
                                 ->maxLength(255)
                                 ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                                ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                                ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
                         ]
                         : null
                     )
                     ->createOptionUsing(function (array $data, callable $get) {
                         $divisiId = $get('divisi_id');
-                        if (!$divisiId) {
+                        if (! $divisiId) {
                             throw new \Exception('Pilih Divisi terlebih dahulu.');
                         }
 
@@ -177,7 +177,7 @@ class ClusterResource extends Resource
                     )
                     ->options(function (callable $get) {
                         $divisiId = $get('divisi_id');
-                        if (!$divisiId) {
+                        if (! $divisiId) {
                             return [];
                         }
 
@@ -187,7 +187,7 @@ class ClusterResource extends Resource
                         // Apply user scope filtering
                         if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
                             $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                            if (!empty($regionIds)) {
+                            if (! empty($regionIds)) {
                                 $query->whereIn('regions.id', $regionIds);
                             }
                         }
@@ -199,7 +199,7 @@ class ClusterResource extends Resource
                     ->unique(ignoreRecord: true)
                     ->maxLength(255)
                     ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: cluster 1 → CLUSTER_1')
-                    ->dehydrateStateUsing(fn($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
             ]);
     }
 
@@ -261,10 +261,10 @@ class ClusterResource extends Resource
                     ->label('Region'),
                 Filter::make('has_outlets')
                     ->label('Has Outlets')
-                    ->query(fn(Builder $query) => $query->has('outlets')),
+                    ->query(fn (Builder $query) => $query->has('outlets')),
                 Filter::make('empty')
                     ->label('Empty (No Outlets)')
-                    ->query(fn(Builder $query) => $query->doesntHave('outlets')),
+                    ->query(fn (Builder $query) => $query->doesntHave('outlets')),
             ])
             ->recordActions([
                 EditAction::make()
@@ -285,8 +285,23 @@ class ClusterResource extends Resource
         return parent::getEloquentQuery()
             ->where(function ($query) {
                 $user = auth()->user();
+
+                // CRITICAL: Block access if user or role is null
+                if (! $user || ! $user->role) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
                 $role = $user->role;
-                $scopeLevel = $role->organizational_scope_level ?? 'cluster';
+                $scopeLevel = $role->organizational_scope_level;
+
+                // CRITICAL: Block access if scope level is null
+                if (! $scopeLevel) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
 
                 // If role has 'all' access, no filtering needed
                 if ($scopeLevel === 'all') {
@@ -299,20 +314,28 @@ class ClusterResource extends Resource
                 $regionIds = $user->regions()->pluck('regions.id')->toArray();
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
+                // CRITICAL: If user has no assignments at all, block access
+                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
+                if (! $hasAnyAssignment) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
                 // Apply filters based on assignments
-                if (!empty($badanUsahaIds)) {
+                if (! empty($badanUsahaIds)) {
                     $query->whereIn('clusters.badanusaha_id', $badanUsahaIds);
                 }
 
-                if (!empty($divisiIds)) {
+                if (! empty($divisiIds)) {
                     $query->whereIn('clusters.divisi_id', $divisiIds);
                 }
 
-                if (!empty($regionIds)) {
+                if (! empty($regionIds)) {
                     $query->whereIn('clusters.region_id', $regionIds);
                 }
 
-                if (!empty($clusterIds)) {
+                if (! empty($clusterIds)) {
                     $query->whereIn('clusters.id', $clusterIds);
                 }
             });

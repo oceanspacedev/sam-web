@@ -96,7 +96,6 @@ class RateLimitUploads
                $request->hasFile('poto_kanan') ||
                $request->hasFile('poto_ktp') ||
                $request->hasFile('picture_visit_in') ||
-               $request->hasFile('picture_visit_out') ||
-               $request->is('api/*'); // Apply to all API routes as safety net
+               $request->hasFile('picture_visit_out');
     }
 }

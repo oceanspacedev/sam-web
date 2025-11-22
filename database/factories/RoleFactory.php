@@ -12,8 +12,9 @@ class RoleFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->unique()->jobTitle(),
+            'name' => $this->faker->unique()->jobTitle,
             'can_access_web' => true,
+            'organizational_scope_level' => 'cluster',
         ];
     }
 }

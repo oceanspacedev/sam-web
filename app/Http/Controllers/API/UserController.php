@@ -5,11 +5,11 @@ namespace App\Http\Controllers\API;
 use App\Actions\Fortify\PasswordValidationRules;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\API\LoginRequest;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -160,24 +160,10 @@ class UserController extends Controller
      *   }
      * }
      */
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        if ($request->version != '1.0.3') {
-            return ResponseFormatter::error([
-                'message' => 'Unauthorized',
-            ], 'Gagal login, Update versi aplikasi SAM anda ke V1.0.3.', 500);
-        }
-
-        // Validate the request parameters
-        $request->validate([
-            'version' => 'required|string|in:1.0.3',
-            'username' => 'required|string',
-            'password' => 'required|string',
-            'notif_id' => 'required|string',
-        ]);
-
         try {
-            $credentials = request(['username', 'password']);
+            $credentials = $request->only(['username', 'password']);
 
             if (!Auth::attempt($credentials)) {
                 return ResponseFormatter::error([
@@ -185,14 +171,12 @@ class UserController extends Controller
                 ], 'Gagal login, cek kembali username dan password anda', 500);
             }
 
-            $user = User::with(['regions', 'clusters', 'role', 'divisis', 'badanUsahas', 'tm'])
+            // Auth::attempt already validated credentials, just get the user
+            $user = User::with(['regions', 'clusters', 'role', 'divisis', 'badanUsahas'])
                 ->where('username', $request->username)
                 ->first();
 
-            if (!Hash::check($request->password, $user->password)) {
-                throw new Exception('Invalid Credentials');
-            }
-
+            // Update notification ID
             $user->id_notif = $request->notif_id;
             $user->update();
 

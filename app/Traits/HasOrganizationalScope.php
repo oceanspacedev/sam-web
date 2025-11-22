@@ -25,44 +25,41 @@ trait HasOrganizationalScope
         }
 
         $table = $this->getTable();
-        $scopeLevel = $user->role->getOrganizationalScopeLevel();
 
-        // Get user's organizational assignments from pivot tables (source of truth)
-        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-        $regionIds = $user->regions()->pluck('regions.id')->toArray();
-        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+        // Use cached organizational IDs from user to avoid N+1 queries
+        $ids = $user->getOrganizationalIds();
+        $scopeLevel = $ids['scope_level'];
 
         // Apply hierarchical filtering based on scope level
         // Empty arrays mean no filtering (user has 'all' access for that level)
         switch ($scopeLevel) {
             case 'badanusaha':
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn($table.'.badanusaha_id', $badanUsahaIds);
+                if (! empty($ids['badanusaha'])) {
+                    $query->whereIn($table.'.badanusaha_id', $ids['badanusaha']);
                 }
                 break;
 
             case 'divisi':
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn($table.'.badanusaha_id', $badanUsahaIds);
+                if (! empty($ids['badanusaha'])) {
+                    $query->whereIn($table.'.badanusaha_id', $ids['badanusaha']);
                 }
-                if (! empty($divisiIds)) {
-                    $query->whereIn($table.'.divisi_id', $divisiIds);
+                if (! empty($ids['divisi'])) {
+                    $query->whereIn($table.'.divisi_id', $ids['divisi']);
                 }
                 break;
 
             case 'cluster':
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn($table.'.badanusaha_id', $badanUsahaIds);
+                if (! empty($ids['badanusaha'])) {
+                    $query->whereIn($table.'.badanusaha_id', $ids['badanusaha']);
                 }
-                if (! empty($divisiIds)) {
-                    $query->whereIn($table.'.divisi_id', $divisiIds);
+                if (! empty($ids['divisi'])) {
+                    $query->whereIn($table.'.divisi_id', $ids['divisi']);
                 }
-                if (! empty($regionIds)) {
-                    $query->whereIn($table.'.region_id', $regionIds);
+                if (! empty($ids['region'])) {
+                    $query->whereIn($table.'.region_id', $ids['region']);
                 }
-                if (! empty($clusterIds)) {
-                    $query->whereIn($table.'.cluster_id', $clusterIds);
+                if (! empty($ids['cluster'])) {
+                    $query->whereIn($table.'.cluster_id', $ids['cluster']);
                 }
                 break;
         }
@@ -86,23 +83,19 @@ trait HasOrganizationalScope
             return true;
         }
 
-        // Get user's organizational assignments from pivot tables
-        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-        $regionIds = $user->regions()->pluck('regions.id')->toArray();
-        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-
-        $scopeLevel = $user->role->getOrganizationalScopeLevel();
+        // Use cached organizational IDs from user
+        $ids = $user->getOrganizationalIds();
+        $scopeLevel = $ids['scope_level'];
 
         // Empty pivot = 'all' access (return true)
         return match ($scopeLevel) {
-            'badanusaha' => empty($badanUsahaIds) || in_array($this->badanusaha_id, $badanUsahaIds, true),
-            'divisi' => (empty($badanUsahaIds) || in_array($this->badanusaha_id, $badanUsahaIds, true))
-            && (empty($divisiIds) || in_array($this->divisi_id, $divisiIds, true)),
-            'cluster' => (empty($badanUsahaIds) || in_array($this->badanusaha_id, $badanUsahaIds, true))
-            && (empty($divisiIds) || in_array($this->divisi_id, $divisiIds, true))
-            && (empty($regionIds) || in_array($this->region_id, $regionIds, true))
-            && (empty($clusterIds) || in_array($this->cluster_id, $clusterIds, true)),
+            'badanusaha' => empty($ids['badanusaha']) || in_array($this->badanusaha_id, $ids['badanusaha'], true),
+            'divisi' => (empty($ids['badanusaha']) || in_array($this->badanusaha_id, $ids['badanusaha'], true))
+            && (empty($ids['divisi']) || in_array($this->divisi_id, $ids['divisi'], true)),
+            'cluster' => (empty($ids['badanusaha']) || in_array($this->badanusaha_id, $ids['badanusaha'], true))
+            && (empty($ids['divisi']) || in_array($this->divisi_id, $ids['divisi'], true))
+            && (empty($ids['region']) || in_array($this->region_id, $ids['region'], true))
+            && (empty($ids['cluster']) || in_array($this->cluster_id, $ids['cluster'], true)),
             default => false,
         };
     }

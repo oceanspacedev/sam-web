@@ -26,9 +26,10 @@ class User extends Authenticatable implements FilamentUser, HasName
     use SoftDeletes;
     use TwoFactorAuthenticatable;
 
-    public function canImpersonate()
+    public function canImpersonate(): bool
     {
-        return $this->nama_lengkap === 'APP DEVELOPER';
+        // Check if user has impersonation permission via their role
+        return $this->permissions->contains('name', 'impersonate');
     }
 
     public function getFilamentName(): string
@@ -51,74 +52,48 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
+     * Cached organizational IDs to avoid multiple queries
+     */
+    protected ?array $cachedOrganizationalIds = null;
+
+    /**
+     * Get user's organizational IDs from pivot tables (cached).
+     * Returns array with keys: badanusaha, divisi, region, cluster, scope_level
+     */
+    public function getOrganizationalIds(): array
+    {
+        if ($this->cachedOrganizationalIds !== null) {
+            return $this->cachedOrganizationalIds;
+        }
+
+        $role = $this->role;
+        $scopeLevel = $role?->organizational_scope_level ?? 'cluster';
+
+        $this->cachedOrganizationalIds = [
+            'badanusaha' => $this->badanUsahas()->pluck('badan_usahas.id')->toArray(),
+            'divisi' => $this->divisis()->pluck('divisions.id')->toArray(),
+            'region' => $this->regions()->pluck('regions.id')->toArray(),
+            'cluster' => $this->clusters()->pluck('clusters.id')->toArray(),
+            'scope_level' => $scopeLevel,
+        ];
+
+        return $this->cachedOrganizationalIds;
+    }
+
+    /**
      * Get outlets accessible to this user based on their organizational assignments.
-     * Uses pivot tables to determine access via badanusaha, divisi, region, and cluster.
+     * Uses the accessibleTo scope on Outlet model.
+     *
+     * @deprecated Use Outlet::query()->accessibleTo($user) instead for better clarity
      */
     public function outlet(): HasMany
     {
-        $role = $this->role;
-        $scopeLevel = $role->organizational_scope_level ?? 'cluster';
+        // This is a workaround to maintain backward compatibility
+        // We create a HasMany relationship but apply the accessibleTo scope
+        $instance = new Outlet;
+        $query = $instance->newQuery()->accessibleTo($this);
 
-        // Get user's organizational IDs from pivot tables
-        $badanUsahaIds = $this->badanUsahas()->pluck('badan_usahas.id')->toArray();
-        $divisiIds = $this->divisis()->pluck('divisions.id')->toArray();
-        $regionIds = $this->regions()->pluck('regions.id')->toArray();
-        $clusterIds = $this->clusters()->pluck('clusters.id')->toArray();
-
-        // Start with base hasMany relationship
-        $relation = $this->hasMany(Outlet::class, 'id', 'id');
-
-        // HACK: Remove the default foreign key constraint added by HasMany
-        // Standard HasMany adds "where outlets.id = user.id" which is incorrect for this virtual relation.
-        // We remove this specific constraint to allow our RBAC logic to define the scope.
-        $query = $relation->getQuery();
-        $baseQuery = $query->getQuery();
-
-        $baseQuery->wheres = array_values(array_filter($baseQuery->wheres, function ($where) {
-            // Remove the constraint that matches foreign key (outlets.id)
-            return !($where['type'] === 'Basic' &&
-                str_ends_with($where['column'], '.id') &&
-                $where['operator'] === '=');
-        }));
-
-        // Also remove the binding for the removed constraint
-        // The binding value is $this->id
-        $bindings = $baseQuery->getRawBindings()['where'];
-        $keyToRemove = array_search($this->id, $bindings);
-        if ($keyToRemove !== false) {
-            unset($bindings[$keyToRemove]);
-            $baseQuery->setBindings(array_values($bindings), 'where');
-        }
-
-        // Apply RBAC constraints using where callback
-        $relation->where(function ($query) use ($scopeLevel, $badanUsahaIds, $divisiIds, $regionIds, $clusterIds) {
-            // If full access, no filtering needed
-            if ($scopeLevel === 'all') {
-                return;
-            }
-
-            // Apply badan usaha filter
-            if (!empty($badanUsahaIds)) {
-                $query->whereIn('badanusaha_id', $badanUsahaIds);
-            }
-
-            // Apply divisi filter
-            if (!empty($divisiIds)) {
-                $query->whereIn('divisi_id', $divisiIds);
-            }
-
-            // Apply region and cluster filters for cluster-level scope
-            if ($scopeLevel === 'cluster') {
-                if (!empty($regionIds)) {
-                    $query->whereIn('region_id', $regionIds);
-                }
-                if (!empty($clusterIds)) {
-                    $query->whereIn('cluster_id', $clusterIds);
-                }
-            }
-        });
-
-        return $relation;
+        return new HasMany($query, $this, 'user_id', 'id');
     }
 
     public function registerTm(): HasMany

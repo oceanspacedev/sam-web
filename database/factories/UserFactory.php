@@ -26,12 +26,8 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'username' => $this->faker->unique()->userName(),
-            'nama_lengkap' => $this->faker->name(),
-            'badanusaha_id' => BadanUsaha::factory(),
-            'divisi_id' => Division::factory(),
-            'region_id' => Region::factory(),
-            'cluster_id' => Cluster::factory(),
+            'username' => $this->faker->unique()->userName,
+            'nama_lengkap' => $this->faker->name,
             'role_id' => Role::factory(),
             'tm_id' => null,
             'password' => '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password

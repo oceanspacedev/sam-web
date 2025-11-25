@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\VisitResource;
 use App\Models\Outlet;
 use App\Models\Visit;
 use App\Services\FileUploadService;
@@ -110,7 +111,15 @@ class VisitController extends Controller
             if ($scopeLevel !== 'all' && ! $user->role->hasFullAccess()) {
                 $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
                 if (! $hasAnyAssignment) {
-                    return ResponseFormatter::success([], 'fetch monitoring visit success');
+                    return response()->json([
+                        'meta' => [
+                            'code' => 200,
+                            'status' => 'success',
+                            'message' => 'fetch monitoring visit success',
+                        ],
+                        'data' => [],
+                        'errors' => null,
+                    ]);
                 }
             }
             // Robby (GM ZTE)
@@ -226,10 +235,14 @@ class VisitController extends Controller
                 // VisitNoo removed
             }
 
-            return ResponseFormatter::success(
-                $visit->map->formatForAPI(),
-                'fetch monitoring visit success'
-            );
+            return VisitResource::collection($visit)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'fetch monitoring visit success',
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $err) {
             return ResponseFormatter::error([
                 'message' => $err->getMessage(),
@@ -278,7 +291,15 @@ class VisitController extends Controller
             // Legacy frontends still request /visit?isnoo=1 for NOO flow.
             // Only when the flag is explicitly "1" do we short-circuit.
             if ($request->query('isnoo') === '1') {
-                return ResponseFormatter::success([], 'NOO visit data is not available');
+                return response()->json([
+                    'meta' => [
+                        'code' => 200,
+                        'status' => 'success',
+                        'message' => 'NOO visit data is not available',
+                    ],
+                    'data' => [],
+                    'errors' => null,
+                ]);
             }
 
             $visit = Visit::with([
@@ -297,10 +318,14 @@ class VisitController extends Controller
                 ->latest()
                 ->get();
 
-            return ResponseFormatter::success(
-                $visit->map->formatForAPI(),
-                'fetch visit succes'
-            );
+            return VisitResource::collection($visit)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'fetch visit succes',
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $err) {
             return ResponseFormatter::error([
                 'message' => $err,
@@ -366,7 +391,15 @@ class VisitController extends Controller
                 // }
                 // else
                 if ($lastDataVisit->check_out_time) {
-                    return ResponseFormatter::success(null, 'ok');
+                    return response()->json([
+                        'meta' => [
+                            'code' => 200,
+                            'status' => 'success',
+                            'message' => 'ok',
+                        ],
+                        'data' => null,
+                        'errors' => null,
+                    ]);
                 } else {
                     // notif error
                     return ResponseFormatter::error([
@@ -374,7 +407,15 @@ class VisitController extends Controller
                     ], 'Belum check out dari outlet '.$lastDataVisit->outlet->kode_outlet, 400);
                 }
             } else {
-                return ResponseFormatter::success(null, 'ok');
+                return response()->json([
+                    'meta' => [
+                        'code' => 200,
+                        'status' => 'success',
+                        'message' => 'ok',
+                    ],
+                    'data' => null,
+                    'errors' => null,
+                ]);
             }
         }
         // #disini co
@@ -412,7 +453,14 @@ class VisitController extends Controller
             //             ], "Belum check out dari outlet " . $lastDataVisit->outlet->kode_outlet, 400);
             //         } else {
             //             if ($lastDataVisit->outlet_id == $outletId) {
-            //                 return ResponseFormatter::success(null, 'ok');
+            //                 return response()->json([
+            //                     'meta' => [
+            //                         'code' => 200,
+            //                         'status' => 'success',
+            //                         'message' => 'ok',
+            //                     ],
+            //                     'data' => null,
+            //                 ]);
             //             }
             //             ##jika belum ci dimanapun
             //             return  ResponseFormatter::error([
@@ -426,7 +474,15 @@ class VisitController extends Controller
             //         'data' => 'anda belum checkin'
             //     ], 'anda belum check in di outlet manapun ', 400);
             // }
-            return ResponseFormatter::success(null, 'ok');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'ok',
+                ],
+                'data' => null,
+                'errors' => null,
+            ]);
         }
     }
 
@@ -598,9 +654,17 @@ class VisitController extends Controller
                     'kode_outlet' => $outlet->kode_outlet,
                 ]);
 
-                return ResponseFormatter::success([
-                    'visit' => $visit,
-                ], 'berhasil check in');
+                return response()->json([
+                    'meta' => [
+                        'code' => 200,
+                        'status' => 'success',
+                        'message' => 'berhasil check in',
+                    ],
+                    'data' => [
+                        'visit' => $visit,
+                    ],
+                    'errors' => null,
+                ]);
             }
             if ($checkOut) {
                 $mediaQueue = [];
@@ -692,9 +756,17 @@ class VisitController extends Controller
                         'durasi' => $durasi.' minutes',
                     ]);
 
-                    return ResponseFormatter::success([
-                        'visit' => $data,
-                    ], 'berhasil check out');
+                    return response()->json([
+                        'meta' => [
+                            'code' => 200,
+                            'status' => 'success',
+                            'message' => 'berhasil check out',
+                        ],
+                        'data' => [
+                            'visit' => $data,
+                        ],
+                        'errors' => null,
+                    ]);
                 } else {
                     return ResponseFormatter::error('Belum ada check-in untuk di check-out', 'INVALID_STATE', 422);
                 }

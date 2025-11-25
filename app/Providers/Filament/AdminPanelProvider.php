@@ -47,7 +47,7 @@ class AdminPanelProvider extends PanelProvider
                     ->label('API Docs')
                     ->url('/docs/api', shouldOpenInNewTab: true)
                     ->icon('heroicon-o-code-bracket-square')
-                    ->visible(fn() => auth()->user()?->role->name === 'SUPER ADMIN')
+                    ->visible(fn () => auth()->user()?->role->name === 'SUPER ADMIN')
                     ->group('Developer'),
             ])
             ->pages([
@@ -72,7 +72,7 @@ class AdminPanelProvider extends PanelProvider
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
-                fn(): string => '
+                fn (): string => '
                     <link rel="manifest" href="/build/manifest.webmanifest">
                     <meta name="theme-color" content="#d97706">
                     <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\RegisterResource;
 use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -275,7 +276,15 @@ class RegisterController extends Controller
                 'outlet_code' => 'LEAD'.$register->id,
             ]);
 
-            return ResponseFormatter::success(null, 'berhasil menambahkan LEAD '.$request->nama_outlet);
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil menambahkan LEAD '.$request->nama_outlet,
+                ],
+                'data' => null,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
@@ -323,7 +332,15 @@ class RegisterController extends Controller
                 $recipient ? [$recipient] : []
             );
 
-            return ResponseFormatter::success(null, 'berhasil menambahkan Lead '.$request->nama_outlet);
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil menambahkan Lead '.$request->nama_outlet,
+                ],
+                'data' => null,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error($e->getMessage(), $e->getMessage());
         }
@@ -450,10 +467,14 @@ class RegisterController extends Controller
                 $registers = $query->visibleTo($user)->latest()->get();
             }
 
-            return ResponseFormatter::success(
-                $registers->map->formatForAPI(),
-                'fetch register success',
-            );
+            return RegisterResource::collection($registers)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'fetch register success',
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $err) {
             return ResponseFormatter::error([
                 'message' => $err,
@@ -615,7 +636,15 @@ class RegisterController extends Controller
                 // CRITICAL: If user has no assignments at all, return empty
                 $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
                 if (! $hasAnyAssignment) {
-                    return ResponseFormatter::success([], 'fetch register success');
+                    return response()->json([
+                        'meta' => [
+                            'code' => 200,
+                            'status' => 'success',
+                            'message' => 'fetch register success',
+                        ],
+                        'data' => [],
+                        'errors' => null,
+                    ]);
                 }
 
                 // Apply organizational scope filtering
@@ -624,10 +653,14 @@ class RegisterController extends Controller
                 $registers = $query->get();
             }
 
-            return ResponseFormatter::success(
-                $registers->map->formatForAPI(),
-                'fetch register success',
-            );
+            return RegisterResource::collection($registers)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'fetch register success',
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $err) {
             return ResponseFormatter::error([
                 'message' => $err,
@@ -1013,7 +1046,15 @@ class RegisterController extends Controller
                 'outlet_name' => $register->nama_outlet,
             ]);
 
-            return ResponseFormatter::success(null, 'berhasil menambahkan register '.$request->nama_outlet);
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil menambahkan register '.$request->nama_outlet,
+                ],
+                'data' => null,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
@@ -1126,7 +1167,15 @@ class RegisterController extends Controller
                 $recipients
             );
 
-            return ResponseFormatter::success($register, 'berhasil update');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil update',
+                ],
+                'data' => $register,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             error_log($e);
 
@@ -1313,7 +1362,15 @@ class RegisterController extends Controller
                 );
             }
 
-            return ResponseFormatter::success($register, 'berhasil update');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil update',
+                ],
+                'data' => $register,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             error_log($e);
 
@@ -1423,7 +1480,15 @@ class RegisterController extends Controller
                 $recipient ? [$recipient] : []
             );
 
-            return ResponseFormatter::success($register, 'berhasil update');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil update',
+                ],
+                'data' => $register,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error($e, 'gagal');
         }
@@ -1482,7 +1547,15 @@ class RegisterController extends Controller
             // Gunakan cache untuk menghindari query repetitive
             $badanusahas = $this->orgCache->getAllBadanUsaha();
 
-            return ResponseFormatter::success($badanusahas, 'berhasil');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $badanusahas,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error([], $e->getMessage());
         }
@@ -1549,7 +1622,15 @@ class RegisterController extends Controller
             // Gunakan cache untuk divisions
             $divisi = $this->orgCache->getDivisionsByBadanUsaha($badanusaha->id);
 
-            return ResponseFormatter::success($divisi, 'berhasil');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $divisi,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error([], $e->getMessage());
         }
@@ -1628,7 +1709,15 @@ class RegisterController extends Controller
             // Gunakan cache untuk regions
             $region = $this->orgCache->getRegionsByDivision($divisi->id);
 
-            return ResponseFormatter::success($region, 'berhasil');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $region,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error([], $e->getMessage());
         }
@@ -1724,7 +1813,15 @@ class RegisterController extends Controller
                 $cluster = $this->orgCache->getClustersByRegion($region->id);
             }
 
-            return ResponseFormatter::success($cluster, 'berhasil');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $cluster,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error($e->getMessage(), $e->getMessage());
         }
@@ -1744,7 +1841,15 @@ class RegisterController extends Controller
                 $cluster = Cluster::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('region_id', $region_id)->get();
             }
 
-            return ResponseFormatter::success($cluster, 'berhasil');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $cluster,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error($e->getMessage(), $e->getMessage());
         }
@@ -1860,10 +1965,15 @@ class RegisterController extends Controller
                     break;
             }
 
-            return ResponseFormatter::success(
-                $registers,
-                'fetch register success',
-            );
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'fetch register success',
+                ],
+                'data' => $registers,
+                'errors' => null,
+            ]);
         } catch (Exception $err) {
             return ResponseFormatter::error([
                 'message' => $err,
@@ -1956,7 +2066,15 @@ class RegisterController extends Controller
                 ->where('id', $kodeOutlet)
                 ->get();
 
-            return ResponseFormatter::success($register, 'berhasil');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $register,
+                'errors' => null,
+            ]);
         } catch (Exception $err) {
             return ResponseFormatter::error(null, 'ada kesalahan');
         }

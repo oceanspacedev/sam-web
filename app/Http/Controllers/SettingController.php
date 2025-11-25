@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ResponseFormatter;
+use App\Http\Resources\DivisionResource;
+use App\Http\Resources\RegionResource;
 use App\Models\BadanUsaha;
 use App\Models\Division;
 use App\Models\Region;
@@ -39,7 +41,15 @@ class SettingController extends Controller
                 // CRITICAL: If user has no assignments, return empty
                 $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds);
                 if (! $hasAnyAssignment) {
-                    return ResponseFormatter::success([], 'berhasil');
+                    return response()->json([
+                        'meta' => [
+                            'code' => 200,
+                            'status' => 'success',
+                            'message' => 'berhasil',
+                        ],
+                        'data' => [],
+                        'errors' => null,
+                    ]);
                 }
 
                 // Filter by user's organizational scope
@@ -61,9 +71,16 @@ class SettingController extends Controller
                 $q->where('badanusaha_id', $badanUsaha->id);
             });
 
-            $divisions = $query->get(['id', 'name', 'badanusaha_id']);
+            $divisions = $query->get();
 
-            return ResponseFormatter::success($divisions, 'berhasil');
+            return DivisionResource::collection($divisions)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error([], $e->getMessage());
         }
@@ -97,7 +114,15 @@ class SettingController extends Controller
                 // CRITICAL: If user has no assignments, return empty
                 $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds);
                 if (! $hasAnyAssignment) {
-                    return ResponseFormatter::success([], 'berhasil');
+                    return response()->json([
+                        'meta' => [
+                            'code' => 200,
+                            'status' => 'success',
+                            'message' => 'berhasil',
+                        ],
+                        'data' => [],
+                        'errors' => null,
+                    ]);
                 }
 
                 // Filter by user's organizational scope
@@ -132,9 +157,16 @@ class SettingController extends Controller
                 }
             });
 
-            $regions = $query->get(['id', 'name', 'badanusaha_id', 'divisi_id']);
+            $regions = $query->get();
 
-            return ResponseFormatter::success($regions, 'berhasil');
+            return RegionResource::collection($regions)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error([], $e->getMessage());
         }

@@ -43,9 +43,16 @@ class RateLimitUploads
             ]);
 
             return response()->json([
-                'message' => 'Too many upload attempts. Please try again later.',
-                'retry_after' => 60,
-                'limit' => $limitPerMinute,
+                'meta' => [
+                    'code' => 429,
+                    'status' => 'error',
+                    'message' => 'Too many upload attempts. Please try again later.',
+                ],
+                'data' => [
+                    'retry_after' => 60,
+                    'limit' => $limitPerMinute,
+                ],
+                'errors' => null,
             ], 429);
         }
 
@@ -66,9 +73,16 @@ class RateLimitUploads
             ]);
 
             return response()->json([
-                'message' => 'Hourly upload limit exceeded. Please try again later.',
-                'retry_after' => 3600,
-                'limit' => $limitPerHour,
+                'meta' => [
+                    'code' => 429,
+                    'status' => 'error',
+                    'message' => 'Hourly upload limit exceeded. Please try again later.',
+                ],
+                'data' => [
+                    'retry_after' => 3600,
+                    'limit' => $limitPerHour,
+                ],
+                'errors' => null,
             ], 429);
         }
 
@@ -87,15 +101,15 @@ class RateLimitUploads
     protected function hasFileUpload(Request $request): bool
     {
         return $request->hasFile('file') ||
-               $request->hasFile('video') ||
-               $request->hasFile('photo') ||
-               $request->hasFile('picture') ||
-               $request->hasFile('poto_shop_sign') ||
-               $request->hasFile('poto_depan') ||
-               $request->hasFile('poto_kiri') ||
-               $request->hasFile('poto_kanan') ||
-               $request->hasFile('poto_ktp') ||
-               $request->hasFile('picture_visit_in') ||
-               $request->hasFile('picture_visit_out');
+            $request->hasFile('video') ||
+            $request->hasFile('photo') ||
+            $request->hasFile('picture') ||
+            $request->hasFile('poto_shop_sign') ||
+            $request->hasFile('poto_depan') ||
+            $request->hasFile('poto_kiri') ||
+            $request->hasFile('poto_kanan') ||
+            $request->hasFile('poto_ktp') ||
+            $request->hasFile('picture_visit_in') ||
+            $request->hasFile('picture_visit_out');
     }
 }

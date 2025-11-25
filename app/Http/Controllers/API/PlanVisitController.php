@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PlanVisitResource;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use Carbon\Carbon;
@@ -90,10 +91,14 @@ class PlanVisitController extends Controller
                 ->orderBy('period_start')
                 ->get();
 
-            return ResponseFormatter::success(
-                $planVisit->map->formatForAPI(),
-                'ok'
-            );
+            return PlanVisitResource::collection($planVisit)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'ok',
+                ],
+                'errors' => null,
+            ])->response();
         } catch (Exception $err) {
             return ResponseFormatter::error([
                 'message' => $err,
@@ -174,10 +179,14 @@ class PlanVisitController extends Controller
                 ->orderBy('period_start')
                 ->get();
 
-            return ResponseFormatter::success(
-                $plan->map->formatForAPI(),
-                'berhasil'
-            );
+            return PlanVisitResource::collection($plan)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'errors' => null,
+            ])->response();
         } catch (Exception $e) {
             return ResponseFormatter::error(null, $e);
         }
@@ -275,7 +284,7 @@ class PlanVisitController extends Controller
 
             if (
                 $isRealmeDivision
-                && Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay(1)->setTime(10, 0))
+                && Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay()->setTime(10, 0))
             ) {
                 Log::channel('planvisit')->warning('Plan visit add failed: weekly deadline passed', [
                     'user_id' => $user->id,
@@ -330,7 +339,14 @@ class PlanVisitController extends Controller
                 'period_end' => $addPlan->period_end,
             ]);
 
-            return ResponseFormatter::success($addPlan->fresh()->formatForAPI(), 'berhasil');
+            return (new PlanVisitResource($addPlan->fresh()))->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'errors' => null,
+            ])->response();
         } catch (Exception $e) {
             return ResponseFormatter::error(null, $e->getMessage());
         }
@@ -478,7 +494,15 @@ class PlanVisitController extends Controller
                 'tahun' => $request->tahun,
             ]);
 
-            return ResponseFormatter::success($delete, 'berhasil');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $delete,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             error_log($e);
 
@@ -530,7 +554,7 @@ class PlanVisitController extends Controller
                 ? Carbon::parse($planVisit->period_start)
                 : Carbon::createFromTimestamp($planVisit->tanggal_visit);
 
-            if (Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay(1)->setTime(10, 0))) {
+            if (Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay()->setTime(10, 0))) {
                 Log::channel('planvisit')->warning('Plan visit delete realme failed: deadline passed', [
                     'user_id' => $user->id,
                     'plan_visit_id' => $request->id,
@@ -559,14 +583,20 @@ class PlanVisitController extends Controller
             Log::channel('planvisit')->info('Plan visit delete realme success', [
                 'user_id' => $user->id,
                 'plan_visit_id' => $request->id,
+                'deleted_count' => $delete,
             ]);
 
-            return ResponseFormatter::success($delete, 'berhasil');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $delete,
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
-            error_log($e);
-
-            return ResponseFormatter::error(null, $e->getMessage(), 422);
-
+            return ResponseFormatter::error(null, $e->getMessage());
         }
     }
 

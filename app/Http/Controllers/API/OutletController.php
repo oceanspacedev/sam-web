@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\OutletResource;
 use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\Region;
@@ -95,7 +96,15 @@ class OutletController extends Controller
                 // CRITICAL: If user has no assignments at all, return empty
                 $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
                 if (! $hasAnyAssignment) {
-                    return ResponseFormatter::success([], 'berhasil');
+                    return response()->json([
+                        'meta' => [
+                            'code' => 200,
+                            'status' => 'success',
+                            'message' => 'berhasil',
+                        ],
+                        'data' => [],
+                        'errors' => null,
+                    ]);
                 }
 
                 // Apply organizational scope filtering using visibleTo()
@@ -104,10 +113,14 @@ class OutletController extends Controller
                 $outlet = $query->get();
             }
 
-            return ResponseFormatter::success(
-                $outlet->map->formatForAPI(),
-                'berhasil'
-            );
+            return OutletResource::collection($outlet)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
             return ResponseFormatter::error([
                 'message' => 'ada yang salah',
@@ -199,10 +212,14 @@ class OutletController extends Controller
                 $outlet = $query->visibleTo($user)->orderBy('nama_outlet')->get();
             }
 
-            return ResponseFormatter::success(
-                $outlet->map->formatForAPI(),
-                count($outlet),
-            );
+            return OutletResource::collection($outlet)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => count($outlet),
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $e) {
 
             return ResponseFormatter::error([
@@ -265,7 +282,14 @@ class OutletController extends Controller
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
-            return ResponseFormatter::success([$outlet->formatForAPI()], 'berhasil');
+            return (new OutletResource($outlet))->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $err) {
             return ResponseFormatter::error(null, 'ada kesalahan');
         }
@@ -440,7 +464,15 @@ class OutletController extends Controller
                 'kode_outlet' => $outlet->kode_outlet,
             ]);
 
-            return ResponseFormatter::success(null, 'berhasil Update');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil Update',
+                ],
+                'data' => null,
+                'errors' => null,
+            ]);
         } catch (ValidationException $e) {
             return ResponseFormatter::error($e->errors(), 'VALIDATION_ERROR', 422);
         } catch (Exception $e) {

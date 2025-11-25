@@ -6,6 +6,7 @@ use App\Actions\Fortify\PasswordValidationRules;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\LoginRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
@@ -74,7 +75,14 @@ class UserController extends Controller
     {
         $user = User::with(['clusters', 'regions', 'role', 'divisis', 'badanUsahas'])->where('id', Auth::user()->id)->first();
 
-        return ResponseFormatter::success(['user' => $user->formatForAPI(), 'message' => 'Data profile user berhasil diambil']);
+        return (new UserResource($user))->additional([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Data profile user berhasil diambil',
+            ],
+            'errors' => null,
+        ]);
     }
 
     /**
@@ -182,11 +190,19 @@ class UserController extends Controller
 
             $tokenResult = $user->createToken('authToken')->plainTextToken;
 
-            return ResponseFormatter::success([
-                'access_token' => $tokenResult,
-                'token_type' => 'Bearer',
-                'user' => $user,
-            ], 'Authenticated');
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Authenticated',
+                ],
+                'data' => [
+                    'access_token' => $tokenResult,
+                    'token_type' => 'Bearer',
+                    'user' => $user,
+                ],
+                'errors' => null,
+            ]);
         } catch (Exception $error) {
             return ResponseFormatter::error([
                 'message' => 'Something went wrong',
@@ -226,6 +242,14 @@ class UserController extends Controller
     {
         $token = $request->user()->currentAccessToken()->delete();
 
-        return ResponseFormatter::success($token, 'Token Revoked');
+        return response()->json([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Token Revoked',
+            ],
+            'data' => $token,
+            'errors' => null,
+        ]);
     }
 }

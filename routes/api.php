@@ -4,8 +4,6 @@ use App\Helpers\SendNotif;
 use App\Http\Controllers\API\OutletController;
 use App\Http\Controllers\API\PlanVisitController;
 use App\Http\Controllers\API\RegisterController;
-use App\Http\Controllers\API\SyncController;
-use App\Http\Controllers\API\TestUploadController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\VisitController;
 use App\Http\Controllers\SettingController;
@@ -74,23 +72,49 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
 Route::post('user/login', [UserController::class, 'login'])->middleware('throttle:login');
 
 Route::post('notif', [SendNotif::class, 'sendMessage']);
-Route::post('test-upload', TestUploadController::class);
 
-// // Sync API Routes - untuk sinkronisasi data
-// Route::prefix('sync')->middleware('throttle:expensive')->group(function () {
-//     Route::get('badanusaha', [SyncController::class, 'getBadanUsaha']);
-//     Route::get('division', [SyncController::class, 'getDivision']);
-//     Route::get('region', [SyncController::class, 'getRegion']);
-//     Route::get('cluster', [SyncController::class, 'getCluster']);
-//     Route::get('role', [SyncController::class, 'getRole']);
-//     Route::get('user', [SyncController::class, 'getUser']);
-//     Route::get('outlet', [SyncController::class, 'getOutlet']);
-//     Route::post('outlet/reset', [SyncController::class, 'resetOutlet']);
-//     Route::get('visit', [SyncController::class, 'getVisit']);
-//     Route::get('planvisit', [SyncController::class, 'getPlanVisit']);
-//     Route::post('visit/create', [SyncController::class, 'createVisit']);
-//     Route::post('visit/instant', [SyncController::class, 'createInstantVisit']);
-//     Route::post('visit/instant-delete', [SyncController::class, 'deleteInstantDuplicateVisit']);
-//     Route::get('all', [SyncController::class, 'getAllSyncData']);
-//     Route::get('by-badanusaha', [SyncController::class, 'getDataByBadanUsaha']);
-// });
+Route::post('test-upload', function (Illuminate\Http\Request $request, App\Services\FileUploadService $fileUpload) {
+    $key = sprintf('test-upload:%s', $request->user()?->id ?? $request->ip());
+
+    $allowed = Illuminate\Support\Facades\RateLimiter::attempt(
+        $key,
+        25,
+        function () use ($request, $fileUpload) {
+            if ($request->hasFile('file')) {
+                $fileUpload->uploadImageOptimized(
+                    $request->file('file'),
+                    $request->input('type', 'photo')
+                );
+            }
+
+            return true;
+        },
+        60
+    );
+
+    if (! $allowed) {
+        $retryAfter = Illuminate\Support\Facades\RateLimiter::availableIn($key);
+
+        return response()->json([
+            'meta' => [
+                'code' => 429,
+                'status' => 'error',
+                'message' => 'Rate limit exceeded',
+            ],
+            'data' => [
+                'retry_after' => $retryAfter,
+            ],
+            'errors' => null,
+        ], 429);
+    }
+
+    return response()->json([
+        'meta' => [
+            'code' => 200,
+            'status' => 'success',
+            'message' => 'Upload accepted',
+        ],
+        'data' => null,
+        'errors' => null,
+    ]);
+});

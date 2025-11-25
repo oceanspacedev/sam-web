@@ -198,36 +198,6 @@ class User extends Authenticatable implements FilamentUser, HasName
         'profile_photo_url',
     ];
 
-    public function formatForAPI(): array
-    {
-        return [
-            'username' => $this->username,
-            'nama_lengkap' => $this->nama_lengkap,
-            // Use many-to-many pivot relations
-            'badanusaha' => $this->badanUsahas->first() ? [
-                'id' => $this->badanUsahas->first()->id,
-                'name' => $this->badanUsahas->first()->name,
-            ] : null,
-            'divisi' => $this->divisis->first() ? [
-                'id' => $this->divisis->first()->id,
-                'name' => $this->divisis->first()->name,
-            ] : null,
-            'region' => $this->regions->first() ? [
-                'id' => $this->regions->first()->id,
-                'name' => $this->regions->first()->name,
-            ] : null,
-            'cluster' => $this->clusters->first() ? [
-                'id' => $this->clusters->first()->id,
-                'name' => $this->clusters->first()->name,
-            ] : null,
-            'role' => $this->role ? [
-                'id' => $this->role->id,
-                'name' => $this->role->name,
-            ] : null,
-            'id_notif' => $this->id_notif,
-        ];
-    }
-
     /**
      * Override Jetstream's defaultProfilePhotoUrl to use nama_lengkap instead of name
      * Fixes deprecation warning when name field is null

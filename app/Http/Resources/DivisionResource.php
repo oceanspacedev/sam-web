@@ -15,7 +15,7 @@ class DivisionResource extends JsonResource
 
             // Relationships
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
-                return $this->badanusaha->only(['id', 'name']);
+                return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;
             }),
         ];
     }

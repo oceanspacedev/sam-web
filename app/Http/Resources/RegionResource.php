@@ -16,10 +16,10 @@ class RegionResource extends JsonResource
 
             // Relationships
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
-                return $this->badanusaha->only(['id', 'name']);
+                return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;
             }),
             'divisi' => $this->whenLoaded('divisi', function () {
-                return $this->divisi->only(['id', 'name']);
+                return $this->divisi ? $this->divisi->only(['id', 'name']) : null;
             }),
         ];
     }

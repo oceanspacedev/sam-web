@@ -18,37 +18,45 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'username' => $this->username,
             'nama_lengkap' => $this->nama_lengkap,
-            'badanusaha' => $this->whenLoaded('badanUsahas', function () {
-                return $this->badanUsahas->first() ? [
-                    'id' => $this->badanUsahas->first()->id,
-                    'name' => $this->badanUsahas->first()->name,
-                ] : null;
+            'role_id' => $this->role_id,
+            'tm_id' => $this->tm_id,
+            'id_notif' => $this->id_notif,
+            'profile_photo_path' => $this->profile_photo_path,
+            'deleted_at' => $this->deleted_at,
+            'profile_photo_url' => $this->profile_photo_url,
+
+            // Support multiple: return arrays
+            'badan_usahas' => $this->whenLoaded('badanUsahas', function () {
+                return $this->badanUsahas->map(fn($item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                ])->values();
             }),
-            'divisi' => $this->whenLoaded('divisis', function () {
-                return $this->divisis->first() ? [
-                    'id' => $this->divisis->first()->id,
-                    'name' => $this->divisis->first()->name,
-                ] : null;
+            'divisis' => $this->whenLoaded('divisis', function () {
+                return $this->divisis->map(fn($item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                ])->values();
             }),
-            'region' => $this->whenLoaded('regions', function () {
-                return $this->regions->first() ? [
-                    'id' => $this->regions->first()->id,
-                    'name' => $this->regions->first()->name,
-                ] : null;
+            'regions' => $this->whenLoaded('regions', function () {
+                return $this->regions->map(fn($item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                ])->values();
             }),
-            'cluster' => $this->whenLoaded('clusters', function () {
-                return $this->clusters->first() ? [
-                    'id' => $this->clusters->first()->id,
-                    'name' => $this->clusters->first()->name,
-                ] : null;
+            'clusters' => $this->whenLoaded('clusters', function () {
+                return $this->clusters->map(fn($item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                ])->values();
             }),
             'role' => $this->whenLoaded('role', function () {
                 return $this->role ? [
                     'id' => $this->role->id,
                     'name' => $this->role->name,
+                    'organizational_scope_level' => $this->role->organizational_scope_level,
                 ] : null;
             }),
-            'id_notif' => $this->id_notif,
         ];
     }
 }

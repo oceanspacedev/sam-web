@@ -48,16 +48,16 @@ class RegisterResource extends JsonResource
 
             // Relationships
             'region' => $this->whenLoaded('region', function () {
-                return $this->region->only(['id', 'name']);
+                return $this->region ? $this->region->only(['id', 'name']) : null;
             }),
             'cluster' => $this->whenLoaded('cluster', function () {
-                return $this->cluster->only(['id', 'name']);
+                return $this->cluster ? $this->cluster->only(['id', 'name']) : null;
             }),
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
-                return $this->badanusaha->only(['id', 'name']);
+                return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;
             }),
             'divisi' => $this->whenLoaded('divisi', function () {
-                return $this->divisi->only(['id', 'name']);
+                return $this->divisi ? $this->divisi->only(['id', 'name']) : null;
             }),
         ];
     }

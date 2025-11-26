@@ -377,4 +377,191 @@ class SettingController extends Controller
             return ResponseFormatter::error([], $e->getMessage());
         }
     }
+
+    /**
+     * Get form options based on role's organizational scope
+     * 
+     * Returns which organizational fields should be visible/required
+     * and their available options based on user's role and assignments.
+     * 
+     * @queryParam role_id int optional Role ID to check scope requirements
+     * 
+     * @response 200 {
+     *   "meta": {"code": 200, "status": "success", "message": "berhasil"},
+     *   "data": {
+     *     "scope_level": "cluster",
+     *     "fields": {
+     *       "badanusaha": {
+     *         "visible": true,
+     *         "required": true,
+     *         "options": [{"id": 1, "name": "CV.MAJU"}]
+     *       },
+     *       "divisi": {...},
+     *       "region": {...},
+     *       "cluster": {...}
+     *     }
+     *   }
+     * }
+     */
+    public function getFormOptions(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user || !$user->role) {
+                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+            }
+
+            // Determine which role to check (for form validation)
+            $roleId = $request->query('role_id');
+            $targetRole = $roleId ? \App\Models\Role::find($roleId) : $user->role;
+
+            if (!$targetRole) {
+                return ResponseFormatter::error(['message' => 'Role not found'], 'Role not found', 404);
+            }
+
+            $scopeLevel = $targetRole->organizational_scope_level;
+
+            // Determine field visibility/requirement
+            $needsOrgFields = in_array($scopeLevel, ['badanusaha', 'divisi', 'region', 'cluster']);
+
+            $fields = [
+                'badanusaha' => [
+                    'visible' => $needsOrgFields,
+                    'required' => $needsOrgFields,
+                    'options' => [],
+                ],
+                'divisi' => [
+                    'visible' => in_array($scopeLevel, ['divisi', 'region', 'cluster']),
+                    'required' => in_array($scopeLevel, ['divisi', 'region', 'cluster']),
+                    'options' => [],
+                ],
+                'region' => [
+                    'visible' => in_array($scopeLevel, ['region', 'cluster']),
+                    'required' => in_array($scopeLevel, ['region', 'cluster']),
+                    'options' => [],
+                ],
+                'cluster' => [
+                    'visible' => $scopeLevel === 'cluster',
+                    'required' => $scopeLevel === 'cluster',
+                    'options' => [],
+                ],
+            ];
+
+            // Get options based on current user's permissions
+            $userScopeLevel = $user->role->organizational_scope_level;
+
+            // BadanUsaha options
+            if ($fields['badanusaha']['visible']) {
+                if ($userScopeLevel === 'all') {
+                    $fields['badanusaha']['options'] = BadanUsaha::orderBy('name')->get(['id', 'name']);
+                } else {
+                    $fields['badanusaha']['options'] = $user->badanUsahas()->orderBy('name')->get(['badan_usahas.id as id', 'name']);
+                }
+            }
+
+            // Divisi options
+            if ($fields['divisi']['visible']) {
+                if ($userScopeLevel === 'all') {
+                    $fields['divisi']['options'] = Division::orderBy('name')->get(['id', 'name', 'badanusaha_id']);
+                } else {
+                    $fields['divisi']['options'] = $user->divisis()->orderBy('name')->get(['divisions.id as id', 'name', 'badanusaha_id']);
+                }
+            }
+
+            // Region options
+            if ($fields['region']['visible']) {
+                if ($userScopeLevel === 'all') {
+                    $fields['region']['options'] = Region::orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id']);
+                } else {
+                    $fields['region']['options'] = $user->regions()->orderBy('name')->get(['regions.id as id', 'name', 'badanusaha_id', 'divisi_id']);
+                }
+            }
+
+            // Cluster options
+            if ($fields['cluster']['visible']) {
+                if ($userScopeLevel === 'all') {
+                    $fields['cluster']['options'] = Cluster::orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
+                } else {
+                    $fields['cluster']['options'] = $user->clusters()->orderBy('name')->get(['clusters.id as id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
+                }
+            }
+
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => [
+                    'scope_level' => $scopeLevel,
+                    'fields' => $fields,
+                ],
+                'errors' => null,
+            ]);
+        } catch (Exception $e) {
+            return ResponseFormatter::error([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Get role options based on user hierarchy
+     * 
+     * Returns roles that the current user can assign.
+     * SUPER ADMIN sees all roles, others see only descendant roles.
+     * 
+     * @response 200 {
+     *   "meta": {"code": 200, "status": "success", "message": "berhasil"},
+     *   "data": [
+     *     {"id": 1, "name": "ASM"},
+     *     {"id": 2, "name": "DSF/DM"}
+     *   ]
+     * }
+     */
+    public function getRoleOptions(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user || !$user->role) {
+                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+            }
+
+            // SUPER ADMIN sees all roles
+            if ($user->role->name === 'SUPER ADMIN') {
+                $roles = \App\Models\Role::orderBy('name')->get(['id', 'name']);
+            } else {
+                // Get descendant roles using recursive helper
+                $descendantIds = $this->getAllDescendantRoleIds($user->role);
+                $roles = \App\Models\Role::whereIn('id', $descendantIds)
+                    ->orderBy('name')
+                    ->get(['id', 'name']);
+            }
+
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'berhasil',
+                ],
+                'data' => $roles,
+                'errors' => null,
+            ]);
+        } catch (Exception $e) {
+            return ResponseFormatter::error([], $e->getMessage());
+        }
+    }
+
+    /**
+     * Recursively get all descendant role IDs
+     */
+    private function getAllDescendantRoleIds(\App\Models\Role $role): array
+    {
+        $ids = [];
+        foreach ($role->children as $child) {
+            $ids[] = $child->id;
+            $ids = array_merge($ids, $this->getAllDescendantRoleIds($child));
+        }
+        return $ids;
+    }
 }

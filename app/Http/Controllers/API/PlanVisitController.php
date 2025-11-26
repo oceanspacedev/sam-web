@@ -62,6 +62,45 @@ class PlanVisitController extends Controller
     public function fetch(Request $request): JsonResponse
     {
         try {
+            // If month and year are provided, filter by them (formerly bymonth)
+            if ($request->has(['bulan', 'tahun'])) {
+                $request->validate([
+                    'bulan' => ['required', 'string'],
+                    'tahun' => ['required', 'string'],
+                ]);
+
+                $rangeStart = Carbon::createFromDate((int) $request->tahun, (int) $request->bulan, 1)->startOfMonth();
+                $rangeEnd = $rangeStart->copy()->endOfMonth();
+
+                $plan = PlanVisit::with([
+                    'outlet.badanusaha',
+                    'outlet.region',
+                    'outlet.divisi',
+                    'outlet.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
+                    'user.role',
+                ])
+                    ->where('user_id', Auth::user()->id)
+                    ->unrealized()
+                    ->where('schedule_scope', 'daily')
+                    ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+                    ->orderBy('period_start')
+                    ->get();
+
+                return PlanVisitResource::collection($plan)->additional([
+                    'meta' => [
+                        'code' => 200,
+                        'status' => 'success',
+                        'message' => 'berhasil',
+                    ],
+                    'errors' => null,
+                ])->response();
+            }
+
+            // Default: Fetch today's plan visits
             $today = now()->toDateString();
 
             $planVisit = PlanVisit::with([
@@ -101,96 +140,9 @@ class PlanVisitController extends Controller
             ])->response();
         } catch (Exception $err) {
             return ResponseFormatter::error([
-                'message' => $err,
-            ], $err, 500);
+                'message' => $err->getMessage(),
+            ], $err->getMessage(), 500);
         }
-    }
-
-    /**
-     * Retrieve plan visits filtered by month and year for the authenticated user
-     *
-     * Returns plan visits for a specific month and year combination, allowing
-     * users to view their scheduled visits for any historical or future period.
-     * Results are ordered by visit date and include complete relationship data.
-     *
-     * **Validation rules:**
-     * - bulan: Required string (month number, 01-12)
-     * - tahun: Required string (4-digit year)
-     *
-     * **Relationships included:**
-     * Complete outlet and user hierarchy data including business entities,
-     * regions, clusters, divisions, and role information.
-     *
-     * **Data transformation:**
-     * All results use PlanVisit::formatForAPI() with timestamp conversion
-     * and loaded relationships for API consistency.
-     *
-     * @bodyParam bulan string required Month number (01-12). Example: "12"
-     * @bodyParam tahun string required 4-digit year. Example: "2024"
-     *
-     * @response array{
-     *   data: array{
-     *     id: int,
-     *     tanggal_visit: int|null,
-     *     user_id: int,
-     *     outlet_id: int,
-     *     created_at: int|null,
-     *     updated_at: int|null,
-     *     user: array{id: int, nama_lengkap: string, username: string, ...}|null,
-     *     outlet: array{id: int, kode_outlet: string, nama_outlet: string, ...}|null
-     *   }[],
-     *   message: string
-     * }
-     * @response 422 array{
-     *   data: null,
-     *   message: string
-     * }
-     * @response 500 array{
-     *   data: null,
-     *   message: string
-     * }
-     */
-    public function bymonth(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'bulan' => ['required', 'string'],
-                'tahun' => ['required', 'string'],
-            ]);
-
-            $rangeStart = Carbon::createFromDate((int) $request->tahun, (int) $request->bulan, 1)->startOfMonth();
-            $rangeEnd = $rangeStart->copy()->endOfMonth();
-
-            $plan = PlanVisit::with([
-                'outlet.badanusaha',
-                'outlet.region',
-                'outlet.divisi',
-                'outlet.cluster',
-                'user.badanUsahas',
-                'user.regions',
-                'user.divisis',
-                'user.clusters',
-                'user.role',
-            ])
-                ->where('user_id', Auth::user()->id)
-                ->unrealized()
-                ->where('schedule_scope', 'daily')
-                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
-                ->orderBy('period_start')
-                ->get();
-
-            return PlanVisitResource::collection($plan)->additional([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'errors' => null,
-            ])->response();
-        } catch (Exception $e) {
-            return ResponseFormatter::error(null, $e);
-        }
-
     }
 
     /**
@@ -247,7 +199,7 @@ class PlanVisitController extends Controller
      *   message: string
      * }
      */
-    public function add(Request $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
         try {
             $user = Auth::user();
@@ -267,7 +219,7 @@ class PlanVisitController extends Controller
 
             $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
 
-            if (! $outlet) {
+            if (!$outlet) {
                 Log::channel('planvisit')->warning('Plan visit add failed: outlet not found', [
                     'user_id' => $user->id,
                     'kode_outlet' => $request->kode_outlet,
@@ -296,7 +248,7 @@ class PlanVisitController extends Controller
             }
 
             if (
-                ! $isRealmeDivision
+                !$isRealmeDivision
                 && Carbon::now()->gt($periodStart->copy()->subDays(3))
             ) {
                 Log::channel('planvisit')->warning('Plan visit add failed: H-3 deadline passed', [
@@ -416,7 +368,7 @@ class PlanVisitController extends Controller
 
             $outlet = Outlet::where('kode_outlet', $request->kode_outlet)->first();
 
-            if (! $outlet) {
+            if (!$outlet) {
                 Log::channel('planvisit')->warning('Plan visit delete failed: outlet not found', [
                     'user_id' => $user->id,
                     'kode_outlet' => $request->kode_outlet,
@@ -444,7 +396,7 @@ class PlanVisitController extends Controller
                 })
                 ->first();
 
-            if (! $planVisit) {
+            if (!$planVisit) {
                 Log::channel('planvisit')->warning('Plan visit delete failed: plan not found', [
                     'user_id' => $user->id,
                     'outlet_id' => $outlet->id,
@@ -455,7 +407,7 @@ class PlanVisitController extends Controller
                 return ResponseFormatter::error(null, 'Plan visit tidak ditemukan', 404);
             }
 
-            if (! $validation) {
+            if (!$validation) {
                 return ResponseFormatter::error(null, $validation, 422);
             }
 
@@ -475,7 +427,7 @@ class PlanVisitController extends Controller
                 })
                 ->delete();
 
-            if (! $delete) {
+            if (!$delete) {
                 Log::channel('planvisit')->warning('Plan visit delete failed: no records deleted', [
                     'user_id' => $user->id,
                     'outlet_id' => $outlet->id,
@@ -510,97 +462,8 @@ class PlanVisitController extends Controller
         }
     }
 
-    /**
-     * Delete single plan visit by ID for Realme division with week-based validation
-     *
-     * Deletes a specific plan visit for Realme division users with time-based
-     * validation. Only allows deletion before the weekly deadline (Tuesday 10 AM)
-     * to maintain the weekly planning structure.
-     *
-     * **Realme-specific validation:**
-     * - Cannot delete plan visits after Tuesday 10 AM of the visit week
-     * - Ensures weekly planning integrity
-     *
-     * @bodyParam id int required Plan visit unique identifier. Example: 123
-     *
-     * @response array{
-     *   data: int,
-     *   message: string
-     * }
-     * @response 422 array{
-     *   data: null,
-     *   message: string
-     * }
-     */
-    public function deleterealme(Request $request): JsonResponse
-    {
-        try {
-            $user = Auth::user();
-
-            Log::channel('planvisit')->info('Plan visit delete realme initiated', [
-                'user_id' => $user->id,
-                'plan_visit_id' => $request->id,
-            ]);
-
-            $validation = $request->validate([
-                'id' => 'required',
-            ]);
-
-            $planVisit = PlanVisit::where('id', $request->id)
-                ->where('user_id', $user->id)
-                ->first();
-
-            $periodStart = $planVisit->period_start
-                ? Carbon::parse($planVisit->period_start)
-                : Carbon::createFromTimestamp($planVisit->tanggal_visit);
-
-            if (Carbon::now()->gt($periodStart->copy()->startOfWeek()->addDay()->setTime(10, 0))) {
-                Log::channel('planvisit')->warning('Plan visit delete realme failed: deadline passed', [
-                    'user_id' => $user->id,
-                    'plan_visit_id' => $request->id,
-                ]);
-
-                return ResponseFormatter::error(null, 'Tidak bisa menghapus plan visit kurang dari atau dalam minggu yang berjalan');
-            }
-
-            if (! $validation) {
-                return ResponseFormatter::error(null, $validation, 422);
-            }
-
-            $delete = PlanVisit::where('id', $request->id)
-                ->where('user_id', $user->id)
-                ->delete();
-
-            if (! $delete) {
-                Log::channel('planvisit')->warning('Plan visit delete realme failed: record not found', [
-                    'user_id' => $user->id,
-                    'plan_visit_id' => $request->id,
-                ]);
-
-                return ResponseFormatter::error(null, $validation, 422);
-            }
-
-            Log::channel('planvisit')->info('Plan visit delete realme success', [
-                'user_id' => $user->id,
-                'plan_visit_id' => $request->id,
-                'deleted_count' => $delete,
-            ]);
-
-            return response()->json([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'data' => $delete,
-                'errors' => null,
-            ]);
-        } catch (Exception $e) {
-            return ResponseFormatter::error(null, $e->getMessage());
-        }
-    }
-
     // deletenoo removed
+    // deleterealme removed
 
     // No transformer required; models expose formatForAPI().
 }

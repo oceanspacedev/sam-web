@@ -24,26 +24,24 @@ Route::post('login', [UserController::class, 'login'])->middleware('throttle:log
 Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // USER
     Route::get('user', [UserController::class, 'fetch']);
+    Route::post('user', [UserController::class, 'store']);
     Route::post('logout', [UserController::class, 'logout']);
 
     // OUTLET
     Route::get('outlet', [OutletController::class, 'fetch']);
-    Route::get('outlet/{nama}', [OutletController::class, 'singleOutlet']);
-    Route::post('outlet', [OutletController::class, 'updatefoto']);
+    Route::get('outlet/{id}', [OutletController::class, 'show']);
+    Route::put('outlet/{id}', [OutletController::class, 'update']);
 
     // VISIT
     Route::get('visit', [VisitController::class, 'fetch']);
-    Route::get('visit/check', [VisitController::class, 'check']);
-    Route::post('visit', [VisitController::class, 'submit']);
+    Route::post('visit/checkin', [VisitController::class, 'checkin']);
+    Route::post('visit/{id}/checkout', [VisitController::class, 'checkout']);
     Route::get('visit/monitor', [VisitController::class, 'monitor']);
 
     // PLANVISIT
     Route::get('planvisit', [PlanVisitController::class, 'fetch']);
-    Route::post('planvisit', [PlanVisitController::class, 'add']);
-    Route::get('planvisit/filter', [PlanVisitController::class, 'bymonth']);
+    Route::post('planvisit', [PlanVisitController::class, 'store']);
     Route::delete('planvisit', [PlanVisitController::class, 'delete']);
-    Route::delete('planvisitrealme', [PlanVisitController::class, 'deleterealme']);
-    // PlanVisit NOO endpoints removed
 
     // Register
     Route::post('noo', [RegisterController::class, 'submitNoo']);
@@ -65,6 +63,8 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::get('divisi', [SettingController::class, 'getdivisi']);
     Route::get('region', [SettingController::class, 'getregion']);
     Route::get('cluster', [SettingController::class, 'getcluster']);
+    Route::get('form-options', [SettingController::class, 'getFormOptions']);
+    Route::get('roles', [SettingController::class, 'getRoleOptions']);
 });
 
 Route::post('notif', [SendNotif::class, 'sendMessage']);

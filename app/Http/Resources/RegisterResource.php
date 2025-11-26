@@ -7,7 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class RegisterResource extends JsonResource
 {
-    public function toArray($request)
+    public function toArray($request): array
     {
         return [
             'id' => $this->id,
@@ -25,26 +25,19 @@ class RegisterResource extends JsonResource
             'poto_kanan' => $this->poto_kanan,
             'poto_ktp' => $this->poto_ktp,
             'video' => $this->video,
-            'oppo' => $this->oppo,
-            'vivo' => $this->vivo,
-            'realme' => $this->realme,
-            'samsung' => $this->samsung,
-            'xiaomi' => $this->xiaomi,
-            'fl' => $this->fl,
             'latlong' => $this->latlong,
             'limit' => $this->limit,
             'status' => $this->status,
+            'keterangan' => $this->keterangan,
+            'created_by' => $this->created_by,
             'rejected_at' => $this->rejected_at ? Carbon::parse($this->rejected_at)->getPreciseTimestamp(3) : null,
             'rejected_by' => $this->rejected_by,
             'confirmed_at' => $this->confirmed_at ? Carbon::parse($this->confirmed_at)->getPreciseTimestamp(3) : null,
             'confirmed_by' => $this->confirmed_by,
             'approved_at' => $this->approved_at ? Carbon::parse($this->approved_at)->getPreciseTimestamp(3) : null,
             'approved_by' => $this->approved_by,
-            'deleted_at' => $this->deleted_at ? Carbon::parse($this->deleted_at)->getPreciseTimestamp(3) : null,
             'created_at' => Carbon::parse($this->created_at)->getPreciseTimestamp(3),
             'updated_at' => Carbon::parse($this->updated_at)->getPreciseTimestamp(3),
-            'keterangan' => $this->keterangan,
-            'created_by' => $this->created_by,
 
             // Relationships
             'region' => $this->whenLoaded('region', function () {

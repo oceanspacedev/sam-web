@@ -29,9 +29,15 @@ class VisitResource extends JsonResource
             'durasi_visit' => $this->durasi_visit,
             'picture_visit_in' => $this->picture_visit_in,
             'picture_visit_out' => $this->picture_visit_out,
-            'outlet' => new OutletResource($this->whenLoaded('outlet')),
-            'user' => new UserResource($this->whenLoaded('user')),
             'transaksi' => $this->transaksi,
+
+            // Relationships
+            'outlet' => $this->whenLoaded('outlet', function () {
+                return $this->outlet ? new OutletResource($this->outlet) : null;
+            }),
+            'user' => $this->whenLoaded('user', function () {
+                return $this->user ? new UserResource($this->user) : null;
+            }),
         ];
     }
 }

@@ -22,7 +22,6 @@ class UserResource extends JsonResource
             'tm_id' => $this->tm_id,
             'id_notif' => $this->id_notif,
             'profile_photo_path' => $this->profile_photo_path,
-            'deleted_at' => $this->deleted_at,
             'profile_photo_url' => $this->profile_photo_url,
 
             // Support multiple: return arrays

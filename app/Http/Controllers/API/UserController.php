@@ -75,11 +75,14 @@ class UserController extends Controller
     {
         $user = User::with(['clusters', 'regions', 'role', 'divisis', 'badanUsahas'])->where('id', Auth::user()->id)->first();
 
-        return (new UserResource($user))->additional([
+        return response()->json([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',
                 'message' => 'Data profile user berhasil diambil',
+            ],
+            'data' => [
+                'user' => new UserResource($user),
             ],
             'errors' => null,
         ]);
@@ -176,7 +179,7 @@ class UserController extends Controller
             if (!Auth::attempt($credentials)) {
                 return ResponseFormatter::error([
                     'message' => 'Unauthorized',
-                ], 'Gagal login, cek kembali username dan password anda', 500);
+                ], 'Username atau password salah', 401);
             }
 
             // Auth::attempt already validated credentials, just get the user

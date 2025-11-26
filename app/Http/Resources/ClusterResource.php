@@ -4,8 +4,13 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class RegionResource extends JsonResource
+class ClusterResource extends JsonResource
 {
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
     public function toArray($request): array
     {
         return [
@@ -13,6 +18,7 @@ class RegionResource extends JsonResource
             'name' => $this->name,
             'badanusaha_id' => $this->badanusaha_id,
             'divisi_id' => $this->divisi_id,
+            'region_id' => $this->region_id,
 
             // Relationships
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
@@ -20,6 +26,9 @@ class RegionResource extends JsonResource
             }),
             'divisi' => $this->whenLoaded('divisi', function () {
                 return $this->divisi ? $this->divisi->only(['id', 'name']) : null;
+            }),
+            'region' => $this->whenLoaded('region', function () {
+                return $this->region ? $this->region->only(['id', 'name']) : null;
             }),
         ];
     }

@@ -7,7 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class PlanVisitResource extends JsonResource
 {
-    public function toArray($request)
+    public function toArray($request): array
     {
         $periodStart = $this->period_start ? Carbon::parse($this->period_start) : null;
         $periodEnd = $this->period_end ? Carbon::parse($this->period_end) : null;
@@ -27,7 +27,6 @@ class PlanVisitResource extends JsonResource
             'is_realized' => (bool) $this->realized_at,
             'created_at' => $this->created_at ? Carbon::parse($this->created_at)->getPreciseTimestamp(3) : null,
             'updated_at' => $this->updated_at ? Carbon::parse($this->updated_at)->getPreciseTimestamp(3) : null,
-            'deleted_at' => $this->deleted_at ? Carbon::parse($this->deleted_at)->getPreciseTimestamp(3) : null,
 
             // Relationships
             'user' => $this->whenLoaded('user', function () {

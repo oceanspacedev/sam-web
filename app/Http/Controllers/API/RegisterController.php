@@ -76,7 +76,8 @@ class RegisterController extends Controller
         protected OrganizationalCacheService $orgCache,
         protected FileUploadService $fileUpload,
         protected MediaProcessingService $mediaService
-    ) {}
+    ) {
+    }
 
     /**
      * Submit a new Lead entry in the registers table.
@@ -177,20 +178,20 @@ class RegisterController extends Controller
 
             $rules = [];
             for ($i = 0; $i <= 3; $i++) {
-                if ($request->hasFile('photo'.$i)) {
-                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+                if ($request->hasFile('photo' . $i)) {
+                    $rules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
                 }
             }
             if ($request->hasFile('video')) {
                 $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
             }
-            if (! empty($rules)) {
+            if (!empty($rules)) {
                 $request->validate($rules);
             }
 
             for ($i = 0; $i <= 3; $i++) {
-                $file = $request->file('photo'.$i);
-                if (! $file) {
+                $file = $request->file('photo' . $i);
+                if (!$file) {
                     continue;
                 }
 
@@ -234,7 +235,7 @@ class RegisterController extends Controller
                     // Generate stored video name in the pattern seen in logs
                     $ext = $video->guessExtension() ?: $video->extension();
                     $timestamp = now()->format('YmdHis');
-                    $storedName = 'lead-'.$timestamp.'-video-'.substr(md5(uniqid()), 0, 13).'-'.str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
+                    $storedName = 'lead-' . $timestamp . '-video-' . substr(md5(uniqid()), 0, 13) . '-' . str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
 
                     // Log video saved
                     Log::channel('lead')->info('Lead store video saved', [
@@ -273,20 +274,20 @@ class RegisterController extends Controller
             // Log Lead store completed
             Log::channel('lead')->info('Lead store completed', [
                 'lead_id' => $register->id,
-                'outlet_code' => 'LEAD'.$register->id,
+                'outlet_code' => 'LEAD' . $register->id,
             ]);
 
             return response()->json([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'berhasil menambahkan LEAD '.$request->nama_outlet,
+                    'message' => 'berhasil menambahkan LEAD ' . $request->nama_outlet,
                 ],
                 'data' => null,
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            if (! $mediaDispatched) {
+            if (!$mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
 
@@ -316,7 +317,7 @@ class RegisterController extends Controller
             $lead = Register::find($request->id);
             if ($request->hasFile('photo')) {
                 $file = $request->file('photo');
-                if (! $file->isValid()) {
+                if (!$file->isValid()) {
                     return ResponseFormatter::error('File KTP tidak valid', 'INVALID_FILE', 422);
                 }
 
@@ -328,7 +329,7 @@ class RegisterController extends Controller
             $lead->update();
             $recipient = optional(User::where('role_id', 4)->first())->id_notif;
             $this->dispatchNotification(
-                'Register baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
+                'Register baru ' . $lead->nama_outlet . ' ditambahkan oleh ' . Auth::user()->nama_lengkap,
                 $recipient ? [$recipient] : []
             );
 
@@ -336,7 +337,7 @@ class RegisterController extends Controller
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'berhasil menambahkan Lead '.$request->nama_outlet,
+                    'message' => 'berhasil menambahkan Lead ' . $request->nama_outlet,
                 ],
                 'data' => null,
                 'errors' => null,
@@ -612,14 +613,14 @@ class RegisterController extends Controller
             $user = Auth::user();
 
             // CRITICAL: Block access if user or role is null
-            if (! $user || ! $user->role) {
+            if (!$user || !$user->role) {
                 return ResponseFormatter::error(null, 'Unauthorized', 401);
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
-            if (! $scopeLevel) {
+            if (!$scopeLevel) {
                 return ResponseFormatter::error(null, 'Unauthorized', 401);
             }
 
@@ -634,8 +635,8 @@ class RegisterController extends Controller
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
                 // CRITICAL: If user has no assignments at all, return empty
-                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
-                if (! $hasAnyAssignment) {
+                $hasAnyAssignment = !empty($badanUsahaIds) || !empty($divisiIds) || !empty($regionIds) || !empty($clusterIds);
+                if (!$hasAnyAssignment) {
                     return response()->json([
                         'meta' => [
                             'code' => 200,
@@ -830,7 +831,7 @@ class RegisterController extends Controller
                     $data['cluster_id'] = $cluster_id;
                     break;
 
-                    // ASC
+                // ASC
                 case 2:
                     $data['badanusaha_id'] = $userBadanUsahaId;
                     $data['divisi_id'] = $userDivisiId;
@@ -839,7 +840,7 @@ class RegisterController extends Controller
                     error_log($data['cluster_id']);
                     break;
 
-                    // RKAM
+                // RKAM
                 case 9:
                     $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
                     $divisi_id = Division::where('badanusaha_id', $badanusaha_id)->where('name', $request->div)->first()->id;
@@ -851,7 +852,7 @@ class RegisterController extends Controller
                     $data['cluster_id'] = $cluster_id;
                     break;
 
-                    // KAM
+                // KAM
                 case 10:
                     $data['badanusaha_id'] = $userBadanUsahaId;
                     $data['divisi_id'] = $userDivisiId;
@@ -871,21 +872,21 @@ class RegisterController extends Controller
             // Validasi dinamis
             $rules = [];
             for ($i = 0; $i <= 4; $i++) {
-                if ($request->hasFile('photo'.$i)) {
-                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+                if ($request->hasFile('photo' . $i)) {
+                    $rules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
                 }
             }
             if ($request->hasFile('video')) {
                 $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200']; // 50MB
             }
-            if (! empty($rules)) {
+            if (!empty($rules)) {
                 $request->validate($rules);
             }
 
             // Queue photo uploads for background processing
             for ($i = 0; $i <= 4; $i++) {
-                $file = $request->file('photo'.$i);
-                if (! $file) {
+                $file = $request->file('photo' . $i);
+                if (!$file) {
                     continue;
                 }
 
@@ -929,7 +930,7 @@ class RegisterController extends Controller
 
                     // Generate stored video name in the pattern seen in logs
                     $timestamp = now()->format('YmdHis');
-                    $storedName = 'noo-'.$timestamp.'-video-'.substr(md5(uniqid()), 0, 13).'-'.str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
+                    $storedName = 'noo-' . $timestamp . '-video-' . substr(md5(uniqid()), 0, 13) . '-' . str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
 
                     // Log video saved
                     Log::channel('noo')->info('NOO store video saved', [
@@ -963,7 +964,7 @@ class RegisterController extends Controller
                     $notifId = [];
                     array_push($notifId, User::where('role_id', 4)->first()->id_notif);
                     break;
-                    // ASC
+                // ASC
                 case 2:
                     $notifId = [];
                     // notif ar
@@ -971,12 +972,12 @@ class RegisterController extends Controller
                     // notif tm
                     array_push($notifId, $user->tm->id_notif);
                     break;
-                    // RKAM
+                // RKAM
                 case 9:
                     $notifId = [];
                     array_push($notifId, User::where('role_id', 4)->first()->id_notif);
                     break;
-                    // KAM
+                // KAM
                 case 10:
                     $notifId = [];
                     // notif ar
@@ -1013,7 +1014,7 @@ class RegisterController extends Controller
             $register = Register::create($data);
             if ($register && $notifId !== []) {
                 $this->dispatchNotification(
-                    'Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
+                    'Register baru ' . $request->nama_outlet . ' ditambahkan oleh ' . Auth::user()->nama_lengkap,
                     $notifId
                 );
             }
@@ -1050,13 +1051,13 @@ class RegisterController extends Controller
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'berhasil menambahkan register '.$request->nama_outlet,
+                    'message' => 'berhasil menambahkan register ' . $request->nama_outlet,
                 ],
                 'data' => null,
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            if (! $mediaDispatched) {
+            if (!$mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
             error_log($e);
@@ -1161,9 +1162,9 @@ class RegisterController extends Controller
             ]);
 
             $this->dispatchNotification(
-                'Register '.$register->nama_outlet.' sudah dikonfirmasi oleh '.
-                Auth::user()->nama_lengkap.PHP_EOL.
-                'Dengan limit : Rp '.number_format($request->limit, 0, ',', '.'),
+                'Register ' . $register->nama_outlet . ' sudah dikonfirmasi oleh ' .
+                Auth::user()->nama_lengkap . PHP_EOL .
+                'Dengan limit : Rp ' . number_format($request->limit, 0, ',', '.'),
                 $recipients
             );
 
@@ -1195,7 +1196,7 @@ class RegisterController extends Controller
         $disk = Storage::disk($this->fileUpload->temporaryDisk());
 
         foreach ($paths as $path) {
-            if (! $path) {
+            if (!$path) {
                 continue;
             }
 
@@ -1356,7 +1357,7 @@ class RegisterController extends Controller
             }
             if ($insert && $notif !== []) {
                 $this->dispatchNotification(
-                    'Register '.$register->nama_outlet.' sudah disetujui oleh '.
+                    'Register ' . $register->nama_outlet . ' sudah disetujui oleh ' .
                     Auth::user()->nama_lengkap,
                     $notif
                 );
@@ -1476,7 +1477,7 @@ class RegisterController extends Controller
 
             $recipient = optional($register->tm)->id_notif;
             $this->dispatchNotification(
-                'Register '.$register->nama_outlet.' ditolak oleh '.Auth::user()->nama_lengkap.PHP_EOL.'Alasan : '.$request->alasan,
+                'Register ' . $register->nama_outlet . ' ditolak oleh ' . Auth::user()->nama_lengkap . PHP_EOL . 'Alasan : ' . $request->alasan,
                 $recipient ? [$recipient] : []
             );
 
@@ -1491,367 +1492,6 @@ class RegisterController extends Controller
             ]);
         } catch (Exception $e) {
             return ResponseFormatter::error($e, 'gagal');
-        }
-    }
-
-    /**
-     * Get All Business Units
-     *
-     * Retrieves all available business units (Badan Usaha) in the system.
-     * Used for hierarchical data selection in NOO submission forms.
-     *
-     * **Use Cases:**
-     * - NOO submission form dropdowns
-     * - Hierarchical data filtering
-     * - Business unit selection for ASM/RKAM roles
-     * - Administrative business unit management
-     *
-     * **Response Structure:**
-     * Returns array of BadanUsaha objects with id and name fields
-     * for use in form dropdowns and hierarchical filtering.
-     *
-     * @authenticated
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil"
-     *   },
-     *   "data": [
-     *     {
-     *       "id": 1,
-     *       "name": "PT. Maju Bersama"
-     *     },
-     *     {
-     *       "id": 2,
-     *       "name": "PT. Teknologi Indonesia"
-     *     }
-     *   ]
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "[Error message]"
-     *   },
-     *   "data": []
-     * }
-     *
-     * @param  Request  $request  HTTP request instance
-     * @return JsonResponse
-     */
-    public function getbu(Request $request)
-    {
-        try {
-            // Gunakan cache untuk menghindari query repetitive
-            $badanusahas = $this->orgCache->getAllBadanUsaha();
-
-            return response()->json([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'data' => $badanusahas,
-                'errors' => null,
-            ]);
-        } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
-        }
-    }
-
-    /**
-     * Get Divisions by Business Unit
-     *
-     * Retrieves all divisions within a specific business unit for hierarchical filtering.
-     * Used in NOO submission forms for cascading dropdown functionality.
-     *
-     * **Hierarchical Flow:**
-     * Business Unit → Divisions → Regions → Clusters
-     *
-     * **Use Cases:**
-     * - Cascading dropdown in NOO forms
-     * - Hierarchical data filtering for ASM/RKAM roles
-     * - Division selection within business unit context
-     * - Form validation and data integrity
-     *
-     * **Query Logic:**
-     * Finds business unit by name, then returns all divisions associated with that business unit.
-     * Supports the hierarchical structure required for proper NOO data assignment.
-     *
-     * @authenticated
-     *
-     * @queryParam bu string required Business unit name to filter divisions. Example: "PT. Maju Bersama"
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil"
-     *   },
-     *   "data": [
-     *     {
-     *       "id": 1,
-     *       "name": "Realme",
-     *       "badanusaha_id": 1
-     *     },
-     *     {
-     *       "id": 2,
-     *       "name": "Oppo",
-     *       "badanusaha_id": 1
-     *     }
-     *   ]
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "[Error message]"
-     *   },
-     *   "data": []
-     * }
-     *
-     * @param  Request  $request  HTTP request with business unit parameter
-     * @return JsonResponse
-     */
-    public function getdiv(Request $request)
-    {
-        try {
-            $badanusaha = BadanUsaha::where('name', $request->bu)->firstOrFail();
-            // Gunakan cache untuk divisions
-            $divisi = $this->orgCache->getDivisionsByBadanUsaha($badanusaha->id);
-
-            return response()->json([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'data' => $divisi,
-                'errors' => null,
-            ]);
-        } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
-        }
-    }
-
-    /**
-     * Get Regions by Business Unit and Division
-     *
-     * Retrieves all regions within a specific business unit and division combination.
-     * Used for the third level of hierarchical filtering in NOO submission forms.
-     *
-     * **Hierarchical Flow:**
-     * Business Unit → Divisions → Regions → Clusters
-     *
-     * **Use Cases:**
-     * - Third level cascading dropdown in NOO forms
-     * - Regional data filtering for ASM/RKAM roles
-     * - Region selection within business unit and division context
-     * - Geographical data assignment for NOOs
-     *
-     * **Query Logic:**
-     * 1. Find business unit by name
-     * 2. Find division within that business unit by name
-     * 3. Return all regions within that business unit/division combination
-     *
-     * **Data Integrity:**
-     * Ensures that regions are properly scoped within the correct
-     * business unit and division hierarchy to maintain data consistency.
-     *
-     * @authenticated
-     *
-     * @queryParam bu string required Business unit name. Example: "PT. Maju Bersama"
-     * @queryParam div string required Division name within business unit. Example: "Realme"
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil"
-     *   },
-     *   "data": [
-     *     {
-     *       "id": 1,
-     *       "name": "Jakarta",
-     *       "badanusaha_id": 1,
-     *       "divisi_id": 1
-     *     },
-     *     {
-     *       "id": 2,
-     *       "name": "Bandung",
-     *       "badanusaha_id": 1,
-     *       "divisi_id": 1
-     *     }
-     *   ]
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "[Error message]"
-     *   },
-     *   "data": []
-     * }
-     *
-     * @param  Request  $request  HTTP request with business unit and division parameters
-     * @return JsonResponse
-     */
-    public function getreg(Request $request)
-    {
-        try {
-            $badanusaha = BadanUsaha::where('name', $request->bu)->firstOrFail();
-            $divisi = Division::where('badanusaha_id', $badanusaha->id)
-                ->where('name', $request->div)
-                ->firstOrFail();
-
-            // Gunakan cache untuk regions
-            $region = $this->orgCache->getRegionsByDivision($divisi->id);
-
-            return response()->json([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'data' => $region,
-                'errors' => null,
-            ]);
-        } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
-        }
-    }
-
-    /**
-     * Get Clusters with Role-Based or Hierarchical Filtering
-     *
-     * Retrieves clusters based on either user role context or full hierarchical selection.
-     * This is the final level of the 4-tier hierarchy for NOO data assignment.
-     *
-     * **Hierarchical Flow:**
-     * Business Unit → Divisions → Regions → Clusters
-     *
-     * **Two Operation Modes:**
-     *
-     * **1. Role-Based Mode (when role parameter is provided):**
-     * - Uses authenticated user's hierarchical data (business unit, division, region)
-     * - Returns clusters within user's assigned region
-     * - Used for ASC/KAM roles and other users with fixed hierarchical assignments
-     *
-     * **2. Full Hierarchical Mode (when role parameter is not provided):**
-     * - Requires complete hierarchical parameters (bu, div, reg)
-     * - Returns clusters within specified business unit/division/region
-     * - Used for ASM/RKAM roles who can select complete hierarchy
-     *
-     * **Use Cases:**
-     * - Final level cascading dropdown in NOO forms
-     * - Cluster assignment for different user roles
-     * - Geographical granularity in NOO data
-     * - Territory management and sales area definition
-     *
-     * @authenticated
-     *
-     * @queryParam role boolean optional Use role-based filtering if true, full hierarchy if false. Example: true
-     * @queryParam bu string required Business unit name (for full hierarchy mode). Example: "PT. Maju Bersama"
-     * @queryParam div string required Division name (for full hierarchy mode). Example: "Realme"
-     * @queryParam reg string required Region name (for full hierarchy mode). Example: "Jakarta"
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil"
-     *   },
-     *   "data": [
-     *     {
-     *       "id": 1,
-     *       "name": "Jakarta Pusat",
-     *       "badanusaha_id": 1,
-     *       "divisi_id": 1,
-     *       "region_id": 1
-     *     },
-     *     {
-     *       "id": 2,
-     *       "name": "Jakarta Selatan",
-     *       "badanusaha_id": 1,
-     *       "divisi_id": 1,
-     *       "region_id": 1
-     *     }
-     *   ]
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "[Error message]"
-     *   },
-     *   "data": "[Error message]"
-     * }
-     *
-     * @param  Request  $request  HTTP request with filtering parameters
-     * @return JsonResponse
-     */
-    public function getclus(Request $request)
-    {
-        try {
-            if ($request->role) {
-                $user = Auth::user();
-                // Gunakan cache untuk clusters by region
-                $cluster = $this->orgCache->getClustersByRegion($user->region_id);
-            } else {
-                $badanusaha = BadanUsaha::where('name', $request->bu)->firstOrFail();
-                $divisi = Division::where('badanusaha_id', $badanusaha->id)
-                    ->where('name', $request->div)
-                    ->firstOrFail();
-                $region = Region::where('badanusaha_id', $badanusaha->id)
-                    ->where('divisi_id', $divisi->id)
-                    ->where('name', $request->reg)
-                    ->firstOrFail();
-
-                // Gunakan cache untuk clusters
-                $cluster = $this->orgCache->getClustersByRegion($region->id);
-            }
-
-            return response()->json([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'data' => $cluster,
-                'errors' => null,
-            ]);
-        } catch (Exception $e) {
-            return ResponseFormatter::error($e->getMessage(), $e->getMessage());
-        }
-    }
-
-    public function tesgetclus(Request $request)
-    {
-        try {
-            if ($request->role) {
-                $user = Auth::user();
-                $cluster = Cluster::where('badanusaha_id', $user->badanusaha_id)->where('divisi_id', $user->divisi_id)->where('region_id', $user->region_id)->get();
-                dd($cluster);
-            } else {
-                $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
-                $divisi_id = Division::where('badanusaha_id', $badanusaha_id)->where('name', $request->div)->first()->id;
-                $region_id = Region::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('name', $request->reg)->first()->id;
-                $cluster = Cluster::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('region_id', $region_id)->get();
-            }
-
-            return response()->json([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'data' => $cluster,
-                'errors' => null,
-            ]);
-        } catch (Exception $e) {
-            return ResponseFormatter::error($e->getMessage(), $e->getMessage());
         }
     }
 
@@ -1940,7 +1580,7 @@ class RegisterController extends Controller
                         ->orderBy('nama_outlet')
                         ->get();
                     break;
-                    // ASC
+                // ASC
                 case 2:
                 case 3:
                     // ASC and DSF/DM share the same regional scope with optional cluster narrowing

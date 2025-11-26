@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+Route::post('login', [UserController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // USER
@@ -45,10 +46,6 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // PlanVisit NOO endpoints removed
 
     // Register
-    Route::get('noo/getbu', [RegisterController::class, 'getbu']);
-    Route::get('noo/getdiv', [RegisterController::class, 'getdiv']);
-    Route::get('noo/getreg', [RegisterController::class, 'getreg']);
-    Route::get('noo/getclus', [RegisterController::class, 'getclus']);
     Route::post('noo', [RegisterController::class, 'submitNoo']);
     Route::get('noo/all', [RegisterController::class, 'all']);
     Route::get('noo', [RegisterController::class, 'fetch']);
@@ -63,13 +60,12 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::post('lead', [RegisterController::class, 'submitLead']);
     Route::post('lead/update', [RegisterController::class, 'upgradeLead']);
 
-    // SETTINGS - Organization hierarchy helpers (MOVED FROM UNAUTHENTICATED - SECURITY FIX)
+    // MASTER DATA - Organization Hierarchy (with role-based filtering)
+    Route::get('badanusaha', [SettingController::class, 'getbadanusaha']);
     Route::get('divisi', [SettingController::class, 'getdivisi']);
     Route::get('region', [SettingController::class, 'getregion']);
+    Route::get('cluster', [SettingController::class, 'getcluster']);
 });
-
-// Route::post('user/register', [UserController::class, 'register']);
-Route::post('user/login', [UserController::class, 'login'])->middleware('throttle:login');
 
 Route::post('notif', [SendNotif::class, 'sendMessage']);
 
@@ -92,7 +88,7 @@ Route::post('test-upload', function (Illuminate\Http\Request $request, App\Servi
         60
     );
 
-    if (! $allowed) {
+    if (!$allowed) {
         $retryAfter = Illuminate\Support\Facades\RateLimiter::availableIn($key);
 
         return response()->json([

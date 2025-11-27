@@ -63,6 +63,26 @@ class Register extends Model
         return $this->belongsTo(User::class, 'tm_id')->withTrashed();
     }
 
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_id')->withTrashed();
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by_id')->withTrashed();
+    }
+
+    public function confirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by_id')->withTrashed();
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_id')->withTrashed();
+    }
+
     public function outlet(): HasOne
     {
         return $this->hasOne(Outlet::class);

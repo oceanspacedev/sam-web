@@ -94,7 +94,7 @@ class RegisterController extends Controller
                 'realme' => $request->realme,
                 'fl' => $request->fl,
                 'latlong' => $request->latlong,
-                'created_by' => $user->nama_lengkap,
+                'created_by_id' => $user->id,
                 'tm_id' => $hierarchy['tm_id'],
                 'keterangan' => 'LEAD',
                 'poto_ktp' => '-',
@@ -445,7 +445,7 @@ class RegisterController extends Controller
                 'realme' => $request->realme,
                 'fl' => $request->fl,
                 'latlong' => $request->latlong,
-                'created_by' => $user->nama_lengkap,
+                'created_by_id' => $user->id,
                 'tm_id' => $hierarchy['tm_id'],
                 'badanusaha_id' => $hierarchy['badanusaha_id'],
                 'divisi_id' => $hierarchy['divisi_id'],
@@ -574,11 +574,11 @@ class RegisterController extends Controller
             $register->status = $request->status;
             $register->limit = $request->limit;
             $register->kode_outlet = $request->kode_outlet;
-            $register->confirmed_by = Auth::user()->nama_lengkap;
+            $register->confirmed_by_id = Auth::id();
             $register->confirmed_at = now();
             $register->update();
             $recipients = array_filter([
-                optional(User::where('nama_lengkap', $register->created_by)->first())->id_notif,
+                optional($register->createdBy)->id_notif,
                 optional($register->tm)->id_notif,
             ]);
 
@@ -630,12 +630,12 @@ class RegisterController extends Controller
         try {
             $register = Register::find($request->id);
             $register->status = $request->status;
-            $register->approved_by = Auth::user()->nama_lengkap;
+            $register->approved_by_id = Auth::id();
             $register->approved_at = now();
             $register->update();
 
             $notif = [];
-            $creatorNotifId = User::where('nama_lengkap', $register->created_by)->first()->id_notif;
+            $creatorNotifId = $register->createdBy?->id_notif;
             if ($creatorNotifId) {
                 array_push($notif, $creatorNotifId);
             }
@@ -714,7 +714,7 @@ class RegisterController extends Controller
             $register = Register::findOrFail($request->id);
             $register->status = $request->status;
             $register->keterangan = $request->alasan;
-            $register->rejected_by = Auth::user()->nama_lengkap;
+            $register->rejected_by_id = Auth::id();
             $register->rejected_at = now();
 
             $register->update();
@@ -778,7 +778,7 @@ class RegisterController extends Controller
             ] : ['*'];
 
             $registers = Register::with($relations)
-                ->whereNull('approved_by')
+                ->whereNull('approved_by_id')
                 ->when($compact, fn ($q) => $q->select($selectColumns))
                 ->visibleTo($user)
                 ->orderBy('nama_outlet')

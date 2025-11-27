@@ -16,7 +16,7 @@ class RegisterExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
      */
     public function collection()
     {
-        return Register::with(['cluster', 'region', 'badanusaha'])->get();
+        return Register::with(['cluster', 'region', 'badanusaha', 'createdBy', 'approvedBy', 'rejectedBy'])->get();
     }
 
     public function headings(): array
@@ -50,7 +50,7 @@ class RegisterExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
     {
         return [
             date('d M Y', strtotime($register->created_at)),
-            $register->created_by ?? '-',
+            $register->createdBy?->nama_lengkap ?? '-',
             $register->kode_outlet ?? '-',
             $register->badanusaha->name,
             $register->divisi->name,
@@ -66,9 +66,9 @@ class RegisterExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
             'Rp '.number_format($register->limit, 0, ',', '.'),
             $register->status,
             $register->approved_at == null ? '-' : date('d M Y', strtotime($register->approved_at)),
-            $register->approved_by ?? '-',
+            $register->approvedBy?->nama_lengkap ?? '-',
             $register->rejected_at == null ? '-' : date('d M Y', strtotime($register->rejected_at)),
-            $register->rejected_by ?? '-',
+            $register->rejectedBy?->nama_lengkap ?? '-',
             $register->keterangan ?? '-',
         ];
     }

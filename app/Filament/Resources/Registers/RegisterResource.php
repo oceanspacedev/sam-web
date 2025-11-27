@@ -209,20 +209,20 @@ class RegisterResource extends Resource
                         Group::make([
                             Section::make('Informasi Tambahan')
                                 ->schema([
-                                    Select::make('created_by')
+                                    Select::make('created_by_id')
                                         ->label('Dibuat Oleh')
                                         ->searchable()
                                         ->required()
-                                        ->options(fn (): array => self::getCreatorOptions())
+                                        ->relationship('createdBy', 'nama_lengkap')
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                        ->afterStateUpdated(function (Set $set, ?int $state): void {
                                             if (! $state) {
                                                 $set('tm_id', null);
 
                                                 return;
                                             }
 
-                                            $creator = self::findCreatorByName($state);
+                                            $creator = User::find($state);
 
                                             if (! $creator) {
                                                 $set('tm_id', null);
@@ -380,7 +380,7 @@ class RegisterResource extends Resource
                                         ->required()
                                         ->searchable()
                                         ->preload()
-                                        ->options(fn (Get $get): array => self::getTmOptions($get('created_by'), $get('tm_id')))
+                                        ->options(fn (Get $get): array => self::getTmOptions($get('created_by_id'), $get('tm_id')))
                                         ->live(),
                                 ]),
                         ])
@@ -395,27 +395,12 @@ class RegisterResource extends Resource
         return strtoupper((string) $keterangan) === 'LEAD';
     }
 
-    protected static function getCreatorOptions(): array
-    {
-        return User::query()
-            ->orderBy('nama_lengkap')
-            ->pluck('nama_lengkap', 'nama_lengkap')
-            ->toArray();
-    }
-
-    protected static function findCreatorByName(string $name): ?User
-    {
-        return User::query()
-            ->where('nama_lengkap', $name)
-            ->first();
-    }
-
-    protected static function getTmOptions(?string $creatorName, ?int $currentTmId): array
+    protected static function getTmOptions(?int $creatorId, ?int $currentTmId): array
     {
         $options = [];
 
-        if ($creatorName) {
-            $creator = self::findCreatorByName($creatorName);
+        if ($creatorId) {
+            $creator = User::find($creatorId);
 
             if ($creator) {
                 $tm = $creator->tm;
@@ -524,7 +509,7 @@ class RegisterResource extends Resource
                         Group::make([
                             Section::make('Informasi Tambahan')
                                 ->schema([
-                                    TextEntry::make('created_by')
+                                    TextEntry::make('createdBy.nama_lengkap')
                                         ->label('Dibuat Oleh'),
                                     TextEntry::make('created_at')
                                         ->label('Tanggal Dibuat')
@@ -574,7 +559,7 @@ class RegisterResource extends Resource
                 TextColumn::make('created_at')
                     ->label('Tanggal Dibuat') // Capitalized the label for consistency
                     ->date('d M Y'),
-                TextColumn::make('created_by')
+                TextColumn::make('createdBy.nama_lengkap')
                     ->label('Dibuat Oleh')
                     ->searchable(),
                 TextColumn::make('kode_outlet')
@@ -852,9 +837,9 @@ class RegisterResource extends Resource
                             'kode_outlet' => $data['kode_outlet'],
                             'limit' => $data['limit'],
                             'confirmed_at' => $record->confirmed_at ?? Carbon::now(),
-                            'confirmed_by' => $record->confirmed_by ?? $authUser?->nama_lengkap,
+                            'confirmed_by_id' => $record->confirmed_by_id ?? $authUser?->id,
                             'approved_at' => Carbon::now(),
-                            'approved_by' => $authUser?->nama_lengkap,
+                            'approved_by_id' => $authUser?->id,
                             'status' => 'APPROVED',
                         ]);
 
@@ -877,8 +862,8 @@ class RegisterResource extends Resource
                         $authUser = Auth::user();
 
                         $record->update([
-                            'confirmed_at' => Carbon::now(),
-                            'confirmed_by' => $authUser?->name,
+                            'rejected_at' => Carbon::now(),
+                            'rejected_by_id' => $authUser?->id,
                             'status' => 'REJECTED',
                             'keterangan' => $data['alasan'],
                         ]);
@@ -919,7 +904,7 @@ class RegisterResource extends Resource
 
                                 $record->update([
                                     'approved_at' => Carbon::now(),
-                                    'approved_by' => $authUser?->nama_lengkap,
+                                    'approved_by_id' => $authUser?->id,
                                     'status' => 'APPROVED',
                                 ]);
 
@@ -976,8 +961,8 @@ class RegisterResource extends Resource
                                 }
 
                                 $record->update([
-                                    'confirmed_at' => Carbon::now(),
-                                    'confirmed_by' => $authUser?->nama_lengkap,
+                                    'rejected_at' => Carbon::now(),
+                                    'rejected_by_id' => $authUser?->id,
                                     'status' => 'REJECTED',
                                     'keterangan' => $data['alasan'],
                                 ]);
@@ -1084,13 +1069,13 @@ class RegisterResource extends Resource
         $table = $query->getModel()->getTable();
 
         return $query
-            ->whereNotNull("{$table}.created_by")
+            ->whereNotNull("{$table}.created_by_id")
             ->whereNotNull("{$table}.nama_outlet")
             ->whereNotNull("{$table}.alamat_outlet")
             ->whereExists(function ($subQuery) use ($table): void {
                 $subQuery->selectRaw(1)
                     ->from("{$table} as duplicates")
-                    ->whereColumn('duplicates.created_by', "{$table}.created_by")
+                    ->whereColumn('duplicates.created_by_id', "{$table}.created_by_id")
                     ->whereColumn('duplicates.nama_outlet', "{$table}.nama_outlet")
                     ->whereColumn('duplicates.alamat_outlet', "{$table}.alamat_outlet")
                     ->whereColumn('duplicates.id', '!=', "{$table}.id");

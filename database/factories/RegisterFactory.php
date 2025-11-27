@@ -46,7 +46,7 @@ class RegisterFactory extends Factory
             'latlong' => '0,0',
             'limit' => 0,
             'status' => 'PENDING',
-            'created_by' => 'Seeder',
+            'created_by_id' => User::factory(),
             'tm_id' => User::factory(),
         ];
     }

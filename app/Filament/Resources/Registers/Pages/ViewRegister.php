@@ -107,9 +107,9 @@ class ViewRegister extends ViewRecord
                         'kode_outlet' => $data['kode_outlet'],
                         'limit' => $data['limit'],
                         'confirmed_at' => $record->confirmed_at ?? Carbon::now(),
-                        'confirmed_by' => $record->confirmed_by ?? $authUser?->nama_lengkap,
+                        'confirmed_by_id' => $record->confirmed_by_id ?? $authUser?->id,
                         'approved_at' => Carbon::now(),
-                        'approved_by' => $authUser?->nama_lengkap,
+                        'approved_by_id' => $authUser?->id,
                         'status' => 'APPROVED',
                     ]);
 
@@ -132,8 +132,8 @@ class ViewRegister extends ViewRecord
                     $authUser = Auth::user();
 
                     $record->update([
-                        'confirmed_at' => Carbon::now(),
-                        'confirmed_by' => $authUser?->name,
+                        'rejected_at' => Carbon::now(),
+                        'rejected_by_id' => $authUser?->id,
                         'status' => 'REJECTED',
                         'keterangan' => $data['alasan'],
                     ]);

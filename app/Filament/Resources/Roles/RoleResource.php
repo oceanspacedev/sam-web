@@ -59,7 +59,7 @@ class RoleResource extends Resource
                         ])
                         ->columns(2),
                     static::getShieldFormComponents()
-                        ->visible(fn ($get) => $get('can_access_web') !== false),
+                        ->visible(fn ($get) => $get('can_access_web') !== false && $get('can_access_web') !== null),
                 ])->columnSpan(3),
                 Group::make([
                     Section::make('Akses & Scope')

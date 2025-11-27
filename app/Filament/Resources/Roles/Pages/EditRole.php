@@ -6,10 +6,13 @@ use App\Filament\Resources\Roles\RoleResource;
 use App\Models\Permission;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Collection;
 
 class EditRole extends EditRecord
 {
     protected static string $resource = RoleResource::class;
+
+    protected Collection $permissions;
 
     protected function getHeaderActions(): array
     {
@@ -20,10 +23,19 @@ class EditRole extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $permissions = collect($data['permissions'] ?? [])
-            ->flatMap(fn ($permission) => $permission)
+        $this->permissions = collect($data)
+            ->except([
+                'name',
+                'parent_role_id',
+                'can_access_web',
+                'organizational_scope_level',
+                'select_all',
+                'guard_name',
+            ])
+            ->values()
+            ->flatten()
+            ->filter()
             ->unique();
-        session()->put('permissions_to_sync', $permissions);
 
         return [
             'name' => $data['name'],
@@ -35,9 +47,12 @@ class EditRole extends EditRecord
 
     protected function afterSave(): void
     {
-        $permissions = session()->pull('permissions_to_sync', collect());
-        $this->record->permissions()->sync(
-            Permission::whereIn('name', $permissions)->pluck('id')->toArray()
-        );
+        $permissionModels = $this->permissions
+            ->map(fn (string $permission): Permission => Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => $this->record->guard_name ?? config('auth.defaults.guard'),
+            ]));
+
+        $this->record->syncPermissions($permissionModels);
     }
 }

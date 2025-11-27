@@ -120,20 +120,22 @@ return [
         'merge' => true,
         'generate' => true,
         'methods' => [
-            'viewAny', 'view', 'create', 'update', 'delete', 'restore',
-            'forceDelete', 'forceDeleteAny', 'restoreAny',
-            // Custom methods
-            'approve', 'confirm', 'reject', 'export', 'reset',
+            'ViewAny',
+            'View',
+            'Create',
+            'Update',
+            'Delete',
+            'Restore',
+            'ForceDelete',
+            'ForceDeleteAny',
+            'RestoreAny',
         ],
         'single_parameter_methods' => [
-            'viewAny',
-            'create',
-            'deleteAny',
-            'forceDeleteAny',
-            'restoreAny',
-            // Custom single parameter methods
-            'export',
-            'resetAny',
+            'ViewAny',
+            'Create',
+            'DeleteAny',
+            'ForceDeleteAny',
+            'RestoreAny',
         ],
     ],
 
@@ -173,6 +175,31 @@ return [
                 'create',
                 'update',
                 'delete',
+            ],
+            \App\Filament\Resources\Registers\RegisterResource::class => [
+                'viewAny', 'view', 'create', 'update', 'delete', 'restore',
+                'forceDelete', 'forceDeleteAny', 'restoreAny',
+                'approve', 'confirm', 'reject', 'export', 'upgrade',
+            ],
+            \App\Filament\Resources\Outlets\OutletResource::class => [
+                'viewAny', 'view', 'create', 'update', 'delete', 'restore',
+                'forceDelete', 'forceDeleteAny', 'restoreAny',
+                'export', 'reset',
+            ],
+            \App\Filament\Resources\PlanVisits\PlanVisitResource::class => [
+                'viewAny', 'view', 'create', 'update', 'delete', 'restore',
+                'forceDelete', 'forceDeleteAny', 'restoreAny',
+                'export',
+            ],
+            \App\Filament\Resources\Users\UserResource::class => [
+                'viewAny', 'view', 'create', 'update', 'delete', 'restore',
+                'forceDelete', 'forceDeleteAny', 'restoreAny',
+                'export',
+            ],
+            \App\Filament\Resources\Visits\VisitResource::class => [
+                'viewAny', 'view', 'create', 'update', 'delete', 'restore',
+                'forceDelete', 'forceDeleteAny', 'restoreAny',
+                'export',
             ],
         ],
         'exclude' => [
@@ -232,15 +259,6 @@ return [
 
     'custom_permissions' => [
         'impersonate' => 'Impersonate (Login as) Other Users',
-        'approve_noo' => 'Approve NOO (New Outlet Opening)',
-        'confirm_noo' => 'Confirm NOO (New Outlet Opening)',
-        'reject_noo' => 'Reject NOO (New Outlet Opening)',
-        'export_noo' => 'Export NOO Data',
-        'export_outlet' => 'Export Outlet Data',
-        'export_plan::visit' => 'Export Plan Visit Data',
-        'export_user' => 'Export User Data',
-        'export_visit' => 'Export Visit Data',
-        'reset_any_outlet' => 'Reset Any Outlet',
     ],
 
     /*

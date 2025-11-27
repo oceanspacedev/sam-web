@@ -39,7 +39,7 @@ class ViewRegister extends ViewRecord
                 ->label('Update KTP')
                 ->icon('heroicon-o-identification')
                 ->color('primary')
-                ->visible(fn ($record) => $record->keterangan === 'LEAD' && Gate::allows('upgrade_noo'))
+                ->visible(fn ($record) => $record->keterangan === 'LEAD' && Gate::allows('Upgrade:Register'))
                 ->form([
                     TextInput::make('ktp_outlet')
                         ->label('Nomor KTP Outlet')
@@ -74,7 +74,7 @@ class ViewRegister extends ViewRecord
                 ->label('Approve')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('approve_noo', $record) && $record->keterangan !== 'LEAD')
+                ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && $record->keterangan !== 'LEAD')
                 ->form([
                     TextInput::make('kode_outlet')
                         ->regex('/^\S+$/')
@@ -122,7 +122,7 @@ class ViewRegister extends ViewRecord
                 ->label('Reject')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject_noo', $record) && $record->keterangan !== 'LEAD')
+                ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('Reject:Register', $record) && $record->keterangan !== 'LEAD')
                 ->form([
                     Textarea::make('alasan')
                         ->required(),

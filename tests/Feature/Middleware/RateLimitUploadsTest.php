@@ -48,8 +48,8 @@ test('exceeding per-minute limit returns 429 for authenticated users', function 
     }
 
     expect($response->status())->toBe(429);
-    expect($response->json())->toHaveKey('retry_after');
-    expect($response->json('limit'))->toBe(60);
+    expect($response->json('data.retry_after'))->toBe(60);
+    expect($response->json('data.limit'))->toBe(60);
 });
 
 test('exceeding per-minute limit returns 429 for guests', function () {
@@ -61,7 +61,7 @@ test('exceeding per-minute limit returns 429 for guests', function () {
     }
 
     expect($response->status())->toBe(429);
-    expect($response->json('limit'))->toBe(40);
+    expect($response->json('data.limit'))->toBe(40);
 });
 
 test('authenticated users have higher limits than guests', function () {
@@ -123,7 +123,7 @@ test('hourly limit is enforced for authenticated users', function () {
         ]);
 
     expect($response->status())->toBe(429);
-    expect($response->json('retry_after'))->toBe(3600);
+    expect($response->json('data.retry_after'))->toBe(3600);
 });
 
 test('hourly limit is enforced for guests', function () {

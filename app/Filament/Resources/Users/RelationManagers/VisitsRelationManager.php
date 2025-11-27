@@ -92,7 +92,7 @@ class VisitsRelationManager extends RelationManager
             ->deferLoading()
             ->filters([
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Visit::class)),
+                    ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Visit::class)),
                 Filter::make('created_at')
                     ->schema([
                         DatePicker::make('tanggal_visit_from')

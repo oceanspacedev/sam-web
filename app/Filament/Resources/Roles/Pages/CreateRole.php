@@ -5,17 +5,29 @@ namespace App\Filament\Resources\Roles\Pages;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Models\Permission;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Collection;
 
 class CreateRole extends CreateRecord
 {
     protected static string $resource = RoleResource::class;
 
+    protected Collection $permissions;
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $permissions = collect($data['permissions'] ?? [])
-            ->flatMap(fn ($permission) => $permission)
+        $this->permissions = collect($data)
+            ->except([
+                'name',
+                'parent_role_id',
+                'can_access_web',
+                'organizational_scope_level',
+                'select_all',
+                'guard_name',
+            ])
+            ->values()
+            ->flatten()
+            ->filter()
             ->unique();
-        session()->put('permissions_to_sync', $permissions);
 
         return [
             'name' => $data['name'],
@@ -27,9 +39,12 @@ class CreateRole extends CreateRecord
 
     protected function afterCreate(): void
     {
-        $permissions = session()->pull('permissions_to_sync', collect());
-        $this->record->permissions()->sync(
-            Permission::whereIn('name', $permissions)->pluck('id')->toArray()
-        );
+        $permissionModels = $this->permissions
+            ->map(fn (string $permission): Permission => Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => $this->record->guard_name ?? config('auth.defaults.guard'),
+            ]));
+
+        $this->record->syncPermissions($permissionModels);
     }
 }

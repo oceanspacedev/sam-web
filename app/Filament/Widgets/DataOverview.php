@@ -101,13 +101,13 @@ class DataOverview extends StatsOverviewWidget implements HasActions
                 'label' => 'User',
                 'model' => User::class,
                 'dateColumn' => 'created_at',
-                'permission' => 'view_any_user',
+                'permission' => 'ViewAny:User',
             ],
             [
                 'label' => 'Outlet',
                 'model' => Outlet::class,
                 'dateColumn' => 'created_at',
-                'permission' => 'view_any_outlet',
+                'permission' => 'ViewAny:Outlet',
             ],
             [
                 'label' => 'Register NOO',
@@ -117,20 +117,20 @@ class DataOverview extends StatsOverviewWidget implements HasActions
                     $query->whereNull('keterangan')
                         ->orWhere('keterangan', '!=', 'LEAD');
                 }),
-                'permission' => 'view_any_noo',
+                'permission' => 'ViewAny:Register',
             ],
             [
                 'label' => 'Register Lead',
                 'model' => Register::class,
                 'dateColumn' => 'created_at',
                 'constraint' => fn (Builder $query) => $query->where('keterangan', 'LEAD'),
-                'permission' => 'view_any_noo',
+                'permission' => 'ViewAny:Register',
             ],
             [
                 'label' => 'Visit',
                 'model' => Visit::class,
                 'dateColumn' => 'tanggal_visit',
-                'permission' => 'view_any_visit',
+                'permission' => 'ViewAny:Visit',
             ],
         ];
 

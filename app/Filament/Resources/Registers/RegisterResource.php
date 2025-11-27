@@ -776,7 +776,7 @@ class RegisterResource extends Resource
                     ->toggle()
                     ->query(fn (Builder $query): Builder => self::applyDuplicateFilter($query)),
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Register::class)),
+                    ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Register::class)),
             ])
             ->recordActions([
                 ViewAction::make(),
@@ -785,7 +785,7 @@ class RegisterResource extends Resource
                     ->label('Update KTP')
                     ->icon('heroicon-o-identification')
                     ->color('primary')
-                    ->visible(fn ($record) => $record->keterangan === 'LEAD' && Gate::allows('upgrade_noo'))
+                    ->visible(fn ($record) => $record->keterangan === 'LEAD' && Gate::allows('Upgrade:Register'))
                     ->form([
                         TextInput::make('ktp_outlet')
                             ->label('Nomor KTP Outlet')
@@ -819,7 +819,7 @@ class RegisterResource extends Resource
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('approve_noo', $record) && $record->keterangan !== 'LEAD')
+                    ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && $record->keterangan !== 'LEAD')
                     ->form([
                         TextInput::make('kode_outlet')
                             ->regex('/^\S+$/')
@@ -867,7 +867,7 @@ class RegisterResource extends Resource
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('reject_noo', $record) && $record->keterangan !== 'LEAD')
+                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('Reject:Register', $record) && $record->keterangan !== 'LEAD')
                     ->schema([
                         Textarea::make('alasan')
                             ->required(),
@@ -898,7 +898,7 @@ class RegisterResource extends Resource
                         ->visible(function (?ListRegisters $livewire = null): bool {
                             $activeTab = $livewire?->activeTab;
 
-                            return Gate::allows('approve_noo') && $activeTab === 'confirmed';
+                            return Gate::allows('Approve:Register') && $activeTab === 'confirmed';
                         })
                         ->deselectRecordsAfterCompletion()
                         ->action(function (Collection $records): void {
@@ -951,7 +951,7 @@ class RegisterResource extends Resource
                         ->visible(function (?ListRegisters $livewire = null): bool {
                             $activeTab = $livewire?->activeTab;
 
-                            return Gate::allows('reject_noo') && in_array($activeTab, ['pending', 'confirmed'], true);
+                            return Gate::allows('Reject:Register') && in_array($activeTab, ['pending', 'confirmed'], true);
                         })
                         ->form([
                             Textarea::make('alasan')

@@ -222,7 +222,7 @@ class OutletsRelationManager extends RelationManager
                         return $query;
                     }),
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['restore_any_visit', 'force_delete_any_visit'], Outlet::class)),
+                    ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Outlet::class)),
 
             ], layout: FiltersLayout::Modal)
             ->filtersFormWidth(Width::Large)
@@ -273,7 +273,7 @@ class OutletsRelationManager extends RelationManager
                                 ]);
                             }
                         })
-                        ->authorize(fn () => Gate::allows('reset_any_outlet')),
+                        ->authorize(fn () => Gate::allows('Reset:Outlet')),
                 ]),
             ]);
     }

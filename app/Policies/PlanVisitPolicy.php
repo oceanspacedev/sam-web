@@ -1,45 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\PlanVisit;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class PlanVisitPolicy
 {
-    public function viewAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('view_any_plan::visit');
+        return $authUser->can('ViewAny:PlanVisit');
     }
 
-    public function view(User $user, PlanVisit $planVisit): bool
+    public function view(AuthUser $authUser, PlanVisit $planVisit): bool
     {
-        return Gate::allows('view_plan::visit');
+        return $authUser->can('View:PlanVisit');
     }
 
-    public function create(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('create_plan::visit');
+        return $authUser->can('Create:PlanVisit');
     }
 
-    public function update(User $user, PlanVisit $planVisit): bool
+    public function update(AuthUser $authUser, PlanVisit $planVisit): bool
     {
-        return Gate::allows('update_plan::visit');
+        return $authUser->can('Update:PlanVisit');
     }
 
-    public function delete(User $user, PlanVisit $planVisit): bool
+    public function delete(AuthUser $authUser, PlanVisit $planVisit): bool
     {
-        return Gate::allows('delete_plan::visit');
+        return $authUser->can('Delete:PlanVisit');
     }
 
-    public function deleteAny(User $user): bool
+    public function restore(AuthUser $authUser, PlanVisit $planVisit): bool
     {
-        return Gate::allows('delete_any_plan::visit');
+        return $authUser->can('Restore:PlanVisit');
     }
 
-    public function export(User $user): bool
+    public function forceDelete(AuthUser $authUser, PlanVisit $planVisit): bool
     {
-        return Gate::allows('export_plan::visit');
+        return $authUser->can('ForceDelete:PlanVisit');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:PlanVisit');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:PlanVisit');
+    }
+
+    public function replicate(AuthUser $authUser, PlanVisit $planVisit): bool
+    {
+        return $authUser->can('Replicate:PlanVisit');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:PlanVisit');
     }
 }

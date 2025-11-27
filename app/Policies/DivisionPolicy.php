@@ -1,40 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Division;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class DivisionPolicy
 {
-    public function viewAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('view_any_division');
+        return $authUser->can('ViewAny:Division');
     }
 
-    public function view(User $user, Division $division): bool
+    public function view(AuthUser $authUser, Division $division): bool
     {
-        return Gate::allows('view_division');
+        return $authUser->can('View:Division');
     }
 
-    public function create(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('create_division');
+        return $authUser->can('Create:Division');
     }
 
-    public function update(User $user, Division $division): bool
+    public function update(AuthUser $authUser, Division $division): bool
     {
-        return Gate::allows('update_division');
+        return $authUser->can('Update:Division');
     }
 
-    public function deleteAny(User $user): bool
+    public function delete(AuthUser $authUser, Division $division): bool
     {
-        return Gate::allows('delete_any_division');
+        return $authUser->can('Delete:Division');
     }
 
-    public function delete(User $user, Division $division): bool
+    public function restore(AuthUser $authUser, Division $division): bool
     {
-        return Gate::allows('delete_division');
+        return $authUser->can('Restore:Division');
+    }
+
+    public function forceDelete(AuthUser $authUser, Division $division): bool
+    {
+        return $authUser->can('ForceDelete:Division');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Division');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Division');
+    }
+
+    public function replicate(AuthUser $authUser, Division $division): bool
+    {
+        return $authUser->can('Replicate:Division');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Division');
     }
 }

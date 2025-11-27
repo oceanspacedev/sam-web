@@ -1,42 +1,69 @@
 <?php
 
-namespace App\Policies;
+declare(strict_types=1);
 
 namespace App\Policies;
 
 use App\Models\Cluster;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class ClusterPolicy
 {
-    public function viewAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('view_any_cluster');
+        return $authUser->can('ViewAny:Cluster');
     }
 
-    public function view(User $user, Cluster $cluster): bool
+    public function view(AuthUser $authUser, Cluster $cluster): bool
     {
-        return Gate::allows('view_cluster');
+        return $authUser->can('View:Cluster');
     }
 
-    public function create(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('create_cluster');
+        return $authUser->can('Create:Cluster');
     }
 
-    public function update(User $user, Cluster $cluster): bool
+    public function update(AuthUser $authUser, Cluster $cluster): bool
     {
-        return Gate::allows('update_cluster');
+        return $authUser->can('Update:Cluster');
     }
 
-    public function deleteAny(User $user): bool
+    public function delete(AuthUser $authUser, Cluster $cluster): bool
     {
-        return Gate::allows('delete_any_cluster');
+        return $authUser->can('Delete:Cluster');
     }
 
-    public function delete(User $user, Cluster $cluster): bool
+    public function restore(AuthUser $authUser, Cluster $cluster): bool
     {
-        return Gate::allows('delete_cluster');
+        return $authUser->can('Restore:Cluster');
+    }
+
+    public function forceDelete(AuthUser $authUser, Cluster $cluster): bool
+    {
+        return $authUser->can('ForceDelete:Cluster');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Cluster');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Cluster');
+    }
+
+    public function replicate(AuthUser $authUser, Cluster $cluster): bool
+    {
+        return $authUser->can('Replicate:Cluster');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Cluster');
     }
 }

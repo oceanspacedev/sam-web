@@ -1,85 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Register;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class RegisterPolicy
 {
-    public function restoreAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('restore_any_noo');
+        return $authUser->can('ViewAny:Register');
     }
 
-    public function deleteAny(User $user): bool
+    public function view(AuthUser $authUser, Register $register): bool
     {
-        return Gate::allows('delete_any_noo');
+        return $authUser->can('View:Register');
     }
 
-    public function forceDeleteAny(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('force_delete_any_noo');
+        return $authUser->can('Create:Register');
     }
 
-    public function viewAny(User $user): bool
+    public function update(AuthUser $authUser, Register $register): bool
     {
-        return Gate::allows('view_any_noo');
+        return $authUser->can('Update:Register');
     }
 
-    public function view(User $user, Register $register): bool
+    public function delete(AuthUser $authUser, Register $register): bool
     {
-        return Gate::allows('view_noo');
+        return $authUser->can('Delete:Register');
     }
 
-    public function create(User $user): bool
+    public function restore(AuthUser $authUser, Register $register): bool
     {
-        return Gate::allows('create_noo');
+        return $authUser->can('Restore:Register');
     }
 
-    public function update(User $user, Register $register): bool
+    public function forceDelete(AuthUser $authUser, Register $register): bool
     {
-        return Gate::allows('update_noo');
+        return $authUser->can('ForceDelete:Register');
     }
 
-    public function delete(User $user, Register $register): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
-        return Gate::allows('delete_noo');
+        return $authUser->can('ForceDeleteAny:Register');
     }
 
-    public function restore(User $user, Register $register): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
-        return Gate::allows('restore_noo');
+        return $authUser->can('RestoreAny:Register');
     }
 
-    public function forceDelete(User $user, Register $register): bool
+    public function replicate(AuthUser $authUser, Register $register): bool
     {
-        return Gate::allows('force_delete_noo');
+        return $authUser->can('Replicate:Register');
     }
 
-    public function export(User $user): bool
+    public function reorder(AuthUser $authUser): bool
     {
-        return Gate::allows('export_noo');
-    }
-
-    public function confirm(User $user, Register $register)
-    {
-        return Gate::allows('confirm_noo');
-    }
-
-    public function approve(User $user, Register $register)
-    {
-        return Gate::allows('approve_noo');
-    }
-
-    public function reject(User $user, Register $register)
-    {
-        return Gate::allows('reject_noo');
-    }
-
-    public function upgradeNoo(User $user, Register $register)
-    {
-        return Gate::allows('upgrade_noo');
+        return $authUser->can('Reorder:Register');
     }
 }

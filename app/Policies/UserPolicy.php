@@ -2,68 +2,65 @@
 
 namespace App\Policies;
 
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class UserPolicy
 {
-    public function restoreAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('restore_any_user');
+        return $authUser->can('ViewAny:User');
     }
 
-    public function deleteAny(User $user): bool
+    public function view(AuthUser $authUser): bool
     {
-        return Gate::allows('delete_any_user');
+        return $authUser->can('View:User');
     }
 
-    public function forceDeleteAny(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('force_delete_any_user');
+        return $authUser->can('Create:User');
     }
 
-    public function viewAny(User $user): bool
+    public function update(AuthUser $authUser): bool
     {
-        return Gate::allows('view_any_user');
+        return $authUser->can('Update:User');
     }
 
-    public function view(User $user, User $model): bool
+    public function delete(AuthUser $authUser): bool
     {
-        return Gate::allows('view_user');
+        return $authUser->can('Delete:User');
     }
 
-    public function create(User $user): bool
+    public function restore(AuthUser $authUser): bool
     {
-        return Gate::allows('create_user');
+        return $authUser->can('Restore:User');
     }
 
-    public function update(User $user, User $model): bool
+    public function forceDelete(AuthUser $authUser): bool
     {
-        return Gate::allows('update_user');
+        return $authUser->can('ForceDelete:User');
     }
 
-    public function delete(User $user, User $model): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
-        return Gate::allows('delete_user');
+        return $authUser->can('ForceDeleteAny:User');
     }
 
-    public function restore(User $user, User $model): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
-        return Gate::allows('restore_user');
+        return $authUser->can('RestoreAny:User');
     }
 
-    public function forceDelete(User $user, User $model): bool
+    public function replicate(AuthUser $authUser): bool
     {
-        return Gate::allows('force_delete_user');
+        return $authUser->can('Replicate:User');
     }
 
-    public function export(User $user): bool
+    public function reorder(AuthUser $authUser): bool
     {
-        return Gate::allows('export_user');
-    }
-
-    public function import(User $user): bool
-    {
-        return Gate::allows('import_user');
+        return $authUser->can('Reorder:User');
     }
 }

@@ -1,65 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\Visit;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class VisitPolicy
 {
-    public function restoreAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('restore_any_visit');
+        return $authUser->can('ViewAny:Visit');
     }
 
-    public function deleteAny(User $user): bool
+    public function view(AuthUser $authUser, Visit $visit): bool
     {
-        return Gate::allows('delete_any_visit');
+        return $authUser->can('View:Visit');
     }
 
-    public function forceDeleteAny(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('force_delete_any_visit');
+        return $authUser->can('Create:Visit');
     }
 
-    public function viewAny(User $user): bool
+    public function update(AuthUser $authUser, Visit $visit): bool
     {
-        return Gate::allows('view_any_visit');
+        return $authUser->can('Update:Visit');
     }
 
-    public function view(User $user, Visit $visit): bool
+    public function delete(AuthUser $authUser, Visit $visit): bool
     {
-        return Gate::allows('view_visit');
+        return $authUser->can('Delete:Visit');
     }
 
-    public function create(User $user): bool
+    public function restore(AuthUser $authUser, Visit $visit): bool
     {
-        return Gate::allows('create_visit');
+        return $authUser->can('Restore:Visit');
     }
 
-    public function update(User $user, Visit $visit): bool
+    public function forceDelete(AuthUser $authUser, Visit $visit): bool
     {
-        return Gate::allows('update_visit');
+        return $authUser->can('ForceDelete:Visit');
     }
 
-    public function delete(User $user, Visit $visit): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
-        return Gate::allows('delete_visit');
+        return $authUser->can('ForceDeleteAny:Visit');
     }
 
-    public function restore(User $user, Visit $visit): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
-        return Gate::allows('view_any_visit');
+        return $authUser->can('RestoreAny:Visit');
     }
 
-    public function forceDelete(User $user, Visit $visit): bool
+    public function replicate(AuthUser $authUser, Visit $visit): bool
     {
-        return Gate::allows('force_delete_visit');
+        return $authUser->can('Replicate:Visit');
     }
 
-    public function export(User $user): bool
+    public function reorder(AuthUser $authUser): bool
     {
-        return Gate::allows('export_visit');
+        return $authUser->can('Reorder:Visit');
     }
 }

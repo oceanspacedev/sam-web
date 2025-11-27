@@ -36,6 +36,11 @@ class DataOverview extends StatsOverviewWidget implements HasActions
         $this->filter ??= $this->getDefaultFilter();
     }
 
+    public static function canView(): bool
+    {
+        return Gate::allows('View:DataOverview');
+    }
+
     public function getSectionContentComponent(): Component
     {
         return Section::make()

@@ -3,13 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Permission\Models\Role as SpatieRole;
 
-class Role extends Model
+class Role extends SpatieRole
 {
     use HasFactory;
     use SoftDeletes;
@@ -24,6 +23,9 @@ class Role extends Model
         'id',
     ];
 
+    /**
+     * Get the organizational scope level for this role
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_role_id');
@@ -37,11 +39,6 @@ class Role extends Model
     public function user(): HasMany
     {
         return $this->hasMany(User::class);
-    }
-
-    public function permissions(): BelongsToMany
-    {
-        return $this->belongsToMany(Permission::class, 'role_permissions');
     }
 
     /**

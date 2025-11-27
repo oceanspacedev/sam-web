@@ -1,40 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Role;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class RolePolicy
 {
-    public function viewAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('view_any_role');
+        return $authUser->can('ViewAny:Role');
     }
 
-    public function view(User $user, Role $role): bool
+    public function view(AuthUser $authUser, Role $role): bool
     {
-        return Gate::allows('view_role');
+        return $authUser->can('View:Role');
     }
 
-    public function create(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('create_role');
+        return $authUser->can('Create:Role');
     }
 
-    public function update(User $user, Role $role): bool
+    public function update(AuthUser $authUser, Role $role): bool
     {
-        return Gate::allows('update_role');
+        return $authUser->can('Update:Role');
     }
 
-    public function deleteAny(User $user): bool
+    public function delete(AuthUser $authUser, Role $role): bool
     {
-        return Gate::allows('delete_any_role');
+        return $authUser->can('Delete:Role');
     }
 
-    public function delete(User $user, Role $role): bool
+    public function restore(AuthUser $authUser, Role $role): bool
     {
-        return Gate::allows('delete_role');
+        return $authUser->can('Restore:Role');
+    }
+
+    public function forceDelete(AuthUser $authUser, Role $role): bool
+    {
+        return $authUser->can('ForceDelete:Role');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Role');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Role');
+    }
+
+    public function replicate(AuthUser $authUser, Role $role): bool
+    {
+        return $authUser->can('Replicate:Role');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Role');
     }
 }

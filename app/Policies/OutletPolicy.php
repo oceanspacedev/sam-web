@@ -1,70 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Outlet;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class OutletPolicy
 {
-    public function restoreAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('restore_any_outlet');
+        return $authUser->can('ViewAny:Outlet');
     }
 
-    public function deleteAny(User $user): bool
+    public function view(AuthUser $authUser, Outlet $outlet): bool
     {
-        return Gate::allows('delete_any_outlet');
+        return $authUser->can('View:Outlet');
     }
 
-    public function forceDeleteAny(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('force_delete_any_outlet');
+        return $authUser->can('Create:Outlet');
     }
 
-    public function viewAny(User $user): bool
+    public function update(AuthUser $authUser, Outlet $outlet): bool
     {
-        return Gate::allows('view_any_outlet');
+        return $authUser->can('Update:Outlet');
     }
 
-    public function view(User $user, Outlet $outlet): bool
+    public function delete(AuthUser $authUser, Outlet $outlet): bool
     {
-        return Gate::allows('view_outlet');
+        return $authUser->can('Delete:Outlet');
     }
 
-    public function create(User $user): bool
+    public function restore(AuthUser $authUser, Outlet $outlet): bool
     {
-        return Gate::allows('create_outlet');
+        return $authUser->can('Restore:Outlet');
     }
 
-    public function update(User $user, Outlet $outlet): bool
+    public function forceDelete(AuthUser $authUser, Outlet $outlet): bool
     {
-        return Gate::allows('update_outlet');
+        return $authUser->can('ForceDelete:Outlet');
     }
 
-    public function delete(User $user, Outlet $outlet): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
-        return Gate::allows('delete_outlet');
+        return $authUser->can('ForceDeleteAny:Outlet');
     }
 
-    public function restore(User $user, Outlet $outlet): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
-        return Gate::allows('restore_outlet');
+        return $authUser->can('RestoreAny:Outlet');
     }
 
-    public function forceDelete(User $user, Outlet $outlet): bool
+    public function replicate(AuthUser $authUser, Outlet $outlet): bool
     {
-        return Gate::allows('force_delete_outlet');
+        return $authUser->can('Replicate:Outlet');
     }
 
-    public function exportAll(User $user): bool
+    public function reorder(AuthUser $authUser): bool
     {
-        return Gate::allows('export_outlet');
-    }
-
-    public function resetAny(User $user): bool
-    {
-        return Gate::allows('reset_any_outlet');
+        return $authUser->can('Reorder:Outlet');
     }
 }

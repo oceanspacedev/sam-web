@@ -1,40 +1,69 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Region;
-use App\Models\User;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class RegionPolicy
 {
-    public function viewAny(User $user): bool
+    use HandlesAuthorization;
+
+    public function viewAny(AuthUser $authUser): bool
     {
-        return Gate::allows('view_any_region');
+        return $authUser->can('ViewAny:Region');
     }
 
-    public function view(User $user, Region $region): bool
+    public function view(AuthUser $authUser, Region $region): bool
     {
-        return Gate::allows('view_region');
+        return $authUser->can('View:Region');
     }
 
-    public function create(User $user): bool
+    public function create(AuthUser $authUser): bool
     {
-        return Gate::allows('create_region');
+        return $authUser->can('Create:Region');
     }
 
-    public function update(User $user, Region $region): bool
+    public function update(AuthUser $authUser, Region $region): bool
     {
-        return Gate::allows('update_region');
+        return $authUser->can('Update:Region');
     }
 
-    public function deleteAny(User $user): bool
+    public function delete(AuthUser $authUser, Region $region): bool
     {
-        return Gate::allows('delete_any_region');
+        return $authUser->can('Delete:Region');
     }
 
-    public function delete(User $user, Region $region): bool
+    public function restore(AuthUser $authUser, Region $region): bool
     {
-        return Gate::allows('delete_region');
+        return $authUser->can('Restore:Region');
+    }
+
+    public function forceDelete(AuthUser $authUser, Region $region): bool
+    {
+        return $authUser->can('ForceDelete:Region');
+    }
+
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:Region');
+    }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:Region');
+    }
+
+    public function replicate(AuthUser $authUser, Region $region): bool
+    {
+        return $authUser->can('Replicate:Region');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:Region');
     }
 }

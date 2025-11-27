@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Division;
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Illuminate\Foundation\Auth\User as AuthUser;
 
 class DivisionPolicy
 {
     use HandlesAuthorization;
-
-    public function viewAny(AuthUser $authUser): bool
+    
+    public function viewAny(AuthUser $authUser, Division $division): bool
     {
         return $authUser->can('ViewAny:Division');
     }
@@ -22,7 +22,7 @@ class DivisionPolicy
         return $authUser->can('View:Division');
     }
 
-    public function create(AuthUser $authUser): bool
+    public function create(AuthUser $authUser, Division $division): bool
     {
         return $authUser->can('Create:Division');
     }
@@ -47,23 +47,14 @@ class DivisionPolicy
         return $authUser->can('ForceDelete:Division');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
+    public function forceDeleteAny(AuthUser $authUser, Division $division): bool
     {
         return $authUser->can('ForceDeleteAny:Division');
     }
 
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Division $division): bool
     {
         return $authUser->can('RestoreAny:Division');
     }
 
-    public function replicate(AuthUser $authUser, Division $division): bool
-    {
-        return $authUser->can('Replicate:Division');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Division');
-    }
 }

@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\PlanVisit;
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Illuminate\Foundation\Auth\User as AuthUser;
 
 class PlanVisitPolicy
 {
     use HandlesAuthorization;
-
-    public function viewAny(AuthUser $authUser): bool
+    
+    public function viewAny(AuthUser $authUser, PlanVisit $planVisit): bool
     {
         return $authUser->can('ViewAny:PlanVisit');
     }
@@ -22,7 +22,7 @@ class PlanVisitPolicy
         return $authUser->can('View:PlanVisit');
     }
 
-    public function create(AuthUser $authUser): bool
+    public function create(AuthUser $authUser, PlanVisit $planVisit): bool
     {
         return $authUser->can('Create:PlanVisit');
     }
@@ -47,23 +47,19 @@ class PlanVisitPolicy
         return $authUser->can('ForceDelete:PlanVisit');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
+    public function forceDeleteAny(AuthUser $authUser, PlanVisit $planVisit): bool
     {
         return $authUser->can('ForceDeleteAny:PlanVisit');
     }
 
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, PlanVisit $planVisit): bool
     {
         return $authUser->can('RestoreAny:PlanVisit');
     }
 
-    public function replicate(AuthUser $authUser, PlanVisit $planVisit): bool
+    public function export(AuthUser $authUser, PlanVisit $planVisit): bool
     {
-        return $authUser->can('Replicate:PlanVisit');
+        return $authUser->can('Export:PlanVisit');
     }
 
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:PlanVisit');
-    }
 }

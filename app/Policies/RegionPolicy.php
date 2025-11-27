@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Region;
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Illuminate\Foundation\Auth\User as AuthUser;
 
 class RegionPolicy
 {
     use HandlesAuthorization;
-
-    public function viewAny(AuthUser $authUser): bool
+    
+    public function viewAny(AuthUser $authUser, Region $region): bool
     {
         return $authUser->can('ViewAny:Region');
     }
@@ -22,7 +22,7 @@ class RegionPolicy
         return $authUser->can('View:Region');
     }
 
-    public function create(AuthUser $authUser): bool
+    public function create(AuthUser $authUser, Region $region): bool
     {
         return $authUser->can('Create:Region');
     }
@@ -47,23 +47,14 @@ class RegionPolicy
         return $authUser->can('ForceDelete:Region');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
+    public function forceDeleteAny(AuthUser $authUser, Region $region): bool
     {
         return $authUser->can('ForceDeleteAny:Region');
     }
 
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Region $region): bool
     {
         return $authUser->can('RestoreAny:Region');
     }
 
-    public function replicate(AuthUser $authUser, Region $region): bool
-    {
-        return $authUser->can('Replicate:Region');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Region');
-    }
 }

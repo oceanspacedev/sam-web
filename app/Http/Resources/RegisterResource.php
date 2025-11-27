@@ -82,6 +82,28 @@ class RegisterResource extends JsonResource
             'divisi' => $this->whenLoaded('divisi', function () {
                 return $this->divisi ? $this->divisi->only(['id', 'name']) : null;
             }),
+
+            // SDUI: Actions based on user permissions
+            'actions' => $this->getActions($request),
+        ];
+    }
+
+    protected function getActions($request): array
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return [
+                'can_confirm' => false,
+                'can_reject' => false,
+                'can_approve' => false,
+            ];
+        }
+
+        return [
+            'can_confirm' => $user->can('confirm', $this->resource),
+            'can_reject' => $user->can('reject', $this->resource),
+            'can_approve' => $user->can('approve', $this->resource),
         ];
     }
 }

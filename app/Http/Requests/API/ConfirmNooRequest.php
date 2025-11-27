@@ -10,7 +10,13 @@ class ConfirmNooRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $register = Register::find($this->id);
+        
+        if (!$register) {
+            return false;
+        }
+        
+        return $this->user()->can('confirm', $register);
     }
 
     public function rules(): array

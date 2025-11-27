@@ -2,13 +2,20 @@
 
 namespace App\Http\Requests\API;
 
+use App\Models\Register;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RejectNooRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $register = Register::find($this->id);
+        
+        if (!$register) {
+            return false;
+        }
+        
+        return $this->user()->can('reject', $register);
     }
 
     public function rules(): array

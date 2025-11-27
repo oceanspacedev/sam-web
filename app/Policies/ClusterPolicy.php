@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Cluster;
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Illuminate\Foundation\Auth\User as AuthUser;
 
 class ClusterPolicy
 {
     use HandlesAuthorization;
-
-    public function viewAny(AuthUser $authUser): bool
+    
+    public function viewAny(AuthUser $authUser, Cluster $cluster): bool
     {
         return $authUser->can('ViewAny:Cluster');
     }
@@ -22,7 +22,7 @@ class ClusterPolicy
         return $authUser->can('View:Cluster');
     }
 
-    public function create(AuthUser $authUser): bool
+    public function create(AuthUser $authUser, Cluster $cluster): bool
     {
         return $authUser->can('Create:Cluster');
     }
@@ -47,23 +47,14 @@ class ClusterPolicy
         return $authUser->can('ForceDelete:Cluster');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
+    public function forceDeleteAny(AuthUser $authUser, Cluster $cluster): bool
     {
         return $authUser->can('ForceDeleteAny:Cluster');
     }
 
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, Cluster $cluster): bool
     {
         return $authUser->can('RestoreAny:Cluster');
     }
 
-    public function replicate(AuthUser $authUser, Cluster $cluster): bool
-    {
-        return $authUser->can('Replicate:Cluster');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:Cluster');
-    }
 }

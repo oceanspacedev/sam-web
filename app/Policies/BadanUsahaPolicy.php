@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\BadanUsaha;
 use Illuminate\Auth\Access\HandlesAuthorization;
-use Illuminate\Foundation\Auth\User as AuthUser;
 
 class BadanUsahaPolicy
 {
     use HandlesAuthorization;
-
-    public function viewAny(AuthUser $authUser): bool
+    
+    public function viewAny(AuthUser $authUser, BadanUsaha $badanUsaha): bool
     {
         return $authUser->can('ViewAny:BadanUsaha');
     }
@@ -22,7 +22,7 @@ class BadanUsahaPolicy
         return $authUser->can('View:BadanUsaha');
     }
 
-    public function create(AuthUser $authUser): bool
+    public function create(AuthUser $authUser, BadanUsaha $badanUsaha): bool
     {
         return $authUser->can('Create:BadanUsaha');
     }
@@ -47,23 +47,14 @@ class BadanUsahaPolicy
         return $authUser->can('ForceDelete:BadanUsaha');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
+    public function forceDeleteAny(AuthUser $authUser, BadanUsaha $badanUsaha): bool
     {
         return $authUser->can('ForceDeleteAny:BadanUsaha');
     }
 
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(AuthUser $authUser, BadanUsaha $badanUsaha): bool
     {
         return $authUser->can('RestoreAny:BadanUsaha');
     }
 
-    public function replicate(AuthUser $authUser, BadanUsaha $badanUsaha): bool
-    {
-        return $authUser->can('Replicate:BadanUsaha');
-    }
-
-    public function reorder(AuthUser $authUser): bool
-    {
-        return $authUser->can('Reorder:BadanUsaha');
-    }
 }

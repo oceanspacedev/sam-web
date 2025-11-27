@@ -22,7 +22,7 @@ class SubmitNooRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'nama_outlet' => ['required', 'string', 'max:255'],
             'alamat_outlet' => ['required', 'string'],
             'nama_pemilik' => ['required', 'string', 'max:255'],
@@ -45,6 +45,32 @@ class SubmitNooRequest extends FormRequest
             'reg' => ['nullable', 'string', 'max:255'],
             'div' => ['nullable', 'string', 'max:255'],
             'bu' => ['nullable', 'string', 'max:255'],
+        ];
+
+        for ($i = 0; $i <= 4; $i++) {
+            $rules["photo{$i}"] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+        }
+
+        $rules['video'] = ['nullable', 'file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
+
+        return $rules;
+    }
+
+    public function messages(): array
+    {
+        return [
+            'nama_outlet.required' => 'Nama outlet wajib diisi',
+            'alamat_outlet.required' => 'Alamat outlet wajib diisi',
+            'nama_pemilik.required' => 'Nama pemilik wajib diisi',
+            'nomer_pemilik.required' => 'Nomor pemilik wajib diisi',
+            'ktpnpwp.required' => 'KTP/NPWP wajib diisi',
+            'distric.required' => 'District wajib diisi',
+            'latlong.required' => 'Lokasi wajib diisi',
+            'photo*.image' => 'File harus berupa gambar',
+            'photo*.mimes' => 'Format gambar harus jpg, jpeg, atau png',
+            'photo*.max' => 'Ukuran gambar maksimal 3MB',
+            'video.mimetypes' => 'Format video harus mp4, quicktime, atau webm',
+            'video.max' => 'Ukuran video maksimal 50MB',
         ];
     }
 }

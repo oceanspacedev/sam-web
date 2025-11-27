@@ -5,8 +5,12 @@ namespace App\Http\Controllers\API;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\API\ApproveNooRequest;
+use App\Http\Requests\API\ConfirmNooRequest;
+use App\Http\Requests\API\RejectNooRequest;
 use App\Http\Requests\API\SubmitLeadRequest;
 use App\Http\Requests\API\SubmitNooRequest;
+use App\Http\Requests\API\UpgradeLeadRequest;
 use App\Http\Resources\RegisterResource;
 use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
@@ -215,29 +219,14 @@ class RegisterController extends Controller
         }
     }
 
-    public function upgradeLead(Request $request)
+    public function upgradeLead(UpgradeLeadRequest $request)
     {
         try {
-            $baseRules = [
-                'id' => ['required'],
-                'noktp' => ['required'],
-            ];
-            $fileRules = [];
-            if ($request->hasFile('photo')) {
-                $fileRules['photo'] = ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
-            }
-            $request->validate(array_merge($baseRules, $fileRules));
-
             $lead = Register::find($request->id);
-            if ($request->hasFile('photo')) {
-                $file = $request->file('photo');
-                if (! $file->isValid()) {
-                    return ResponseFormatter::error('File KTP tidak valid', 'INVALID_FILE', 422);
-                }
+            $file = $request->file('photo');
 
-                $path = $this->fileUpload->uploadImageOptimized($file, 'register-ktp');
-                $lead['poto_ktp'] = $path;
-            }
+            $path = $this->fileUpload->uploadImageOptimized($file, 'register-ktp');
+            $lead['poto_ktp'] = $path;
             $lead['ktp_outlet'] = $request->noktp;
             $lead['keterangan'] = null;
             $lead->update();
@@ -264,8 +253,15 @@ class RegisterController extends Controller
                 'data' => null,
                 'errors' => null,
             ]);
+        } catch (RuntimeException $e) {
+            return ResponseFormatter::error(['error' => $e->getMessage()], 'INVALID_FILE', 422);
         } catch (Exception $e) {
-            return ResponseFormatter::error($e->getMessage(), $e->getMessage());
+            Log::channel('lead')->error('Upgrade lead failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat upgrade lead'], 'ERROR', 500);
         }
     }
 
@@ -457,20 +453,6 @@ class RegisterController extends Controller
                 'cluster_id' => $hierarchy['cluster_id'],
             ];
 
-            // Validasi dinamis
-            $rules = [];
-            for ($i = 0; $i <= 4; $i++) {
-                if ($request->hasFile('photo'.$i)) {
-                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
-                }
-            }
-            if ($request->hasFile('video')) {
-                $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200']; // 50MB
-            }
-            if (! empty($rules)) {
-                $request->validate($rules);
-            }
-
             // Queue photo uploads for background processing
             for ($i = 0; $i <= 4; $i++) {
                 $file = $request->file('photo'.$i);
@@ -585,17 +567,9 @@ class RegisterController extends Controller
         }
     }
 
-    public function confirmNoo(Request $request)
+    public function confirmNoo(ConfirmNooRequest $request)
     {
         try {
-
-            $request->validate([
-                'id' => ['required'],
-                'status' => ['required'],
-                'limit' => ['required'],
-                'kode_outlet' => ['required'],
-            ]);
-
             $register = Register::findOrFail($request->id);
             $register->status = $request->status;
             $register->limit = $request->limit;
@@ -625,9 +599,12 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            error_log($e);
+            Log::channel('noo')->error('Confirm NOO failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
 
-            return ResponseFormatter::error($e, 'gagal');
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat confirm NOO'], 'ERROR', 500);
         }
     }
 
@@ -648,15 +625,9 @@ class RegisterController extends Controller
         }
     }
 
-    public function approveNoo(Request $request)
+    public function approveNoo(ApproveNooRequest $request)
     {
         try {
-
-            $request->validate([
-                'id' => ['required'],
-                'status' => ['required'],
-            ]);
-
             $register = Register::find($request->id);
             $register->status = $request->status;
             $register->approved_by = Auth::user()->nama_lengkap;
@@ -728,21 +699,18 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            error_log($e);
+            Log::channel('noo')->error('Approve NOO failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
 
-            return ResponseFormatter::error($e, 'gagal');
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat approve NOO'], 'ERROR', 500);
         }
     }
 
-    public function rejectNoo(Request $request)
+    public function rejectNoo(RejectNooRequest $request)
     {
         try {
-            $request->validate([
-                'id' => ['required'],
-                'status' => ['required'],
-                'alasan' => ['required'],
-            ]);
-
             $register = Register::findOrFail($request->id);
             $register->status = $request->status;
             $register->keterangan = $request->alasan;
@@ -767,7 +735,12 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            return ResponseFormatter::error($e, 'gagal');
+            Log::channel('noo')->error('Reject NOO failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat reject NOO'], 'ERROR', 500);
         }
     }
 
@@ -826,25 +799,31 @@ class RegisterController extends Controller
         }
     }
 
-    public function singleOutlet(Request $request, $kodeOutlet)
+    public function show(Request $request, int $id)
     {
-        // dd($request->all());
         try {
-            $register = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])
-                ->where('id', $kodeOutlet)
-                ->get();
+            $user = Auth::user();
 
-            return response()->json([
+            $register = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])
+                ->visibleTo($user)
+                ->findOrFail($id);
+
+            return (new RegisterResource($register))->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
                     'message' => 'berhasil',
                 ],
-                'data' => $register,
                 'errors' => null,
             ]);
         } catch (Exception $err) {
-            return ResponseFormatter::error(null, 'ada kesalahan');
+            Log::channel('noo')->warning('Register show failed', [
+                'user_id' => Auth::id(),
+                'register_id' => $id,
+                'error' => $err->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(null, 'Register tidak ditemukan', 404);
         }
     }
 

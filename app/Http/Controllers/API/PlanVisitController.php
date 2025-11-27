@@ -4,6 +4,8 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\API\DeletePlanVisitRequest;
+use App\Http\Requests\API\StorePlanVisitRequest;
 use App\Http\Resources\PlanVisitResource;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
@@ -200,7 +202,7 @@ class PlanVisitController extends Controller
         }
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StorePlanVisitRequest $request): JsonResponse
     {
         try {
             $user = Auth::user();
@@ -211,11 +213,6 @@ class PlanVisitController extends Controller
                     'tanggal_visit' => $request->tanggal_visit,
                     'outlet_id' => $request->outlet_id,
                 ],
-            ]);
-
-            $request->validate([
-                'tanggal_visit' => ['required', 'date'],
-                'outlet_id' => ['required', 'integer'],
             ]);
 
             $outlet = Outlet::visibleTo($user)->find($request->outlet_id);
@@ -231,16 +228,6 @@ class PlanVisitController extends Controller
 
             $periodStart = Carbon::parse($request->tanggal_visit)->startOfDay();
             $schedulePayload = PlanVisit::schedulePayload($periodStart, 'daily');
-
-            if (Carbon::now()->gt($periodStart->copy()->subDays(3))) {
-                Log::channel('planvisit')->warning('Plan visit add failed: H-3 deadline passed', [
-                    'user_id' => $user->id,
-                    'outlet_id' => $outlet->id,
-                    'tanggal_visit' => $schedulePayload['period_start'],
-                ]);
-
-                return ResponseFormatter::error(null, 'Tidak bisa menambahkan plan visit kurang dari h-3 visit');
-            }
 
             $existingPlan = PlanVisit::query()
                 ->where('user_id', $user->id)
@@ -282,11 +269,16 @@ class PlanVisitController extends Controller
                 'errors' => null,
             ])->response();
         } catch (Exception $e) {
-            return ResponseFormatter::error(null, $e->getMessage());
+            Log::channel('planvisit')->error('Plan visit add failed', [
+                'user_id' => $user->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat menambahkan plan visit'], 'ERROR', 500);
         }
     }
 
-    public function delete(Request $request): JsonResponse
+    public function delete(DeletePlanVisitRequest $request): JsonResponse
     {
         try {
             $user = Auth::user();
@@ -298,12 +290,6 @@ class PlanVisitController extends Controller
                     'tahun' => $request->tahun,
                     'outlet_id' => $request->outlet_id,
                 ],
-            ]);
-
-            $validation = $request->validate([
-                'bulan' => 'required',
-                'tahun' => 'required',
-                'outlet_id' => 'required|integer',
             ]);
 
             $outlet = Outlet::visibleTo($user)->find($request->outlet_id);
@@ -347,10 +333,6 @@ class PlanVisitController extends Controller
                 return ResponseFormatter::error(null, 'Plan visit tidak ditemukan', 404);
             }
 
-            if (! $validation) {
-                return ResponseFormatter::error(null, $validation, 422);
-            }
-
             $delete = PlanVisit::where('outlet_id', $outlet->id)
                 ->where('user_id', $user->id)
                 ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
@@ -375,7 +357,7 @@ class PlanVisitController extends Controller
                     'tahun' => $request->tahun,
                 ]);
 
-                return ResponseFormatter::error(null, $validation, 422);
+                return ResponseFormatter::error(null, 'Gagal menghapus plan visit', 422);
             }
 
             Log::channel('planvisit')->info('Plan visit delete success', [
@@ -396,9 +378,12 @@ class PlanVisitController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            error_log($e);
+            Log::channel('planvisit')->error('Plan visit delete failed', [
+                'user_id' => $user->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
 
-            return ResponseFormatter::error(null, $e->getMessage(), 422);
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat menghapus plan visit'], 'ERROR', 500);
         }
     }
 }

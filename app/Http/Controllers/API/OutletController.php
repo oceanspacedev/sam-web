@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\API\UpdateOutletRequest;
 use App\Http\Resources\OutletResource;
 use App\Models\Outlet;
 use App\Services\FileUploadService;
@@ -14,7 +15,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class OutletController extends Controller
@@ -134,7 +134,7 @@ class OutletController extends Controller
         }
     }
 
-    public function update(Request $request, int $id)
+    public function update(UpdateOutletRequest $request, int $id)
     {
         try {
             $user = Auth::user();
@@ -143,33 +143,6 @@ class OutletController extends Controller
                 'user_id' => $user->id,
                 'outlet_id' => $id,
             ]);
-
-            // Validasi dasar field non-file
-            $baseRules = [
-                'nama_pemilik_outlet' => ['required'],
-                'nomer_tlp_outlet' => ['required'],
-                'latlong' => ['required'],
-            ];
-
-            // Kumpulkan file yang ada untuk validasi dinamis
-            $dynamicRules = [];
-            // Dukungan skema lama: photo0..photo4
-            for ($i = 0; $i <= 4; $i++) {
-                if ($request->hasFile('photo'.$i)) {
-                    $dynamicRules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072']; // 3MB
-                }
-            }
-            // Dukungan skema baru: photos[]
-            if ($request->hasFile('photos')) {
-                $dynamicRules['photos'] = ['array'];
-                $dynamicRules['photos.*'] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
-            }
-            // Video opsional
-            if ($request->hasFile('video')) {
-                $dynamicRules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200']; // 50MB
-            }
-
-            $request->validate(array_merge($baseRules, $dynamicRules));
 
             $outlet = Outlet::visibleTo($user)->where('id', $id)->first();
             if (! $outlet) {
@@ -272,12 +245,14 @@ class OutletController extends Controller
                 ],
                 'errors' => null,
             ]);
-        } catch (ValidationException $e) {
-            return ResponseFormatter::error($e->errors(), 'VALIDATION_ERROR', 422);
         } catch (Exception $e) {
-            error_log($e->getMessage());
+            Log::channel('outlet')->error('Outlet update failed', [
+                'user_id' => $user->id ?? null,
+                'outlet_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
 
-            return ResponseFormatter::error(null, $e->getMessage(), 400);
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat update outlet'], 'ERROR', 500);
         }
     }
 

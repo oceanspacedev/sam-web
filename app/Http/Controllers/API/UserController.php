@@ -6,6 +6,7 @@ use App\Actions\Fortify\PasswordValidationRules;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\LoginRequest;
+use App\Http\Requests\API\StoreUserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Exception;
@@ -91,43 +92,10 @@ class UserController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
         try {
             $user = Auth::user();
-
-            // Validate basic fields
-            $request->validate([
-                'username' => 'required|string|unique:users,username|max:255|regex:/^\S*$/|alpha_dash',
-                'nama_lengkap' => 'required|string|max:255',
-                'password' => 'required|string|min:8',
-                'role_id' => 'required|integer|exists:roles,id',
-                'badanusaha_ids' => 'nullable|array',
-                'divisi_ids' => 'nullable|array',
-                'region_ids' => 'nullable|array',
-                'cluster_ids' => 'nullable|array',
-                'id_notif' => 'nullable|string',
-            ], [
-                'username.regex' => 'Username tidak boleh mengandung spasi',
-                'username.alpha_dash' => 'Username hanya boleh huruf, angka, dash dan underscore',
-            ]);
-
-            $targetRole = \App\Models\Role::find($request->role_id);
-            $scopeLevel = $targetRole->organizational_scope_level;
-
-            // Validate org fields based on scope
-            if (in_array($scopeLevel, ['badanusaha', 'divisi', 'region', 'cluster']) && empty($request->badanusaha_ids)) {
-                return ResponseFormatter::error(['badanusaha_ids' => ['Required for this role']], 'Validation error', 422);
-            }
-            if (in_array($scopeLevel, ['divisi', 'region', 'cluster']) && empty($request->divisi_ids)) {
-                return ResponseFormatter::error(['divisi_ids' => ['Required for this role']], 'Validation error', 422);
-            }
-            if (in_array($scopeLevel, ['region', 'cluster']) && empty($request->region_ids)) {
-                return ResponseFormatter::error(['region_ids' => ['Required for this role']], 'Validation error', 422);
-            }
-            if ($scopeLevel === 'cluster' && empty($request->cluster_ids)) {
-                return ResponseFormatter::error(['cluster_ids' => ['Required for this role']], 'Validation error', 422);
-            }
 
             // Create user
             $newUser = User::create([
@@ -164,10 +132,8 @@ class UserController extends Controller
                 'data' => ['user' => new UserResource($newUser)],
                 'errors' => null,
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ResponseFormatter::error($e->errors(), 'Validation error', 422);
         } catch (Exception $e) {
-            return ResponseFormatter::error(['error' => $e->getMessage()], 'ERROR', 500);
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat membuat user'], 'ERROR', 500);
         }
     }
 }

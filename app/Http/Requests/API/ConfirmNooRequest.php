@@ -1,0 +1,61 @@
+<?php
+
+namespace App\Http\Requests\API;
+
+use App\Models\Outlet;
+use App\Models\Register;
+use Illuminate\Foundation\Http\FormRequest;
+
+class ConfirmNooRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'id' => ['required', 'integer', 'exists:registers,id'],
+            'status' => ['required', 'string', 'in:CONFIRMED,PENDING'],
+            'limit' => ['required', 'integer', 'min:0'],
+            'kode_outlet' => [
+                'required',
+                'string',
+                'max:50',
+                'regex:/^\S+$/',
+                function ($attribute, $value, $fail) {
+                    $register = Register::find($this->id);
+
+                    if (! $register) {
+                        return;
+                    }
+
+                    $exists = Outlet::where('kode_outlet', $value)
+                        ->where('divisi_id', $register->divisi_id)
+                        ->exists();
+
+                    if ($exists) {
+                        $fail("Kode outlet {$value} sudah digunakan di divisi ini.");
+                    }
+                },
+            ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'id.required' => 'ID register wajib diisi',
+            'id.exists' => 'Data register tidak ditemukan',
+            'status.required' => 'Status wajib diisi',
+            'status.in' => 'Status tidak valid',
+            'limit.required' => 'Limit wajib diisi',
+            'limit.integer' => 'Limit harus berupa angka',
+            'limit.min' => 'Limit minimal 0',
+            'kode_outlet.required' => 'Kode outlet wajib diisi',
+            'kode_outlet.max' => 'Kode outlet maksimal 50 karakter',
+            'kode_outlet.regex' => 'Kode outlet tidak boleh mengandung spasi',
+        ];
+    }
+}

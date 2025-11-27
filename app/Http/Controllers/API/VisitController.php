@@ -5,6 +5,8 @@ namespace App\Http\Controllers\API;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\API\CheckinVisitRequest;
+use App\Http\Requests\API\CheckoutVisitRequest;
 use App\Http\Resources\VisitResource;
 use App\Models\Outlet;
 use App\Models\Visit;
@@ -260,7 +262,7 @@ class VisitController extends Controller
         }
     }
 
-    public function checkin(Request $request)
+    public function checkin(CheckinVisitRequest $request)
     {
         $temporaryFiles = [];
         $mediaQueue = [];
@@ -283,14 +285,6 @@ class VisitController extends Controller
                 );
             }
 
-            // Validate request
-            $request->validate([
-                'outlet_id' => 'required|integer',
-                'picture_visit' => 'required|file|image|mimes:jpg,jpeg,png|max:3072',
-                'latlong_in' => 'required|string',
-                'tipe_visit' => 'required',
-            ]);
-
             // Find outlet with organizational filtering
             $outlet = Outlet::visibleTo($user)
                 ->where('id', $request->outlet_id)
@@ -305,32 +299,21 @@ class VisitController extends Controller
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
-            // Validate and store photo
-            if (! $request->hasFile('picture_visit') || ! $request->file('picture_visit')->isValid()) {
-                return ResponseFormatter::error('File gambar tidak valid', 'INVALID_FILE', 422);
-            }
-
             $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
             $imageName = date('Y-m-d').'-'.$user->username.'-IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
 
-            try {
-                $temporaryPath = $this->fileUpload->storeTemporary(
-                    $request->file('picture_visit'),
-                    'tmp',
-                    ['filename' => $imageName]
-                );
-                $temporaryFiles[] = $temporaryPath;
-                $mediaQueue[] = [
-                    'field' => 'picture_visit_in',
-                    'tmp_path' => $temporaryPath,
-                    'type' => 'visit-in',
-                    'filename' => $imageName,
-                ];
-            } catch (RuntimeException $e) {
-                $this->cleanupTemporaryFiles($temporaryFiles);
-
-                return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
-            }
+            $temporaryPath = $this->fileUpload->storeTemporary(
+                $request->file('picture_visit'),
+                'tmp',
+                ['filename' => $imageName]
+            );
+            $temporaryFiles[] = $temporaryPath;
+            $mediaQueue[] = [
+                'field' => 'picture_visit_in',
+                'tmp_path' => $temporaryPath,
+                'type' => 'visit-in',
+                'filename' => $imageName,
+            ];
 
             // Create visit
             $visit = Visit::create([
@@ -361,16 +344,27 @@ class VisitController extends Controller
                 'data' => new VisitResource($visit),
                 'errors' => null,
             ], 201);
+        } catch (RuntimeException $e) {
+            if (! $mediaDispatched) {
+                $this->cleanupTemporaryFiles($temporaryFiles);
+            }
+
+            return ResponseFormatter::error(['error' => $e->getMessage()], 'INVALID_FILE', 422);
         } catch (Exception $error) {
             if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
 
-            return ResponseFormatter::error(['error' => $error->getMessage()], 'error', 500);
+            Log::channel('visit')->error('Visit check-in failed', [
+                'user_id' => $user->id ?? null,
+                'error' => $error->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat check-in'], 'ERROR', 500);
         }
     }
 
-    public function checkout(Request $request, int $id)
+    public function checkout(CheckoutVisitRequest $request, int $id)
     {
         $temporaryFiles = [];
         $mediaQueue = [];
@@ -378,14 +372,6 @@ class VisitController extends Controller
 
         try {
             $user = Auth::user();
-
-            // Validate request
-            $request->validate([
-                'latlong_out' => 'required',
-                'laporan_visit' => 'required',
-                'picture_visit' => 'required|file|image|mimes:jpg,jpeg,png|max:3072',
-                'transaksi' => 'required',
-            ]);
 
             // Get visit
             $visit = Visit::where('id', $id)
@@ -397,32 +383,21 @@ class VisitController extends Controller
                 return ResponseFormatter::error(null, 'Visit tidak ditemukan atau sudah check-out', 404);
             }
 
-            // Validate and store photo
-            if (! $request->hasFile('picture_visit') || ! $request->file('picture_visit')->isValid()) {
-                return ResponseFormatter::error('File gambar tidak valid', 'INVALID_FILE', 422);
-            }
-
             $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
             $imageName = date('Y-m-d').'-'.$user->username.'-OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
 
-            try {
-                $temporaryPath = $this->fileUpload->storeTemporary(
-                    $request->file('picture_visit'),
-                    'tmp',
-                    ['filename' => $imageName]
-                );
-                $temporaryFiles[] = $temporaryPath;
-                $mediaQueue[] = [
-                    'field' => 'picture_visit_out',
-                    'tmp_path' => $temporaryPath,
-                    'type' => 'visit-out',
-                    'filename' => $imageName,
-                ];
-            } catch (RuntimeException $e) {
-                $this->cleanupTemporaryFiles($temporaryFiles);
-
-                return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
-            }
+            $temporaryPath = $this->fileUpload->storeTemporary(
+                $request->file('picture_visit'),
+                'tmp',
+                ['filename' => $imageName]
+            );
+            $temporaryFiles[] = $temporaryPath;
+            $mediaQueue[] = [
+                'field' => 'picture_visit_out',
+                'tmp_path' => $temporaryPath,
+                'type' => 'visit-out',
+                'filename' => $imageName,
+            ];
 
             // Calculate duration
             $checkInTime = Carbon::parse($visit->check_in_time);
@@ -456,12 +431,24 @@ class VisitController extends Controller
                 'data' => new VisitResource($visit),
                 'errors' => null,
             ]);
+        } catch (RuntimeException $e) {
+            if (! $mediaDispatched) {
+                $this->cleanupTemporaryFiles($temporaryFiles);
+            }
+
+            return ResponseFormatter::error(['error' => $e->getMessage()], 'INVALID_FILE', 422);
         } catch (Exception $error) {
             if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
 
-            return ResponseFormatter::error(['error' => $error->getMessage()], 'error', 500);
+            Log::channel('visit')->error('Visit check-out failed', [
+                'user_id' => $user->id ?? null,
+                'visit_id' => $id,
+                'error' => $error->getMessage(),
+            ]);
+
+            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat check-out'], 'ERROR', 500);
         }
     }
 

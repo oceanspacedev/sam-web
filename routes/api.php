@@ -43,20 +43,24 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::post('planvisit', [PlanVisitController::class, 'store']);
     Route::delete('planvisit', [PlanVisitController::class, 'delete']);
 
-    // Register
-    Route::post('noo', [RegisterController::class, 'submitNoo']);
-    Route::get('noo/all', [RegisterController::class, 'all']);
-    Route::get('noo', [RegisterController::class, 'fetch']);
-    Route::get('noo/{kodeOutlet}', [RegisterController::class, 'singleOutlet']);
-    Route::get('nooOutlet', [RegisterController::class, 'getRegisterOutlet']);
+    // REGISTERS Resource (NOO & LEAD workflow)
+    Route::prefix('registers')->group(function () {
+        // List & Show
+        Route::get('/', [RegisterController::class, 'fetch']);              // User's registers (backwards compatible with /noo)
+        Route::get('/all', [RegisterController::class, 'all']);             // Organizational scope
+        Route::get('/pending', [RegisterController::class, 'getRegisterOutlet']); // Pending approval (backwards compatible with /nooOutlet)
+        Route::get('/{id}', [RegisterController::class, 'show']);           // Show single register
 
-    Route::post('noo/confirm', [RegisterController::class, 'confirmNoo']);
-    Route::post('noo/approved', [RegisterController::class, 'approveNoo']);
-    Route::post('noo/reject', [RegisterController::class, 'rejectNoo']);
+        // Create - Type-specific endpoints
+        Route::post('/leads', [RegisterController::class, 'submitLead']);   // Create LEAD (without KTP)
+        Route::post('/noos', [RegisterController::class, 'submitNoo']);     // Create NOO (with KTP)
 
-    // LEAD
-    Route::post('lead', [RegisterController::class, 'submitLead']);
-    Route::post('lead/update', [RegisterController::class, 'upgradeLead']);
+        // State Transitions - RESTful sub-resources
+        Route::patch('/{id}/upgrade', [RegisterController::class, 'upgradeLead']);  // LEAD → NOO (upload KTP)
+        Route::patch('/{id}/confirm', [RegisterController::class, 'confirmNoo']);   // Confirm NOO (set kode_outlet & limit)
+        Route::patch('/{id}/approve', [RegisterController::class, 'approveNoo']);   // Approve → Outlet
+        Route::patch('/{id}/reject', [RegisterController::class, 'rejectNoo']);     // Reject NOO
+    });
 
     // MASTER DATA - Organization Hierarchy (with role-based filtering)
     Route::get('badanusaha', [SettingController::class, 'getbadanusaha']);

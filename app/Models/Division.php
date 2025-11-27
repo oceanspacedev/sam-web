@@ -21,6 +21,11 @@ class Division extends Model
         'created_at', 'updated_at', 'deleted_at',
     ];
 
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('deleted_at');
+    }
+
     public function user(): HasMany
     {
         return $this->hasMany(User::class, 'divisi_id');
@@ -41,25 +46,13 @@ class Division extends Model
         return $this->belongsTo(BadanUsaha::class)->withTrashed();
     }
 
-    public function region(): HasMany
+    public function regions(): HasMany
     {
         return $this->hasMany(Region::class, 'divisi_id');
     }
 
-    // Alias untuk compatibility dengan Filament
-    public function regions(): HasMany
-    {
-        return $this->region();
-    }
-
-    public function cluster(): HasMany
-    {
-        return $this->hasMany(Cluster::class, 'divisi_id');
-    }
-
-    // Alias untuk compatibility dengan Filament
     public function clusters(): HasMany
     {
-        return $this->cluster();
+        return $this->hasMany(Cluster::class, 'divisi_id');
     }
 }

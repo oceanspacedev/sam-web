@@ -28,7 +28,7 @@ class UnvisitedOutletsSheet implements FromCollection, WithHeadings, WithTitle
             ->filter()
             ->values();
 
-        $outlets = $this->user->outlet()
+        $outlets = Outlet::visibleTo($this->user)
             ->when($visitedOutletIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $visitedOutletIds))
             ->with(['region:id,name', 'cluster:id,name'])
             ->orderBy('kode_outlet')

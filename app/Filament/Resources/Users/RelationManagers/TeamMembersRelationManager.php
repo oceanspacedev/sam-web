@@ -8,7 +8,7 @@ use Filament\Tables\Table;
 
 class TeamMembersRelationManager extends RelationManager
 {
-    protected static ?string $title = 'Team Members';
+    protected static ?string $title = 'Team Member';
 
     protected static string $relationship = 'teamMembers';
 

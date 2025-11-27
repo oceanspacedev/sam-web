@@ -13,6 +13,8 @@ use Filament\Tables\Table;
 
 class PlanVisitsRelationManager extends RelationManager
 {
+    protected static ?string $title = 'Plan Visit';
+
     protected static string $relationship = 'planvisit';
 
     public function table(Table $table): Table

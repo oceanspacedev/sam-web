@@ -210,11 +210,11 @@ class OutletResource extends Resource
 
                                                     // If role has 'all' scope, show all
                                                     if ($role->organizational_scope_level === 'all') {
-                                                        return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id');
+                                                        return BadanUsaha::active()->orderBy('name', 'asc')->pluck('name', 'id');
                                                     }
 
                                                     // Use pivot table for current user's assignments
-                                                    return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
+                                                    return $user->badanUsahas()->active()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
                                                 })
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('divisi_id', null);
@@ -235,7 +235,7 @@ class OutletResource extends Resource
                                                     }
 
                                                     $user = Auth::user();
-                                                    $query = Division::where('badanusaha_id', $badanusahaId);
+                                                    $query = Division::active()->where('badanusaha_id', $badanusahaId);
 
                                                     // Apply user scope filtering
                                                     if ($user && $user->role->organizational_scope_level !== 'all') {
@@ -265,7 +265,7 @@ class OutletResource extends Resource
                                                     }
 
                                                     $user = Auth::user();
-                                                    $query = Region::where('divisi_id', $divisiId);
+                                                    $query = Region::active()->where('divisi_id', $divisiId);
 
                                                     // Apply user scope filtering
                                                     if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
@@ -294,7 +294,7 @@ class OutletResource extends Resource
                                                     }
 
                                                     $user = Auth::user();
-                                                    $query = Cluster::where('region_id', $regionId);
+                                                    $query = Cluster::active()->where('region_id', $regionId);
 
                                                     // Apply user scope filtering
                                                     if ($user && $user->role->organizational_scope_level === 'cluster') {

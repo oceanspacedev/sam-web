@@ -33,12 +33,10 @@ class UnvisitedOutletsExport implements FromCollection, WithHeadings, WithTitle
             ->filter()
             ->values();
 
-        // Outlets scoped by role-aware relation
+        // Outlets scoped by organizational visibility
         /** @var EloquentCollection<int, Outlet> $outlets */
-        $outlets = $this->user->outlet()
-            ->when($visitedOutletIds->isNotEmpty(), function ($q) use ($visitedOutletIds) {
-                $q->whereNotIn('id', $visitedOutletIds);
-            })
+        $outlets = Outlet::visibleTo($this->user)
+            ->when($visitedOutletIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $visitedOutletIds))
             ->orderBy('kode_outlet')
             ->get();
 

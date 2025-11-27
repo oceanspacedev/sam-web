@@ -16,7 +16,7 @@ class AllOutletsSheet implements FromCollection, WithHeadings, WithTitle
     public function collection(): Collection
     {
         /** @var \Illuminate\Database\Eloquent\Collection<int, Outlet> $outlets */
-        $outlets = $this->user->outlet()->with(['region:id,name', 'cluster:id,name'])
+        $outlets = Outlet::visibleTo($this->user)->with(['region:id,name', 'cluster:id,name'])
             ->orderBy('kode_outlet')
             ->get();
 

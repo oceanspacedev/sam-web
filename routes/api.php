@@ -30,7 +30,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // OUTLET
     Route::get('outlet', [OutletController::class, 'fetch']);
     Route::get('outlet/{id}', [OutletController::class, 'show']);
-    Route::put('outlet/{id}', [OutletController::class, 'update']);
+    Route::post('outlet/{id}', [OutletController::class, 'update']);
 
     // VISIT
     Route::get('visit', [VisitController::class, 'fetch']);
@@ -88,7 +88,7 @@ Route::post('test-upload', function (Illuminate\Http\Request $request, App\Servi
         60
     );
 
-    if (!$allowed) {
+    if (! $allowed) {
         $retryAfter = Illuminate\Support\Facades\RateLimiter::availableIn($key);
 
         return response()->json([

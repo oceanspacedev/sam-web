@@ -44,18 +44,18 @@ class SettingController extends Controller
             $user = Auth::user();
 
             // CRITICAL: Block access if user or role is null
-            if (!$user || !$user->role) {
+            if (! $user || ! $user->role) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
-            if (!$scopeLevel) {
+            if (! $scopeLevel) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
-            $query = BadanUsaha::query();
+            $query = BadanUsaha::active();
 
             // Apply scope filtering
             if ($scopeLevel !== 'all') {
@@ -98,18 +98,18 @@ class SettingController extends Controller
             $user = Auth::user();
 
             // CRITICAL: Block access if user or role is null
-            if (!$user || !$user->role) {
+            if (! $user || ! $user->role) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
-            if (!$scopeLevel) {
+            if (! $scopeLevel) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
-            $query = Division::query();
+            $query = Division::active();
 
             // Apply scope filtering first
             if ($scopeLevel !== 'all') {
@@ -117,8 +117,8 @@ class SettingController extends Controller
                 $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
 
                 // CRITICAL: If user has no assignments, return empty
-                $hasAnyAssignment = !empty($badanUsahaIds) || !empty($divisiIds);
-                if (!$hasAnyAssignment) {
+                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds);
+                if (! $hasAnyAssignment) {
                     return response()->json([
                         'meta' => [
                             'code' => 200,
@@ -131,10 +131,10 @@ class SettingController extends Controller
                 }
 
                 // Filter by user's organizational scope
-                if (!empty($badanUsahaIds)) {
+                if (! empty($badanUsahaIds)) {
                     $query->whereIn('badanusaha_id', $badanUsahaIds);
                 }
-                if (!empty($divisiIds)) {
+                if (! empty($divisiIds)) {
                     $query->whereIn('id', $divisiIds);
                 }
             }
@@ -170,18 +170,18 @@ class SettingController extends Controller
             $user = Auth::user();
 
             // CRITICAL: Block access if user or role is null
-            if (!$user || !$user->role) {
+            if (! $user || ! $user->role) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
-            if (!$scopeLevel) {
+            if (! $scopeLevel) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
-            $query = Region::query();
+            $query = Region::active();
 
             // Apply scope filtering first
             if ($scopeLevel !== 'all') {
@@ -190,8 +190,8 @@ class SettingController extends Controller
                 $regionIds = $user->regions()->pluck('regions.id')->toArray();
 
                 // CRITICAL: If user has no assignments, return empty
-                $hasAnyAssignment = !empty($badanUsahaIds) || !empty($divisiIds) || !empty($regionIds);
-                if (!$hasAnyAssignment) {
+                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds);
+                if (! $hasAnyAssignment) {
                     return response()->json([
                         'meta' => [
                             'code' => 200,
@@ -204,13 +204,13 @@ class SettingController extends Controller
                 }
 
                 // Filter by user's organizational scope
-                if (!empty($badanUsahaIds)) {
+                if (! empty($badanUsahaIds)) {
                     $query->whereIn('badanusaha_id', $badanUsahaIds);
                 }
-                if (!empty($divisiIds)) {
+                if (! empty($divisiIds)) {
                     $query->whereIn('divisi_id', $divisiIds);
                 }
-                if (!empty($regionIds)) {
+                if (! empty($regionIds)) {
                     $query->whereIn('id', $regionIds);
                 }
             }
@@ -286,14 +286,14 @@ class SettingController extends Controller
             $user = Auth::user();
 
             // CRITICAL: Block access if user or role is null
-            if (!$user || !$user->role) {
+            if (! $user || ! $user->role) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
-            if (!$scopeLevel) {
+            if (! $scopeLevel) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
@@ -307,8 +307,8 @@ class SettingController extends Controller
                 $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
                 // CRITICAL: If user has no assignments, return empty
-                $hasAnyAssignment = !empty($badanUsahaIds) || !empty($divisiIds) || !empty($regionIds) || !empty($clusterIds);
-                if (!$hasAnyAssignment) {
+                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
+                if (! $hasAnyAssignment) {
                     return response()->json([
                         'meta' => [
                             'code' => 200,
@@ -321,16 +321,16 @@ class SettingController extends Controller
                 }
 
                 // Filter by user's organizational scope
-                if (!empty($badanUsahaIds)) {
+                if (! empty($badanUsahaIds)) {
                     $query->whereIn('badanusaha_id', $badanUsahaIds);
                 }
-                if (!empty($divisiIds)) {
+                if (! empty($divisiIds)) {
                     $query->whereIn('divisi_id', $divisiIds);
                 }
-                if (!empty($regionIds)) {
+                if (! empty($regionIds)) {
                     $query->whereIn('region_id', $regionIds);
                 }
-                if (!empty($clusterIds)) {
+                if (! empty($clusterIds)) {
                     $query->whereIn('id', $clusterIds);
                 }
             }
@@ -380,12 +380,12 @@ class SettingController extends Controller
 
     /**
      * Get form options based on role's organizational scope
-     * 
+     *
      * Returns which organizational fields should be visible/required
      * and their available options based on user's role and assignments.
-     * 
+     *
      * @queryParam role_id int optional Role ID to check scope requirements
-     * 
+     *
      * @response 200 {
      *   "meta": {"code": 200, "status": "success", "message": "berhasil"},
      *   "data": {
@@ -408,7 +408,7 @@ class SettingController extends Controller
         try {
             $user = Auth::user();
 
-            if (!$user || !$user->role) {
+            if (! $user || ! $user->role) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
@@ -416,7 +416,7 @@ class SettingController extends Controller
             $roleId = $request->query('role_id');
             $targetRole = $roleId ? \App\Models\Role::find($roleId) : $user->role;
 
-            if (!$targetRole) {
+            if (! $targetRole) {
                 return ResponseFormatter::error(['message' => 'Role not found'], 'Role not found', 404);
             }
 
@@ -454,36 +454,36 @@ class SettingController extends Controller
             // BadanUsaha options
             if ($fields['badanusaha']['visible']) {
                 if ($userScopeLevel === 'all') {
-                    $fields['badanusaha']['options'] = BadanUsaha::orderBy('name')->get(['id', 'name']);
+                    $fields['badanusaha']['options'] = BadanUsaha::active()->orderBy('name')->get(['id', 'name']);
                 } else {
-                    $fields['badanusaha']['options'] = $user->badanUsahas()->orderBy('name')->get(['badan_usahas.id as id', 'name']);
+                    $fields['badanusaha']['options'] = $user->badanUsahas()->active()->orderBy('name')->get(['badan_usahas.id as id', 'name']);
                 }
             }
 
             // Divisi options
             if ($fields['divisi']['visible']) {
                 if ($userScopeLevel === 'all') {
-                    $fields['divisi']['options'] = Division::orderBy('name')->get(['id', 'name', 'badanusaha_id']);
+                    $fields['divisi']['options'] = Division::active()->orderBy('name')->get(['id', 'name', 'badanusaha_id']);
                 } else {
-                    $fields['divisi']['options'] = $user->divisis()->orderBy('name')->get(['divisions.id as id', 'name', 'badanusaha_id']);
+                    $fields['divisi']['options'] = $user->divisis()->active()->orderBy('name')->get(['divisions.id as id', 'name', 'badanusaha_id']);
                 }
             }
 
             // Region options
             if ($fields['region']['visible']) {
                 if ($userScopeLevel === 'all') {
-                    $fields['region']['options'] = Region::orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id']);
+                    $fields['region']['options'] = Region::active()->orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id']);
                 } else {
-                    $fields['region']['options'] = $user->regions()->orderBy('name')->get(['regions.id as id', 'name', 'badanusaha_id', 'divisi_id']);
+                    $fields['region']['options'] = $user->regions()->active()->orderBy('name')->get(['regions.id as id', 'name', 'badanusaha_id', 'divisi_id']);
                 }
             }
 
             // Cluster options
             if ($fields['cluster']['visible']) {
                 if ($userScopeLevel === 'all') {
-                    $fields['cluster']['options'] = Cluster::orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
+                    $fields['cluster']['options'] = Cluster::active()->orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
                 } else {
-                    $fields['cluster']['options'] = $user->clusters()->orderBy('name')->get(['clusters.id as id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
+                    $fields['cluster']['options'] = $user->clusters()->active()->orderBy('name')->get(['clusters.id as id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
                 }
             }
 
@@ -506,10 +506,10 @@ class SettingController extends Controller
 
     /**
      * Get role options based on user hierarchy
-     * 
+     *
      * Returns roles that the current user can assign.
      * SUPER ADMIN sees all roles, others see only descendant roles.
-     * 
+     *
      * @response 200 {
      *   "meta": {"code": 200, "status": "success", "message": "berhasil"},
      *   "data": [
@@ -523,7 +523,7 @@ class SettingController extends Controller
         try {
             $user = Auth::user();
 
-            if (!$user || !$user->role) {
+            if (! $user || ! $user->role) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
@@ -562,6 +562,7 @@ class SettingController extends Controller
             $ids[] = $child->id;
             $ids = array_merge($ids, $this->getAllDescendantRoleIds($child));
         }
+
         return $ids;
     }
 }

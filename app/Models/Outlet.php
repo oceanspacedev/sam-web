@@ -31,16 +31,42 @@ class Outlet extends Model
         'video',
     ];
 
-    public function scopeFilter(Builder $query, ?string $term = null): Builder
+    public function scopeActive(Builder $query): Builder
     {
-        $term ??= request('search');
+        return $query->whereNull('deleted_at');
+    }
 
-        return $query->when($term, function (Builder $query, string $search): void {
-            $query->where(function (Builder $query) use ($search): void {
-                $query->where('nama_outlet', 'like', "%{$search}%")
-                    ->orWhere('kode_outlet', 'like', "%{$search}%");
-            });
-        });
+    /**
+     * Scope query to outlets near a given location using Haversine formula
+     *
+     * @param  float  $latitude  User's current latitude
+     * @param  float  $longitude  User's current longitude
+     * @param  int  $limit  Maximum number of results (default: 10)
+     */
+    public function scopeNearbyLocation(Builder $query, float $latitude, float $longitude, int $limit = 10): Builder
+    {
+        // Haversine formula for calculating distance in kilometers
+        // Formula: distance = 2 * R * asin(sqrt(sin²((lat2-lat1)/2) + cos(lat1) * cos(lat2) * sin²((lng2-lng1)/2)))
+        // Where R = Earth's radius in km (6371)
+
+        return $query
+            ->selectRaw("
+                *,
+                (
+                    6371 * acos(
+                        cos(radians(?)) 
+                        * cos(radians(CAST(SUBSTRING_INDEX(latlong, ',', 1) AS DECIMAL(10, 8))))
+                        * cos(radians(CAST(SUBSTRING_INDEX(latlong, ',', -1) AS DECIMAL(11, 8))) - radians(?))
+                        + sin(radians(?))
+                        * sin(radians(CAST(SUBSTRING_INDEX(latlong, ',', 1) AS DECIMAL(10, 8))))
+                    )
+                ) AS distance
+            ", [$latitude, $longitude, $latitude])
+            ->whereNotNull('latlong')
+            ->where('latlong', '!=', '')
+            ->where('latlong', '!=', '-')
+            ->orderBy('distance', 'asc')
+            ->limit($limit);
     }
 
     /**
@@ -117,32 +143,5 @@ class Outlet extends Model
     public function divisi(): BelongsTo
     {
         return $this->belongsTo(Division::class)->withTrashed();
-    }
-
-    /**
-     * Dynamic scope to attach territory users based on organizational_scope_level
-     * Replaces hardcoded scopeWithTmAscDsf
-     */
-    public function scopeWithTerritory(Builder $query): Builder
-    {
-        return $query
-            ->leftJoin('users as region_users', function ($join) {
-                $join->on('region_users.divisi_id', '=', 'outlets.divisi_id')
-                    ->on('region_users.region_id', '=', 'outlets.region_id')
-                    ->join('roles as region_role', 'region_users.role_id', '=', 'region_role.id')
-                    ->where('region_role.organizational_scope_level', 'region');
-            })
-            ->leftJoin('users as cluster_users', function ($join) {
-                $join->on('cluster_users.divisi_id', '=', 'outlets.divisi_id')
-                    ->on('cluster_users.region_id', '=', 'outlets.region_id')
-                    ->on('cluster_users.cluster_id', '=', 'outlets.cluster_id')
-                    ->join('roles as cluster_role', 'cluster_users.role_id', '=', 'cluster_role.id')
-                    ->where('cluster_role.organizational_scope_level', 'cluster');
-            })
-            ->select(
-                'outlets.*',
-                'region_users.nama_lengkap as region_manager_name',
-                'cluster_users.nama_lengkap as cluster_manager_name'
-            );
     }
 }

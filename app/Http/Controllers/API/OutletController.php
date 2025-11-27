@@ -5,9 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OutletResource;
-use App\Models\Division;
 use App\Models\Outlet;
-use App\Models\Region;
 use App\Services\FileUploadService;
 use App\Support\StorageDisk;
 use Exception;
@@ -23,168 +21,56 @@ class OutletController extends Controller
 {
     public function __construct(
         protected FileUploadService $fileUpload
-    ) {
-    }
+    ) {}
 
-    /**
-     * Retrieve all outlets with complete relationship data
-     *
-     * Returns a comprehensive list of all outlets in the system including their business entity,
-     * cluster, region, and division relationships. This endpoint is typically used for
-     * administrative purposes and complete data synchronization.
-     *
-     * @response array{
-     *   data: array{
-     *     id: int,
-     *     kode_outlet: string,
-     *     nama_outlet: string,
-     *     alamat_outlet: string,
-     *     nama_pemilik_outlet: string,
-     *     nomer_tlp_outlet: string,
-     *     distric: string,
-     *     badanusaha: array{id: int, name: string}|null,
-     *     poto_shop_sign: string|null,
-     *     poto_depan: string|null,
-     *     poto_kiri: string|null,
-     *     poto_kanan: string|null,
-     *     poto_ktp: string|null,
-     *     video: string|null,
-     *     limit: string,
-     *     radius: string,
-     *     latlong: string,
-     *     status_outlet: string,
-     *     region: array{id: int, name: string}|null,
-     *     cluster: array{id: int, name: string}|null,
-     *     divisi: array{id: int, name: string}|null
-     *   }[],
-     *   message: string
-     * }
-     * @response 500 array{
-     *   data: array{
-     *     message: string,
-     *     error: string
-     *   },
-     *   message: string
-     * }
-     */
-    public function all()
-    {
-        try {
-            $user = Auth::user();
-
-            // CRITICAL: Block access if user or role is null
-            if (!$user || !$user->role) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
-            }
-
-            $scopeLevel = $user->role->organizational_scope_level;
-
-            // CRITICAL: Block access if scope level is null
-            if (!$scopeLevel) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
-            }
-
-            // If role has 'all' access, return all outlets
-            if ($scopeLevel === 'all') {
-                $outlet = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi'])->get();
-            } else {
-                // Apply scope filtering like in fetch() method
-                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-
-                // CRITICAL: If user has no assignments at all, return empty
-                $hasAnyAssignment = !empty($badanUsahaIds) || !empty($divisiIds) || !empty($regionIds) || !empty($clusterIds);
-                if (!$hasAnyAssignment) {
-                    return response()->json([
-                        'meta' => [
-                            'code' => 200,
-                            'status' => 'success',
-                            'message' => 'berhasil',
-                        ],
-                        'data' => [],
-                        'errors' => null,
-                    ]);
-                }
-
-                // Apply organizational scope filtering using visibleTo()
-                $query = Outlet::with(['badanusaha', 'cluster', 'region', 'divisi']);
-                $query->visibleTo($user);
-                $outlet = $query->get();
-            }
-
-            return OutletResource::collection($outlet)->additional([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'errors' => null,
-            ]);
-        } catch (Exception $e) {
-            return ResponseFormatter::error([
-                'message' => 'ada yang salah',
-                'error' => $e,
-            ], 'ERROR', 500);
-        }
-    }
-
-    /**
-     * Retrieve role-based outlet access with filtered results
-     *
-     * Returns outlets filtered based on the authenticated user's role and organizational scope level.
-     * Supports search and pagination for efficient data handling.
-     *
-     * @queryParam search string optional Search by outlet name or code. Example: "Toko"
-     * @queryParam per_page int optional Items per page (max 100). Default: 20. Example: 50
-     * @queryParam page int optional Page number. Default: 1. Example: 2
-     * @queryParam full boolean optional Return full data with relationships. Default: false. Example: 1
-     * @queryParam divisi string Required for division-level roles. Division name. Example: "Realme"
-     * @queryParam region string Required for division-level roles. Region name. Example: "Jakarta"
-     */
     public function fetch(Request $request)
     {
         try {
             $user = Auth::user();
-            $full = $request->boolean('full', false);
+            // Default compact=true for lighter list payloads
+            $compact = $request->boolean('compact', true);
+            $hasLocationParams = $request->filled(['lat', 'lng']);
 
             // Base query with conditional eager loading
-            $query = $full
-                ? Outlet::with(['badanusaha', 'cluster', 'region', 'divisi'])
-                : Outlet::query();
+            $relations = $compact
+                ? ['badanusaha:id,name', 'cluster:id,name', 'region:id,name', 'divisi:id,name']
+                : ['badanusaha', 'cluster', 'region', 'divisi'];
+
+            $query = Outlet::with($relations);
+
+            if ($compact) {
+                $query->select([
+                    'id',
+                    'kode_outlet',
+                    'nama_outlet',
+                    'status_outlet',
+                    'latlong',
+                    'radius',
+                    'badanusaha_id',
+                    'divisi_id',
+                    'region_id',
+                    'cluster_id',
+                ]);
+            }
 
             // Apply search filter
             if ($request->filled('search')) {
                 $query->filter($request->search);
             }
 
-            // Check if user requires division & region parameters
-            $scopeLevel = $user->role?->getOrganizationalScopeLevel();
-            $requiresDivisionRegion = $scopeLevel === 'divisi';
+            // Apply organizational scope using pivot assignments
+            $query->visibleTo($user);
 
-            if ($requiresDivisionRegion) {
-                $divisi = Division::where('name', $request->divisi)->first();
-                if (!$divisi) {
-                    return ResponseFormatter::error(['divisi' => ['Division not found']], 'Division not found', 422);
-                }
-                $region = Region::where('name', $request->region)->where('divisi_id', $divisi->id)->first();
-                if (!$region) {
-                    return ResponseFormatter::error(['region' => ['Region not found']], 'Region not found', 422);
-                }
+            // Apply nearby location filter if lat/lng provided
+            if ($hasLocationParams) {
+                $lat = (float) $request->lat;
+                $lng = (float) $request->lng;
+                $query->nearbyLocation($lat, $lng, 10);
 
-                $query->where('divisi_id', $divisi->id)
-                    ->where('region_id', $region->id);
-            } else {
-                $query->visibleTo($user);
-            }
+                // Get results without pagination for nearby search
+                $outlets = $query->get();
 
-            // Pagination
-            $perPage = min((int) $request->get('per_page', 20), 100);
-            $outlets = $query->orderBy('nama_outlet')->paginate($perPage);
-
-            // Return minimal or full data
-            if ($full) {
+                // Return minimal or full data
                 return OutletResource::collection($outlets)->additional([
                     'meta' => [
                         'code' => 200,
@@ -195,8 +81,12 @@ class OutletController extends Controller
                 ]);
             }
 
-            // Minimal response
-            return response()->json([
+            // Normal pagination for non-nearby search
+            $perPage = min((int) $request->get('per_page', 20), 100);
+            $outlets = $query->orderBy('nama_outlet')->paginate($perPage);
+
+            // Return minimal or full data
+            return OutletResource::collection($outlets)->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
@@ -208,12 +98,6 @@ class OutletController extends Controller
                         'last_page' => $outlets->lastPage(),
                     ],
                 ],
-                'data' => $outlets->map(fn($outlet) => [
-                    'id' => $outlet->id,
-                    'kode_outlet' => $outlet->kode_outlet,
-                    'nama_outlet' => $outlet->nama_outlet,
-                    'status_outlet' => $outlet->status_outlet,
-                ]),
                 'errors' => null,
             ]);
         } catch (Exception $e) {
@@ -224,46 +108,6 @@ class OutletController extends Controller
         }
     }
 
-    /**
-     * Retrieve single outlet by ID
-     *
-     * Returns detailed information about a specific outlet using its unique ID.
-     * Includes all relationships such as business entity, cluster, region, and division data.
-     *
-     * @param  Request  $request  The HTTP request instance
-     * @param  int  $id  The outlet ID to retrieve
-     *
-     * @response array{
-     *   data: array{
-     *     id: int,
-     *     kode_outlet: string,
-     *     nama_outlet: string,
-     *     alamat_outlet: string,
-     *     nama_pemilik_outlet: string,
-     *     nomer_tlp_outlet: string,
-     *     distric: string,
-     *     badanusaha: array{id: int, name: string}|null,
-     *     poto_shop_sign: string|null,
-     *     poto_depan: string|null,
-     *     poto_kiri: string|null,
-     *     poto_kanan: string|null,
-     *     poto_ktp: string|null,
-     *     video: string|null,
-     *     limit: string,
-     *     radius: string,
-     *     latlong: string,
-     *     status_outlet: string,
-     *     region: array{id: int, name: string}|null,
-     *     cluster: array{id: int, name: string}|null,
-     *     divisi: array{id: int, name: string}|null
-     *   }[],
-     *   message: string
-     * }
-     * @response 404 array{
-     *   data: null,
-     *   message: string
-     * }
-     */
     public function show(Request $request, int $id)
     {
         try {
@@ -273,7 +117,7 @@ class OutletController extends Controller
                 ->where('id', $id)
                 ->first();
 
-            if (!$outlet) {
+            if (! $outlet) {
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
@@ -290,47 +134,6 @@ class OutletController extends Controller
         }
     }
 
-    /**
-     * Update outlet photos and owner information
-     *
-     * Updates outlet data including owner information and uploads photos/videos.
-     * Supports both legacy (photo0-photo4) and modern (photos[]) upload schemes.
-     * Files are automatically categorized based on naming patterns and stored with UUID names.
-     *
-     * **File categorization patterns:**
-     * - Files containing "fotodepan" → poto_depan
-     * - Files containing "fotokanan" → poto_kanan
-     * - Files containing "fotokiri" → poto_kiri
-     * - Files containing "fotoktp" → poto_ktp
-     * - All other files → poto_shop_sign
-     *
-     * @param  int  $id  The outlet ID from route parameter
-     * @bodyParam nama_pemilik_outlet string required Outlet owner name. Example: "John Doe"
-     * @bodyParam nomer_tlp_outlet string required Outlet phone number. Example: "081234567890"
-     * @bodyParam latlong string required Outlet coordinates. Example: "-6.2088,106.8456"
-     * @bodyParam photo0 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
-     * @bodyParam photo1 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
-     * @bodyParam photo2 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
-     * @bodyParam photo3 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
-     * @bodyParam photo4 file optional Outlet photo file (legacy format). Max 3MB, formats: jpg,jpeg,png
-     * @bodyParam photos file[] optional Array of outlet photos (modern format). Max 3MB each, formats: jpg,jpeg,png
-     * @bodyParam video file optional Outlet video file. Max 50MB, formats: mp4,mov,webm
-     *
-     * @response array{
-     *   data: null,
-     *   message: string
-     * }
-     * @response 422 array{
-     *   data: array{
-     *     field: string[]
-     *   },
-     *   message: string
-     * }
-     * @response 404 array{
-     *   data: null,
-     *   message: string
-     * }
-     */
     public function update(Request $request, int $id)
     {
         try {
@@ -352,8 +155,8 @@ class OutletController extends Controller
             $dynamicRules = [];
             // Dukungan skema lama: photo0..photo4
             for ($i = 0; $i <= 4; $i++) {
-                if ($request->hasFile('photo' . $i)) {
-                    $dynamicRules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072']; // 3MB
+                if ($request->hasFile('photo'.$i)) {
+                    $dynamicRules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072']; // 3MB
                 }
             }
             // Dukungan skema baru: photos[]
@@ -369,7 +172,7 @@ class OutletController extends Controller
             $request->validate(array_merge($baseRules, $dynamicRules));
 
             $outlet = Outlet::visibleTo($user)->where('id', $id)->first();
-            if (!$outlet) {
+            if (! $outlet) {
                 Log::channel('outlet')->warning('Outlet update failed: outlet not found', [
                     'user_id' => $user->id,
                     'outlet_id' => $id,
@@ -381,7 +184,7 @@ class OutletController extends Controller
             // Proses foto (mendukung photo0..4 dan photos[])
             $photoFiles = [];
             for ($i = 0; $i <= 4; $i++) {
-                $f = $request->file('photo' . $i);
+                $f = $request->file('photo'.$i);
                 if ($f) {
                     $photoFiles[] = $f;
                 }
@@ -395,7 +198,7 @@ class OutletController extends Controller
             }
 
             foreach ($photoFiles as $file) {
-                if (!$file->isValid()) {
+                if (! $file->isValid()) {
                     return ResponseFormatter::error(null, 'File foto tidak valid', 422);
                 }
                 $original = $file->getClientOriginalName();
@@ -480,7 +283,7 @@ class OutletController extends Controller
 
     protected function deleteOutletMedia(?string $path): void
     {
-        if (!$path || $path === '-' || $path === '0') {
+        if (! $path || $path === '-' || $path === '0') {
             return;
         }
 

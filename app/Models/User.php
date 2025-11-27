@@ -42,15 +42,6 @@ class User extends Authenticatable implements FilamentUser, HasName
         return (bool) ($this->role?->can_access_web);
     }
 
-    public function scopeFilter(Builder $query, ?string $term = null): Builder
-    {
-        $term ??= request('search');
-
-        return $query->when($term, function (Builder $query, string $search): void {
-            $query->where('nama_lengkap', 'like', "%{$search}%");
-        });
-    }
-
     /**
      * Cached organizational IDs to avoid multiple queries
      */
@@ -80,18 +71,9 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->cachedOrganizationalIds;
     }
 
-    /**
-     * Get outlets accessible to this user based on their organizational assignments.
-     * Uses the accessibleTo scope on Outlet model.
-     *
-     * @deprecated Use Outlet::query()->accessibleTo($user) instead for better clarity
-     */
-    public function outlet(): HasMany
+    public function outlets(): HasMany
     {
-        // This is a workaround to maintain backward compatibility
-        // We create a HasMany relationship but apply the accessibleTo scope
-        $instance = new Outlet;
-        $query = $instance->newQuery()->accessibleTo($this);
+        $query = (new Outlet)->newQuery()->visibleTo($this);
 
         return new HasMany($query, $this, 'user_id', 'id');
     }

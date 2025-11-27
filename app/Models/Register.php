@@ -33,15 +33,9 @@ class Register extends Model
         'video',
     ];
 
-    public function scopeFilter(Builder $query, ?string $term = null): Builder
+    public function scopeActive(Builder $query): Builder
     {
-        $term ??= request('search');
-
-        return $query->when($term, function (Builder $query, string $search): void {
-            $query->where(function (Builder $query) use ($search): void {
-                $query->where('nama_outlet', 'like', "%{$search}%");
-            });
-        });
+        return $query->whereNull('deleted_at');
     }
 
     public function cluster(): BelongsTo

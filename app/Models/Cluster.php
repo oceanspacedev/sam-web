@@ -21,20 +21,19 @@ class Cluster extends Model
         'created_at', 'updated_at', 'deleted_at',
     ];
 
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('deleted_at');
+    }
+
     public function user(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
-    public function outlet(): HasMany
-    {
-        return $this->hasMany(Outlet::class);
-    }
-
-    // Alias untuk compatibility dengan Filament
     public function outlets(): HasMany
     {
-        return $this->outlet();
+        return $this->hasMany(Outlet::class);
     }
 
     public function registers(): HasMany

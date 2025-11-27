@@ -28,15 +28,6 @@ class PlanVisit extends Model
         'realized_at' => 'datetime',
     ];
 
-    public function scopeFilter(Builder $query, ?string $term = null): Builder
-    {
-        $term ??= request('search');
-
-        return $query->when($term, function (Builder $query, string $search): void {
-            $query->where('nama_lengkap', 'like', "%{$search}%");
-        });
-    }
-
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withTrashed();

@@ -334,8 +334,8 @@ class MaintainOutletLifecycle extends Command
 
         try {
             DB::transaction(function () use ($outlet) {
-                // 1. Archive Data
-                \App\Models\OutletArchive::create([
+                // 1. Archive Data (insert to archive table directly)
+                DB::table('outlets_archives')->insert([
                     'outlet_id' => $outlet->id,
                     'kode_outlet' => $outlet->kode_outlet,
                     'nama_outlet' => $outlet->nama_outlet,
@@ -363,6 +363,8 @@ class MaintainOutletLifecycle extends Command
                     'original_created_at' => $outlet->created_at,
                     'original_updated_at' => $outlet->updated_at,
                     'original_deleted_at' => $outlet->deleted_at,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 // 2. Soft Delete (DB-level so it can be rolled back if archive fails)

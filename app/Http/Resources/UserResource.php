@@ -26,25 +26,25 @@ class UserResource extends JsonResource
 
             // Support multiple: return arrays
             'badan_usahas' => $this->whenLoaded('badanUsahas', function () {
-                return $this->badanUsahas->map(fn($item) => [
+                return $this->badanUsahas->map(fn ($item) => [
                     'id' => $item->id,
                     'name' => $item->name,
                 ])->values();
             }),
             'divisis' => $this->whenLoaded('divisis', function () {
-                return $this->divisis->map(fn($item) => [
+                return $this->divisis->map(fn ($item) => [
                     'id' => $item->id,
                     'name' => $item->name,
                 ])->values();
             }),
             'regions' => $this->whenLoaded('regions', function () {
-                return $this->regions->map(fn($item) => [
+                return $this->regions->map(fn ($item) => [
                     'id' => $item->id,
                     'name' => $item->name,
                 ])->values();
             }),
             'clusters' => $this->whenLoaded('clusters', function () {
-                return $this->clusters->map(fn($item) => [
+                return $this->clusters->map(fn ($item) => [
                     'id' => $item->id,
                     'name' => $item->name,
                 ])->values();

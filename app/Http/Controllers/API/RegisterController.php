@@ -5,6 +5,8 @@ namespace App\Http\Controllers\API;
 use App\Helpers\ResponseFormatter;
 use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\API\SubmitLeadRequest;
+use App\Http\Requests\API\SubmitNooRequest;
 use App\Http\Resources\RegisterResource;
 use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
@@ -15,10 +17,7 @@ use App\Models\Region;
 use App\Models\Register;
 use App\Models\User;
 use App\Services\FileUploadService;
-use App\Services\MediaProcessingService;
-use App\Services\OrganizationalCacheService;
 use Exception;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -27,66 +26,15 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 
-/**
- * @group New Outlet Opening (NOO) Management
- *
- * API endpoints for managing the full New Outlet Opening (NOO) lifecycle and its lightweight Lead
- * intake flow. Both features operate on the same `registers` table:
- * - Records with `keterangan = 'LEAD'` represent Leads captured with minimal information.
- * - Records with `keterangan = null` continue as NOO entries through confirm → approve stages.
- *
- * The system supports sophisticated role-based access control, approval workflows, and file upload
- * capabilities. Eight different user roles have hierarchical access patterns and participate in the
- * 3-stage approval process (submit → confirm → approve/reject).
- *
- * ## User Roles & Access Patterns:
- * - **ASM (ID: 1)**: Area Sales Manager - Access to NOOs created by their TM. Special case: user ID 158 (sodikc) has access to regions Bigtasik, Bigcrb, Bigpwt, Bigbdg, Bigkarawang with Realme division.
- * - **ASC (ID: 2)**: Area Sales Coordinator - Access to NOOs within their business unit, division, and region.
- * - **DSF/DM (ID: 3)**: District Sales Field/Manager - Access to NOOs within their specific cluster area.
- * - **COO (ID: 6)**: Chief Operating Officer - Full access to all NOOs across the system.
- * - **CSO (ID: 8)**: Chief Sales Officer - Access to NOOs with Realme division only.
- * - **RKAM (ID: 9)**: Regional Key Account Manager - Access to NOOs created by their TM, similar to ASM.
- * - **KAM (ID: 10)**: Key Account Manager - Access to NOOs within their business unit, division, and region.
- * - **CSO FAST EV (ID: 11)**: Chief Sales Officer Fast EV - Access to NOOs with Fast EV division.
- *
- * ## Approval Workflow:
- * 1. **Submit**: Initial NOO creation with role-based data assignment and automatic notification to appropriate stakeholders (AR/TM/ASC based on user hierarchy).
- * 2. **Confirm**: AR confirms the NOO with limit assignment and outlet code generation.
- * 3. **Approve/Reject**: Final decision - Approved NOOs automatically create outlet records; rejected NOOs track rejection reasons.
- *
- * ## File Upload System:
- * - **Photos**: Supports up to 5 photos (photo0-photo4) with intelligent categorization based on filename patterns:
- *   - Files containing "fotodepan" → Front photo (poto_depan)
- *   - Files containing "fotokanan" → Right photo (poto_kanan)
- *   - Files containing "fotokiri" → Left photo (poto_kiri)
- *   - Files containing "fotoktp" → KTP photo (poto_ktp)
- *   - All other photos → Shop sign photo (poto_shop_sign)
- * - **Videos**: Single video upload support with format validation.
- * - **Validation**: Photos max 3MB, videos max 50MB with strict MIME type checking.
- *
- * @authenticated
- *
- * @header Authorization Bearer {token}
- */
 class RegisterController extends Controller
 {
     use HasMediaUpload;
 
     public function __construct(
-        protected OrganizationalCacheService $orgCache,
-        protected FileUploadService $fileUpload,
-        protected MediaProcessingService $mediaService
-    ) {
-    }
+        protected FileUploadService $fileUpload
+    ) {}
 
-    /**
-     * Submit a new Lead entry in the registers table.
-     *
-     * Persists a lightweight record with `keterangan = 'LEAD'` while queuing media uploads
-     * for background processing. Hierarchical attributes follow the same role-based rules as
-     * NOO submissions but outlet creation is deferred until the record is promoted and approved.
-     */
-    public function submitLead(Request $request)
+    public function submitLead(SubmitLeadRequest $request)
     {
         $temporaryFiles = [];
         $mediaQueue = [];
@@ -94,6 +42,16 @@ class RegisterController extends Controller
 
         try {
             $user = Auth::user();
+            $hierarchy = $this->resolveHierarchy($user, $request);
+
+            if ($this->isHierarchyIncomplete($hierarchy)) {
+                return ResponseFormatter::error([
+                    'badanusaha_id' => [$hierarchy['badanusaha_id'] ? null : 'Required'],
+                    'divisi_id' => [$hierarchy['divisi_id'] ? null : 'Required'],
+                    'region_id' => [$hierarchy['region_id'] ? null : 'Required'],
+                    'cluster_id' => [$hierarchy['cluster_id'] ? null : 'Required'],
+                ], 'Organizational hierarchy is required', 422);
+            }
 
             // Log Lead store initiated
             Log::channel('lead')->info('Lead store initiated', [
@@ -133,65 +91,31 @@ class RegisterController extends Controller
                 'fl' => $request->fl,
                 'latlong' => $request->latlong,
                 'created_by' => $user->nama_lengkap,
-                'tm_id' => optional($user->tm)->id ?? $user->id,
+                'tm_id' => $hierarchy['tm_id'],
                 'keterangan' => 'LEAD',
                 'poto_ktp' => '-',
+                'badanusaha_id' => $hierarchy['badanusaha_id'],
+                'divisi_id' => $hierarchy['divisi_id'],
+                'region_id' => $hierarchy['region_id'],
+                'cluster_id' => $hierarchy['cluster_id'],
             ];
-
-            // Helper to get first ID from pivot
-            $userBadanUsahaId = $user->badanUsahas->first()?->id;
-            $userDivisiId = $user->divisis->first()?->id;
-            $userRegionId = $user->regions->first()?->id;
-            $userClusterId = $user->clusters->first()?->id;
-
-            switch ($user->role_id) {
-                case 1:
-                    $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
-                    $divisi_id = Division::where('badanusaha_id', $badanusaha_id)->where('name', $request->div)->first()->id;
-                    $region_id = Region::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('name', $request->reg)->first()->id;
-                    $cluster_id = Cluster::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('region_id', $region_id)->where('name', $request->clus)->first()->id;
-                    $data['badanusaha_id'] = $badanusaha_id;
-                    $data['divisi_id'] = $divisi_id;
-                    $data['region_id'] = $region_id;
-                    $data['cluster_id'] = $cluster_id;
-                    break;
-
-                case 2:
-                    $data['badanusaha_id'] = $userBadanUsahaId;
-                    $data['divisi_id'] = $userDivisiId;
-                    $data['region_id'] = $userRegionId;
-                    $data['cluster_id'] = Cluster::where('badanusaha_id', $userBadanUsahaId)
-                        ->where('divisi_id', $userDivisiId)
-                        ->where('region_id', $userRegionId)
-                        ->where('name', $request->clus)
-                        ->first()->id;
-                    error_log($data['cluster_id']);
-                    break;
-
-                default:
-                    $data['badanusaha_id'] = $userBadanUsahaId;
-                    $data['divisi_id'] = $userDivisiId;
-                    $data['region_id'] = $userRegionId;
-                    $data['cluster_id'] = $userClusterId;
-                    break;
-            }
 
             $rules = [];
             for ($i = 0; $i <= 3; $i++) {
-                if ($request->hasFile('photo' . $i)) {
-                    $rules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+                if ($request->hasFile('photo'.$i)) {
+                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
                 }
             }
             if ($request->hasFile('video')) {
                 $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
             }
-            if (!empty($rules)) {
+            if (! empty($rules)) {
                 $request->validate($rules);
             }
 
             for ($i = 0; $i <= 3; $i++) {
-                $file = $request->file('photo' . $i);
-                if (!$file) {
+                $file = $request->file('photo'.$i);
+                if (! $file) {
                     continue;
                 }
 
@@ -235,7 +159,7 @@ class RegisterController extends Controller
                     // Generate stored video name in the pattern seen in logs
                     $ext = $video->guessExtension() ?: $video->extension();
                     $timestamp = now()->format('YmdHis');
-                    $storedName = 'lead-' . $timestamp . '-video-' . substr(md5(uniqid()), 0, 13) . '-' . str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
+                    $storedName = 'lead-'.$timestamp.'-video-'.substr(md5(uniqid()), 0, 13).'-'.str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
 
                     // Log video saved
                     Log::channel('lead')->info('Lead store video saved', [
@@ -259,48 +183,38 @@ class RegisterController extends Controller
 
             $register = Register::create($data);
 
-            // Debug: Check register and mediaQueue state
-            file_put_contents('/tmp/debug_register.txt', json_encode([
-                'register_id' => $register->id ?? null,
-                'media_queue_count' => count($mediaQueue),
-                'media_queue_items' => array_map(function ($item) {
-                    return ['field' => $item['field'] ?? null];
-                }, $mediaQueue),
-            ]));
-
             // Process media files using unified trait
             $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
 
             // Log Lead store completed
             Log::channel('lead')->info('Lead store completed', [
                 'lead_id' => $register->id,
-                'outlet_code' => 'LEAD' . $register->id,
+                'outlet_code' => 'LEAD'.$register->id,
             ]);
 
             return response()->json([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'berhasil menambahkan LEAD ' . $request->nama_outlet,
+                    'message' => 'berhasil menambahkan LEAD '.$request->nama_outlet,
                 ],
                 'data' => null,
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            if (!$mediaDispatched) {
+            if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
 
-            return ResponseFormatter::error([
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], $e->getMessage());
+            Log::channel('lead')->error('Lead store failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return ResponseFormatter::error('Terjadi kesalahan, silakan coba kembali', 'LEAD_STORE_FAILED', 500);
         }
     }
 
-    /**
-     * Upgrade an existing Lead entry and promote it into the NOO pipeline.
-     */
     public function upgradeLead(Request $request)
     {
         try {
@@ -317,7 +231,7 @@ class RegisterController extends Controller
             $lead = Register::find($request->id);
             if ($request->hasFile('photo')) {
                 $file = $request->file('photo');
-                if (!$file->isValid()) {
+                if (! $file->isValid()) {
                     return ResponseFormatter::error('File KTP tidak valid', 'INVALID_FILE', 422);
                 }
 
@@ -327,17 +241,25 @@ class RegisterController extends Controller
             $lead['ktp_outlet'] = $request->noktp;
             $lead['keterangan'] = null;
             $lead->update();
-            $recipient = optional(User::where('role_id', 4)->first())->id_notif;
+
+            $recipientIds = $this->buildNotificationRecipients(Auth::user(), [
+                'badanusaha_id' => $lead->badanusaha_id,
+                'divisi_id' => $lead->divisi_id,
+                'region_id' => $lead->region_id,
+                'cluster_id' => $lead->cluster_id,
+                'tm_id' => $lead->tm_id ?? Auth::user()->tm?->id ?? Auth::user()->id,
+            ]);
+
             $this->dispatchNotification(
-                'Register baru ' . $lead->nama_outlet . ' ditambahkan oleh ' . Auth::user()->nama_lengkap,
-                $recipient ? [$recipient] : []
+                'Register baru '.$lead->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
+                $recipientIds
             );
 
             return response()->json([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'berhasil menambahkan Lead ' . $request->nama_outlet,
+                    'message' => 'berhasil menambahkan Lead '.$request->nama_outlet,
                 ],
                 'data' => null,
                 'errors' => null,
@@ -347,126 +269,44 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Fetch NOOs with Role-Based Access Control
-     *
-     * Retrieves NOOs based on the authenticated user's role and hierarchical permissions.
-     * Each role has specific filtering logic for data access and visibility.
-     *
-     * **Role-Based Filtering Logic:**
-     * - **ASM (ID: 1)**: Filters NOOs by TM_id. Special case for user ID 158 (sodikc) with regions [13, 27, 26, 23, 24] and division 4 (Realme).
-     * - **ASC (ID: 2)**: Filters by business unit, division, region, and optional user clusters.
-     * - **DSF/DM (ID: 3)**: Same filtering as ASC (business unit, division, region, optional clusters).
-     * - **COO (ID: 6)**: Full access to all NOOs without filtering.
-     * - **CSO (ID: 8)**: Filters by Realme division (division_id = 4).
-     * - **RKAM (ID: 9)**: Similar to ASM - filters by TM_id.
-     * - **KAM (ID: 10)**: Similar to ASC - filters by business unit, division, and region.
-     * - **CSO FAST EV (ID: 11)**: Filters by Fast EV division (division_id = 7).
-     *
-     * **Response Structure:**
-     * Each NOO includes complete hierarchical relationships (badanusaha, cluster, region, divisi)
-     * and formatted data using the Noo model's formatForAPI method.
-     *
-     * @authenticated
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "fetch noo success"
-     *   },
-     *   "data": [
-     *     {
-     *       "id": 123,
-     *       "kode_outlet": "TOK-2024-001",
-     *       "nama_outlet": "Toko Maju Jaya",
-     *       "alamat_outlet": "Jl. Raya No. 123, Jakarta",
-     *       "nama_pemilik_outlet": "Budi Santoso",
-     *       "nomer_tlp_outlet": "081234567890",
-     *       "nomer_wakil_outlet": "081234567891",
-     *       "ktp_outlet": "1234567890123456",
-     *       "distric": "Jakarta Pusat",
-     *       "region": {"id": 1, "name": "Jakarta"},
-     *       "poto_shop_sign": "noo/photos/uuid1.jpg",
-     *       "poto_depan": "noo/photos/uuid2.jpg",
-     *       "poto_kiri": "noo/photos/uuid3.jpg",
-     *       "poto_kanan": "noo/photos/uuid4.jpg",
-     *       "poto_ktp": "noo/photos/uuid5.jpg",
-     *       "video": "noo/videos/uuid1.mp4",
-     *       "oppo": true,
-     *       "vivo": false,
-     *       "realme": true,
-     *       "samsung": false,
-     *       "xiaomi": false,
-     *       "fl": false,
-     *       "latlong": "-6.2088,106.8456",
-     *       "limit": 5000000,
-     *       "status": "CONFIRMED",
-     *       "rejected_at": null,
-     *       "rejected_by": null,
-     *       "confirmed_at": 1705306200000,
-     *       "confirmed_by": "Ahmad Rizki",
-     *       "approved_at": null,
-     *       "approved_by": null,
-     *       "deleted_at": null,
-     *       "created_at": 1705302600000,
-     *       "updated_at": 1705306200000,
-     *       "keterangan": null,
-     *       "cluster": {"id": 1, "name": "Jakarta Pusat"},
-     *       "badanusaha": {"id": 1, "name": "PT. Maju Bersama"},
-     *       "divisi": {"id": 1, "name": "Realme"},
-     *       "created_by": "Ahmad Rizki"
-     *     }
-     *   ]
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "something wrong"
-     *   },
-     *   "data": {
-     *     "message": "[Exception details]"
-     *   }
-     * }
-     *
-     * @param  Request  $request  HTTP request instance
-     * @return JsonResponse
-     */
-    public function fetch()
+    public function fetch(Request $request)
     {
         try {
             $user = Auth::user();
+            $compact = $request->boolean('compact', true);
 
             // Eager load relationships untuk menghindari N+1
-            $query = Register::with(['badanusaha', 'cluster', 'region', 'divisi']);
+            $query = Register::with($compact ? [
+                'badanusaha:id,name',
+                'cluster:id,name',
+                'region:id,name',
+                'divisi:id,name',
+            ] : [
+                'badanusaha',
+                'cluster',
+                'region',
+                'divisi',
+            ]);
 
-            // Special case untuk user tertentu
-            if ($user->id === 158) {
-                $registers = $query
-                    ->whereIn('region_id', [13, 27, 26, 23, 24])
-                    ->where('divisi_id', 4)
-                    ->latest()
-                    ->get();
-            } elseif ($user->role_id === 1 || $user->role_id === 9) {
-                // ASM atau RKAM: filter by TM
-                $registers = $query
-                    ->where('tm_id', $user->id)
-                    ->latest()
-                    ->get();
-            } elseif ($user->role_id === 6) {
-                // COO: full access
-                $registers = $query->latest()->get();
-            } elseif ($user->role_id === 8) {
-                // CSO: Realme division only
-                $registers = $query->where('divisi_id', 4)->latest()->get();
-            } elseif ($user->role_id === 11) {
-                // CSO FAST EV: Fast EV division only
-                $registers = $query->where('divisi_id', 7)->latest()->get();
-            } else {
-                // Gunakan organizational scope trait
-                $registers = $query->visibleTo($user)->latest()->get();
+            if ($compact) {
+                $query->select([
+                    'id',
+                    'kode_outlet',
+                    'nama_outlet',
+                    'alamat_outlet',
+                    'status',
+                    'keterangan',
+                    'distric',
+                    'latlong',
+                    'badanusaha_id',
+                    'divisi_id',
+                    'region_id',
+                    'cluster_id',
+                    'created_at',
+                ]);
             }
+
+            $registers = $query->visibleTo($user)->latest()->get();
 
             return RegisterResource::collection($registers)->additional([
                 'meta' => [
@@ -483,176 +323,60 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Get All NOOs with Complete Relationships
-     *
-     * Retrieves all NOOs in the system with complete hierarchical relationships loaded.
-     * This endpoint provides unrestricted access to all NOO records regardless of user role,
-     * including their business unit, cluster, region, and division associations.
-     *
-     * **Use Cases:**
-     * - Administrative oversight and reporting
-     * - System-wide data analysis
-     * - Complete NOO lifecycle management
-     * - Backup and data export operations
-     *
-     * **Response Structure:**
-     * Each NOO includes all related hierarchical entities (badanusaha, cluster, region, divisi)
-     * and is formatted using the Noo model's formatForAPI method for consistent API response structure.
-     *
-     * @authenticated
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "fetch noo success"
-     *   },
-     *   "data": [
-     *     {
-     *       "id": 123,
-     *       "kode_outlet": "TOK-2024-001",
-     *       "nama_outlet": "Toko Maju Jaya",
-     *       "alamat_outlet": "Jl. Raya No. 123, Jakarta",
-     *       "nama_pemilik_outlet": "Budi Santoso",
-     *       "nomer_tlp_outlet": "081234567890",
-     *       "nomer_wakil_outlet": "081234567891",
-     *       "ktp_outlet": "1234567890123456",
-     *       "distric": "Jakarta Pusat",
-     *       "region": {"id": 1, "name": "Jakarta"},
-     *       "poto_shop_sign": "noo/photos/uuid1.jpg",
-     *       "poto_depan": "noo/photos/uuid2.jpg",
-     *       "poto_kiri": "noo/photos/uuid3.jpg",
-     *       "poto_kanan": "noo/photos/uuid4.jpg",
-     *       "poto_ktp": "noo/photos/uuid5.jpg",
-     *       "video": "noo/videos/uuid1.mp4",
-     *       "oppo": true,
-     *       "vivo": false,
-     *       "realme": true,
-     *       "samsung": false,
-     *       "xiaomi": false,
-     *       "fl": false,
-     *       "latlong": "-6.2088,106.8456",
-     *       "limit": 5000000,
-     *       "status": "APPROVED",
-     *       "rejected_at": null,
-     *       "rejected_by": null,
-     *       "confirmed_at": 1705306200000,
-     *       "confirmed_by": "Ahmad Rizki",
-     *       "approved_at": 1705309800000,
-     *       "approved_by": "Budi Santoso",
-     *       "deleted_at": null,
-     *       "created_at": 1705302600000,
-     *       "updated_at": 1705309800000,
-     *       "keterangan": null,
-     *       "cluster": {"id": 1, "name": "Jakarta Pusat"},
-     *       "badanusaha": {"id": 1, "name": "PT. Maju Bersama"},
-     *       "divisi": {"id": 1, "name": "Realme"},
-     *       "created_by": "Ahmad Rizki"
-     *     },
-     *     {
-     *       "id": 124,
-     *       "kode_outlet": "TOK-2024-002",
-     *       "nama_outlet": "Toko Sejahtera",
-     *       "alamat_outlet": "Jl. Sudirman No. 45, Bandung",
-     *       "nama_pemilik_outlet": "Siti Aminah",
-     *       "nomer_tlp_outlet": "081234567892",
-     *       "nomer_wakil_outlet": "081234567893",
-     *       "ktp_outlet": "9876543210987654",
-     *       "distric": "Bandung Tengah",
-     *       "region": {"id": 2, "name": "Bandung"},
-     *       "poto_shop_sign": "noo/photos/uuid6.jpg",
-     *       "poto_depan": "noo/photos/uuid7.jpg",
-     *       "poto_kiri": "noo/photos/uuid8.jpg",
-     *       "poto_kanan": "noo/photos/uuid9.jpg",
-     *       "poto_ktp": "noo/photos/uuid10.jpg",
-     *       "video": null,
-     *       "oppo": false,
-     *       "vivo": true,
-     *       "realme": false,
-     *       "samsung": true,
-     *       "xiaomi": false,
-     *       "fl": false,
-     *       "latlong": "-6.9175,107.6191",
-     *       "limit": 3000000,
-     *       "status": "PENDING",
-     *       "rejected_at": null,
-     *       "rejected_by": null,
-     *       "confirmed_at": null,
-     *       "confirmed_by": null,
-     *       "approved_at": null,
-     *       "approved_by": null,
-     *       "deleted_at": null,
-     *       "created_at": 1705303000000,
-     *       "updated_at": 1705303000000,
-     *       "keterangan": null,
-     *       "cluster": {"id": 3, "name": "Bandung Utara"},
-     *       "badanusaha": {"id": 1, "name": "PT. Maju Bersama"},
-     *       "divisi": {"id": 2, "name": "Oppo"},
-     *       "created_by": "Siti Aminah"
-     *     }
-     *   ]
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "something wrong"
-     *   },
-     *   "data": {
-     *     "message": "[Exception details]"
-     *   }
-     * }
-     *
-     * @param  Request  $request  HTTP request instance
-     * @return JsonResponse
-     */
     public function all(Request $request)
     {
         try {
             $user = Auth::user();
+            $compact = $request->boolean('compact', true);
 
             // CRITICAL: Block access if user or role is null
-            if (!$user || !$user->role) {
+            if (! $user || ! $user->role) {
                 return ResponseFormatter::error(null, 'Unauthorized', 401);
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
-            if (!$scopeLevel) {
+            if (! $scopeLevel) {
                 return ResponseFormatter::error(null, 'Unauthorized', 401);
             }
 
             // If role has 'all' access, return all registers
-            if ($scopeLevel === 'all') {
-                $registers = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->get();
-            } else {
-                // Apply scope filtering like in fetch() method
-                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+            $relations = $compact ? [
+                'badanusaha:id,name',
+                'cluster:id,name',
+                'region:id,name',
+                'divisi:id,name',
+            ] : [
+                'badanusaha',
+                'cluster',
+                'region',
+                'divisi',
+            ];
 
-                // CRITICAL: If user has no assignments at all, return empty
-                $hasAnyAssignment = !empty($badanUsahaIds) || !empty($divisiIds) || !empty($regionIds) || !empty($clusterIds);
-                if (!$hasAnyAssignment) {
-                    return response()->json([
-                        'meta' => [
-                            'code' => 200,
-                            'status' => 'success',
-                            'message' => 'fetch register success',
-                        ],
-                        'data' => [],
-                        'errors' => null,
-                    ]);
-                }
+            $selectColumns = $compact ? [
+                'id',
+                'kode_outlet',
+                'nama_outlet',
+                'alamat_outlet',
+                'status',
+                'keterangan',
+                'distric',
+                'latlong',
+                'badanusaha_id',
+                'divisi_id',
+                'region_id',
+                'cluster_id',
+                'created_at',
+            ] : ['*'];
 
-                // Apply organizational scope filtering
-                $query = Register::with(['badanusaha', 'cluster', 'region', 'divisi']);
-                $query->visibleTo($user);
-                $registers = $query->get();
+            $query = Register::with($relations);
+            if ($compact) {
+                $query->select($selectColumns);
             }
+
+            // Apply organizational scope filtering
+            $registers = $query->visibleTo($user)->latest()->get();
 
             return RegisterResource::collection($registers)->additional([
                 'meta' => [
@@ -669,101 +393,7 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Submit New NOO Request
-     *
-     * Creates a new New Outlet Opening (NOO) request with role-based data assignment and file upload capabilities.
-     * This is the first stage of the 3-stage approval workflow (submit → confirm → approve/reject).
-     *
-     * **Role-Based Data Assignment:**
-     * - **ASM (ID: 1)**: Allows selection of business unit, division, region, and cluster for complete hierarchy assignment.
-     * - **ASC (ID: 2)**: Uses user's business unit, division, and region, with cluster selection from available options.
-     * - **RKAM (ID: 9)**: Similar to ASM - allows complete hierarchy selection.
-     * - **KAM (ID: 10)**: Similar to ASC - uses user's hierarchy with cluster selection.
-     * - **Other roles**: Uses user's complete hierarchical data (business unit, division, region, cluster).
-     *
-     * **File Upload System:**
-     * - **Photos**: Supports up to 5 photos (photo0-photo4) with intelligent categorization:
-     *   - Files containing "fotodepan" → poto_depan (front photo)
-     *   - Files containing "fotokanan" → poto_kanan (right photo)
-     *   - Files containing "fotokiri" → poto_kiri (left photo)
-     *   - Files containing "fotoktp" → poto_ktp (KTP photo)
-     *   - All other photos → poto_shop_sign (shop sign photo)
-     * - **Videos**: Single video upload support
-     * - **Validation**: Photos max 3MB (JPG/JPEG/PNG), videos max 50MB (MP4/QuickTime/WebM)
-     *
-     * **Notification System:**
-     * Automatically sends notifications to appropriate stakeholders based on user role:
-     * - **ASM/RKAM**: Notifies AR (role_id 4)
-     * - **ASC/KAM**: Notifies AR and TM
-     * - **Other roles**: Notifies AR, TM, and ASC (if available)
-     *
-     * @authenticated
-     *
-     * @bodyParam nama_outlet string required Outlet name (max: 255). Example: "Toko Maju Jaya"
-     * @bodyParam alamat_outlet string required Outlet address (max: 255). Example: "Jl. Raya No. 123, Jakarta"
-     * @bodyParam nama_pemilik string required Owner name (max: 255). Example: "Budi Santoso"
-     * @bodyParam nomer_pemilik string required Owner phone number (max: 255). Example: "081234567890"
-     * @bodyParam nomer_perwakilan string required Representative phone number (max: 255). Example: "081234567891"
-     * @bodyParam ktpnpwp string required KTP/NPWP number (max: 255). Example: "1234567890123456"
-     * @bodyParam distric string required District name (max: 255). Example: "Jakarta Pusat"
-     * @bodyParam oppo boolean required Oppo brand presence. Example: true
-     * @bodyParam vivo boolean required Vivo brand presence. Example: false
-     * @bodyParam samsung boolean required Samsung brand presence. Example: true
-     * @bodyParam xiaomi boolean required Xiaomi brand presence. Example: false
-     * @bodyParam realme boolean required Realme brand presence. Example: true
-     * @bodyParam fl boolean required FL brand presence. Example: false
-     * @bodyParam latlong string required Latitude and longitude coordinates. Example: "-6.2088,106.8456"
-     * @bodyParam bu string required Business unit name (for ASM/RKAM roles). Example: "PT. Maju Bersama"
-     * @bodyParam div string required Division name (for ASM/RKAM roles). Example: "Realme"
-     * @bodyParam reg string required Region name (for ASM/RKAM roles). Example: "Jakarta"
-     * @bodyParam clus string required Cluster name (for ASM/ASC/RKAM/KAM roles). Example: "Jakarta Pusat"
-     * @bodyParam photo0 file optional Front photo (max 3MB, JPG/JPEG/PNG). Example: "fotodepan_outlet.jpg"
-     * @bodyParam photo1 file optional Right photo (max 3MB, JPG/JPEG/PNG). Example: "fotokanan_outlet.jpg"
-     * @bodyParam photo2 file optional Left photo (max 3MB, JPG/JPEG/PNG). Example: "fotokiri_outlet.jpg"
-     * @bodyParam photo3 file optional KTP photo (max 3MB, JPG/JPEG/PNG). Example: "fotoktp_pemilik.jpg"
-     * @bodyParam photo4 file optional Shop sign photo (max 3MB, JPG/JPEG/PNG). Example: "shop_sign_outlet.jpg"
-     * @bodyParam video file optional Video file (max 50MB, MP4/QuickTime/WebM). Example: "outlet_tour.mp4"
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil menambahkan NOO Toko Maju Jaya"
-     *   },
-     *   "data": null
-     * }
-     * @response 422 {
-     *   "meta": {
-     *     "code": 422,
-     *     "status": "error",
-     *     "message": "The given data was invalid."
-     *   },
-     *   "data": {
-     *     "nama_outlet": ["The nama outlet field is required."]
-     *   }
-     * }
-     * @response 422 {
-     *   "meta": {
-     *     "code": 422,
-     *     "status": "error",
-     *     "message": "INVALID_FILE"
-     *   },
-     *   "data": "File foto tidak valid"
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "gagal"
-     *   },
-     *   "data": "[Exception details]"
-     * }
-     *
-     * @param  Request  $request  HTTP request with NOO data and files
-     * @return JsonResponse
-     */
-    public function submitNoo(Request $request)
+    public function submitNoo(SubmitNooRequest $request)
     {
         $temporaryFiles = [];
         $mediaQueue = [];
@@ -771,6 +401,16 @@ class RegisterController extends Controller
 
         try {
             $user = Auth::user();
+            $hierarchy = $this->resolveHierarchy($user, $request);
+
+            if ($this->isHierarchyIncomplete($hierarchy)) {
+                return ResponseFormatter::error([
+                    'badanusaha_id' => [$hierarchy['badanusaha_id'] ? null : 'Required'],
+                    'divisi_id' => [$hierarchy['divisi_id'] ? null : 'Required'],
+                    'region_id' => [$hierarchy['region_id'] ? null : 'Required'],
+                    'cluster_id' => [$hierarchy['cluster_id'] ? null : 'Required'],
+                ], 'Organizational hierarchy is required', 422);
+            }
 
             // Log NOO store initiated
             Log::channel('noo')->info('NOO store initiated', [
@@ -810,83 +450,31 @@ class RegisterController extends Controller
                 'fl' => $request->fl,
                 'latlong' => $request->latlong,
                 'created_by' => $user->nama_lengkap,
-                'tm_id' => $user->tm->id,
+                'tm_id' => $hierarchy['tm_id'],
+                'badanusaha_id' => $hierarchy['badanusaha_id'],
+                'divisi_id' => $hierarchy['divisi_id'],
+                'region_id' => $hierarchy['region_id'],
+                'cluster_id' => $hierarchy['cluster_id'],
             ];
-            // Helper to get first ID from pivot
-            $userBadanUsahaId = $user->badanUsahas->first()?->id;
-            $userDivisiId = $user->divisis->first()?->id;
-            $userRegionId = $user->regions->first()?->id;
-            $userClusterId = $user->clusters->first()?->id;
-
-            switch ($user->role_id) {
-                // ASM
-                case 1:
-                    $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
-                    $divisi_id = Division::where('badanusaha_id', $badanusaha_id)->where('name', $request->div)->first()->id;
-                    $region_id = Region::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('name', $request->reg)->first()->id;
-                    $cluster_id = Cluster::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('region_id', $region_id)->where('name', $request->clus)->first()->id;
-                    $data['badanusaha_id'] = $badanusaha_id;
-                    $data['divisi_id'] = $divisi_id;
-                    $data['region_id'] = $region_id;
-                    $data['cluster_id'] = $cluster_id;
-                    break;
-
-                // ASC
-                case 2:
-                    $data['badanusaha_id'] = $userBadanUsahaId;
-                    $data['divisi_id'] = $userDivisiId;
-                    $data['region_id'] = $userRegionId;
-                    $data['cluster_id'] = Cluster::where('badanusaha_id', $userBadanUsahaId)->where('divisi_id', $userDivisiId)->where('region_id', $userRegionId)->where('name', $request->clus)->first()->id;
-                    error_log($data['cluster_id']);
-                    break;
-
-                // RKAM
-                case 9:
-                    $badanusaha_id = BadanUsaha::where('name', $request->bu)->first()->id;
-                    $divisi_id = Division::where('badanusaha_id', $badanusaha_id)->where('name', $request->div)->first()->id;
-                    $region_id = Region::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('name', $request->reg)->first()->id;
-                    $cluster_id = Cluster::where('badanusaha_id', $badanusaha_id)->where('divisi_id', $divisi_id)->where('region_id', $region_id)->where('name', $request->clus)->first()->id;
-                    $data['badanusaha_id'] = $badanusaha_id;
-                    $data['divisi_id'] = $divisi_id;
-                    $data['region_id'] = $region_id;
-                    $data['cluster_id'] = $cluster_id;
-                    break;
-
-                // KAM
-                case 10:
-                    $data['badanusaha_id'] = $userBadanUsahaId;
-                    $data['divisi_id'] = $userDivisiId;
-                    $data['region_id'] = $userRegionId;
-                    $data['cluster_id'] = Cluster::where('badanusaha_id', $userBadanUsahaId)->where('divisi_id', $userDivisiId)->where('region_id', $userRegionId)->where('name', $request->clus)->first()->id;
-                    error_log($data['cluster_id']);
-                    break;
-
-                default:
-                    $data['badanusaha_id'] = $userBadanUsahaId;
-                    $data['divisi_id'] = $userDivisiId;
-                    $data['region_id'] = $userRegionId;
-                    $data['cluster_id'] = $userClusterId;
-                    break;
-            }
 
             // Validasi dinamis
             $rules = [];
             for ($i = 0; $i <= 4; $i++) {
-                if ($request->hasFile('photo' . $i)) {
-                    $rules['photo' . $i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+                if ($request->hasFile('photo'.$i)) {
+                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
                 }
             }
             if ($request->hasFile('video')) {
                 $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200']; // 50MB
             }
-            if (!empty($rules)) {
+            if (! empty($rules)) {
                 $request->validate($rules);
             }
 
             // Queue photo uploads for background processing
             for ($i = 0; $i <= 4; $i++) {
-                $file = $request->file('photo' . $i);
-                if (!$file) {
+                $file = $request->file('photo'.$i);
+                if (! $file) {
                     continue;
                 }
 
@@ -930,7 +518,7 @@ class RegisterController extends Controller
 
                     // Generate stored video name in the pattern seen in logs
                     $timestamp = now()->format('YmdHis');
-                    $storedName = 'noo-' . $timestamp . '-video-' . substr(md5(uniqid()), 0, 13) . '-' . str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
+                    $storedName = 'noo-'.$timestamp.'-video-'.substr(md5(uniqid()), 0, 13).'-'.str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
 
                     // Log video saved
                     Log::channel('noo')->info('NOO store video saved', [
@@ -958,87 +546,18 @@ class RegisterController extends Controller
                 ]);
             }
 
-            switch ($user->id) {
-                // ASM
-                case 1:
-                    $notifId = [];
-                    array_push($notifId, User::where('role_id', 4)->first()->id_notif);
-                    break;
-                // ASC
-                case 2:
-                    $notifId = [];
-                    // notif ar
-                    array_push($notifId, User::where('role_id', 4)->first()->id_notif);
-                    // notif tm
-                    array_push($notifId, $user->tm->id_notif);
-                    break;
-                // RKAM
-                case 9:
-                    $notifId = [];
-                    array_push($notifId, User::where('role_id', 4)->first()->id_notif);
-                    break;
-                // KAM
-                case 10:
-                    $notifId = [];
-                    // notif ar
-                    array_push($notifId, User::where('role_id', 4)->first()->id_notif);
-                    // notif tm
-                    array_push($notifId, $user->tm->id_notif);
-                    break;
-                default:
-                    $notifId = [];
-                    // notif ar
-                    array_push($notifId, User::where('role_id', 4)->first()->id_notif);
-                    // notif tm
-                    array_push($notifId, $user->tm->id_notif);
-                    // notif asc (region-level role)
-                    // Get user's organizational IDs from many-to-many relationships
-                    $userDivisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                    $userRegionIds = $user->regions()->pluck('regions.id')->toArray();
-
-                    $asc = User::whereHas('role', function ($query) {
-                        $query->where('organizational_scope_level', 'region');
-                    })
-                        ->whereHas('divisis', function ($query) use ($userDivisiIds) {
-                            $query->whereIn('divisions.id', $userDivisiIds);
-                        })
-                        ->whereHas('regions', function ($query) use ($userRegionIds) {
-                            $query->whereIn('regions.id', $userRegionIds);
-                        })
-                        ->first()?->id_notif;
-                    if ($asc) {
-                        array_push($notifId, $asc);
-                    }
-                    break;
-            }
+            $notifId = $this->buildNotificationRecipients($user, $hierarchy);
             $register = Register::create($data);
             if ($register && $notifId !== []) {
                 $this->dispatchNotification(
-                    'Register baru ' . $request->nama_outlet . ' ditambahkan oleh ' . Auth::user()->nama_lengkap,
+                    'Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
                     $notifId
                 );
             }
 
             // Process media files using unified trait
             if ($register && $mediaQueue !== []) {
-                file_put_contents('/tmp/debug_media_queue.txt', json_encode([
-                    'register_id' => $register->id,
-                    'media_count' => count($mediaQueue),
-                    'media_queue' => $mediaQueue,
-                    'about_to_dispatch' => true,
-                ]));
                 $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
-                file_put_contents('/tmp/debug_media_queue.txt', json_encode([
-                    'register_id' => $register->id,
-                    'media_dispatched' => $mediaDispatched,
-                    'dispatch_completed' => true,
-                ]));
-            } else {
-                file_put_contents('/tmp/debug_media_queue.txt', json_encode([
-                    'register_id' => $register->id ?? null,
-                    'media_queue_empty' => empty($mediaQueue),
-                    'no_dispatch' => true,
-                ]));
             }
 
             // Log NOO store completed
@@ -1051,13 +570,13 @@ class RegisterController extends Controller
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'berhasil menambahkan register ' . $request->nama_outlet,
+                    'message' => 'berhasil menambahkan register '.$request->nama_outlet,
                 ],
                 'data' => null,
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            if (!$mediaDispatched) {
+            if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
             error_log($e);
@@ -1066,78 +585,6 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Confirm NOO Request (Stage 2 of Approval Workflow)
-     *
-     * Confirms a submitted NOO request by setting credit limit and outlet code.
-     * This is the second stage of the 3-stage approval workflow (submit → confirm → approve/reject).
-     * Typically performed by AR (Area Representative) role.
-     *
-     * **Business Logic:**
-     * - Updates NOO status to CONFIRMED
-     * - Sets credit limit for the outlet
-     * - Assigns unique outlet code
-     * - Records confirmation details (who and when)
-     * - Sends notification to original creator and TM
-     *
-     * **Notification System:**
-     * Automatically sends confirmation notification to:
-     * - The user who created the NOO
-     * - The TM (Territory Manager) associated with the NOO
-     * - Notification includes limit amount formatted as Indonesian currency
-     *
-     * @authenticated
-     *
-     * @bodyParam id integer required NOO record ID to confirm. Example: 123
-     * @bodyParam status string required New status (typically "CONFIRMED"). Example: "CONFIRMED"
-     * @bodyParam limit integer required Credit limit amount. Example: 5000000
-     * @bodyParam kode_outlet string required Unique outlet code. Example: "TOK-2024-001"
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil update"
-     *   },
-     *   "data": {
-     *     "id": 123,
-     *     "nama_outlet": "Toko Maju Jaya",
-     *     "status": "CONFIRMED",
-     *     "limit": 5000000,
-     *     "kode_outlet": "TOK-2024-001",
-     *     "confirmed_by": "Ahmad Rizki",
-     *     "confirmed_at": "2024-01-15T10:30:00.000000Z"
-     *   }
-     * }
-     * @response 422 {
-     *   "meta": {
-     *     "code": 422,
-     *     "status": "error",
-     *     "message": "The given data was invalid."
-     *   },
-     *   "data": {
-     *     "id": ["The id field is required."]
-     *   }
-     * }
-     * @response 404 {
-     *   "meta": {
-     *     "code": 404,
-     *     "status": "error",
-     *     "message": "No query results for model [App\\Models\\Noo] 123"
-     *   }
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "gagal"
-     *   },
-     *   "data": "[Exception details]"
-     * }
-     *
-     * @param  Request  $request  HTTP request with confirmation data
-     * @return JsonResponse
-     */
     public function confirmNoo(Request $request)
     {
         try {
@@ -1162,9 +609,9 @@ class RegisterController extends Controller
             ]);
 
             $this->dispatchNotification(
-                'Register ' . $register->nama_outlet . ' sudah dikonfirmasi oleh ' .
-                Auth::user()->nama_lengkap . PHP_EOL .
-                'Dengan limit : Rp ' . number_format($request->limit, 0, ',', '.'),
+                'Register '.$register->nama_outlet.' sudah dikonfirmasi oleh '.
+                Auth::user()->nama_lengkap.PHP_EOL.
+                'Dengan limit : Rp '.number_format($request->limit, 0, ',', '.'),
                 $recipients
             );
 
@@ -1184,9 +631,6 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * @param  array<int, string|null>  $paths
-     */
     private function cleanupTemporaryFiles(array $paths): void
     {
         if ($paths === []) {
@@ -1196,7 +640,7 @@ class RegisterController extends Controller
         $disk = Storage::disk($this->fileUpload->temporaryDisk());
 
         foreach ($paths as $path) {
-            if (!$path) {
+            if (! $path) {
                 continue;
             }
 
@@ -1204,95 +648,6 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Approve NOO Request (Final Stage with Automatic Outlet Creation)
-     *
-     * Approves a confirmed NOO request, updating its status and automatically creating
-     * an Outlet record. This is the final stage of the 3-stage approval workflow.
-     * Typically performed by management roles with approval authority.
-     *
-     * **Business Logic:**
-     * - Updates NOO status to APPROVED
-     * - Records approval details (who and when)
-     * - **Automatic Outlet Creation**: Creates a new Outlet record with:
-     *   - Same hierarchical data as NOO (business unit, division, region, cluster)
-     *   - All outlet information (name, address, owner details, etc.)
-     *   - All photos and videos transferred from NOO
-     *   - Default values: radius=0, status_outlet='MAINTAIN'
-     *   - Preserves the assigned limit from confirmation stage
-     * - **Duplicate Prevention**: Checks for existing outlets with same hierarchy and code
-     *
-     * **Notification System:**
-     * Automatically sends approval notification to:
-     * - The user who created the original NOO (if notification ID exists)
-     *
-     * **Data Transfer:**
-     * All NOO data including photos (poto_depan, poto_kanan, poto_kiri, poto_ktp, poto_shop_sign)
-     * and videos are transferred to the new Outlet record to maintain data consistency.
-     *
-     * @authenticated
-     *
-     * @bodyParam id integer required NOO record ID to approve. Example: 123
-     * @bodyParam status string required New status (typically "APPROVED"). Example: "APPROVED"
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil update"
-     *   },
-     *   "data": {
-     *     "id": 123,
-     *     "nama_outlet": "Toko Maju Jaya",
-     *     "status": "APPROVED",
-     *     "kode_outlet": "TOK-2024-001",
-     *     "approved_by": "Budi Santoso",
-     *     "approved_at": "2024-01-15T11:00:00.000000Z",
-     *     "limit": 5000000
-     *   }
-     * }
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil update"
-     *   },
-     *   "data": {
-     *     "id": 123,
-     *     "nama_outlet": "Toko Maju Jaya",
-     *     "status": "APPROVED",
-     *     "note": "Outlet already exists, NOO approved without duplicate creation"
-     *   }
-     * }
-     * @response 422 {
-     *   "meta": {
-     *     "code": 422,
-     *     "status": "error",
-     *     "message": "The given data was invalid."
-     *   },
-     *   "data": {
-     *     "id": ["The id field is required."]
-     *   }
-     * }
-     * @response 404 {
-     *   "meta": {
-     *     "code": 404,
-     *     "status": "error",
-     *     "message": "No query results for model [App\\Models\\Noo] 123"
-     *   }
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "gagal"
-     *   },
-     *   "data": "[Exception details]"
-     * }
-     *
-     * @param  Request  $request  HTTP request with approval data
-     * @return JsonResponse
-     */
     public function approveNoo(Request $request)
     {
         try {
@@ -1357,7 +712,7 @@ class RegisterController extends Controller
             }
             if ($insert && $notif !== []) {
                 $this->dispatchNotification(
-                    'Register ' . $register->nama_outlet . ' sudah disetujui oleh ' .
+                    'Register '.$register->nama_outlet.' sudah disetujui oleh '.
                     Auth::user()->nama_lengkap,
                     $notif
                 );
@@ -1379,85 +734,6 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Reject NOO Request with Reason Tracking
-     *
-     * Rejects a NOO request and records the rejection reason for transparency and future reference.
-     * This endpoint can be used at any stage of the approval workflow to terminate a NOO request.
-     *
-     * **Business Logic:**
-     * - Updates NOO status to REJECTED
-     * - Records rejection reason in keterangan field
-     * - Tracks who rejected and when
-     * - Prevents further processing of rejected NOOs
-     * - Sends rejection notification with detailed reason to TM
-     *
-     * **Reason Tracking:**
-     * The rejection reason is stored in the keterangan field and included in notifications
-     * to provide clear feedback to stakeholders about why the NOO was rejected.
-     *
-     * **Notification System:**
-     * Automatically sends rejection notification to:
-     * - The TM (Territory Manager) associated with the NOO
-     * - Notification includes both rejection notice and the specific reason
-     *
-     * **Use Cases:**
-     * - Incomplete documentation
-     * - Invalid location or data
-     * - Policy violations
-     * - Duplicate submissions
-     * - Credit risk concerns
-     *
-     * @authenticated
-     *
-     * @bodyParam id integer required NOO record ID to reject. Example: 123
-     * @bodyParam status string required New status (typically "REJECTED"). Example: "REJECTED"
-     * @bodyParam alasan string required Rejection reason for record-keeping and notifications. Example: "Outlet location outside coverage area"
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil update"
-     *   },
-     *   "data": {
-     *     "id": 123,
-     *     "nama_outlet": "Toko Maju Jaya",
-     *     "status": "REJECTED",
-     *     "keterangan": "Outlet location outside coverage area",
-     *     "rejected_by": "Ahmad Rizki",
-     *     "rejected_at": "2024-01-15T10:45:00.000000Z"
-     *   }
-     * }
-     * @response 422 {
-     *   "meta": {
-     *     "code": 422,
-     *     "status": "error",
-     *     "message": "The given data was invalid."
-     *   },
-     *   "data": {
-     *     "alasan": ["The alasan field is required."]
-     *   }
-     * }
-     * @response 404 {
-     *   "meta": {
-     *     "code": 404,
-     *     "status": "error",
-     *     "message": "No query results for model [App\\Models\\Noo] 123"
-     *   }
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "gagal"
-     *   },
-     *   "data": "[Exception details]"
-     * }
-     *
-     * @param  Request  $request  HTTP request with rejection data
-     * @return JsonResponse
-     */
     public function rejectNoo(Request $request)
     {
         try {
@@ -1477,7 +753,7 @@ class RegisterController extends Controller
 
             $recipient = optional($register->tm)->id_notif;
             $this->dispatchNotification(
-                'Register ' . $register->nama_outlet . ' ditolak oleh ' . Auth::user()->nama_lengkap . PHP_EOL . 'Alasan : ' . $request->alasan,
+                'Register '.$register->nama_outlet.' ditolak oleh '.Auth::user()->nama_lengkap.PHP_EOL.'Alasan : '.$request->alasan,
                 $recipient ? [$recipient] : []
             );
 
@@ -1495,123 +771,52 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Get Unapproved NOOs for Outlet Creation
-     *
-     * Retrieves NOOs that haven't been approved yet (approved_by is null) with role-based filtering.
-     * Used for identifying NOOs that are candidates for outlet creation and approval management.
-     *
-     * **Business Purpose:**
-     * - Shows NOOs awaiting final approval
-     * - Identifies pending outlet creation opportunities
-     * - Supports approval workflow management
-     * - Filters unapproved NOOs by user role permissions
-     *
-     * **Role-Based Filtering Logic:**
-     * - **ASM (ID: 1)**: Filters by TM_id to show unapproved NOOs from their territory managers
-     * - **ASC (ID: 2)**: Filters by business unit, division, region, and optional user clusters
-     * - **DSF/DM (ID: 3)**: Same filtering as ASC (business unit, division, region, optional clusters)
-     * - **Default**: Fallback to business units 2 and 4 with specific status filters
-     *
-     * **Key Filter:**
-     * Only returns NOOs where approved_by is null, indicating they haven't reached
-     * the final approval stage and haven't created outlet records yet.
-     *
-     * **Use Cases:**
-     * - Approval queue management
-     * - Pending outlet creation tracking
-     * - Sales team performance monitoring
-     * - Hierarchical approval oversight
-     *
-     * @authenticated
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "fetch noo success"
-     *   },
-     *   "data": [
-     *     {
-     *       "id": 123,
-     *       "nama_outlet": "Toko Maju Jaya",
-     *       "status": "CONFIRMED",
-     *       "approved_by": null,
-     *       "badanusaha": {"id": 1, "name": "PT. Maju Bersama"},
-     *       "cluster": {"id": 1, "name": "Jakarta Pusat"},
-     *       "region": {"id": 1, "name": "Jakarta"},
-     *       "divisi": {"id": 1, "name": "Realme"}
-     *     }
-     *   ]
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "something wrong"
-     *   },
-     *   "data": {
-     *     "message": "[Exception details]"
-     *   }
-     * }
-     *
-     * @param  Request  $request  HTTP request instance
-     * @return JsonResponse
-     */
     public function getRegisterOutlet(Request $request)
     {
         try {
             $user = Auth::user();
-            // Get organizational IDs from many-to-many relationships
-            $badanusahaId = $user->badanUsahas->first()?->id;
-            $divisiId = $user->divisis->first()?->id;
-            $regionId = $user->regions->first()?->id;
-            $clusterId = $user->clusters->first()?->id;
-            $clusterIdSecondary = null; // cluster_id2 column was removed, set to null
-            $roleId = $user->role_id;
+            $compact = $request->boolean('compact', true);
+            $relations = $compact ? [
+                'badanusaha:id,name',
+                'cluster:id,name',
+                'region:id,name',
+                'divisi:id,name',
+            ] : [
+                'badanusaha',
+                'cluster',
+                'region',
+                'divisi',
+            ];
 
-            $query = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('approved_by', null);
+            $selectColumns = $compact ? [
+                'id',
+                'kode_outlet',
+                'nama_outlet',
+                'alamat_outlet',
+                'status',
+                'keterangan',
+                'distric',
+                'latlong',
+                'badanusaha_id',
+                'divisi_id',
+                'region_id',
+                'cluster_id',
+                'created_at',
+            ] : ['*'];
 
-            switch ($roleId) {
-                // ASM
-                case 1:
-                    $registers = $query
-                        ->where('tm_id', $user->id)
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-                // ASC
-                case 2:
-                case 3:
-                    // ASC and DSF/DM share the same regional scope with optional cluster narrowing
-                    $filteredQuery = $query
-                        ->where('badanusaha_id', $badanusahaId)
-                        ->where('divisi_id', $divisiId)
-                        ->where('region_id', $regionId);
+            $registers = Register::with($relations)
+                ->whereNull('approved_by')
+                ->when($compact, fn ($q) => $q->select($selectColumns))
+                ->visibleTo($user)
+                ->orderBy('nama_outlet')
+                ->get();
 
-                    $clusterIds = array_values(array_filter([$clusterId, $clusterIdSecondary]));
-
-                    if ($clusterIds !== []) {
-                        $filteredQuery->whereIn('cluster_id', $clusterIds);
-                    }
-
-                    $registers = $filteredQuery
-                        ->orderBy('nama_outlet')
-                        ->get();
-                    break;
-
-                default:
-                    $registers = Register::with(['badanusaha', 'cluster', 'region', 'divisi'])->where('badanusaha_id', 2)->orWhere('badanusaha_id', 4)->whereIn('status', ['PENDING', 'CONFIRMED', 'REJECTED'])->latest()->get();
-                    break;
-            }
-
-            return response()->json([
+            return RegisterResource::collection($registers)->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
                     'message' => 'fetch register success',
                 ],
-                'data' => $registers,
                 'errors' => null,
             ]);
         } catch (Exception $err) {
@@ -1621,83 +826,6 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Get Single NOO by ID
-     *
-     * Retrieves a specific NOO record by its ID with complete hierarchical relationships.
-     * Used for detailed view, editing, and individual NOO management operations.
-     *
-     * **Business Purpose:**
-     * - Detailed NOO information display
-     * - Editing and update operations
-     * - Approval workflow management for specific NOOs
-     * - Status tracking and history viewing
-     *
-     * **Response Structure:**
-     * Returns single NOO with complete hierarchical data including:
-     * - Business unit, cluster, region, and division relationships
-     * - All NOO details (outlet info, owner details, location, etc.)
-     * - File references (photos, videos)
-     * - Status and approval history
-     *
-     * **Use Cases:**
-     * - NOO detail pages in web/mobile applications
-     * - Approval/rejection workflows
-     * - Status monitoring for specific NOOs
-     * - Data validation and correction
-     * - Historical reference and audit trails
-     *
-     * **Parameter Note:**
-     * The parameter name is $kodeOutlet but it actually searches by NOO ID.
-     * This is a legacy naming convention from earlier system versions.
-     *
-     * @authenticated
-     *
-     * @pathParam kodeOutlet integer required NOO record ID. Example: 123
-     *
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil"
-     *   },
-     *   "data": [
-     *     {
-     *       "id": 123,
-     *       "nama_outlet": "Toko Maju Jaya",
-     *       "alamat_outlet": "Jl. Raya No. 123, Jakarta",
-     *       "nama_pemilik_outlet": "Budi Santoso",
-     *       "status": "CONFIRMED",
-     *       "created_by": "Ahmad Rizki",
-     *       "tm_id": 45,
-     *       "badanusaha": {"id": 1, "name": "PT. Maju Bersama"},
-     *       "cluster": {"id": 1, "name": "Jakarta Pusat"},
-     *       "region": {"id": 1, "name": "Jakarta"},
-     *       "divisi": {"id": 1, "name": "Realme"}
-     *     }
-     *   ]
-     * }
-     * @response 200 {
-     *   "meta": {
-     *     "code": 200,
-     *     "status": "success",
-     *     "message": "berhasil"
-     *   },
-     *   "data": []
-     * }
-     * @response 500 {
-     *   "meta": {
-     *     "code": 500,
-     *     "status": "error",
-     *     "message": "ada kesalahan"
-     *   },
-     *   "data": null
-     * }
-     *
-     * @param  Request  $request  HTTP request instance
-     * @param  mixed  $kodeOutlet  NOO record ID to retrieve
-     * @return JsonResponse
-     */
     public function singleOutlet(Request $request, $kodeOutlet)
     {
         // dd($request->all());
@@ -1720,9 +848,6 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Map target field to file type for optimized processing
-     */
     protected function mapTargetToFileType(string $target): string
     {
         return [
@@ -1735,10 +860,6 @@ class RegisterController extends Controller
         ][$target] ?? 'register-photo';
     }
 
-    /**
-     * Get photo field mapping for register model
-     * Used by HasMediaUpload trait
-     */
     protected function getPhotoFieldMapping(string $modelType): array
     {
         if ($modelType === 'register') {
@@ -1752,6 +873,82 @@ class RegisterController extends Controller
         }
 
         return [];
+    }
+
+    protected function resolveHierarchy(User $user, Request $request): array
+    {
+        $ids = $user->getOrganizationalIds();
+        $cluster = null;
+
+        $clusterId = $request->integer('cluster_id') ?: ($ids['cluster'][0] ?? null);
+        if (! $clusterId && $request->filled('clus')) {
+            $cluster = Cluster::where('name', $request->clus)->first();
+            $clusterId = $cluster?->id;
+        } elseif ($clusterId) {
+            $cluster = Cluster::find($clusterId);
+        }
+
+        $regionId = $request->integer('region_id') ?: ($ids['region'][0] ?? $cluster?->region_id);
+        if (! $regionId && $request->filled('reg')) {
+            $regionId = Region::where('name', $request->reg)->value('id');
+        }
+
+        $divisiId = $request->integer('divisi_id') ?: ($ids['divisi'][0] ?? $cluster?->divisi_id);
+        if (! $divisiId && $request->filled('div')) {
+            $divisiId = Division::where('name', $request->div)->value('id');
+        }
+
+        $badanusahaId = $request->integer('badanusaha_id') ?: ($ids['badanusaha'][0] ?? $cluster?->badanusaha_id);
+        if (! $badanusahaId && $request->filled('bu')) {
+            $badanusahaId = BadanUsaha::where('name', $request->bu)->value('id');
+        }
+
+        return [
+            'badanusaha_id' => $badanusahaId,
+            'divisi_id' => $divisiId,
+            'region_id' => $regionId,
+            'cluster_id' => $clusterId,
+            'tm_id' => $user->tm?->id ?? $user->id,
+        ];
+    }
+
+    protected function isHierarchyIncomplete(array $hierarchy): bool
+    {
+        return in_array(null, [
+            $hierarchy['badanusaha_id'],
+            $hierarchy['divisi_id'],
+            $hierarchy['region_id'],
+            $hierarchy['cluster_id'],
+        ], true);
+    }
+
+    protected function buildNotificationRecipients(User $user, array $hierarchy): array
+    {
+        $recipients = [];
+
+        if ($user->tm?->id_notif) {
+            $recipients[] = $user->tm->id_notif;
+        }
+
+        if ($hierarchy['region_id']) {
+            $recipients = array_merge($recipients, User::query()
+                ->whereNotNull('id_notif')
+                ->whereHas('role', fn ($query) => $query->where('organizational_scope_level', 'region'))
+                ->whereHas('regions', fn ($query) => $query->where('regions.id', $hierarchy['region_id']))
+                ->pluck('id_notif')
+                ->toArray());
+        }
+
+        if ($hierarchy['cluster_id']) {
+            $recipients = array_merge($recipients, User::query()
+                ->whereNotNull('id_notif')
+                ->whereHas('role', fn ($query) => $query->where('organizational_scope_level', 'cluster'))
+                ->whereHas('clusters', fn ($query) => $query->where('clusters.id', $hierarchy['cluster_id']))
+                ->pluck('id_notif')
+                ->toArray());
+        }
+
+        return array_values(array_unique(array_filter($recipients)));
     }
 
     protected function dispatchNotification(string $message, array $recipientIds): void

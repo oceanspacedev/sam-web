@@ -12,6 +12,27 @@ class PlanVisitResource extends JsonResource
         $periodStart = $this->period_start ? Carbon::parse($this->period_start) : null;
         $periodEnd = $this->period_end ? Carbon::parse($this->period_end) : null;
 
+        if ($request->boolean('compact', true)) {
+            return [
+                'id' => $this->id,
+                'user_id' => $this->user_id,
+                'outlet_id' => $this->outlet_id,
+                'schedule_scope' => $this->schedule_scope,
+                'period_start' => $periodStart?->toDateString(),
+                'period_end' => $periodEnd?->toDateString(),
+                'schedule_week' => $this->schedule_week,
+                'schedule_year' => $this->schedule_year,
+                'tanggal_visit' => $this->tanggal_visit ? Carbon::parse($this->tanggal_visit)->toDateString() : null,
+                'outlet' => $this->whenLoaded('outlet', function () {
+                    return [
+                        'id' => $this->outlet?->id,
+                        'kode_outlet' => $this->outlet?->kode_outlet,
+                        'nama_outlet' => $this->outlet?->nama_outlet,
+                    ];
+                }),
+            ];
+        }
+
         return [
             'id' => $this->id,
             'tanggal_visit' => $this->tanggal_visit ? Carbon::parse($this->tanggal_visit)->getPreciseTimestamp(3) : null,

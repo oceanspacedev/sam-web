@@ -68,11 +68,11 @@ class ClusterResource extends Resource
 
                         // If role has 'all' scope, show all
                         if ($role->organizational_scope_level === 'all') {
-                            return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id');
+                            return BadanUsaha::active()->orderBy('name', 'asc')->pluck('name', 'id');
                         }
 
                         // Use pivot table for current user's assignments
-                        return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
+                        return $user->badanUsahas()->active()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
                     })
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('divisi_id', null);
@@ -123,7 +123,7 @@ class ClusterResource extends Resource
                         }
 
                         $user = auth()->user();
-                        $query = Division::where('badanusaha_id', $badanusahaId);
+                        $query = Division::active()->where('badanusaha_id', $badanusahaId);
 
                         // Apply user scope filtering
                         if ($user && $user->role->organizational_scope_level !== 'all') {
@@ -245,17 +245,17 @@ class ClusterResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('badanusaha')
-                    ->relationship('badanUsaha', 'name')
+                    ->relationship('badanUsaha', 'name', fn (Builder $query) => $query->active())
                     ->searchable()
                     ->preload()
                     ->label('Badan Usaha'),
                 SelectFilter::make('divisi')
-                    ->relationship('divisi', 'name')
+                    ->relationship('divisi', 'name', fn (Builder $query) => $query->active())
                     ->searchable()
                     ->preload()
                     ->label('Divisi'),
                 SelectFilter::make('region')
-                    ->relationship('region', 'name')
+                    ->relationship('region', 'name', fn (Builder $query) => $query->active())
                     ->searchable()
                     ->preload()
                     ->label('Region'),

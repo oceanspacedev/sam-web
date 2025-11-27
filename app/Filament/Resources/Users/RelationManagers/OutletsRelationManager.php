@@ -30,7 +30,16 @@ use Illuminate\Support\HtmlString;
 
 class OutletsRelationManager extends RelationManager
 {
-    protected static string $relationship = 'outlet';
+    protected static ?string $title = 'Outlet';
+
+    protected static string $relationship = 'outlets';
+
+    protected function getTableQuery(): Builder
+    {
+        $owner = $this->getOwnerRecord();
+
+        return Outlet::visibleTo($owner)->active();
+    }
 
     public function table(Table $table): Table
     {

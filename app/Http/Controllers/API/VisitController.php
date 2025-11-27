@@ -21,47 +21,43 @@ class VisitController extends Controller
 {
     use HasMediaUpload;
 
-    public function __construct(protected FileUploadService $fileUpload)
-    {
-    }
+    public function __construct(protected FileUploadService $fileUpload) {}
 
-    /**
-     * Retrieve role-based visit monitoring data
-     *
-     * Returns visit records filtered by organizational scope level.
-     * Uses dynamic filtering based on user's organizational assignments.
-     *
-     * @queryParam date string optional Filter visits by specific date. Format: YYYY-MM-DD. Example: "2024-01-15"
-     */
     public function monitor(Request $request)
     {
         try {
             $user = Auth::user();
+            $compact = $request->boolean('compact', true);
 
             // Validate access
-            if (!$user || !$user->role) {
+            if (! $user || ! $user->role) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
-            if (!$scopeLevel) {
+            if (! $scopeLevel) {
                 return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
             }
 
             $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
 
-            $baseRelations = [
-                'outlet.badanusaha',
-                'outlet.region',
-                'outlet.divisi',
-                'outlet.cluster',
-                'user.badanUsahas',
-                'user.regions',
-                'user.divisis',
-                'user.clusters',
-                'user.role',
-            ];
+            $baseRelations = $compact
+                ? [
+                    'outlet:id,kode_outlet,nama_outlet',
+                    'user:id,nama_lengkap,role_id',
+                ]
+                : [
+                    'outlet.badanusaha',
+                    'outlet.region',
+                    'outlet.divisi',
+                    'outlet.cluster',
+                    'user.badanUsahas',
+                    'user.regions',
+                    'user.divisis',
+                    'user.clusters',
+                    'user.role',
+                ];
 
             // Get user's organizational assignments
             $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
@@ -70,10 +66,10 @@ class VisitController extends Controller
             $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
 
             // Check if user has assignments (if not full access)
-            if ($scopeLevel !== 'all' && !$user->role->hasFullAccess()) {
-                $hasAnyAssignment = !empty($badanUsahaIds) || !empty($divisiIds) || !empty($regionIds) || !empty($clusterIds);
+            if ($scopeLevel !== 'all' && ! $user->role->hasFullAccess()) {
+                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
 
-                if (!$hasAnyAssignment) {
+                if (! $hasAnyAssignment) {
                     return response()->json([
                         'meta' => [
                             'code' => 200,
@@ -89,6 +85,20 @@ class VisitController extends Controller
             // Build query with scope-based filtering
             $visit = Visit::with($baseRelations)->whereDate('tanggal_visit', $date);
 
+            if ($compact) {
+                $visit->select([
+                    'id',
+                    'user_id',
+                    'outlet_id',
+                    'tanggal_visit',
+                    'tipe_visit',
+                    'check_in_time',
+                    'check_out_time',
+                    'transaksi',
+                    'created_at',
+                ]);
+            }
+
             // Apply scope-level filtering
             if ($scopeLevel === 'all' || $user->role->hasFullAccess()) {
                 // Full access - no filtering
@@ -97,47 +107,50 @@ class VisitController extends Controller
                 // Apply organizational filters based on scope level
                 $visit->where(function ($query) use ($scopeLevel, $badanUsahaIds, $divisiIds, $regionIds, $clusterIds) {
                     if ($scopeLevel === 'badanusaha') {
-                        if (!empty($badanUsahaIds)) {
-                            $query->whereHas('user.badanUsahas', fn($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
+                        if (! empty($badanUsahaIds)) {
+                            $query->whereHas('user.badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
                         }
+
                         return;
                     }
 
                     if ($scopeLevel === 'divisi') {
-                        if (!empty($badanUsahaIds)) {
-                            $query->whereHas('user.badanUsahas', fn($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
+                        if (! empty($badanUsahaIds)) {
+                            $query->whereHas('user.badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
                         }
-                        if (!empty($divisiIds)) {
-                            $query->whereHas('user.divisis', fn($q) => $q->whereIn('divisions.id', $divisiIds));
+                        if (! empty($divisiIds)) {
+                            $query->whereHas('user.divisis', fn ($q) => $q->whereIn('divisions.id', $divisiIds));
                         }
+
                         return;
                     }
 
                     if ($scopeLevel === 'region') {
-                        if (!empty($badanUsahaIds)) {
-                            $query->whereHas('user.badanUsahas', fn($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
+                        if (! empty($badanUsahaIds)) {
+                            $query->whereHas('user.badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
                         }
-                        if (!empty($divisiIds)) {
-                            $query->whereHas('user.divisis', fn($q) => $q->whereIn('divisions.id', $divisiIds));
+                        if (! empty($divisiIds)) {
+                            $query->whereHas('user.divisis', fn ($q) => $q->whereIn('divisions.id', $divisiIds));
                         }
-                        if (!empty($regionIds)) {
-                            $query->whereHas('user.regions', fn($q) => $q->whereIn('regions.id', $regionIds));
+                        if (! empty($regionIds)) {
+                            $query->whereHas('user.regions', fn ($q) => $q->whereIn('regions.id', $regionIds));
                         }
+
                         return;
                     }
 
                     // cluster level - apply all levels when provided
-                    if (!empty($badanUsahaIds)) {
-                        $query->whereHas('user.badanUsahas', fn($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
+                    if (! empty($badanUsahaIds)) {
+                        $query->whereHas('user.badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
                     }
-                    if (!empty($divisiIds)) {
-                        $query->whereHas('user.divisis', fn($q) => $q->whereIn('divisions.id', $divisiIds));
+                    if (! empty($divisiIds)) {
+                        $query->whereHas('user.divisis', fn ($q) => $q->whereIn('divisions.id', $divisiIds));
                     }
-                    if (!empty($regionIds)) {
-                        $query->whereHas('user.regions', fn($q) => $q->whereIn('regions.id', $regionIds));
+                    if (! empty($regionIds)) {
+                        $query->whereHas('user.regions', fn ($q) => $q->whereIn('regions.id', $regionIds));
                     }
-                    if (!empty($clusterIds)) {
-                        $query->whereHas('user.clusters', fn($q) => $q->whereIn('clusters.id', $clusterIds));
+                    if (! empty($clusterIds)) {
+                        $query->whereHas('user.clusters', fn ($q) => $q->whereIn('clusters.id', $clusterIds));
                     }
                 });
 
@@ -159,45 +172,15 @@ class VisitController extends Controller
         }
     }
 
-    /**
-     * Retrieve authenticated user's visits for today
-     *
-     * Returns all visit records for the currently authenticated user,
-     * automatically filtered for today's date. Includes complete relationship
-     * data for outlet, user, and organizational hierarchy.
-     *
-     * @response array{
-     *   data: array{
-     *     id: int,
-     *     tanggal_visit: int,
-     *     user_id: int,
-     *     outlet_id: int,
-     *     tipe_visit: string,
-     *     latlong_in: string,
-     *     latlong_out: string,
-     *     check_in_time: int,
-     *     check_out_time: int|null,
-     *     laporan_visit: string,
-     *     durasi_visit: int|null,
-     *     picture_visit_in: string,
-     *     picture_visit_out: string,
-     *     outlet: object,
-     *     user: object,
-     *     transaksi: string
-     *   }[],
-     *   message: string
-     * }
-     * @response 500 array{
-     *   data: array{
-     *     message: string
-     *   },
-     *   message: string
-     * }
-     */
     public function fetch(Request $request)
     {
         try {
-            $visit = Visit::with([
+            $compact = $request->boolean('compact', true);
+
+            $query = Visit::with($compact ? [
+                'outlet:id,kode_outlet,nama_outlet',
+                'user:id,nama_lengkap,role_id',
+            ] : [
                 'outlet.badanusaha',
                 'outlet.region',
                 'outlet.divisi',
@@ -207,11 +190,60 @@ class VisitController extends Controller
                 'user.divisis',
                 'user.clusters',
                 'user.role',
-            ])
-                ->where('user_id', Auth::user()->id)
-                ->whereDate('tanggal_visit', date('Y-m-d'))
-                ->latest()
-                ->get();
+            ])->where('user_id', Auth::user()->id);
+
+            if ($compact) {
+                $query->select([
+                    'id',
+                    'user_id',
+                    'outlet_id',
+                    'tanggal_visit',
+                    'tipe_visit',
+                    'check_in_time',
+                    'check_out_time',
+                    'transaksi',
+                    'durasi_visit',
+                    'created_at',
+                ]);
+            }
+
+            // Apply date filtering
+            // Priority: custom range (date_from & date_to) > period
+            if ($request->filled(['date_from', 'date_to'])) {
+                // Custom date range
+                $dateFrom = Carbon::parse($request->date_from)->startOfDay();
+                $dateTo = Carbon::parse($request->date_to)->endOfDay();
+                $query->whereBetween('tanggal_visit', [$dateFrom, $dateTo]);
+            } else {
+                // Period-based filtering
+                $period = $request->input('period', 'today');
+
+                switch ($period) {
+                    case 'week':
+                        // Current week (Monday to Sunday)
+                        $query->whereBetween('tanggal_visit', [
+                            Carbon::now()->startOfWeek(),
+                            Carbon::now()->endOfWeek(),
+                        ]);
+                        break;
+
+                    case 'month':
+                        // Current month
+                        $query->whereBetween('tanggal_visit', [
+                            Carbon::now()->startOfMonth(),
+                            Carbon::now()->endOfMonth(),
+                        ]);
+                        break;
+
+                    case 'today':
+                    default:
+                        // Today only (default behavior)
+                        $query->whereDate('tanggal_visit', date('Y-m-d'));
+                        break;
+                }
+            }
+
+            $visit = $query->latest()->get();
 
             return VisitResource::collection($visit)->additional([
                 'meta' => [
@@ -223,22 +255,11 @@ class VisitController extends Controller
             ]);
         } catch (Exception $err) {
             return ResponseFormatter::error([
-                'message' => $err,
-            ], $err, 500);
+                'message' => $err->getMessage(),
+            ], 'ERROR', 500);
         }
     }
 
-    /**
-     * Check-in to outlet
-     * 
-     * Creates a new visit record with check-in photo and coordinates.
-     * Validates that user doesn't have an active (unchecked-out) visit today.
-     *
-     * @bodyParam outlet_id int required Outlet ID. Example: 123
-     * @bodyParam picture_visit file required Check-in photo. Max 3MB
-     * @bodyParam latlong_in string required Check-in coordinates. Example: "-6.2,106.8"
-     * @bodyParam tipe_visit string required Visit type. Example: "routine"
-     */
     public function checkin(Request $request)
     {
         $temporaryFiles = [];
@@ -270,59 +291,27 @@ class VisitController extends Controller
                 'tipe_visit' => 'required',
             ]);
 
-            // Find outlet (with role-based filtering)
-            $outletQuery = Outlet::where('id', $request->outlet_id);
-            $scopeLevel = $user->role->organizational_scope_level;
+            // Find outlet with organizational filtering
+            $outlet = Outlet::visibleTo($user)
+                ->where('id', $request->outlet_id)
+                ->first();
 
-            if ($scopeLevel !== 'all' && !$user->role->hasFullAccess()) {
-                if ($scopeLevel === 'badanusaha') {
-                    $userBuIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                    if (!empty($userBuIds)) {
-                        $outletQuery->whereIn('badan_usaha_id', $userBuIds);
-                    } else {
-                        return ResponseFormatter::error(null, 'Outlet tidak ditemukan (No BU assigned)', 404);
-                    }
-                } elseif ($scopeLevel === 'divisi') {
-                    $userDivisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                    if (!empty($userDivisiIds)) {
-                        $outletQuery->whereIn('divisi_id', $userDivisiIds);
-                    } else {
-                        return ResponseFormatter::error(null, 'Outlet tidak ditemukan (No division assigned)', 404);
-                    }
-                } elseif ($scopeLevel === 'region') {
-                    $userRegionIds = $user->regions()->pluck('regions.id')->toArray();
-                    if (!empty($userRegionIds)) {
-                        $outletQuery->whereIn('region_id', $userRegionIds);
-                    } else {
-                        return ResponseFormatter::error(null, 'Outlet tidak ditemukan (No region assigned)', 404);
-                    }
-                } elseif ($scopeLevel === 'cluster') {
-                    $userClusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-                    if (!empty($userClusterIds)) {
-                        $outletQuery->whereIn('cluster_id', $userClusterIds);
-                    } else {
-                        return ResponseFormatter::error(null, 'Outlet tidak ditemukan (No cluster assigned)', 404);
-                    }
-                }
-            }
-
-            $outlet = $outletQuery->first();
-
-            if (!$outlet) {
+            if (! $outlet) {
                 Log::channel('visit')->warning('Visit check-in failed: outlet not found', [
                     'user_id' => $user->id,
                     'outlet_id' => $request->outlet_id,
                 ]);
+
                 return ResponseFormatter::error(null, 'Outlet tidak ditemukan', 404);
             }
 
             // Validate and store photo
-            if (!$request->hasFile('picture_visit') || !$request->file('picture_visit')->isValid()) {
+            if (! $request->hasFile('picture_visit') || ! $request->file('picture_visit')->isValid()) {
                 return ResponseFormatter::error('File gambar tidak valid', 'INVALID_FILE', 422);
             }
 
             $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
-            $imageName = date('Y-m-d') . '-' . $user->username . '-IN-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $ext;
+            $imageName = date('Y-m-d').'-'.$user->username.'-IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
 
             try {
                 $temporaryPath = $this->fileUpload->storeTemporary(
@@ -339,6 +328,7 @@ class VisitController extends Controller
                 ];
             } catch (RuntimeException $e) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
+
                 return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
             }
 
@@ -372,24 +362,14 @@ class VisitController extends Controller
                 'errors' => null,
             ], 201);
         } catch (Exception $error) {
-            if (!$mediaDispatched) {
+            if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
+
             return ResponseFormatter::error(['error' => $error->getMessage()], 'error', 500);
         }
     }
 
-    /**
-     * Check-out from visit
-     * 
-     * Updates visit with check-out photo, coordinates, report, and calculates duration.
-     *
-     * @param int $id Visit ID
-     * @bodyParam latlong_out string required Check-out coordinates
-     * @bodyParam laporan_visit string required Visit report
-     * @bodyParam picture_visit file required Check-out photo. Max 3MB
-     * @bodyParam transaksi string required Transaction info
-     */
     public function checkout(Request $request, int $id)
     {
         $temporaryFiles = [];
@@ -413,17 +393,17 @@ class VisitController extends Controller
                 ->whereNull('check_out_time')
                 ->first();
 
-            if (!$visit) {
+            if (! $visit) {
                 return ResponseFormatter::error(null, 'Visit tidak ditemukan atau sudah check-out', 404);
             }
 
             // Validate and store photo
-            if (!$request->hasFile('picture_visit') || !$request->file('picture_visit')->isValid()) {
+            if (! $request->hasFile('picture_visit') || ! $request->file('picture_visit')->isValid()) {
                 return ResponseFormatter::error('File gambar tidak valid', 'INVALID_FILE', 422);
             }
 
             $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
-            $imageName = date('Y-m-d') . '-' . $user->username . '-OUT-' . Carbon::now()->getPreciseTimestamp(3) . '.' . $ext;
+            $imageName = date('Y-m-d').'-'.$user->username.'-OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
 
             try {
                 $temporaryPath = $this->fileUpload->storeTemporary(
@@ -440,6 +420,7 @@ class VisitController extends Controller
                 ];
             } catch (RuntimeException $e) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
+
                 return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
             }
 
@@ -467,7 +448,7 @@ class VisitController extends Controller
             Log::channel('visit')->info('Visit check-out success', [
                 'visit_id' => $visit->id,
                 'user_id' => $user->id,
-                'durasi' => $duration . ' minutes',
+                'durasi' => $duration.' minutes',
             ]);
 
             return response()->json([
@@ -476,16 +457,14 @@ class VisitController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $error) {
-            if (!$mediaDispatched) {
+            if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
+
             return ResponseFormatter::error(['error' => $error->getMessage()], 'error', 500);
         }
     }
 
-    /**
-     * @param  array<int, string|null>  $paths
-     */
     private function cleanupTemporaryFiles(array $paths): void
     {
         if ($paths === []) {
@@ -495,7 +474,7 @@ class VisitController extends Controller
         $disk = Storage::disk($this->fileUpload->temporaryDisk());
 
         foreach ($paths as $path) {
-            if (!$path) {
+            if (! $path) {
                 continue;
             }
 
@@ -503,10 +482,6 @@ class VisitController extends Controller
         }
     }
 
-    /**
-     * Get photo field mapping for visit model
-     * Used by HasMediaUpload trait
-     */
     protected function getPhotoFieldMapping(string $modelType): array
     {
         if ($modelType === 'visit') {

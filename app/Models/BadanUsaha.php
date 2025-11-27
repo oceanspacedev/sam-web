@@ -22,6 +22,11 @@ class BadanUsaha extends Model
 
     protected $table = 'badan_usahas';
 
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('deleted_at');
+    }
+
     public function user(): HasMany
     {
         return $this->hasMany(User::class, 'badanusaha_id');
@@ -37,36 +42,18 @@ class BadanUsaha extends Model
         return $this->hasMany(Register::class, 'badanusaha_id');
     }
 
-    public function divisi(): HasMany
+    public function divisions(): HasMany
     {
         return $this->hasMany(Division::class, 'badanusaha_id');
     }
 
-    // Alias untuk compatibility dengan Filament
-    public function divisions(): HasMany
-    {
-        return $this->divisi();
-    }
-
-    public function region(): HasMany
+    public function regions(): HasMany
     {
         return $this->hasMany(Region::class, 'badanusaha_id');
     }
 
-    // Alias untuk compatibility dengan Filament
-    public function regions(): HasMany
-    {
-        return $this->region();
-    }
-
-    public function cluster(): HasMany
-    {
-        return $this->hasMany(Cluster::class, 'badanusaha_id');
-    }
-
-    // Alias untuk compatibility dengan Filament
     public function clusters(): HasMany
     {
-        return $this->cluster();
+        return $this->hasMany(Cluster::class, 'badanusaha_id');
     }
 }

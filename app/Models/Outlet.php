@@ -36,6 +36,19 @@ class Outlet extends Model
         return $query->whereNull('deleted_at');
     }
 
+    public function scopeFilter(Builder $query, ?string $search): Builder
+    {
+        if (empty($search)) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($search) {
+            $q->where('kode_outlet', 'like', "%{$search}%")
+                ->orWhere('nama_outlet', 'like', "%{$search}%")
+                ->orWhere('nama_pemilik_outlet', 'like', "%{$search}%");
+        });
+    }
+
     /**
      * Scope query to outlets near a given location using Haversine formula
      *
@@ -46,22 +59,27 @@ class Outlet extends Model
     public function scopeNearbyLocation(Builder $query, float $latitude, float $longitude, int $limit = 10): Builder
     {
         // Haversine formula for calculating distance in kilometers
-        // Formula: distance = 2 * R * asin(sqrt(sin²((lat2-lat1)/2) + cos(lat1) * cos(lat2) * sin²((lng2-lng1)/2)))
-        // Where R = Earth's radius in km (6371)
+        $distanceFormula = "
+            (
+                6371 * acos(
+                    cos(radians(?)) 
+                    * cos(radians(CAST(SUBSTRING_INDEX(latlong, ',', 1) AS DECIMAL(10, 8))))
+                    * cos(radians(CAST(SUBSTRING_INDEX(latlong, ',', -1) AS DECIMAL(11, 8))) - radians(?))
+                    + sin(radians(?))
+                    * sin(radians(CAST(SUBSTRING_INDEX(latlong, ',', 1) AS DECIMAL(10, 8))))
+                )
+            ) AS distance
+        ";
+
+        // Check if columns are already selected, if so just add distance, otherwise select all
+        $existingColumns = $query->getQuery()->columns;
+        if (empty($existingColumns)) {
+            $query->selectRaw("*, {$distanceFormula}", [$latitude, $longitude, $latitude]);
+        } else {
+            $query->selectRaw($distanceFormula, [$latitude, $longitude, $latitude]);
+        }
 
         return $query
-            ->selectRaw("
-                *,
-                (
-                    6371 * acos(
-                        cos(radians(?)) 
-                        * cos(radians(CAST(SUBSTRING_INDEX(latlong, ',', 1) AS DECIMAL(10, 8))))
-                        * cos(radians(CAST(SUBSTRING_INDEX(latlong, ',', -1) AS DECIMAL(11, 8))) - radians(?))
-                        + sin(radians(?))
-                        * sin(radians(CAST(SUBSTRING_INDEX(latlong, ',', 1) AS DECIMAL(10, 8))))
-                    )
-                ) AS distance
-            ", [$latitude, $longitude, $latitude])
             ->whereNotNull('latlong')
             ->where('latlong', '!=', '')
             ->where('latlong', '!=', '-')

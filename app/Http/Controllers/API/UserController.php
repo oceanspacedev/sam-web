@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Actions\Fortify\PasswordValidationRules;
 use App\Exceptions\Api\BadRequestException;
 use App\Exceptions\Api\ForbiddenException;
 use App\Exceptions\Api\ResourceNotFoundException;
@@ -18,8 +17,6 @@ use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
-    use PasswordValidationRules;
-
     /**
      * Get all users (with organizational scope filtering)
      * GET /users

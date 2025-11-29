@@ -13,8 +13,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Fortify\TwoFactorAuthenticatable;
-use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -22,11 +20,9 @@ class User extends Authenticatable implements FilamentUser, HasName
 {
     use HasApiTokens;
     use HasFactory;
-    use HasProfilePhoto;
     use HasRoles;
     use Notifiable;
     use SoftDeletes;
-    use TwoFactorAuthenticatable;
 
     public function canImpersonate(): bool
     {
@@ -158,8 +154,6 @@ class User extends Authenticatable implements FilamentUser, HasName
     protected $hidden = [
         'password',
         'remember_token',
-        'two_factor_recovery_codes',
-        'two_factor_secret',
         'created_at',
         'updated_at',
     ];
@@ -183,11 +177,14 @@ class User extends Authenticatable implements FilamentUser, HasName
     ];
 
     /**
-     * Override Jetstream's defaultProfilePhotoUrl to use nama_lengkap instead of name
-     * Fixes deprecation warning when name field is null
+     * Get the URL to the user's profile photo.
      */
-    protected function defaultProfilePhotoUrl(): string
+    public function getProfilePhotoUrlAttribute(): string
     {
+        if ($this->profile_photo_path) {
+            return asset('storage/'.$this->profile_photo_path);
+        }
+
         $name = $this->nama_lengkap ?? $this->username ?? 'User';
 
         return 'https://ui-avatars.com/api/?name='.urlencode($name).'&color=7F9CF5&background=EBF4FF';

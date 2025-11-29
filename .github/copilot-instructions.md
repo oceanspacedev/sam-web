@@ -182,16 +182,26 @@ protected function isAccessible(User $user, ?string $path = null): bool
 ## Laravel 12
 
 - Use the `search-docs` tool to get version specific documentation.
-- This project upgraded from Laravel 10 without migrating to the new streamlined Laravel file structure.
-- This is **perfectly fine** and recommended by Laravel. Follow the existing structure from Laravel 10. We do not to need migrate to the new Laravel structure unless the user explicitly requests that.
+- This project uses the **Laravel 11+ streamlined structure**.
 
-### Laravel 10 Structure
-- Middleware typically lives in `app/Http/Middleware/` and service providers in `app/Providers/`.
-- There is no `bootstrap/app.php` application configuration in a Laravel 10 structure:
-    - Middleware registration happens in `app/Http/Kernel.php`
-    - Exception handling is in `app/Exceptions/Handler.php`
-    - Console commands and schedule register in `app/Console/Kernel.php`
-    - Rate limits likely exist in `RouteServiceProvider` or `app/Http/Kernel.php`
+### Laravel 11+ Structure
+- Application configuration is centralized in `bootstrap/app.php`:
+    - Middleware registration (global, web, api, aliases)
+    - Exception handling and rendering
+    - Routing configuration
+- Service providers are registered in `bootstrap/providers.php`
+- Scheduling is defined in `routes/console.php` using `Schedule::` facade
+- Middleware files still live in `app/Http/Middleware/`
+- Only essential providers exist in `app/Providers/`:
+    - `AppServiceProvider` - main provider with rate limiting, observers, gates
+    - `HorizonServiceProvider` - Horizon queue configuration
+    - `Filament/AdminPanelProvider` - Filament panel configuration
+
+### Key Files
+- `bootstrap/app.php` - middleware, exceptions, routing
+- `bootstrap/providers.php` - service provider registration
+- `routes/console.php` - scheduled tasks
+- `app/Providers/AppServiceProvider.php` - observers, rate limiters, gates
 
 ### Database
 - When modifying a column, the migration must include all of the attributes that were previously defined on the column. Otherwise, they will be dropped and lost.

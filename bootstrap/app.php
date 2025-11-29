@@ -1,55 +1,196 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| Create The Application
-|--------------------------------------------------------------------------
-|
-| The first thing we will do is create a new Laravel application instance
-| which serves as the "glue" for all the components of Laravel, and is
-| the IoC container for the system binding all of the various parts.
-|
-*/
+use App\Exceptions\Api\ApiException;
+use App\Http\Middleware\RateLimitUploads;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
-$app = new Illuminate\Foundation\Application(
-    $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
-);
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        // Global middleware
+        $middleware->use([
+            \App\Http\Middleware\TrustProxies::class,
+            \Illuminate\Http\Middleware\HandleCors::class,
+            \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+            \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+            \App\Http\Middleware\TrimStrings::class,
+            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        ]);
 
-/*
-|--------------------------------------------------------------------------
-| Bind Important Interfaces
-|--------------------------------------------------------------------------
-|
-| Next, we need to bind some important interfaces into the container so
-| we will be able to resolve them when needed. The kernels serve the
-| incoming requests to this application from both the web and CLI.
-|
-*/
+        // Web middleware group
+        $middleware->web(append: [
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
+            'throttle:global-web',
+        ]);
 
-$app->singleton(
-    Illuminate\Contracts\Http\Kernel::class,
-    App\Http\Kernel::class
-);
+        // API middleware group
+        $middleware->api(append: [
+            RateLimitUploads::class,
+        ]);
 
-$app->singleton(
-    Illuminate\Contracts\Console\Kernel::class,
-    App\Console\Kernel::class
-);
+        // Middleware aliases
+        $middleware->alias([
+            'auth' => \App\Http\Middleware\Authenticate::class,
+            'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
+            'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
+            'can' => \Illuminate\Auth\Middleware\Authorize::class,
+            'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
+            'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
+            'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+            'logku' => \App\Http\Middleware\LogRoute::class,
+            'upload.limiter' => RateLimitUploads::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+        // Log API errors with context
+        $exceptions->reportable(function (Throwable $e) {
+            if (request()->is('api/*') && ! $e instanceof ValidationException) {
+                Log::error('API Error', [
+                    'exception' => get_class($e),
+                    'message' => $e->getMessage(),
+                    'url' => request()->fullUrl(),
+                    'method' => request()->method(),
+                    'user_id' => auth()->id(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+            }
+        });
 
-$app->singleton(
-    Illuminate\Contracts\Debug\ExceptionHandler::class,
-    App\Exceptions\Handler::class
-);
+        // Custom API exceptions
+        $exceptions->renderable(function (ApiException $e, Request $request) {
+            return $e->render($request);
+        });
 
-/*
-|--------------------------------------------------------------------------
-| Return The Application
-|--------------------------------------------------------------------------
-|
-| This script returns the application instance. The instance is given to
-| the calling script so we can separate the building of the instances
-| from the actual running of the application and sending responses.
-|
-*/
+        // Handle rate limiting (Too Many Attempts)
+        $exceptions->renderable(function (ThrottleRequestsException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'meta' => [
+                        'code' => 429,
+                        'status' => 'error',
+                        'message' => 'Too many requests. Please slow down.',
+                    ],
+                    'data' => null,
+                    'errors' => null,
+                ], 429);
+            }
+        });
 
-return $app;
+        // Handle Eloquent Model Not Found
+        $exceptions->renderable(function (ModelNotFoundException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'meta' => [
+                        'code' => 404,
+                        'status' => 'error',
+                        'message' => 'Resource tidak ditemukan',
+                    ],
+                    'data' => null,
+                    'errors' => null,
+                ], 404);
+            }
+        });
+
+        // Handle HTTP exceptions (404, 403, etc from abort())
+        $exceptions->renderable(function (HttpException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $statusCode = $e->getStatusCode();
+                $message = $e->getMessage() ?: match ($statusCode) {
+                    401 => 'Unauthenticated',
+                    403 => 'Forbidden',
+                    404 => 'Not found',
+                    405 => 'Method not allowed',
+                    429 => 'Too many requests',
+                    500 => 'Server error',
+                    503 => 'Service unavailable',
+                    default => 'Error occurred',
+                };
+
+                return response()->json([
+                    'meta' => [
+                        'code' => $statusCode,
+                        'status' => 'error',
+                        'message' => $message,
+                    ],
+                    'data' => null,
+                    'errors' => null,
+                ], $statusCode);
+            }
+        });
+
+        // Handle RuntimeException (file upload, etc)
+        $exceptions->renderable(function (RuntimeException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'meta' => [
+                        'code' => 422,
+                        'status' => 'error',
+                        'message' => $e->getMessage(),
+                    ],
+                    'data' => null,
+                    'errors' => null,
+                ], 422);
+            }
+        });
+
+        // Handle validation exceptions for API
+        $exceptions->renderable(function (ValidationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'meta' => [
+                        'code' => $e->status,
+                        'status' => 'error',
+                        'message' => 'Validation error',
+                    ],
+                    'data' => null,
+                    'errors' => $e->errors(),
+                ], $e->status);
+            }
+        });
+
+        // Handle authentication exceptions
+        $exceptions->renderable(function (AuthenticationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'meta' => [
+                        'code' => 401,
+                        'status' => 'error',
+                        'message' => 'Unauthenticated. Please login again.',
+                    ],
+                    'data' => null,
+                    'errors' => null,
+                ], 401);
+            }
+
+            return redirect()->guest(route('filament.admin.auth.login'));
+        });
+
+        // Don't report these exceptions
+        $exceptions->dontReport([
+            // Add exceptions you don't want reported
+        ]);
+
+        // Don't flash these inputs
+        $exceptions->dontFlash([
+            'current_password',
+            'password',
+            'password_confirmation',
+        ]);
+    })
+    ->create();

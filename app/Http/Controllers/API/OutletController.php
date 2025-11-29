@@ -5,7 +5,8 @@ namespace App\Http\Controllers\API;
 use App\Exceptions\Api\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\UpdateOutletRequest;
-use App\Http\Resources\OutletResource;
+use App\Http\Resources\Outlet\OutletCompactResource;
+use App\Http\Resources\Outlet\OutletResource;
 use App\Models\Outlet;
 use App\Services\FileUploadService;
 use App\Support\StorageDisk;
@@ -59,6 +60,9 @@ class OutletController extends Controller
         // Apply organizational scope using pivot assignments
         $query->visibleTo($user);
 
+        // Determine resource class based on compact mode
+        $resourceClass = $compact ? OutletCompactResource::class : OutletResource::class;
+
         // Apply nearby location filter if lat/lng provided
         if ($hasLocationParams) {
             $lat = (float) $request->lat;
@@ -68,8 +72,7 @@ class OutletController extends Controller
             // Get results without pagination for nearby search
             $outlets = $query->get();
 
-            // Return minimal or full data
-            return OutletResource::collection($outlets)->additional([
+            return $resourceClass::collection($outlets)->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
@@ -83,8 +86,7 @@ class OutletController extends Controller
         $perPage = min((int) $request->get('per_page', 20), 100);
         $outlets = $query->orderBy('nama_outlet')->paginate($perPage);
 
-        // Return minimal or full data
-        return OutletResource::collection($outlets)->additional([
+        return $resourceClass::collection($outlets)->additional([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',

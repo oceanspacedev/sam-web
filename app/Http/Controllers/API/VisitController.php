@@ -9,7 +9,8 @@ use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\CheckinVisitRequest;
 use App\Http\Requests\API\CheckoutVisitRequest;
-use App\Http\Resources\VisitResource;
+use App\Http\Resources\Visit\VisitCompactResource;
+use App\Http\Resources\Visit\VisitResource;
 use App\Models\Outlet;
 use App\Models\Visit;
 use App\Services\FileUploadService;
@@ -158,7 +159,10 @@ class VisitController extends Controller
             $visit = $visit->latest()->get();
         }
 
-        return VisitResource::collection($visit)->additional([
+        // Determine resource class based on compact mode
+        $resourceClass = $compact ? VisitCompactResource::class : VisitResource::class;
+
+        return $resourceClass::collection($visit)->additional([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',
@@ -240,7 +244,10 @@ class VisitController extends Controller
 
         $visit = $query->latest()->get();
 
-        return VisitResource::collection($visit)->additional([
+        // Determine resource class based on compact mode
+        $resourceClass = $compact ? VisitCompactResource::class : VisitResource::class;
+
+        return $resourceClass::collection($visit)->additional([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',

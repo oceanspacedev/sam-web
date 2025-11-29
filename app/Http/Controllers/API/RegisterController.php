@@ -14,7 +14,8 @@ use App\Http\Requests\API\RejectNooRequest;
 use App\Http\Requests\API\SubmitLeadRequest;
 use App\Http\Requests\API\SubmitNooRequest;
 use App\Http\Requests\API\UpgradeLeadRequest;
-use App\Http\Resources\RegisterResource;
+use App\Http\Resources\Register\RegisterCompactResource;
+use App\Http\Resources\Register\RegisterResource;
 use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
@@ -292,7 +293,10 @@ class RegisterController extends Controller
 
             $registers = $query->visibleTo($user)->latest()->get();
 
-            return RegisterResource::collection($registers)->additional([
+            // Determine resource class based on compact mode
+            $resourceClass = $compact ? RegisterCompactResource::class : RegisterResource::class;
+
+            return $resourceClass::collection($registers)->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
@@ -365,7 +369,10 @@ class RegisterController extends Controller
             // Apply organizational scope filtering
             $registers = $query->visibleTo($user)->latest()->get();
 
-            return RegisterResource::collection($registers)->additional([
+            // Determine resource class based on compact mode
+            $resourceClass = $compact ? RegisterCompactResource::class : RegisterResource::class;
+
+            return $resourceClass::collection($registers)->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
@@ -768,7 +775,10 @@ class RegisterController extends Controller
                 ->orderBy('nama_outlet')
                 ->get();
 
-            return RegisterResource::collection($registers)->additional([
+            // Determine resource class based on compact mode
+            $resourceClass = $compact ? RegisterCompactResource::class : RegisterResource::class;
+
+            return $resourceClass::collection($registers)->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',

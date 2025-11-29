@@ -1,11 +1,32 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Visit;
 
+use App\Http\Resources\Outlet\OutletResource;
+use App\Http\Resources\UserResource;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Full Visit resource with all fields including location and media.
+ * Use this for detail views and complete visit information.
+ *
+ * @property int $id
+ * @property string $tanggal_visit
+ * @property int $user_id
+ * @property int $outlet_id
+ * @property string $tipe_visit
+ * @property string $latlong_in
+ * @property string|null $latlong_out
+ * @property string $check_in_time
+ * @property string|null $check_out_time
+ * @property string|null $laporan_visit
+ * @property int|null $durasi_visit
+ * @property string $picture_visit_in
+ * @property string|null $picture_visit_out
+ * @property int|null $transaksi
+ */
 class VisitResource extends JsonResource
 {
     /**
@@ -15,33 +36,6 @@ class VisitResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        if ($request->boolean('compact', true)) {
-            return [
-                'id' => $this->id,
-                'tanggal_visit' => $this->tanggal_visit ? Carbon::parse($this->tanggal_visit)->toDateString() : null,
-                'user_id' => $this->user_id,
-                'outlet_id' => $this->outlet_id,
-                'tipe_visit' => $this->tipe_visit,
-                'check_in_time' => $this->check_in_time ? Carbon::parse($this->check_in_time)->getPreciseTimestamp(3) : null,
-                'check_out_time' => $this->check_out_time ? Carbon::parse($this->check_out_time)->getPreciseTimestamp(3) : null,
-                'transaksi' => $this->transaksi,
-                'durasi_visit' => $this->durasi_visit,
-                'outlet' => $this->whenLoaded('outlet', function () {
-                    return [
-                        'id' => $this->outlet?->id,
-                        'kode_outlet' => $this->outlet?->kode_outlet,
-                        'nama_outlet' => $this->outlet?->nama_outlet,
-                    ];
-                }),
-                'user' => $this->whenLoaded('user', function () {
-                    return [
-                        'id' => $this->user?->id,
-                        'nama_lengkap' => $this->user?->nama_lengkap,
-                    ];
-                }),
-            ];
-        }
-
         return [
             'id' => $this->id,
             'tanggal_visit' => Carbon::parse($this->tanggal_visit)->getPreciseTimestamp(3),

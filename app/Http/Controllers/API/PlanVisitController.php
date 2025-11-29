@@ -7,7 +7,8 @@ use App\Exceptions\Api\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\DeletePlanVisitRequest;
 use App\Http\Requests\API\StorePlanVisitRequest;
-use App\Http\Resources\PlanVisitResource;
+use App\Http\Resources\PlanVisit\PlanVisitCompactResource;
+use App\Http\Resources\PlanVisit\PlanVisitResource;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use Carbon\Carbon;
@@ -78,7 +79,10 @@ class PlanVisitController extends Controller
                 ->orderBy('period_start')
                 ->get();
 
-            return PlanVisitResource::collection($plan)->additional([
+            // Determine resource class based on compact mode
+            $resourceClass = $compact ? PlanVisitCompactResource::class : PlanVisitResource::class;
+
+            return $resourceClass::collection($plan)->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
@@ -108,7 +112,10 @@ class PlanVisitController extends Controller
                 ->orderBy('period_start')
                 ->get();
 
-            return PlanVisitResource::collection($plan)->additional([
+            // Determine resource class based on compact mode
+            $resourceClass = $compact ? PlanVisitCompactResource::class : PlanVisitResource::class;
+
+            return $resourceClass::collection($plan)->additional([
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
@@ -186,7 +193,10 @@ class PlanVisitController extends Controller
                 break;
         }
 
-        return PlanVisitResource::collection($plan)->additional([
+        // Determine resource class based on compact mode
+        $resourceClass = $compact ? PlanVisitCompactResource::class : PlanVisitResource::class;
+
+        return $resourceClass::collection($plan)->additional([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',

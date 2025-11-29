@@ -1,40 +1,53 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Register;
 
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Full Register resource with all fields including workflow state.
+ * Use this for detail views and complete register information.
+ *
+ * @property int $id
+ * @property string|null $kode_outlet
+ * @property string $nama_outlet
+ * @property string $alamat_outlet
+ * @property string $nama_pemilik_outlet
+ * @property string $nomer_tlp_outlet
+ * @property string|null $nomer_wakil_outlet
+ * @property string $ktp_outlet
+ * @property string $distric
+ * @property string $poto_shop_sign
+ * @property string $poto_depan
+ * @property string $poto_kiri
+ * @property string $poto_kanan
+ * @property string $poto_ktp
+ * @property string|null $video
+ * @property string $latlong
+ * @property int|null $limit
+ * @property string|null $status
+ * @property string|null $keterangan
+ * @property int $created_by_id
+ * @property string|null $rejected_at
+ * @property int|null $rejected_by_id
+ * @property string|null $confirmed_at
+ * @property int|null $confirmed_by_id
+ * @property string|null $approved_at
+ * @property int|null $approved_by_id
+ * @property string $created_at
+ * @property string $updated_at
+ */
 class RegisterResource extends JsonResource
 {
-    public function toArray($request): array
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
     {
-        if ($request->boolean('compact', true)) {
-            return [
-                'id' => $this->id,
-                'kode_outlet' => $this->kode_outlet,
-                'nama_outlet' => $this->nama_outlet,
-                'alamat_outlet' => $this->alamat_outlet,
-                'status' => $this->status,
-                'keterangan' => $this->keterangan,
-                'distric' => $this->distric,
-                'latlong' => $this->latlong,
-                'created_at' => $this->created_at ? Carbon::parse($this->created_at)->getPreciseTimestamp(3) : null,
-                'badanusaha' => $this->whenLoaded('badanusaha', function () {
-                    return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;
-                }),
-                'divisi' => $this->whenLoaded('divisi', function () {
-                    return $this->divisi ? $this->divisi->only(['id', 'name']) : null;
-                }),
-                'region' => $this->whenLoaded('region', function () {
-                    return $this->region ? $this->region->only(['id', 'name']) : null;
-                }),
-                'cluster' => $this->whenLoaded('cluster', function () {
-                    return $this->cluster ? $this->cluster->only(['id', 'name']) : null;
-                }),
-            ];
-        }
-
         return [
             'id' => $this->id,
             'kode_outlet' => $this->kode_outlet,
@@ -88,7 +101,12 @@ class RegisterResource extends JsonResource
         ];
     }
 
-    protected function getActions($request): array
+    /**
+     * Get available actions for this register based on user permissions.
+     *
+     * @return array<string, bool>
+     */
+    protected function getActions(Request $request): array
     {
         $user = $request->user();
 

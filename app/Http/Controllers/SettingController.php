@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers\ResponseFormatter;
+use App\Exceptions\Api\ResourceNotFoundException;
+use App\Exceptions\Api\UnauthorizedException;
 use App\Http\Resources\BadanUsahaResource;
 use App\Http\Resources\ClusterResource;
 use App\Http\Resources\DivisionResource;
@@ -14,6 +15,7 @@ use App\Models\Region;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class SettingController extends Controller
 {
@@ -45,14 +47,14 @@ class SettingController extends Controller
 
             // CRITICAL: Block access if user or role is null
             if (! $user || ! $user->role) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
             if (! $scopeLevel) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $query = BadanUsaha::active();
@@ -88,7 +90,8 @@ class SettingController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
+            Log::error('getBadanUsaha failed', ['error' => $e->getMessage()]);
+            throw $e;
         }
     }
 
@@ -99,14 +102,14 @@ class SettingController extends Controller
 
             // CRITICAL: Block access if user or role is null
             if (! $user || ! $user->role) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
             if (! $scopeLevel) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $query = Division::active();
@@ -160,7 +163,8 @@ class SettingController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
+            Log::error('getDivisi failed', ['error' => $e->getMessage()]);
+            throw $e;
         }
     }
 
@@ -171,14 +175,14 @@ class SettingController extends Controller
 
             // CRITICAL: Block access if user or role is null
             if (! $user || ! $user->role) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
             if (! $scopeLevel) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $query = Region::active();
@@ -246,7 +250,8 @@ class SettingController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
+            Log::error('getRegion failed', ['error' => $e->getMessage()]);
+            throw $e;
         }
     }
 
@@ -287,14 +292,14 @@ class SettingController extends Controller
 
             // CRITICAL: Block access if user or role is null
             if (! $user || ! $user->role) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
             if (! $scopeLevel) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $query = Cluster::query();
@@ -374,7 +379,8 @@ class SettingController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
+            Log::error('getCluster failed', ['error' => $e->getMessage()]);
+            throw $e;
         }
     }
 
@@ -409,7 +415,7 @@ class SettingController extends Controller
             $user = Auth::user();
 
             if (! $user || ! $user->role) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             // Determine which role to check (for form validation)
@@ -417,7 +423,7 @@ class SettingController extends Controller
             $targetRole = $roleId ? \App\Models\Role::find($roleId) : $user->role;
 
             if (! $targetRole) {
-                return ResponseFormatter::error(['message' => 'Role not found'], 'Role not found', 404);
+                throw new ResourceNotFoundException('Role tidak ditemukan');
             }
 
             $scopeLevel = $targetRole->organizational_scope_level;
@@ -500,7 +506,8 @@ class SettingController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
+            Log::error('getFormOptions failed', ['error' => $e->getMessage()]);
+            throw $e;
         }
     }
 
@@ -524,7 +531,7 @@ class SettingController extends Controller
             $user = Auth::user();
 
             if (! $user || ! $user->role) {
-                return ResponseFormatter::error(['message' => 'Unauthorized'], 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             // SUPER ADMIN sees all roles
@@ -548,7 +555,8 @@ class SettingController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            return ResponseFormatter::error([], $e->getMessage());
+            Log::error('getRoleOptions failed', ['error' => $e->getMessage()]);
+            throw $e;
         }
     }
 

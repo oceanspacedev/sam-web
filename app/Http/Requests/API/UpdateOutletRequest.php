@@ -14,9 +14,9 @@ class UpdateOutletRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'nama_pemilik_outlet' => ['required', 'string', 'max:255'],
-            'nomer_tlp_outlet' => ['required', 'string', 'max:50'],
-            'latlong' => ['required', 'string'],
+            'nama_pemilik_outlet' => ['nullable', 'string', 'max:255'],
+            'nomer_tlp_outlet' => ['nullable', 'string', 'max:50'],
+            'latlong' => ['nullable', 'string'],
         ];
 
         for ($i = 0; $i <= 4; $i++) {
@@ -33,9 +33,9 @@ class UpdateOutletRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nama_pemilik_outlet.required' => 'Nama pemilik outlet wajib diisi',
-            'nomer_tlp_outlet.required' => 'Nomor telepon outlet wajib diisi',
-            'latlong.required' => 'Lokasi wajib diisi',
+            'nama_pemilik_outlet.string' => 'Nama pemilik outlet harus berupa teks',
+            'nomer_tlp_outlet.string' => 'Nomor telepon outlet harus berupa teks',
+            'latlong.string' => 'Lokasi harus berupa teks',
             'photo*.image' => 'File harus berupa gambar',
             'photo*.mimes' => 'Format gambar harus jpg, jpeg, atau png',
             'photo*.max' => 'Ukuran gambar maksimal 3MB',

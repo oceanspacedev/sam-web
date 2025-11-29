@@ -91,8 +91,8 @@ class RegisterResource extends JsonResource
     protected function getActions($request): array
     {
         $user = $request->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return [
                 'can_confirm' => false,
                 'can_reject' => false,

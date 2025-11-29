@@ -2,9 +2,14 @@
 
 namespace App\Exceptions;
 
+use App\Exceptions\Api\ApiException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
@@ -38,7 +43,23 @@ class Handler extends ExceptionHandler
     public function register()
     {
         $this->reportable(function (Throwable $e) {
-            //
+            // Log API errors with context
+            if (request()->is('api/*') && ! $e instanceof ValidationException) {
+                Log::error('API Error', [
+                    'exception' => get_class($e),
+                    'message' => $e->getMessage(),
+                    'url' => request()->fullUrl(),
+                    'method' => request()->method(),
+                    'user_id' => auth()->id(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+            }
+        });
+
+        // Custom API exceptions
+        $this->renderable(function (ApiException $e, $request) {
+            return $e->render($request);
         });
     }
 
@@ -63,6 +84,26 @@ class Handler extends ExceptionHandler
      * Render an exception into an HTTP response.
      * This standardizes all API error responses.
      */
+    /**
+     * Convert an authentication exception into a JSON response.
+     */
+    protected function unauthenticated($request, AuthenticationException $exception)
+    {
+        if ($request->is('api/*') || $request->expectsJson()) {
+            return response()->json([
+                'meta' => [
+                    'code' => 401,
+                    'status' => 'error',
+                    'message' => 'Unauthenticated. Please login again.',
+                ],
+                'data' => null,
+                'errors' => null,
+            ], 401);
+        }
+
+        return redirect()->guest(route('filament.admin.auth.login'));
+    }
+
     public function render($request, Throwable $e)
     {
         // Only customize for API requests
@@ -80,7 +121,20 @@ class Handler extends ExceptionHandler
                 ], 429);
             }
 
-            // Handle HTTP exceptions (404, 403, etc)
+            // Handle Eloquent Model Not Found (e.g., findOrFail())
+            if ($e instanceof ModelNotFoundException) {
+                return response()->json([
+                    'meta' => [
+                        'code' => 404,
+                        'status' => 'error',
+                        'message' => 'Resource tidak ditemukan',
+                    ],
+                    'data' => null,
+                    'errors' => null,
+                ], 404);
+            }
+
+            // Handle HTTP exceptions (404, 403, etc from abort())
             if ($e instanceof HttpException) {
                 $statusCode = $e->getStatusCode();
                 $message = $e->getMessage() ?: $this->getDefaultMessage($statusCode);
@@ -95,6 +149,32 @@ class Handler extends ExceptionHandler
                     'errors' => null,
                 ], $statusCode);
             }
+
+            // Handle RuntimeException (file upload, etc)
+            if ($e instanceof RuntimeException) {
+                return response()->json([
+                    'meta' => [
+                        'code' => 422,
+                        'status' => 'error',
+                        'message' => $e->getMessage(),
+                    ],
+                    'data' => null,
+                    'errors' => null,
+                ], 422);
+            }
+
+            // Handle all other exceptions (500)
+            return response()->json([
+                'meta' => [
+                    'code' => 500,
+                    'status' => 'error',
+                    'message' => app()->environment('production')
+                        ? 'Terjadi kesalahan, silakan coba lagi'
+                        : $e->getMessage(),
+                ],
+                'data' => null,
+                'errors' => null,
+            ], 500);
         }
 
         // Let parent handle non-API requests

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Region;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class RegionPolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser, Region $region): bool
     {
         return $authUser->can('ViewAny:Region');
@@ -56,5 +56,4 @@ class RegionPolicy
     {
         return $authUser->can('RestoreAny:Region');
     }
-
 }

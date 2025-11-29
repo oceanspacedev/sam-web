@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\PlanVisit;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class PlanVisitPolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser, PlanVisit $planVisit): bool
     {
         return $authUser->can('ViewAny:PlanVisit');
@@ -61,5 +61,4 @@ class PlanVisitPolicy
     {
         return $authUser->can('Export:PlanVisit');
     }
-
 }

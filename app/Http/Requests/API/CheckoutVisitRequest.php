@@ -17,7 +17,7 @@ class CheckoutVisitRequest extends FormRequest
             'latlong_out' => ['required', 'string'],
             'laporan_visit' => ['required', 'string', 'max:1000'],
             'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
-            'transaksi' => ['required', 'string', 'in:ADA,TIDAK ADA'],
+            'transaksi' => ['required', 'string', 'in:YES,NO'],
         ];
     }
 

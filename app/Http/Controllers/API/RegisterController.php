@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Helpers\ResponseFormatter;
+use App\Exceptions\Api\BadRequestException;
+use App\Exceptions\Api\FileUploadException;
+use App\Exceptions\Api\ResourceNotFoundException;
+use App\Exceptions\Api\UnauthorizedException;
 use App\Http\Controllers\API\Traits\HasMediaUpload;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\ApproveNooRequest;
@@ -49,12 +52,12 @@ class RegisterController extends Controller
             $hierarchy = $this->resolveHierarchy($user, $request);
 
             if ($this->isHierarchyIncomplete($hierarchy)) {
-                return ResponseFormatter::error([
-                    'badanusaha_id' => [$hierarchy['badanusaha_id'] ? null : 'Required'],
-                    'divisi_id' => [$hierarchy['divisi_id'] ? null : 'Required'],
-                    'region_id' => [$hierarchy['region_id'] ? null : 'Required'],
-                    'cluster_id' => [$hierarchy['cluster_id'] ? null : 'Required'],
-                ], 'Organizational hierarchy is required', 422);
+                throw new BadRequestException('Organizational hierarchy is required', [
+                    'badanusaha_id' => $hierarchy['badanusaha_id'] ? null : ['Required'],
+                    'divisi_id' => $hierarchy['divisi_id'] ? null : ['Required'],
+                    'region_id' => $hierarchy['region_id'] ? null : ['Required'],
+                    'cluster_id' => $hierarchy['cluster_id'] ? null : ['Required'],
+                ]);
             }
 
             // Log Lead store initiated
@@ -134,13 +137,7 @@ class RegisterController extends Controller
                     $target = 'poto_shop_sign';
                 }
 
-                try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
-                } catch (RuntimeException $exception) {
-                    $this->cleanupTemporaryFiles($temporaryFiles);
-
-                    return ResponseFormatter::error($exception->getMessage(), 'INVALID_FILE', 422);
-                }
+                $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
 
                 $temporaryFiles[] = $temporaryPath;
                 $data[$target] = $temporaryPath;
@@ -157,31 +154,19 @@ class RegisterController extends Controller
 
             if ($request->hasFile('video')) {
                 $video = $request->file('video');
-                try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
+                $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
 
-                    // Generate stored video name in the pattern seen in logs
-                    $ext = $video->guessExtension() ?: $video->extension();
-                    $timestamp = now()->format('YmdHis');
-                    $storedName = 'lead-'.$timestamp.'-video-'.substr(md5(uniqid()), 0, 13).'-'.str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
-
-                    // Log video saved
-                    Log::channel('lead')->info('Lead store video saved', [
-                        'user_id' => $user->id,
-                        'stored_name' => $storedName,
-                    ]);
-                } catch (RuntimeException $exception) {
-                    $this->cleanupTemporaryFiles($temporaryFiles);
-
-                    return ResponseFormatter::error($exception->getMessage(), 'INVALID_FILE', 422);
-                }
+                Log::channel('lead')->info('Lead store video queued', [
+                    'user_id' => $user->id,
+                    'original_name' => $video->getClientOriginalName(),
+                ]);
 
                 $temporaryFiles[] = $temporaryPath;
                 $data['video'] = $temporaryPath;
                 $mediaQueue[] = [
                     'field' => 'video',
                     'tmp_path' => $temporaryPath,
-                    'type' => 'register-video', // Use type instead of directory - TRUE FLAT STORAGE!
+                    'type' => 'register-video',
                 ];
             }
 
@@ -205,6 +190,9 @@ class RegisterController extends Controller
                 'data' => null,
                 'errors' => null,
             ]);
+        } catch (RuntimeException $e) {
+            $this->cleanupTemporaryFiles($temporaryFiles);
+            throw new FileUploadException($e->getMessage());
         } catch (Exception $e) {
             if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
@@ -215,7 +203,7 @@ class RegisterController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return ResponseFormatter::error('Terjadi kesalahan, silakan coba kembali', 'LEAD_STORE_FAILED', 500);
+            throw $e;
         }
     }
 
@@ -254,14 +242,14 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (RuntimeException $e) {
-            return ResponseFormatter::error(['error' => $e->getMessage()], 'INVALID_FILE', 422);
+            throw new FileUploadException($e->getMessage());
         } catch (Exception $e) {
             Log::channel('lead')->error('Upgrade lead failed', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
 
-            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat upgrade lead'], 'ERROR', 500);
+            throw $e;
         }
     }
 
@@ -312,10 +300,13 @@ class RegisterController extends Controller
                 ],
                 'errors' => null,
             ]);
-        } catch (Exception $err) {
-            return ResponseFormatter::error([
-                'message' => $err,
-            ], 'something wrong', 500);
+        } catch (Exception $e) {
+            Log::channel('noo')->error('Fetch register failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
         }
     }
 
@@ -327,14 +318,14 @@ class RegisterController extends Controller
 
             // CRITICAL: Block access if user or role is null
             if (! $user || ! $user->role) {
-                return ResponseFormatter::error(null, 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             $scopeLevel = $user->role->organizational_scope_level;
 
             // CRITICAL: Block access if scope level is null
             if (! $scopeLevel) {
-                return ResponseFormatter::error(null, 'Unauthorized', 401);
+                throw new UnauthorizedException;
             }
 
             // If role has 'all' access, return all registers
@@ -382,10 +373,13 @@ class RegisterController extends Controller
                 ],
                 'errors' => null,
             ]);
-        } catch (Exception $err) {
-            return ResponseFormatter::error([
-                'message' => $err,
-            ], 'something wrong', 500);
+        } catch (Exception $e) {
+            Log::channel('noo')->error('Fetch all register failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
         }
     }
 
@@ -400,12 +394,12 @@ class RegisterController extends Controller
             $hierarchy = $this->resolveHierarchy($user, $request);
 
             if ($this->isHierarchyIncomplete($hierarchy)) {
-                return ResponseFormatter::error([
-                    'badanusaha_id' => [$hierarchy['badanusaha_id'] ? null : 'Required'],
-                    'divisi_id' => [$hierarchy['divisi_id'] ? null : 'Required'],
-                    'region_id' => [$hierarchy['region_id'] ? null : 'Required'],
-                    'cluster_id' => [$hierarchy['cluster_id'] ? null : 'Required'],
-                ], 'Organizational hierarchy is required', 422);
+                throw new BadRequestException('Organizational hierarchy is required', [
+                    'badanusaha_id' => $hierarchy['badanusaha_id'] ? null : ['Required'],
+                    'divisi_id' => $hierarchy['divisi_id'] ? null : ['Required'],
+                    'region_id' => $hierarchy['region_id'] ? null : ['Required'],
+                    'cluster_id' => $hierarchy['cluster_id'] ? null : ['Required'],
+                ]);
             }
 
             // Log NOO store initiated
@@ -473,53 +467,36 @@ class RegisterController extends Controller
                     $target = 'poto_shop_sign';
                 }
 
-                try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
-                    $temporaryFiles[] = $temporaryPath;
+                $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
+                $temporaryFiles[] = $temporaryPath;
 
-                    $fileType = $this->mapTargetToFileType($target);
+                $fileType = $this->mapTargetToFileType($target);
 
-                    $mediaQueue[] = [
-                        'field' => $target,
-                        'tmp_path' => $temporaryPath,
-                        'type' => $fileType,
-                    ];
-                    $data[$target] = $temporaryPath;
-                } catch (RuntimeException $e) {
-                    $this->cleanupTemporaryFiles($temporaryFiles);
-
-                    return ResponseFormatter::error($e->getMessage(), 'INVALID_FILE', 422);
-                }
+                $mediaQueue[] = [
+                    'field' => $target,
+                    'tmp_path' => $temporaryPath,
+                    'type' => $fileType,
+                ];
+                $data[$target] = $temporaryPath;
             }
 
             // Queue video upload for background processing
             if ($request->hasFile('video')) {
-                try {
-                    $video = $request->file('video');
-                    $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
+                $video = $request->file('video');
+                $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
 
-                    // Generate stored video name in the pattern seen in logs
-                    $timestamp = now()->format('YmdHis');
-                    $storedName = 'noo-'.$timestamp.'-video-'.substr(md5(uniqid()), 0, 13).'-'.str_replace([' ', ':'], ['-', '-'], $video->getClientOriginalName());
+                Log::channel('noo')->info('NOO store video queued', [
+                    'user_id' => $user->id,
+                    'original_name' => $video->getClientOriginalName(),
+                ]);
 
-                    // Log video saved
-                    Log::channel('noo')->info('NOO store video saved', [
-                        'user_id' => $user->id,
-                        'stored_name' => $storedName,
-                    ]);
-
-                    $temporaryFiles[] = $temporaryPath;
-                    $mediaQueue[] = [
-                        'field' => 'video',
-                        'tmp_path' => $temporaryPath,
-                        'type' => 'register-video',
-                    ];
-                    $data['video'] = $temporaryPath;
-                } catch (RuntimeException $e) {
-                    $this->cleanupTemporaryFiles($temporaryFiles);
-
-                    return ResponseFormatter::error($e->getMessage(), 'INVALID_VIDEO', 422);
-                }
+                $temporaryFiles[] = $temporaryPath;
+                $mediaQueue[] = [
+                    'field' => 'video',
+                    'tmp_path' => $temporaryPath,
+                    'type' => 'register-video',
+                ];
+                $data['video'] = $temporaryPath;
             } else {
                 // Log missing video file (as seen in production logs)
                 Log::channel('noo')->warning('NOO store missing video file', [
@@ -557,13 +534,20 @@ class RegisterController extends Controller
                 'data' => null,
                 'errors' => null,
             ]);
+        } catch (RuntimeException $e) {
+            $this->cleanupTemporaryFiles($temporaryFiles);
+            throw new FileUploadException($e->getMessage());
         } catch (Exception $e) {
             if (! $mediaDispatched) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
-            error_log($e);
 
-            return ResponseFormatter::error($e, 'gagal');
+            Log::channel('noo')->error('NOO store failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
         }
     }
 
@@ -604,7 +588,7 @@ class RegisterController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat confirm NOO'], 'ERROR', 500);
+            throw $e;
         }
     }
 
@@ -704,7 +688,7 @@ class RegisterController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat approve NOO'], 'ERROR', 500);
+            throw $e;
         }
     }
 
@@ -740,7 +724,7 @@ class RegisterController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return ResponseFormatter::error(['error' => 'Terjadi kesalahan saat reject NOO'], 'ERROR', 500);
+            throw $e;
         }
     }
 
@@ -792,10 +776,13 @@ class RegisterController extends Controller
                 ],
                 'errors' => null,
             ]);
-        } catch (Exception $err) {
-            return ResponseFormatter::error([
-                'message' => $err,
-            ], 'something wrong', 500);
+        } catch (Exception $e) {
+            Log::channel('noo')->error('Fetch pending register failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
         }
     }
 
@@ -816,14 +803,14 @@ class RegisterController extends Controller
                 ],
                 'errors' => null,
             ]);
-        } catch (Exception $err) {
+        } catch (Exception $e) {
             Log::channel('noo')->warning('Register show failed', [
                 'user_id' => Auth::id(),
                 'register_id' => $id,
-                'error' => $err->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
-            return ResponseFormatter::error(null, 'Register tidak ditemukan', 404);
+            throw new ResourceNotFoundException('Register tidak ditemukan');
         }
     }
 
@@ -837,21 +824,6 @@ class RegisterController extends Controller
             'poto_ktp' => 'register-ktp',
             'video' => 'register-video',
         ][$target] ?? 'register-photo';
-    }
-
-    protected function getPhotoFieldMapping(string $modelType): array
-    {
-        if ($modelType === 'register') {
-            return [
-                'photo0' => 'poto_shop_sign',
-                'photo1' => 'poto_depan',
-                'photo2' => 'poto_kiri',
-                'photo3' => 'poto_kanan',
-                'photo4' => 'poto_ktp',
-            ];
-        }
-
-        return [];
     }
 
     protected function resolveHierarchy(User $user, Request $request): array

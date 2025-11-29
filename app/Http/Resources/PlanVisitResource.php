@@ -28,6 +28,9 @@ class PlanVisitResource extends JsonResource
                         'id' => $this->outlet?->id,
                         'kode_outlet' => $this->outlet?->kode_outlet,
                         'nama_outlet' => $this->outlet?->nama_outlet,
+                        'distric' => $this->outlet?->distric,
+                        'latlong' => $this->outlet?->latlong, // For map markers
+                        'alamat_outlet' => $this->outlet?->alamat_outlet,
                     ];
                 }),
             ];

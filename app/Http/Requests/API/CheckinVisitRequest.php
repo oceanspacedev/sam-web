@@ -17,7 +17,7 @@ class CheckinVisitRequest extends FormRequest
             'outlet_id' => ['required', 'integer', 'exists:outlets,id'],
             'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
             'latlong_in' => ['required', 'string'],
-            'tipe_visit' => ['required', 'string', 'in:REGULAR,ACQUISITION,PRODUCT_KNOWLEDGE'],
+            'tipe_visit' => ['required', 'string', 'in:REGULAR,ACQUISITION,PRODUCT_KNOWLEDGE,EXTRACALL'],
         ];
     }
 

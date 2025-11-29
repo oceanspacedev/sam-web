@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\BadanUsaha;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class BadanUsahaPolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser, BadanUsaha $badanUsaha): bool
     {
         return $authUser->can('ViewAny:BadanUsaha');
@@ -56,5 +56,4 @@ class BadanUsahaPolicy
     {
         return $authUser->can('RestoreAny:BadanUsaha');
     }
-
 }

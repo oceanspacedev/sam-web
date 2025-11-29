@@ -10,11 +10,11 @@ class RejectNooRequest extends FormRequest
     public function authorize(): bool
     {
         $register = Register::find($this->id);
-        
-        if (!$register) {
+
+        if (! $register) {
             return false;
         }
-        
+
         return $this->user()->can('reject', $register);
     }
 

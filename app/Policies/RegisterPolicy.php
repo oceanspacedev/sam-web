@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Register;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class RegisterPolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser, Register $register): bool
     {
         return $authUser->can('ViewAny:Register');
@@ -81,5 +81,4 @@ class RegisterPolicy
     {
         return $authUser->can('Upgrade:Register');
     }
-
 }

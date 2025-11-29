@@ -18,7 +18,7 @@ class ShieldSeeder extends Seeder
             '--panel' => 'admin',
             '--no-interaction' => true,
         ]);
-        
+
         $this->command->info('Shield Permissions generated successfully.');
     }
 }

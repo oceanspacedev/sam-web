@@ -22,10 +22,15 @@ use Illuminate\Support\Facades\Route;
 Route::post('login', [UserController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware(['auth:sanctum', 'logku'])->group(function () {
-    // USER
+    // USER (single - current user)
     Route::get('user', [UserController::class, 'fetch']);
-    Route::post('user', [UserController::class, 'store']);
     Route::post('logout', [UserController::class, 'logout']);
+
+    // USERS (manage all users - CRUD)
+    Route::get('users', [UserController::class, 'index']);
+    Route::post('users', [UserController::class, 'store']);
+    Route::put('users/{id}', [UserController::class, 'update']);
+    Route::delete('users/{id}', [UserController::class, 'destroy']);
 
     // OUTLET
     Route::get('outlet', [OutletController::class, 'fetch']);

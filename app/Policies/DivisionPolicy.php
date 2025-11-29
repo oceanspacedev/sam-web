@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Division;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Foundation\Auth\User as AuthUser;
 
 class DivisionPolicy
 {
     use HandlesAuthorization;
-    
+
     public function viewAny(AuthUser $authUser, Division $division): bool
     {
         return $authUser->can('ViewAny:Division');
@@ -56,5 +56,4 @@ class DivisionPolicy
     {
         return $authUser->can('RestoreAny:Division');
     }
-
 }

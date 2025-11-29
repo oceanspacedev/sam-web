@@ -81,6 +81,11 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Register::class, 'tm_id');
     }
 
+    public function registers(): HasMany
+    {
+        return $this->hasMany(Register::class, 'created_by_id');
+    }
+
     public function visit(): HasMany
     {
         return $this->hasMany(Visit::class);

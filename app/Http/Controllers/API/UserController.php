@@ -176,10 +176,10 @@ class UserController extends Controller
         $newUser->load(['role', 'badanUsahas', 'divisis', 'regions', 'clusters']);
 
         return response()->json([
-            'meta' => ['code' => 201, 'status' => 'success', 'message' => 'User berhasil dibuat'],
+            'meta' => ['code' => 200, 'status' => 'success', 'message' => 'User berhasil dibuat'],
             'data' => new UserResource($newUser),
             'errors' => null,
-        ], 201);
+        ]);
     }
 
     /**

@@ -339,10 +339,10 @@ class VisitController extends Controller
             ]);
 
             return response()->json([
-                'meta' => ['code' => 201, 'status' => 'success', 'message' => 'Check-in berhasil'],
+                'meta' => ['code' => 200, 'status' => 'success', 'message' => 'Check-in berhasil'],
                 'data' => new VisitResource($visit),
                 'errors' => null,
-            ], 201);
+            ]);
         } finally {
             // Cleanup temporary files if media job wasn't dispatched
             if (! $mediaDispatched && $temporaryFiles !== []) {

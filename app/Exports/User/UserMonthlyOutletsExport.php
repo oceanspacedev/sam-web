@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Exports;
+namespace App\Exports\User;
 
-use App\Exports\Sheets\AllOutletsSheet;
-use App\Exports\Sheets\UnvisitedOutletsSheet;
-use App\Exports\Sheets\VisitsThisMonthSheet;
+use App\Exports\Outlet\AllOutletsSheet;
+use App\Exports\Visit\UnvisitedOutletsSheet;
+use App\Exports\Visit\VisitsThisMonthSheet;
 use App\Models\User;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 

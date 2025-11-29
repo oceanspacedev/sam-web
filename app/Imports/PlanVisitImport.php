@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Exports\PlanVisitImportErrorsExport;
+use App\Exports\PlanVisit\PlanVisitImportErrorsExport;
 use App\Jobs\SendImportNotification;
 use App\Models\Division;
 use App\Models\Outlet;

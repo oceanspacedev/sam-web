@@ -2,7 +2,7 @@
 
 namespace App\Jobs\Exports;
 
-use App\Exports\PlanVisitTemplateExport;
+use App\Exports\PlanVisit\PlanVisitTemplateExport;
 use App\Jobs\SendImportNotification;
 use App\Support\StorageDisk;
 use Illuminate\Bus\Queueable;

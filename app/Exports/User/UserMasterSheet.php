@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\Templates;
+namespace App\Exports\User;
 
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -10,9 +10,10 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
+class UserMasterSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
 {
     public function title(): string
     {
@@ -33,7 +34,6 @@ class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings
 
     public function collection(): Collection
     {
-        // Ambil data user dengan filter yang sama seperti di PlanVisitResource
         $query = User::query()
             ->with(['badanUsahas:id,name', 'divisis:id,name', 'regions:id,name', 'clusters:id,name'])
             ->select([
@@ -44,14 +44,12 @@ class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings
             ->whereNotNull('users.nama_lengkap')
             ->where('users.nama_lengkap', '!=', '');
 
-        // Terapkan filter yang sama seperti di UserResource berdasarkan role user
         if (Auth::check()) {
             $user = Auth::user();
             $role = $user->role;
             $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
             if ($scopeLevel !== 'all') {
-                // Get user's organizational assignments from pivot tables
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
                 $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
                 $regionIds = $user->regions()->pluck('regions.id')->toArray();
@@ -72,10 +70,8 @@ class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings
             }
         }
 
-        // Ambil semua user sesuai filter
         $users = $query->orderBy('users.nama_lengkap', 'asc')->get();
 
-        // Transform data
         return $users->map(function ($user) {
             $badanUsaha = $user->badanUsahas->first();
             $divisi = $user->divisis->first();
@@ -83,21 +79,20 @@ class UserMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings
             $cluster = $user->clusters->first();
 
             return [
-                $user->username,                        // username
-                $user->nama_lengkap,                    // nama_lengkap
-                $badanUsaha->name ?? '',                // badan_usaha
-                $divisi->name ?? '',                    // divisi
-                $region->name ?? '',                    // region
-                $cluster->name ?? '',                   // cluster
+                $user->username,
+                $user->nama_lengkap,
+                $badanUsaha->name ?? '',
+                $divisi->name ?? '',
+                $region->name ?? '',
+                $cluster->name ?? '',
             ];
         });
     }
 
     public function styles(Worksheet $sheet)
     {
-        // Set background color untuk header - biru dengan teks putih
         $sheet->getStyle('A1:F1')->getFill()
-            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->setFillType(Fill::FILL_SOLID)
             ->getStartColor()->setRGB('3B82F6');
 
         $sheet->getStyle('A1:F1')->getFont()

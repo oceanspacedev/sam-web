@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\Templates;
+namespace App\Exports\PlanVisit;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -9,9 +9,10 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class PlanVisitTemplate implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
+class PlanVisitSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
 {
     public function __construct(private string $scheduleScope = 'daily')
     {
@@ -71,9 +72,8 @@ class PlanVisitTemplate implements FromCollection, ShouldAutoSize, WithHeadings,
         $lastColumn = Coordinate::stringFromColumnIndex(count($this->headings()));
         $headerRange = sprintf('A1:%s1', $lastColumn);
 
-        // Set background color untuk header - hijau dengan teks hitam
         $sheet->getStyle($headerRange)->getFill()
-            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->setFillType(Fill::FILL_SOLID)
             ->getStartColor()->setRGB('D1FAD7');
 
         $sheet->getStyle($headerRange)->getFont()

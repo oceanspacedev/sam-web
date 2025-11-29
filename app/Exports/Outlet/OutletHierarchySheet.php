@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\Templates;
+namespace App\Exports\Outlet;
 
 use App\Models\Cluster;
 use Illuminate\Support\Collection;
@@ -13,9 +13,10 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class OutletHierarchyMasterTemplate implements FromCollection, ShouldAutoSize, WithEvents, WithHeadings, WithStyles, WithTitle
+class OutletHierarchySheet implements FromCollection, ShouldAutoSize, WithEvents, WithHeadings, WithStyles, WithTitle
 {
     /**
      * @var array<int, array{0: string, 1: int, 2: int}>
@@ -63,7 +64,6 @@ class OutletHierarchyMasterTemplate implements FromCollection, ShouldAutoSize, W
             $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
             if ($scopeLevel !== 'all') {
-                // Get user's organizational assignments from pivot tables
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
                 $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
                 $regionIds = $user->regions()->pluck('regions.id')->toArray();
@@ -91,7 +91,7 @@ class OutletHierarchyMasterTemplate implements FromCollection, ShouldAutoSize, W
         }
 
         $rows = [];
-        $currentRow = 2; // Header occupies row 1
+        $currentRow = 2;
 
         $groupedByBadanUsaha = $clusters->groupBy('badanusaha_id');
 
@@ -138,7 +138,7 @@ class OutletHierarchyMasterTemplate implements FromCollection, ShouldAutoSize, W
     public function styles(Worksheet $sheet)
     {
         $sheet->getStyle('A1:D1')->getFill()
-            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->setFillType(Fill::FILL_SOLID)
             ->getStartColor()->setRGB('F59E0B');
 
         $sheet->getStyle('A1:D1')->getFont()
@@ -167,7 +167,6 @@ class OutletHierarchyMasterTemplate implements FromCollection, ShouldAutoSize, W
                         ->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 }
 
-                // Freeze header for better navigation
                 $sheet->freezePane('A2');
             },
         ];

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\Templates;
+namespace App\Exports\Outlet;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -8,7 +8,7 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class OutletCreatedTemplate implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
+class OutletCreatedSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     public function title(): string
     {
@@ -34,15 +34,15 @@ class OutletCreatedTemplate implements FromCollection, ShouldAutoSize, WithHeadi
     {
         return new Collection([
             [
-                'MSI',                 // badan_usaha
-                'GROSIR',              // divisi
-                'JAKARTA',             // region
-                'JKT-UTARA',           // cluster
-                'GROSIR001',           // kode_outlet
-                'TOKO MAJU JAYA',      // nama_outlet
-                'JL. RAYA NO. 1',      // alamat_outlet
-                'PENJARINGAN',         // distric
-                0,                     // limit
+                'MSI',
+                'GROSIR',
+                'JAKARTA',
+                'JKT-UTARA',
+                'GROSIR001',
+                'TOKO MAJU JAYA',
+                'JL. RAYA NO. 1',
+                'PENJARINGAN',
+                0,
             ],
         ]);
     }

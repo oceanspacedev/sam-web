@@ -2,7 +2,7 @@
 
 namespace App\Jobs\Exports;
 
-use App\Exports\TemplateOutletExport;
+use App\Exports\Outlet\OutletTemplateExport;
 use App\Jobs\SendImportNotification;
 use App\Support\StorageDisk;
 use Illuminate\Bus\Queueable;
@@ -33,7 +33,7 @@ class GenerateOutletTemplate implements ShouldQueue
         $fileName = sprintf('outlet-%s-template-%s.xlsx', $mode, $timestamp);
         $path = 'exports/templates/'.$fileName;
 
-        Excel::store(new TemplateOutletExport($this->mode), $path, $disk);
+        Excel::store(new OutletTemplateExport($this->mode), $path, $disk);
 
         SendImportNotification::dispatch(
             $this->userId,

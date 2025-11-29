@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\Templates;
+namespace App\Exports\Outlet;
 
 use App\Models\Outlet;
 use Illuminate\Support\Collection;
@@ -10,9 +10,10 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class OutletMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
+class OutletMasterSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
 {
     public function title(): string
     {
@@ -33,7 +34,6 @@ class OutletMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadin
 
     public function collection(): Collection
     {
-        // Ambil data outlet dengan filter yang sama seperti di OutletResource
         $query = Outlet::query()
             ->with(['badanusaha', 'divisi', 'region', 'cluster'])
             ->select([
@@ -49,14 +49,12 @@ class OutletMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadin
             ->leftJoin('regions', 'outlets.region_id', '=', 'regions.id')
             ->leftJoin('clusters', 'outlets.cluster_id', '=', 'clusters.id');
 
-        // Terapkan filter yang sama seperti di OutletResource berdasarkan role user
         if (Auth::check()) {
             $user = Auth::user();
             $role = $user->role;
             $scopeLevel = $role->organizational_scope_level ?? 'cluster';
 
             if ($scopeLevel !== 'all') {
-                // Get user's organizational assignments from pivot tables
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
                 $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
                 $regionIds = $user->regions()->pluck('regions.id')->toArray();
@@ -77,27 +75,24 @@ class OutletMasterTemplate implements FromCollection, ShouldAutoSize, WithHeadin
             }
         }
 
-        // Ambil semua outlet sesuai filter
         $outlets = $query->orderBy('outlets.kode_outlet', 'asc')->get();
 
-        // Transform data
         return $outlets->map(function ($outlet) {
             return [
-                $outlet->kode_outlet,                     // kode_outlet
-                $outlet->nama_outlet,                     // nama_outlet
-                $outlet->badan_usaha_name ?? '',          // badan_usaha
-                $outlet->divisi_name ?? '',               // divisi
-                $outlet->region_name ?? '',               // region
-                $outlet->cluster_name ?? '',              // cluster
+                $outlet->kode_outlet,
+                $outlet->nama_outlet,
+                $outlet->badan_usaha_name ?? '',
+                $outlet->divisi_name ?? '',
+                $outlet->region_name ?? '',
+                $outlet->cluster_name ?? '',
             ];
         });
     }
 
     public function styles(Worksheet $sheet)
     {
-        // Set background color untuk header - hijau dengan teks putih
         $sheet->getStyle('A1:F1')->getFill()
-            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->setFillType(Fill::FILL_SOLID)
             ->getStartColor()->setRGB('10B981');
 
         $sheet->getStyle('A1:F1')->getFont()

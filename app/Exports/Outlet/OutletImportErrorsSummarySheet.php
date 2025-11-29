@@ -1,42 +1,22 @@
 <?php
 
-namespace App\Exports;
+namespace App\Exports\Outlet;
 
-use App\Exports\Templates\OutletCreatedTemplate;
-use App\Exports\Templates\OutletHierarchyMasterTemplate;
-use App\Exports\Templates\OutletUpdatedTemplate;
 use Illuminate\Support\Collection;
-use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
-
-class OutletImportErrorsExport implements WithMultipleSheets
-{
-    use Exportable;
-
-    /**
-     * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
-     */
-    public function __construct(private array $rows, private string $mode) {}
-
-    public function sheets(): array
-    {
-        return [
-            new OutletImportErrorsSummarySheet($this->rows, $this->mode),
-            new OutletHierarchyMasterTemplate,
-        ];
-    }
-}
 
 class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     /**
      * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
      */
-    public function __construct(private array $rows, private string $mode) {}
+    public function __construct(
+        private array $rows,
+        private string $mode
+    ) {}
 
     public function collection(): Collection
     {
@@ -85,11 +65,11 @@ class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, 
 
     private function createdTemplateHeadings(): array
     {
-        return (new OutletCreatedTemplate)->headings();
+        return (new OutletCreatedSheet)->headings();
     }
 
     private function updatedTemplateHeadings(): array
     {
-        return (new OutletUpdatedTemplate)->headings();
+        return (new OutletUpdatedSheet)->headings();
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Imports;
 
-use App\Exports\OutletImportErrorsExport;
+use App\Exports\Outlet\OutletImportErrorsExport;
 use App\Jobs\SendImportNotification;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;

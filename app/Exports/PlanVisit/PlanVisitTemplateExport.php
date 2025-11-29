@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Exports;
+namespace App\Exports\PlanVisit;
 
-use App\Exports\Templates\OutletMasterTemplate;
-use App\Exports\Templates\PlanVisitTemplate;
-use App\Exports\Templates\UserMasterTemplate;
+use App\Exports\Outlet\OutletMasterSheet;
+use App\Exports\User\UserMasterSheet;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
@@ -23,9 +22,9 @@ class PlanVisitTemplateExport implements ShouldAutoSize, WithMultipleSheets
     public function sheets(): array
     {
         return [
-            new PlanVisitTemplate($this->scheduleScope),
-            new UserMasterTemplate,
-            new OutletMasterTemplate,
+            new PlanVisitSheet($this->scheduleScope),
+            new UserMasterSheet,
+            new OutletMasterSheet,
         ];
     }
 }

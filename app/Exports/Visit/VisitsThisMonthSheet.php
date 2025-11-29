@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\Sheets;
+namespace App\Exports\Visit;
 
 use App\Models\User;
 use App\Models\Visit;

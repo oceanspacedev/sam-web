@@ -16,8 +16,8 @@ class CheckinVisitRequest extends FormRequest
         return [
             'outlet_id' => ['required', 'integer', 'exists:outlets,id'],
             'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
-            'latlong_in' => ['required', 'string'],
-            'tipe_visit' => ['required', 'string', 'in:REGULAR,ACQUISITION,PRODUCT_KNOWLEDGE,EXTRACALL'],
+            'latlong_in' => ['required', 'string', 'regex:/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/'],
+            'tipe_visit' => ['required', 'string', 'in:PLANNED,EXTRACALL'],
         ];
     }
 
@@ -31,6 +31,7 @@ class CheckinVisitRequest extends FormRequest
             'picture_visit.mimes' => 'Format gambar harus jpg, jpeg, atau png',
             'picture_visit.max' => 'Ukuran gambar maksimal 3MB',
             'latlong_in.required' => 'Lokasi check-in wajib diisi',
+            'latlong_in.regex' => 'Format lokasi tidak valid (gunakan format: latitude,longitude)',
             'tipe_visit.required' => 'Tipe visit wajib dipilih',
             'tipe_visit.in' => 'Tipe visit tidak valid',
         ];

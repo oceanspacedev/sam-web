@@ -16,7 +16,7 @@ class UpdateOutletRequest extends FormRequest
         $rules = [
             'nama_pemilik_outlet' => ['nullable', 'string', 'max:255'],
             'nomer_tlp_outlet' => ['nullable', 'string', 'max:50'],
-            'latlong' => ['nullable', 'string'],
+            'latlong' => ['nullable', 'string', 'regex:/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/'],
         ];
 
         for ($i = 0; $i <= 4; $i++) {
@@ -36,6 +36,7 @@ class UpdateOutletRequest extends FormRequest
             'nama_pemilik_outlet.string' => 'Nama pemilik outlet harus berupa teks',
             'nomer_tlp_outlet.string' => 'Nomor telepon outlet harus berupa teks',
             'latlong.string' => 'Lokasi harus berupa teks',
+            'latlong.regex' => 'Format lokasi tidak valid (gunakan format: latitude,longitude)',
             'photo*.image' => 'File harus berupa gambar',
             'photo*.mimes' => 'Format gambar harus jpg, jpeg, atau png',
             'photo*.max' => 'Ukuran gambar maksimal 3MB',

@@ -38,6 +38,29 @@ class Register extends Model
         return $query->whereNull('deleted_at');
     }
 
+    /**
+     * Override visibleTo scope for Register model.
+     * Filter by created_by_id and tm_id instead of organizational hierarchy.
+     */
+    public function scopeVisibleTo(Builder $query, \App\Models\User $user): Builder
+    {
+        // Check if user has a role
+        if (! $user->role) {
+            return $query->whereRaw('1 = 0'); // Return empty result
+        }
+
+        // If role has full access, no filtering needed
+        if ($user->role->hasFullAccess()) {
+            return $query;
+        }
+
+        // Filter by created_by_id OR tm_id
+        return $query->where(function ($q) use ($user) {
+            $q->where('created_by_id', $user->id)
+              ->orWhere('tm_id', $user->id);
+        });
+    }
+
     public function cluster(): BelongsTo
     {
         return $this->belongsTo(Cluster::class)->withTrashed();

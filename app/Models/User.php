@@ -46,6 +46,94 @@ class User extends Authenticatable implements FilamentUser, HasName
     protected ?array $cachedOrganizationalIds = null;
 
     /**
+     * Scope query berdasarkan organizational hierarchy user.
+     * Uses many-to-many pivot tables for User model.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        // Check if user has a role
+        if (! $user->role) {
+            return $query->whereRaw('1 = 0'); // Return empty result
+        }
+
+        // If role has full access, no filtering needed
+        if ($user->role->hasFullAccess()) {
+            return $query;
+        }
+
+        // Use cached organizational IDs from user to avoid N+1 queries
+        $ids = $user->getOrganizationalIds();
+        $scopeLevel = $ids['scope_level'];
+
+        // Apply hierarchical filtering based on scope level using pivot tables
+        switch ($scopeLevel) {
+            case 'badanusaha':
+                if (! empty($ids['badanusaha'])) {
+                    $query->whereHas('badanUsahas', function ($q) use ($ids) {
+                        $q->whereIn('badan_usahas.id', $ids['badanusaha']);
+                    });
+                }
+                break;
+
+            case 'divisi':
+                if (! empty($ids['badanusaha'])) {
+                    $query->whereHas('badanUsahas', function ($q) use ($ids) {
+                        $q->whereIn('badan_usahas.id', $ids['badanusaha']);
+                    });
+                }
+                if (! empty($ids['divisi'])) {
+                    $query->whereHas('divisis', function ($q) use ($ids) {
+                        $q->whereIn('divisions.id', $ids['divisi']);
+                    });
+                }
+                break;
+
+            case 'region':
+                if (! empty($ids['badanusaha'])) {
+                    $query->whereHas('badanUsahas', function ($q) use ($ids) {
+                        $q->whereIn('badan_usahas.id', $ids['badanusaha']);
+                    });
+                }
+                if (! empty($ids['divisi'])) {
+                    $query->whereHas('divisis', function ($q) use ($ids) {
+                        $q->whereIn('divisions.id', $ids['divisi']);
+                    });
+                }
+                if (! empty($ids['region'])) {
+                    $query->whereHas('regions', function ($q) use ($ids) {
+                        $q->whereIn('regions.id', $ids['region']);
+                    });
+                }
+                break;
+
+            case 'cluster':
+                if (! empty($ids['badanusaha'])) {
+                    $query->whereHas('badanUsahas', function ($q) use ($ids) {
+                        $q->whereIn('badan_usahas.id', $ids['badanusaha']);
+                    });
+                }
+                if (! empty($ids['divisi'])) {
+                    $query->whereHas('divisis', function ($q) use ($ids) {
+                        $q->whereIn('divisions.id', $ids['divisi']);
+                    });
+                }
+                if (! empty($ids['region'])) {
+                    $query->whereHas('regions', function ($q) use ($ids) {
+                        $q->whereIn('regions.id', $ids['region']);
+                    });
+                }
+                if (! empty($ids['cluster'])) {
+                    $query->whereHas('clusters', function ($q) use ($ids) {
+                        $q->whereIn('clusters.id', $ids['cluster']);
+                    });
+                }
+                break;
+        }
+
+        return $query;
+    }
+
+    /**
      * Get user's organizational IDs from pivot tables (cached).
      * Returns array with keys: badanusaha, divisi, region, cluster, scope_level
      */

@@ -66,6 +66,31 @@ class OutletResource extends JsonResource
             'divisi' => $this->whenLoaded('divisi', function () {
                 return $this->divisi ? $this->divisi->only(['id', 'name']) : null;
             }),
+
+            // SDUI: Actions based on user permissions
+            'actions' => $this->getActions($request),
+        ];
+    }
+
+    /**
+     * Get available actions for this outlet based on user permissions.
+     *
+     * @return array<string, bool>
+     */
+    protected function getActions(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return [
+                'can_reset' => false,
+                'can_delete' => false,
+            ];
+        }
+
+        return [
+            'can_reset' => $user->can('Reset:Outlet'),
+            'can_delete' => $user->can('Delete:Outlet'),
         ];
     }
 }

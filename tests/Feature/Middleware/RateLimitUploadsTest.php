@@ -6,6 +6,13 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Redis;
 
 beforeEach(function () {
+    // Skip if Redis is not available
+    try {
+        Redis::ping();
+    } catch (\Exception $e) {
+        $this->markTestSkipped('Redis is not available');
+    }
+
     // Clear Redis before each test
     Redis::flushdb();
 

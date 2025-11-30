@@ -24,6 +24,7 @@ Route::post('login', [UserController::class, 'login'])->middleware('throttle:log
 Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // USER (single - current user)
     Route::get('user', [UserController::class, 'fetch']);
+    Route::get('user/stats', [UserController::class, 'stats']);
     Route::post('logout', [UserController::class, 'logout']);
 
     // USERS (manage all users - CRUD)

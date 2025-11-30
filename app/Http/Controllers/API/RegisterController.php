@@ -212,6 +212,12 @@ class RegisterController extends Controller
     {
         try {
             $lead = Register::find($request->id);
+
+            // Validate that register is a LEAD before allowing upgrade
+            if ($lead->keterangan !== 'LEAD') {
+                throw new BadRequestException('Register bukan LEAD');
+            }
+
             $file = $request->file('photo');
 
             $path = $this->fileUpload->uploadImageOptimized($file, 'register-ktp');
@@ -266,11 +272,19 @@ class RegisterController extends Controller
                 'cluster:id,name',
                 'region:id,name',
                 'divisi:id,name',
+                'createdBy:id,nama_lengkap',
+                'confirmedBy:id,nama_lengkap',
+                'approvedBy:id,nama_lengkap',
+                'rejectedBy:id,nama_lengkap',
             ] : [
                 'badanusaha',
                 'cluster',
                 'region',
                 'divisi',
+                'createdBy',
+                'confirmedBy',
+                'approvedBy',
+                'rejectedBy',
             ]);
 
             if ($compact) {
@@ -314,6 +328,35 @@ class RegisterController extends Controller
         }
     }
 
+    /**
+     * Get register counts by status for current user
+     */
+    public function count(Request $request)
+    {
+        $user = Auth::user();
+
+        $query = Register::visibleTo($user);
+
+        $counts = [
+            'lead' => (clone $query)->where('keterangan', 'LEAD')->count(),
+            'pending' => (clone $query)->where('status', 'PENDING')->whereNull('keterangan')->count(),
+            'confirmed' => (clone $query)->where('status', 'CONFIRMED')->count(),
+            'approved' => (clone $query)->where('status', 'APPROVED')->count(),
+            'rejected' => (clone $query)->where('status', 'REJECTED')->count(),
+            'total' => $query->count(),
+        ];
+
+        return response()->json([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'berhasil',
+            ],
+            'data' => $counts,
+            'errors' => null,
+        ]);
+    }
+
     public function all(Request $request)
     {
         try {
@@ -338,11 +381,19 @@ class RegisterController extends Controller
                 'cluster:id,name',
                 'region:id,name',
                 'divisi:id,name',
+                'createdBy:id,nama_lengkap',
+                'confirmedBy:id,nama_lengkap',
+                'approvedBy:id,nama_lengkap',
+                'rejectedBy:id,nama_lengkap',
             ] : [
                 'badanusaha',
                 'cluster',
                 'region',
                 'divisi',
+                'createdBy',
+                'confirmedBy',
+                'approvedBy',
+                'rejectedBy',
             ];
 
             $selectColumns = $compact ? [
@@ -562,6 +613,14 @@ class RegisterController extends Controller
     {
         try {
             $register = Register::findOrFail($request->id);
+
+            // Validate that register.status is PENDING before allowing confirmation
+            // Only pending NOO (status=PENDING) or upgraded LEAD (status=PENDING, keterangan=null) can be confirmed
+            // Note: Database has status as enum with default 'PENDING', not null
+            if ($register->status !== 'PENDING') {
+                throw new BadRequestException('Register sudah diproses sebelumnya');
+            }
+
             $register->status = $request->status;
             $register->limit = $request->limit;
             $register->kode_outlet = $request->kode_outlet;
@@ -620,6 +679,13 @@ class RegisterController extends Controller
     {
         try {
             $register = Register::find($request->id);
+
+            // Validate that register.status is 'CONFIRMED' before allowing approval
+            // Only confirmed NOO can be approved (state machine: CONFIRMED → APPROVED)
+            if ($register->status !== 'CONFIRMED') {
+                throw new BadRequestException('Register belum dikonfirmasi');
+            }
+
             $register->status = $request->status;
             $register->approved_by_id = Auth::id();
             $register->approved_at = now();
@@ -703,6 +769,14 @@ class RegisterController extends Controller
     {
         try {
             $register = Register::findOrFail($request->id);
+
+            // Validate that register.status is null or 'CONFIRMED' before allowing rejection
+            // State machine: null/LEAD → REJECTED, CONFIRMED → REJECTED
+            // Already APPROVED or REJECTED registers cannot be rejected again
+            if ($register->status === 'APPROVED' || $register->status === 'REJECTED') {
+                throw new BadRequestException('Register sudah diproses sebelumnya');
+            }
+
             $register->status = $request->status;
             $register->keterangan = $request->alasan;
             $register->rejected_by_id = Auth::id();

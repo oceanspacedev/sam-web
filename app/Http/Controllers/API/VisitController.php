@@ -36,6 +36,11 @@ class VisitController extends Controller
             throw new UnauthorizedException;
         }
 
+        // SDUI: Check permission
+        if (! $user->can('ViewAny:Visit')) {
+            throw new UnauthorizedException('Anda tidak memiliki akses untuk monitoring visit');
+        }
+
         $scopeLevel = $user->role->organizational_scope_level;
 
         if (! $scopeLevel) {
@@ -72,15 +77,7 @@ class VisitController extends Controller
             $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
 
             if (! $hasAnyAssignment) {
-                return response()->json([
-                    'meta' => [
-                        'code' => 200,
-                        'status' => 'success',
-                        'message' => 'fetch monitoring visit success',
-                    ],
-                    'data' => [],
-                    'errors' => null,
-                ]);
+                throw new UnauthorizedException('User tidak memiliki organizational assignment');
             }
         }
 
@@ -207,12 +204,20 @@ class VisitController extends Controller
         }
 
         // Apply date filtering
-        // Priority: custom range (date_from & date_to) > period
+        // Priority: custom range (date_from & date_to) > year+month > period
         if ($request->filled(['date_from', 'date_to'])) {
             // Custom date range
             $dateFrom = Carbon::parse($request->date_from)->startOfDay();
             $dateTo = Carbon::parse($request->date_to)->endOfDay();
             $query->whereBetween('tanggal_visit', [$dateFrom, $dateTo]);
+        } elseif ($request->filled(['year', 'month'])) {
+            // Specific year and month
+            $year = (int) $request->year;
+            $month = (int) $request->month;
+            $query->whereBetween('tanggal_visit', [
+                Carbon::create($year, $month, 1)->startOfMonth(),
+                Carbon::create($year, $month, 1)->endOfMonth(),
+            ]);
         } else {
             // Period-based filtering
             $period = $request->input('period', 'today');

@@ -11,6 +11,14 @@ class UpgradeLeadRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // Merge route parameter into request for validation
+        $this->merge([
+            'id' => $this->route('id'),
+        ]);
+    }
+
     public function rules(): array
     {
         return [

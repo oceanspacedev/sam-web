@@ -56,6 +56,31 @@ class UserResource extends JsonResource
                     'organizational_scope_level' => $this->role->organizational_scope_level,
                 ] : null;
             }),
+
+            // SDUI: Menu permissions from Spatie Permission
+            'permissions' => $this->getPermissions(),
+        ];
+    }
+
+    /**
+     * Get menu permissions based on Spatie Permission.
+     * Uses existing Filament Shield permissions for consistency.
+     *
+     * @return array<string, bool>
+     */
+    protected function getPermissions(): array
+    {
+        $user = $this->resource;
+
+        return [
+            // Menu visibility
+            'can_monitor_visit' => $user->can('ViewAny:Visit'),
+            'can_manage_user' => $user->can('ViewAny:User'),
+
+            // User management actions
+            'can_create_user' => $user->can('Create:User'),
+            'can_update_user' => $user->can('Update:User'),
+            'can_delete_user' => $user->can('Delete:User'),
         ];
     }
 }

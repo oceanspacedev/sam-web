@@ -11,7 +11,10 @@ use App\Http\Requests\API\LoginRequest;
 use App\Http\Requests\API\StoreUserRequest;
 use App\Http\Requests\API\UpdateUserRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Register;
 use App\Models\User;
+use App\Models\Visit;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,42 +28,16 @@ class UserController extends Controller
     {
         $authUser = Auth::user();
 
-        // Role-based access: only Admin (1), CSO (9), ASM (6) can list users
-        $allowedRoles = [1, 9, 6];
-        if (! in_array($authUser->role_id, $allowedRoles)) {
+        // SDUI: Check permission instead of hardcoded roles
+        if (! $authUser->can('ViewAny:User')) {
             throw new ForbiddenException('Anda tidak memiliki akses untuk melihat daftar user');
         }
 
-        // Base query with eager loading
-        $query = User::with(['clusters', 'regions', 'role', 'divisis', 'badanUsahas'])
-            ->whereNull('deleted_at');
-
-        // Apply organizational scope filtering based on user's role
-        $orgIds = $authUser->getOrganizationalIds();
-        $scopeLevel = $orgIds['scope_level'];
-
-        // Admin (role 1) sees all, others filtered by scope
-        if ($authUser->role_id !== 1) {
-            if ($scopeLevel === 'cluster' && ! empty($orgIds['cluster'])) {
-                $query->whereHas('clusters', function ($q) use ($orgIds) {
-                    $q->whereIn('clusters.id', $orgIds['cluster']);
-                });
-            } elseif ($scopeLevel === 'region' && ! empty($orgIds['region'])) {
-                $query->whereHas('regions', function ($q) use ($orgIds) {
-                    $q->whereIn('regions.id', $orgIds['region']);
-                });
-            } elseif ($scopeLevel === 'divisi' && ! empty($orgIds['divisi'])) {
-                $query->whereHas('divisis', function ($q) use ($orgIds) {
-                    $q->whereIn('divisions.id', $orgIds['divisi']);
-                });
-            } elseif ($scopeLevel === 'badanusaha' && ! empty($orgIds['badanusaha'])) {
-                $query->whereHas('badanUsahas', function ($q) use ($orgIds) {
-                    $q->whereIn('badan_usahas.id', $orgIds['badanusaha']);
-                });
-            }
-        }
-
-        $users = $query->orderBy('nama_lengkap')->get();
+        // Use visibleTo scope for organizational filtering
+        $users = User::with(['clusters', 'regions', 'role', 'divisis', 'badanUsahas'])
+            ->visibleTo($authUser)
+            ->orderBy('nama_lengkap')
+            ->get();
 
         return response()->json([
             'meta' => [
@@ -87,6 +64,47 @@ class UserController extends Controller
             ],
             'data' => [
                 'user' => new UserResource($user),
+            ],
+            'errors' => null,
+        ]);
+    }
+
+    /**
+     * Get current user's monthly statistics
+     * GET /user/stats
+     */
+    public function stats(Request $request)
+    {
+        $user = Auth::user();
+        $now = Carbon::now();
+
+        // Get month boundaries
+        $startOfMonth = $now->copy()->startOfMonth();
+        $endOfMonth = $now->copy()->endOfMonth();
+
+        // Count visits this month for current user
+        $visitCount = Visit::where('user_id', $user->id)
+            ->whereBetween('tanggal_visit', [$startOfMonth, $endOfMonth])
+            ->count();
+
+        // Count NOO approved this month (created by current user)
+        // Using approved_at so lead→noo conversions count in the month they're approved
+        $nooCount = Register::where('created_by_id', $user->id)
+            ->whereNotNull('approved_at')
+            ->whereBetween('approved_at', [$startOfMonth, $endOfMonth])
+            ->count();
+
+        return response()->json([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Statistik berhasil diambil',
+            ],
+            'data' => [
+                'month' => $now->format('F Y'),
+                'month_id' => $now->locale('id')->translatedFormat('F Y'),
+                'visit_count' => $visitCount,
+                'noo_count' => $nooCount,
             ],
             'errors' => null,
         ]);
@@ -145,6 +163,11 @@ class UserController extends Controller
     {
         $user = Auth::user();
 
+        // SDUI: Check permission
+        if (! $user->can('Create:User')) {
+            throw new ForbiddenException('Anda tidak memiliki akses untuk membuat user');
+        }
+
         // Create user
         $newUser = User::create([
             'username' => strtolower(trim($request->username)),
@@ -190,9 +213,8 @@ class UserController extends Controller
     {
         $authUser = Auth::user();
 
-        // Role-based access: only Admin (1), CSO (9), ASM (6) can update users
-        $allowedRoles = [1, 9, 6];
-        if (! in_array($authUser->role_id, $allowedRoles)) {
+        // SDUI: Check permission
+        if (! $authUser->can('Update:User')) {
             throw new ForbiddenException('Anda tidak memiliki akses untuk mengubah user');
         }
 
@@ -254,9 +276,8 @@ class UserController extends Controller
     {
         $authUser = Auth::user();
 
-        // Role-based access: only Admin (1), CSO (9), ASM (6) can delete users
-        $allowedRoles = [1, 9, 6];
-        if (! in_array($authUser->role_id, $allowedRoles)) {
+        // SDUI: Check permission
+        if (! $authUser->can('Delete:User')) {
             throw new ForbiddenException('Anda tidak memiliki akses untuk menghapus user');
         }
 

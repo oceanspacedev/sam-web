@@ -39,6 +39,11 @@ class VisitCompactResource extends JsonResource
             'check_out_time' => $this->check_out_time ? Carbon::parse($this->check_out_time)->getPreciseTimestamp(3) : null,
             'transaksi' => $this->transaksi,
             'durasi_visit' => $this->durasi_visit,
+            'picture_visit_in' => $this->picture_visit_in,
+            'picture_visit_out' => $this->picture_visit_out,
+            'latlong_in' => $this->latlong_in,
+            'latlong_out' => $this->latlong_out,
+            'laporan_visit' => $this->laporan_visit,
             'outlet' => $this->whenLoaded('outlet', function () {
                 return [
                     'id' => $this->outlet?->id,

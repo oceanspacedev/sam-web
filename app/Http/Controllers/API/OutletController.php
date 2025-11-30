@@ -228,6 +228,93 @@ class OutletController extends Controller
         ]);
     }
 
+    /**
+     * Reset outlet media (photos and video)
+     * PATCH /outlet/{id}/reset
+     */
+    public function reset(int $id)
+    {
+        $user = Auth::user();
+
+        $outlet = Outlet::visibleTo($user)->where('id', $id)->first();
+
+        if (! $outlet) {
+            throw new ResourceNotFoundException('Outlet tidak ditemukan');
+        }
+
+        Log::channel('outlet')->info('Outlet reset initiated', [
+            'user_id' => $user->id,
+            'outlet_id' => $outlet->id,
+            'kode_outlet' => $outlet->kode_outlet,
+        ]);
+
+        // Delete all media files
+        $mediaFields = ['poto_depan', 'poto_kanan', 'poto_kiri', 'poto_ktp', 'poto_shop_sign', 'video'];
+
+        foreach ($mediaFields as $field) {
+            $this->deleteOutletMedia($outlet->{$field});
+            $outlet->{$field} = null;
+        }
+
+        $outlet->save();
+
+        Log::channel('outlet')->info('Outlet reset success', [
+            'user_id' => $user->id,
+            'outlet_id' => $outlet->id,
+            'kode_outlet' => $outlet->kode_outlet,
+        ]);
+
+        return response()->json([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Media outlet berhasil direset',
+            ],
+            'data' => null,
+            'errors' => null,
+        ]);
+    }
+
+    /**
+     * Soft delete outlet
+     * DELETE /outlet/{id}
+     */
+    public function destroy(int $id)
+    {
+        $user = Auth::user();
+
+        $outlet = Outlet::visibleTo($user)->where('id', $id)->first();
+
+        if (! $outlet) {
+            throw new ResourceNotFoundException('Outlet tidak ditemukan');
+        }
+
+        Log::channel('outlet')->info('Outlet delete initiated', [
+            'user_id' => $user->id,
+            'outlet_id' => $outlet->id,
+            'kode_outlet' => $outlet->kode_outlet,
+        ]);
+
+        // Soft delete
+        $outlet->delete();
+
+        Log::channel('outlet')->info('Outlet deleted', [
+            'user_id' => $user->id,
+            'outlet_id' => $outlet->id,
+            'kode_outlet' => $outlet->kode_outlet,
+        ]);
+
+        return response()->json([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Outlet berhasil dihapus',
+            ],
+            'data' => null,
+            'errors' => null,
+        ]);
+    }
+
     protected function deleteOutletMedia(?string $path): void
     {
         if (! $path || $path === '-' || $path === '0') {

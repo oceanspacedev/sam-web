@@ -95,6 +95,11 @@ class VisitController extends Controller
                 'check_out_time',
                 'transaksi',
                 'created_at',
+                'picture_visit_in',
+                'picture_visit_out',
+                'latlong_in',
+                'latlong_out',
+                'laporan_visit',
             ]);
         }
 

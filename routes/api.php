@@ -37,6 +37,8 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::get('outlet', [OutletController::class, 'fetch']);
     Route::get('outlet/{id}', [OutletController::class, 'show']);
     Route::post('outlet/{id}', [OutletController::class, 'update']);
+    Route::patch('outlet/{id}/reset', [OutletController::class, 'reset']);
+    Route::delete('outlet/{id}', [OutletController::class, 'destroy']);
 
     // VISIT
     Route::get('visit', [VisitController::class, 'fetch']);

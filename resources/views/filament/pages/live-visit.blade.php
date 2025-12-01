@@ -192,11 +192,11 @@
                         <div class="flex">
                             <button type="button" wire:click="$set('checkin_tipe', 'PLANNED')"
                                 class="flex-1 py-4 text-sm font-medium border-b-2 transition-colors {{ $checkin_tipe === 'PLANNED' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}">
-                                Planned Visit
+                                PLANNED
                             </button>
                             <button type="button" wire:click="$set('checkin_tipe', 'EXTRACALL')"
                                 class="flex-1 py-4 text-sm font-medium border-b-2 transition-colors {{ $checkin_tipe === 'EXTRACALL' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}">
-                                Extra Call
+                                EXTRACALL
                             </button>
                         </div>
                     </div>
@@ -231,7 +231,7 @@
                     @endif
 
                     {{-- List --}}
-                    <div class="max-h-[400px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                    <div class="max-h-[240px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
                         @php
                             $outlets = $checkin_tipe === 'PLANNED' ? $this->plannedOutlets : $this->extracallOutlets;
                         @endphp

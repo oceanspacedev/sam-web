@@ -37,11 +37,6 @@ class RegionPolicy
         return $authUser->can('Delete:Region');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Region');
-    }
-
     public function restore(AuthUser $authUser, Region $region): bool
     {
         return $authUser->can('Restore:Region');
@@ -60,5 +55,10 @@ class RegionPolicy
     public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Region');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Region');
     }
 }

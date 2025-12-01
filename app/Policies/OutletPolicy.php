@@ -37,11 +37,6 @@ class OutletPolicy
         return $authUser->can('Delete:Outlet');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Outlet');
-    }
-
     public function restore(AuthUser $authUser, Outlet $outlet): bool
     {
         return $authUser->can('Restore:Outlet');
@@ -60,6 +55,11 @@ class OutletPolicy
     public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Outlet');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Outlet');
     }
 
     public function export(AuthUser $authUser): bool

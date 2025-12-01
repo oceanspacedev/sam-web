@@ -24,6 +24,8 @@ export default defineConfig({
         theme_color: '#d97706',
         background_color: '#d97706',
         display: 'standalone',
+        start_url: '/admin',
+        scope: '/',
         icons: [
           {
             src: '/images/icons/icon-192x192.png',

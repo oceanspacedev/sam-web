@@ -3,7 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Outlet;
-use App\Support\StorageDisk;
+use App\Services\FileUploadService;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -181,35 +181,35 @@ class UpdateOutlet extends Page
             'latlong' => $this->current_latlong,
         ];
 
-        // Handle photo uploads
-        $disk = StorageDisk::default();
+        // Handle photo uploads dengan FileUploadService (flat storage + optimized filename)
+        $fileUpload = app(FileUploadService::class);
 
         if ($this->photo_shop_sign) {
-            $data['poto_shop_sign'] = $this->photo_shop_sign->store('outlets', $disk);
+            $data['poto_shop_sign'] = $fileUpload->uploadImageOptimized($this->photo_shop_sign, 'outlet-photo');
         } elseif ($this->existing_shop_sign === null && $outlet->poto_shop_sign) {
             $data['poto_shop_sign'] = null;
         }
 
         if ($this->photo_depan) {
-            $data['poto_depan'] = $this->photo_depan->store('outlets', $disk);
+            $data['poto_depan'] = $fileUpload->uploadImageOptimized($this->photo_depan, 'outlet-photo');
         } elseif ($this->existing_depan === null && $outlet->poto_depan) {
             $data['poto_depan'] = null;
         }
 
         if ($this->photo_kanan) {
-            $data['poto_kanan'] = $this->photo_kanan->store('outlets', $disk);
+            $data['poto_kanan'] = $fileUpload->uploadImageOptimized($this->photo_kanan, 'outlet-photo');
         } elseif ($this->existing_kanan === null && $outlet->poto_kanan) {
             $data['poto_kanan'] = null;
         }
 
         if ($this->photo_kiri) {
-            $data['poto_kiri'] = $this->photo_kiri->store('outlets', $disk);
+            $data['poto_kiri'] = $fileUpload->uploadImageOptimized($this->photo_kiri, 'outlet-photo');
         } elseif ($this->existing_kiri === null && $outlet->poto_kiri) {
             $data['poto_kiri'] = null;
         }
 
         if ($this->video) {
-            $data['video'] = $this->video->store('outlets/videos', $disk);
+            $data['video'] = $fileUpload->uploadVideoOptimized($this->video, 'outlet-video');
         } elseif ($this->existing_video === null && $outlet->video) {
             $data['video'] = null;
         }

@@ -37,11 +37,6 @@ class BadanUsahaPolicy
         return $authUser->can('Delete:BadanUsaha');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:BadanUsaha');
-    }
-
     public function restore(AuthUser $authUser, BadanUsaha $badanUsaha): bool
     {
         return $authUser->can('Restore:BadanUsaha');
@@ -60,5 +55,10 @@ class BadanUsahaPolicy
     public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:BadanUsaha');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:BadanUsaha');
     }
 }

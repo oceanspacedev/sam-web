@@ -34,11 +34,6 @@ class UserPolicy
         return $authUser->can('Delete:User');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:User');
-    }
-
     public function restore(AuthUser $authUser): bool
     {
         return $authUser->can('Restore:User');
@@ -57,6 +52,11 @@ class UserPolicy
     public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:User');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:User');
     }
 
     public function export(AuthUser $authUser): bool

@@ -37,11 +37,6 @@ class DivisionPolicy
         return $authUser->can('Delete:Division');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Division');
-    }
-
     public function restore(AuthUser $authUser, Division $division): bool
     {
         return $authUser->can('Restore:Division');
@@ -60,5 +55,10 @@ class DivisionPolicy
     public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Division');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Division');
     }
 }

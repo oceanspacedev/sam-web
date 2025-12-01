@@ -37,11 +37,6 @@ class ClusterPolicy
         return $authUser->can('Delete:Cluster');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Cluster');
-    }
-
     public function restore(AuthUser $authUser, Cluster $cluster): bool
     {
         return $authUser->can('Restore:Cluster');
@@ -60,5 +55,10 @@ class ClusterPolicy
     public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Cluster');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Cluster');
     }
 }

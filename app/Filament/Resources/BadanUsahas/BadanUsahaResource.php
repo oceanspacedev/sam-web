@@ -8,6 +8,8 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -107,6 +109,10 @@ class BadanUsahaResource extends Resource
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
                         ->authorize('deleteAny'),
+                    ForceDeleteBulkAction::make()
+                        ->authorize('forceDeleteAny'),
+                    RestoreBulkAction::make()
+                        ->authorize('restoreAny'),
                 ]),
             ]);
     }

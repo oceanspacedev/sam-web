@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\Visit;
+use App\Services\FileUploadService;
 use App\Support\StorageDisk;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Carbon\Carbon;
@@ -324,8 +325,8 @@ class LiveVisit extends Page implements HasForms
                 ToggleButtons::make('checkin_tipe')
                     ->label('Tipe Visit')
                     ->options([
-                        'PLANNED' => 'Planned',
-                        'EXTRACALL' => 'Extra Call',
+                        'PLANNED' => 'PLANNED',
+                        'EXTRACALL' => 'EXTRACALL',
                     ])
                     ->icons([
                         'PLANNED' => 'heroicon-o-calendar',
@@ -486,10 +487,13 @@ class LiveVisit extends Page implements HasForms
             return;
         }
 
-        // Store photo
+        // Store photo dengan FileUploadService (flat storage + optimized filename)
         $photoPath = null;
         if ($this->checkin_photo) {
-            $photoPath = $this->checkin_photo->store('visits', StorageDisk::default());
+            $photoPath = app(FileUploadService::class)->uploadImageOptimized(
+                $this->checkin_photo,
+                'visit-in'
+            );
         }
 
         // Buat visit
@@ -576,10 +580,13 @@ class LiveVisit extends Page implements HasForms
             return;
         }
 
-        // Store photo
+        // Store photo dengan FileUploadService (flat storage + optimized filename)
         $photoPath = null;
         if ($this->checkout_photo) {
-            $photoPath = $this->checkout_photo->store('visits', StorageDisk::default());
+            $photoPath = app(FileUploadService::class)->uploadImageOptimized(
+                $this->checkout_photo,
+                'visit-out'
+            );
         }
 
         $outletName = $visit->outlet?->nama_outlet;

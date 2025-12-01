@@ -37,11 +37,6 @@ class RegisterPolicy
         return $authUser->can('Delete:Register');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:Register');
-    }
-
     public function restore(AuthUser $authUser, Register $register): bool
     {
         return $authUser->can('Restore:Register');
@@ -60,6 +55,11 @@ class RegisterPolicy
     public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Register');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Register');
     }
 
     public function approve(AuthUser $authUser, Register $register): bool

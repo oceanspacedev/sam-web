@@ -37,11 +37,6 @@ class PlanVisitPolicy
         return $authUser->can('Delete:PlanVisit');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
-    {
-        return $authUser->can('DeleteAny:PlanVisit');
-    }
-
     public function restore(AuthUser $authUser, PlanVisit $planVisit): bool
     {
         return $authUser->can('Restore:PlanVisit');
@@ -60,6 +55,11 @@ class PlanVisitPolicy
     public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:PlanVisit');
+    }
+
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:PlanVisit');
     }
 
     public function export(AuthUser $authUser): bool

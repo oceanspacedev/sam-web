@@ -42,15 +42,15 @@ class ListVisits extends ListRecords
         return [
             'all' => Tab::make(),
 
-            'EXTRACALL' => Tab::make()
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'EXTRACALL'))
-                ->badge($this->getStatusBadgeCount($query, 'EXTRACALL'))
-                ->badgeColor('info'),
-
-            'PLANNED' => Tab::make()
+            'PLANNED' => Tab::make('PLANNED')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'PLANNED'))
                 ->badge($this->getStatusBadgeCount($query, 'PLANNED'))
                 ->badgeColor('primary'),
+
+            'EXTRACALL' => Tab::make('EXTRACALL')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'EXTRACALL'))
+                ->badge($this->getStatusBadgeCount($query, 'EXTRACALL'))
+                ->badgeColor('info'),
         ];
     }
 

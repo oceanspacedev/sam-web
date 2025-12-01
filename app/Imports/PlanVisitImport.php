@@ -145,11 +145,15 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
                 $summary = $this->getSummary();
 
+                // Gunakan nilai terbesar antara summary (dari chunk processing) dan instance vars
                 $processed = max($summary['processed'], $this->processed);
                 $created = max($summary['created'], $this->created);
                 $updated = max($summary['updated'], $this->updated);
-                $errorCount = $summary['error_total'] ?? count($this->errors);
-                $errorsForExport = $summary['errors_export'] ?? $this->errors;
+
+                // Untuk error, prioritaskan data dari instance saat ini jika ada
+                // Ini mencegah data error lama dari cache tercampur
+                $currentErrors = ! empty($this->errors) ? $this->errors : ($summary['errors_export'] ?? []);
+                $errorCount = count($currentErrors);
 
                 $isEmpty = $processed === 0 && $errorCount === 0;
 
@@ -175,7 +179,7 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
                 if ($errorCount > 0) {
                     $messageParts[] = number_format($errorCount).' baris perlu diperbaiki.';
-                    $downloadPath = $this->storeErrorReport($errorsForExport);
+                    $downloadPath = $this->storeErrorReport($currentErrors);
 
                     if ($downloadPath) {
                         $messageParts[] = 'Detail error tersedia pada file Excel terlampir.';

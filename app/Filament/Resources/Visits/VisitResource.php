@@ -152,18 +152,27 @@ class VisitResource extends Resource
                                     ->searchable()
                                     ->preload()
                                     ->required()
+                                    ->disabled(fn (callable $get): bool => ! $get('user_id'))
                                     ->label('Pilih Outlet')
-                                    ->placeholder(fn (callable $get) => $get('tipe_visit') === 'PLANNED'
-                                        ? 'Pilih outlet dari Plan Visit'
-                                        : 'Cari Outlet berdasarkan nama/kode')
-                                    ->helperText(fn (callable $get) => $get('tipe_visit') === 'PLANNED'
+                                    ->placeholder(fn (callable $get) => ! $get('user_id')
+                                        ? 'Pilih user terlebih dahulu'
+                                        : ($get('tipe_visit') === 'PLANNED'
+                                            ? 'Pilih outlet dari Plan Visit'
+                                            : 'Cari Outlet berdasarkan nama/kode'))
+                                    ->helperText(fn (callable $get) => $get('tipe_visit') === 'PLANNED' && $get('user_id')
                                         ? 'Hanya menampilkan outlet yang ada di Plan Visit untuk user dan tanggal yang dipilih'
-                                        : null)
+                                        : ($get('tipe_visit') === 'EXTRACALL' && $get('user_id')
+                                            ? 'Hanya menampilkan outlet sesuai scope user yang dipilih'
+                                            : null))
                                     ->getSearchResultsUsing(function (string $search, callable $get) {
-                                        $currentUser = Auth::user();
                                         $tipeVisit = $get('tipe_visit');
                                         $selectedUserId = $get('user_id');
                                         $tanggalVisit = $get('tanggal_visit');
+
+                                        // Jika user belum dipilih, return empty
+                                        if (! $selectedUserId) {
+                                            return [];
+                                        }
 
                                         // Jika PLANNED, filter berdasarkan PlanVisit
                                         if ($tipeVisit === 'PLANNED' && $selectedUserId && $tanggalVisit) {
@@ -212,36 +221,20 @@ class VisitResource extends Resource
                                                 ->toArray();
                                         }
 
-                                        // EXTRACALL: Tampilkan semua outlet sesuai scope user
-                                        $query = Outlet::query()
+                                        // EXTRACALL: Tampilkan outlet sesuai scope SELECTED USER menggunakan scopeAccessibleTo
+                                        $selectedUser = User::with('role')->find($selectedUserId);
+
+                                        if (! $selectedUser) {
+                                            return [];
+                                        }
+
+                                        return Outlet::query()
                                             ->with(['badanusaha:id,name', 'divisi:id,name'])
+                                            ->accessibleTo($selectedUser)
                                             ->where(function ($q) use ($search) {
                                                 $q->where('nama_outlet', 'like', "%{$search}%")
                                                     ->orWhere('kode_outlet', 'like', "%{$search}%");
-                                            });
-
-                                        // Apply scope filtering based on current user's role
-                                        if ($currentUser && $currentUser->role && $currentUser->role->organizational_scope_level !== 'all') {
-                                            $badanUsahaIds = $currentUser->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                                            $divisiIds = $currentUser->divisis()->pluck('divisions.id')->toArray();
-                                            $regionIds = $currentUser->regions()->pluck('regions.id')->toArray();
-                                            $clusterIds = $currentUser->clusters()->pluck('clusters.id')->toArray();
-
-                                            if (! empty($badanUsahaIds)) {
-                                                $query->whereIn('badanusaha_id', $badanUsahaIds);
-                                            }
-                                            if (! empty($divisiIds)) {
-                                                $query->whereIn('divisi_id', $divisiIds);
-                                            }
-                                            if (! empty($regionIds)) {
-                                                $query->whereIn('region_id', $regionIds);
-                                            }
-                                            if (! empty($clusterIds)) {
-                                                $query->whereIn('cluster_id', $clusterIds);
-                                            }
-                                        }
-
-                                        return $query
+                                            })
                                             ->orderBy('nama_outlet')
                                             ->limit(50)
                                             ->get()

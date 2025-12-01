@@ -150,7 +150,16 @@ class UserResource extends Resource
                                     ->schema([
                                         Select::make('badanUsahas')
                                             ->label('Badan Usaha')
-                                            ->multiple()
+                                            ->multiple(function (callable $get) {
+                                                // Multiple hanya jika scope level = badanusaha
+                                                $roleId = $get('role_id');
+                                                if (! $roleId) {
+                                                    return false;
+                                                }
+                                                $role = Role::find($roleId);
+
+                                                return $role && $role->organizational_scope_level === 'badanusaha';
+                                            })
                                             ->relationship('badanUsahas', 'name')
                                             ->searchable()
                                             ->preload()
@@ -159,7 +168,7 @@ class UserResource extends Resource
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return false; // Hide until role is selected
+                                                    return false;
                                                 }
                                                 $role = Role::find($roleId);
 
@@ -178,22 +187,36 @@ class UserResource extends Resource
                                                 $user = Auth::user();
                                                 $role = $user->role;
 
-                                                // If role has 'all' scope, show all
                                                 if ($role->organizational_scope_level === 'all') {
                                                     return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id');
                                                 }
 
-                                                // Use pivot table for current user's assignments
                                                 return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
                                             })
-                                            ->afterStateUpdated(function ($state, callable $set) {
-                                                $set('divisis', []);
-                                                $set('regions', []);
-                                                $set('clusters', []);
+                                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                $roleId = $get('role_id');
+                                                $role = $roleId ? Role::find($roleId) : null;
+                                                $scopeLevel = $role?->organizational_scope_level;
+
+                                                // Reset child fields
+                                                if ($scopeLevel !== 'badanusaha') {
+                                                    $set('divisis', $scopeLevel === 'divisi' ? [] : null);
+                                                }
+                                                $set('regions', in_array($scopeLevel, ['region', 'cluster']) ? [] : null);
+                                                $set('clusters', $scopeLevel === 'cluster' ? [] : null);
                                             }),
                                         Select::make('divisis')
                                             ->label('Divisi')
-                                            ->multiple()
+                                            ->multiple(function (callable $get) {
+                                                // Multiple hanya jika scope level = divisi
+                                                $roleId = $get('role_id');
+                                                if (! $roleId) {
+                                                    return false;
+                                                }
+                                                $role = Role::find($roleId);
+
+                                                return $role && $role->organizational_scope_level === 'divisi';
+                                            })
                                             ->relationship('divisis', 'name')
                                             ->searchable()
                                             ->preload()
@@ -202,7 +225,7 @@ class UserResource extends Resource
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return false; // Hide until role is selected
+                                                    return false;
                                                 }
                                                 $role = Role::find($roleId);
 
@@ -219,14 +242,15 @@ class UserResource extends Resource
                                             })
                                             ->options(function (callable $get) {
                                                 $badanUsahaIds = $get('badanUsahas');
+                                                // Handle both single value and array
                                                 if (empty($badanUsahaIds)) {
                                                     return [];
                                                 }
+                                                $badanUsahaIds = is_array($badanUsahaIds) ? $badanUsahaIds : [$badanUsahaIds];
 
                                                 $user = Auth::user();
                                                 $query = Division::whereIn('badanusaha_id', $badanUsahaIds);
 
-                                                // Apply user scope filtering
                                                 if ($user && $user->role->organizational_scope_level !== 'all') {
                                                     $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
                                                     if (! empty($divisiIds)) {
@@ -236,13 +260,27 @@ class UserResource extends Resource
 
                                                 return $query->orderBy('name', 'asc')->pluck('name', 'id');
                                             })
-                                            ->afterStateUpdated(function ($state, callable $set) {
-                                                $set('regions', []);
-                                                $set('clusters', []);
+                                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                $roleId = $get('role_id');
+                                                $role = $roleId ? Role::find($roleId) : null;
+                                                $scopeLevel = $role?->organizational_scope_level;
+
+                                                // Reset child fields
+                                                $set('regions', in_array($scopeLevel, ['region', 'cluster']) ? [] : null);
+                                                $set('clusters', $scopeLevel === 'cluster' ? [] : null);
                                             }),
                                         Select::make('regions')
                                             ->label('Region')
-                                            ->multiple()
+                                            ->multiple(function (callable $get) {
+                                                // Multiple hanya jika scope level = region
+                                                $roleId = $get('role_id');
+                                                if (! $roleId) {
+                                                    return false;
+                                                }
+                                                $role = Role::find($roleId);
+
+                                                return $role && $role->organizational_scope_level === 'region';
+                                            })
                                             ->relationship('regions', 'name')
                                             ->searchable()
                                             ->preload()
@@ -251,7 +289,7 @@ class UserResource extends Resource
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return false; // Hide until role is selected
+                                                    return false;
                                                 }
                                                 $role = Role::find($roleId);
 
@@ -268,14 +306,15 @@ class UserResource extends Resource
                                             })
                                             ->options(function (callable $get) {
                                                 $divisiIds = $get('divisis');
+                                                // Handle both single value and array
                                                 if (empty($divisiIds)) {
                                                     return [];
                                                 }
+                                                $divisiIds = is_array($divisiIds) ? $divisiIds : [$divisiIds];
 
                                                 $user = Auth::user();
                                                 $query = Region::whereIn('divisi_id', $divisiIds);
 
-                                                // Apply user scope filtering
                                                 if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
                                                     $regionIds = $user->regions()->pluck('regions.id')->toArray();
                                                     if (! empty($regionIds)) {
@@ -285,12 +324,17 @@ class UserResource extends Resource
 
                                                 return $query->orderBy('name', 'asc')->pluck('name', 'id');
                                             })
-                                            ->afterStateUpdated(function ($state, callable $set) {
-                                                $set('clusters', []);
+                                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                $roleId = $get('role_id');
+                                                $role = $roleId ? Role::find($roleId) : null;
+                                                $scopeLevel = $role?->organizational_scope_level;
+
+                                                // Reset child fields
+                                                $set('clusters', $scopeLevel === 'cluster' ? [] : null);
                                             }),
                                         Select::make('clusters')
                                             ->label('Cluster')
-                                            ->multiple()
+                                            ->multiple() // Cluster selalu multiple jika visible (scope = cluster)
                                             ->relationship('clusters', 'name')
                                             ->searchable()
                                             ->preload()
@@ -299,7 +343,7 @@ class UserResource extends Resource
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return false; // Hide until role is selected
+                                                    return false;
                                                 }
                                                 $role = Role::find($roleId);
 
@@ -316,14 +360,15 @@ class UserResource extends Resource
                                             })
                                             ->options(function (callable $get) {
                                                 $regionIds = $get('regions');
+                                                // Handle both single value and array
                                                 if (empty($regionIds)) {
                                                     return [];
                                                 }
+                                                $regionIds = is_array($regionIds) ? $regionIds : [$regionIds];
 
                                                 $user = Auth::user();
                                                 $query = Cluster::whereIn('region_id', $regionIds);
 
-                                                // Apply user scope filtering
                                                 if ($user && $user->role->organizational_scope_level === 'cluster') {
                                                     $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
                                                     if (! empty($clusterIds)) {

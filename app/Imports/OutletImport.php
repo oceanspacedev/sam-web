@@ -30,7 +30,25 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
     private const ERROR_SAMPLE_LIMIT = 20;
 
-    private const EXPORT_BASE_FIELDS = [
+    /**
+     * Kolom untuk mode CREATE (sesuai template OutletCreatedSheet)
+     */
+    private const EXPORT_CREATE_FIELDS = [
+        'badan_usaha',
+        'divisi',
+        'region',
+        'cluster',
+        'kode_outlet',
+        'nama_outlet',
+        'alamat_outlet',
+        'distric',
+        'limit',
+    ];
+
+    /**
+     * Kolom untuk mode UPDATE (sesuai template OutletUpdatedSheet)
+     */
+    private const EXPORT_UPDATE_BASE_FIELDS = [
         'badan_usaha',
         'divisi',
         'region',
@@ -39,13 +57,12 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         'nama_outlet',
         'nama_pemilik_outlet',
         'nomer_tlp_outlet',
-        'alamat_outlet',
         'distric',
         'limit',
         'status_outlet',
     ];
 
-    private const EXPORT_UPDATE_FIELDS = [
+    private const EXPORT_UPDATE_NEW_FIELDS = [
         'badan_usaha_baru',
         'divisi_baru',
         'region_baru',
@@ -54,7 +71,6 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         'nama_outlet_baru',
         'nama_pemilik_outlet_baru',
         'nomer_tlp_outlet_baru',
-        'alamat_outlet_baru',
         'distric_baru',
         'limit_baru',
         'status_outlet_baru',
@@ -79,7 +95,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
     private string $summaryKey;
 
-    public function __construct(string $mode = 'upsert', ?int $userId = null)
+    public function __construct(string $mode = 'create', ?int $userId = null)
     {
         $this->mode = $this->normalizeMode($mode);
         $this->userId = $userId;
@@ -118,21 +134,6 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             throw new Exception('Kolom kode_outlet wajib diisi.');
         }
 
-        $existing = Outlet::where('kode_outlet', $lookupCode)->first();
-
-        if ($existing && $this->mode === 'create') {
-            $message = 'Kode outlet sudah dipakai di outlet lain.';
-
-            if ($trackSummary) {
-                $this->incrementSkipped();
-                $this->rememberError($rowIndex, $data, $message);
-
-                return null;
-            }
-
-            throw new Exception($message);
-        }
-
         $targetBadanUsahaName = $this->requireValue($data, ['badan_usaha_baru', 'badan_usaha'], 'badan_usaha');
         $targetDivisiName = $this->requireValue($data, ['divisi_baru', 'divisi'], 'divisi');
         $targetRegionName = $this->requireValue($data, ['region_baru', 'region'], 'region');
@@ -149,6 +150,64 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
         if ($targetKodeOutlet === null) {
             throw new Exception('Kolom kode_outlet wajib diisi.');
+        }
+
+        // Cari outlet existing berdasarkan kode_outlet (lookup) dan divisi sumber
+        $sourceDivisiId = $this->resolveDivisionIdFromSource($data, $targetBadanUsahaName, $targetDivisiName, $divisiId);
+        $existing = $this->findExistingOutlet($lookupCode, $targetKodeOutlet, $divisiId, $sourceDivisiId);
+
+        // Validasi uniqueness kode_outlet dalam divisi
+        if ($this->mode === 'update') {
+            // MODE UPDATE: outlet harus ditemukan
+            if (! $existing) {
+                $message = "Outlet dengan kode {$lookupCode} tidak ditemukan.";
+
+                if ($trackSummary) {
+                    $this->incrementSkipped();
+                    $this->rememberError($rowIndex, $data, $message);
+
+                    return null;
+                }
+
+                throw new Exception($message);
+            }
+
+            // kode_outlet boleh sama dengan milik sendiri, tapi tidak boleh sama dengan outlet lain dalam divisi yang sama
+            $duplicate = Outlet::where('kode_outlet', $targetKodeOutlet)
+                ->where('divisi_id', $divisiId)
+                ->where('id', '!=', $existing->id)
+                ->first();
+
+            if ($duplicate) {
+                $message = "Kode outlet {$targetKodeOutlet} sudah dipakai oleh outlet lain di divisi ini.";
+
+                if ($trackSummary) {
+                    $this->incrementSkipped();
+                    $this->rememberError($rowIndex, $data, $message);
+
+                    return null;
+                }
+
+                throw new Exception($message);
+            }
+        } else {
+            // MODE CREATE: kode_outlet harus unique dalam divisi target
+            $duplicate = Outlet::where('kode_outlet', $targetKodeOutlet)
+                ->where('divisi_id', $divisiId)
+                ->first();
+
+            if ($duplicate) {
+                $message = "Kode outlet {$targetKodeOutlet} sudah dipakai di divisi ini.";
+
+                if ($trackSummary) {
+                    $this->incrementSkipped();
+                    $this->rememberError($rowIndex, $data, $message);
+
+                    return null;
+                }
+
+                throw new Exception($message);
+            }
         }
 
         $payload = [
@@ -235,19 +294,23 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
                 $summary = $this->getSummary();
 
+                // Gunakan nilai terbesar antara summary (dari chunk processing) dan instance vars
                 $processed = max($summary['processed'], $this->processed);
                 $created = max($summary['created'], $this->created);
                 $updated = max($summary['updated'], $this->updated);
                 $skipped = max($summary['skipped'], $this->skipped);
-                $errorCount = $summary['error_total'] ?? count($this->errors);
                 $mode = $summary['mode'] ?? $this->mode;
+
+                // Untuk error, prioritaskan data dari instance saat ini jika ada
+                // Ini mencegah data error lama dari cache tercampur
+                $currentErrors = ! empty($this->errors) ? $this->errors : ($summary['errors_export'] ?? []);
+                $errorCount = count($currentErrors);
 
                 $isEmpty = $processed === 0 && $errorCount === 0;
 
                 $modeLabel = match ($mode) {
-                    'create' => 'Create',
                     'update' => 'Update',
-                    default => 'Upsert',
+                    default => 'Create',
                 };
 
                 $messageParts = [
@@ -272,23 +335,14 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 }
 
                 $downloadPath = null;
-                $errorsForExport = $summary['errors_export'] ?? $this->errors;
 
                 if ($errorCount > 0) {
-                    $downloadPath = $this->storeErrorReport($errorsForExport, $mode);
+                    $downloadPath = $this->storeErrorReport($currentErrors, $mode);
 
-                    $messageParts[] = 'Gagal: '.number_format($errorCount);
                     $messageParts[] = number_format($errorCount).' '.str('baris')->plural($errorCount).' gagal diproses dan perlu diperbaiki.';
 
-                    $errorSamples = $summary['errors'] ?? $this->errors;
-
-                    foreach ($errorSamples as $sample) {
-                        $outletLabel = $sample['kode_outlet'] ? ' ['.$sample['kode_outlet'].']' : '';
-                        $messageParts[] = sprintf('Baris %s%s: %s', $sample['row'], $outletLabel, $sample['message']);
-                    }
-
                     if ($downloadPath) {
-                        $messageParts[] = 'Detail lengkap tersedia di file Excel terlampir.';
+                        $messageParts[] = 'Detail kesalahan dapat dilihat pada file Excel terlampir.';
                     }
                 }
 
@@ -321,9 +375,8 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     private function normalizeMode(string $mode): string
     {
         return match (strtolower($mode)) {
-            'create' => 'create',
             'update' => 'update',
-            default => 'upsert',
+            default => 'create',
         };
     }
 
@@ -453,7 +506,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             ->first(fn ($item) => $this->normalizeName((string) $item->name) === $normalized);
 
         if (! $badanUsaha) {
-            throw new Exception('Badan usaha '.$name.' tidak ditemukan.');
+            throw new Exception("Badan usaha '{$name}' tidak ditemukan.");
         }
 
         return $badanUsaha->id;
@@ -463,6 +516,8 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     {
         $normalized = $this->normalizeName($name);
 
+        $badanUsaha = BadanUsaha::find($badanusahaId);
+
         $division = Division::query()
             ->where('badanusaha_id', $badanusahaId)
             ->select(['id', 'name'])
@@ -470,7 +525,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             ->first(fn ($item) => $this->normalizeName((string) $item->name) === $normalized);
 
         if (! $division) {
-            throw new Exception('Divisi '.$name.' tidak ditemukan untuk badan usaha terkait.');
+            throw new Exception("Divisi '{$name}' tidak ditemukan di badan usaha '{$badanUsaha?->name}'.");
         }
 
         return $division->id;
@@ -480,6 +535,8 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     {
         $normalized = $this->normalizeName($name);
 
+        $division = Division::find($divisiId);
+
         $region = Region::query()
             ->where('divisi_id', $divisiId)
             ->where('badanusaha_id', $badanusahaId)
@@ -488,7 +545,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             ->first(fn ($item) => $this->normalizeName((string) $item->name) === $normalized);
 
         if (! $region) {
-            throw new Exception('Region '.$name.' tidak ditemukan untuk divisi terkait.');
+            throw new Exception("Region '{$name}' tidak ditemukan di divisi '{$division?->name}'.");
         }
 
         return $region->id;
@@ -497,6 +554,8 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     private function getClusterId(string $name, int $badanusahaId, int $divisiId, int $regionId): int
     {
         $normalized = $this->normalizeName($name);
+
+        $region = Region::find($regionId);
 
         $cluster = Cluster::query()
             ->where('badanusaha_id', $badanusahaId)
@@ -507,7 +566,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             ->first(fn ($item) => $this->normalizeName((string) $item->name) === $normalized);
 
         if (! $cluster) {
-            throw new Exception('Cluster '.$name.' tidak ditemukan untuk region terkait.');
+            throw new Exception("Cluster '{$name}' tidak ditemukan di region '{$region?->name}'.");
         }
 
         return $cluster->id;
@@ -551,12 +610,20 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     {
         $columns = [];
 
-        foreach (self::EXPORT_BASE_FIELDS as $field) {
-            $columns[$field] = $this->sanitizeString($row[$field] ?? null);
-        }
+        if ($this->mode === 'create') {
+            // Mode CREATE: hanya kolom create
+            foreach (self::EXPORT_CREATE_FIELDS as $field) {
+                $columns[$field] = $this->sanitizeString($row[$field] ?? null);
+            }
+        } else {
+            // Mode UPDATE: kolom base + kolom baru
+            foreach (self::EXPORT_UPDATE_BASE_FIELDS as $field) {
+                $columns[$field] = $this->sanitizeString($row[$field] ?? null);
+            }
 
-        foreach (self::EXPORT_UPDATE_FIELDS as $field) {
-            $columns[$field] = $this->sanitizeString($row[$field] ?? null);
+            foreach (self::EXPORT_UPDATE_NEW_FIELDS as $field) {
+                $columns[$field] = $this->sanitizeString($row[$field] ?? null);
+            }
         }
 
         return $columns;
@@ -676,6 +743,77 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 'message' => $exception->getMessage(),
             ]);
 
+            return null;
+        }
+    }
+
+    /**
+     * Cari outlet existing dengan prioritas:
+     * 1. Cari di divisi sumber (jika ada) - untuk kasus outlet pindah divisi
+     * 2. Cari di divisi target - untuk kasus update biasa
+     * 3. Fallback: Cari tanpa filter divisi (hanya mode update) - untuk backward compatibility
+     */
+    private function findExistingOutlet(string $lookupCode, string $targetKodeOutlet, int $targetDivisiId, ?int $sourceDivisiId): ?Outlet
+    {
+        $codeForMatch = $this->mode === 'create' ? $targetKodeOutlet : $lookupCode;
+
+        // Prioritas 1: Cari di divisi sumber (jika berbeda dari target)
+        if ($sourceDivisiId !== null && $sourceDivisiId !== $targetDivisiId) {
+            $existing = Outlet::where('kode_outlet', $codeForMatch)
+                ->where('divisi_id', $sourceDivisiId)
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        // Prioritas 2: Cari di divisi target
+        $existing = Outlet::where('kode_outlet', $codeForMatch)
+            ->where('divisi_id', $targetDivisiId)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        // Mode create tidak perlu fallback
+        if ($this->mode === 'create') {
+            return null;
+        }
+
+        // Fallback untuk mode update: cari tanpa filter divisi (backward compatibility)
+        return Outlet::where('kode_outlet', $lookupCode)->first();
+    }
+
+    /**
+     * Resolve divisi ID dari kolom sumber (badan_usaha, divisi) di Excel
+     * untuk mendukung perpindahan outlet antar divisi
+     */
+    private function resolveDivisionIdFromSource(array $row, string $targetBadanUsahaName, string $targetDivisiName, int $targetDivisiId): ?int
+    {
+        $sourceBadanUsaha = $this->sanitizeString($row['badan_usaha'] ?? null);
+        $sourceDivisi = $this->sanitizeString($row['divisi'] ?? null);
+
+        // Jika tidak ada info sumber, return null
+        if ($sourceBadanUsaha === null || $sourceDivisi === null) {
+            return null;
+        }
+
+        // Jika sumber sama dengan target, return target ID
+        if (
+            $this->normalizeName($sourceBadanUsaha) === $this->normalizeName($targetBadanUsahaName)
+            && $this->normalizeName($sourceDivisi) === $this->normalizeName($targetDivisiName)
+        ) {
+            return $targetDivisiId;
+        }
+
+        // Cari divisi sumber dari database
+        try {
+            $badanusahaId = $this->getBadanUsahaId($sourceBadanUsaha);
+
+            return $this->getDivisionId($sourceDivisi, $badanusahaId);
+        } catch (Exception) {
             return null;
         }
     }

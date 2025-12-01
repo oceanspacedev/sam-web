@@ -61,16 +61,21 @@ class RoleResource extends Resource
                         ])
                         ->columns(2),
                     static::getShieldFormComponents()
-                        ->visible(fn ($get) => $get('can_access_web') !== false && $get('can_access_web') !== null),
+                        ->visible(fn ($get) => $get('can_access_web') || $get('can_access_mobile')),
                 ])->columnSpan(3),
                 Group::make([
                     Section::make('Akses & Scope')
                         ->schema([
                             Toggle::make('can_access_web')
                                 ->label('Dapat Akses Web')
-                                ->helperText('Nonaktifkan jika role ini hanya untuk mobile/API.')
+                                ->helperText('Aktifkan jika role ini dapat mengakses panel web (Filament).')
                                 ->reactive()
-                                ->required(),
+                                ->default(false),
+                            Toggle::make('can_access_mobile')
+                                ->label('Dapat Akses Mobile')
+                                ->helperText('Aktifkan jika role ini dapat mengakses aplikasi mobile.')
+                                ->reactive()
+                                ->default(false),
                             Select::make('organizational_scope_level')
                                 ->label('Organizational Scope Level')
                                 ->helperText('Tentukan tingkat hierarki akses data untuk role ini (berlaku untuk API & akses web).')
@@ -96,7 +101,10 @@ class RoleResource extends Resource
             ->columns([
                 TextColumn::make('name')->searchable(),
                 IconColumn::make('can_access_web')
-                    ->label('Akses Web')
+                    ->label('Web')
+                    ->boolean(),
+                IconColumn::make('can_access_mobile')
+                    ->label('Mobile')
                     ->boolean(),
                 TextColumn::make('parent.name')
                     ->label('Parent')

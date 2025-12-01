@@ -115,36 +115,13 @@ class PlanVisitResource extends Resource
                             ->getSearchResultsUsing(function (string $search) {
                                 $currentUser = Auth::user();
 
-                                // SECURITY FIX: Apply scope filtering to outlet search
-                                $query = Outlet::query()
+                                return Outlet::query()
                                     ->with(['badanusaha:id,name', 'divisi:id,name'])
+                                    ->accessibleTo($currentUser)
                                     ->where(function ($q) use ($search) {
                                         $q->where('nama_outlet', 'like', "%{$search}%")
                                             ->orWhere('kode_outlet', 'like', "%{$search}%");
-                                    });
-
-                                // Apply scope filtering based on current user's role
-                                if ($currentUser && $currentUser->role && $currentUser->role->organizational_scope_level !== 'all') {
-                                    $badanUsahaIds = $currentUser->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                                    $divisiIds = $currentUser->divisis()->pluck('divisions.id')->toArray();
-                                    $regionIds = $currentUser->regions()->pluck('regions.id')->toArray();
-                                    $clusterIds = $currentUser->clusters()->pluck('clusters.id')->toArray();
-
-                                    if (! empty($badanUsahaIds)) {
-                                        $query->whereIn('badanusaha_id', $badanUsahaIds);
-                                    }
-                                    if (! empty($divisiIds)) {
-                                        $query->whereIn('divisi_id', $divisiIds);
-                                    }
-                                    if (! empty($regionIds)) {
-                                        $query->whereIn('region_id', $regionIds);
-                                    }
-                                    if (! empty($clusterIds)) {
-                                        $query->whereIn('cluster_id', $clusterIds);
-                                    }
-                                }
-
-                                return $query
+                                    })
                                     ->orderBy('nama_outlet')
                                     ->limit(50)
                                     ->get()

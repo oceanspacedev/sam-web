@@ -127,7 +127,8 @@ class RoleResource extends Resource
                 EditAction::make(),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make(),
+                DeleteBulkAction::make()
+                    ->authorize('deleteAny'),
             ]);
     }
 

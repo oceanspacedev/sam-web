@@ -12,7 +12,7 @@ class RegionPolicy
 {
     use HandlesAuthorization;
 
-    public function viewAny(AuthUser $authUser, Region $region): bool
+    public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:Region');
     }
@@ -22,7 +22,7 @@ class RegionPolicy
         return $authUser->can('View:Region');
     }
 
-    public function create(AuthUser $authUser, Region $region): bool
+    public function create(AuthUser $authUser): bool
     {
         return $authUser->can('Create:Region');
     }
@@ -37,6 +37,11 @@ class RegionPolicy
         return $authUser->can('Delete:Region');
     }
 
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Region');
+    }
+
     public function restore(AuthUser $authUser, Region $region): bool
     {
         return $authUser->can('Restore:Region');
@@ -47,12 +52,12 @@ class RegionPolicy
         return $authUser->can('ForceDelete:Region');
     }
 
-    public function forceDeleteAny(AuthUser $authUser, Region $region): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
         return $authUser->can('ForceDeleteAny:Region');
     }
 
-    public function restoreAny(AuthUser $authUser, Region $region): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Region');
     }

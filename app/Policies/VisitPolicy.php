@@ -12,7 +12,7 @@ class VisitPolicy
 {
     use HandlesAuthorization;
 
-    public function viewAny(AuthUser $authUser, Visit $visit): bool
+    public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:Visit');
     }
@@ -22,7 +22,7 @@ class VisitPolicy
         return $authUser->can('View:Visit');
     }
 
-    public function create(AuthUser $authUser, Visit $visit): bool
+    public function create(AuthUser $authUser): bool
     {
         return $authUser->can('Create:Visit');
     }
@@ -37,6 +37,11 @@ class VisitPolicy
         return $authUser->can('Delete:Visit');
     }
 
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Visit');
+    }
+
     public function restore(AuthUser $authUser, Visit $visit): bool
     {
         return $authUser->can('Restore:Visit');
@@ -47,17 +52,17 @@ class VisitPolicy
         return $authUser->can('ForceDelete:Visit');
     }
 
-    public function forceDeleteAny(AuthUser $authUser, Visit $visit): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
         return $authUser->can('ForceDeleteAny:Visit');
     }
 
-    public function restoreAny(AuthUser $authUser, Visit $visit): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Visit');
     }
 
-    public function export(AuthUser $authUser, Visit $visit): bool
+    public function export(AuthUser $authUser): bool
     {
         return $authUser->can('Export:Visit');
     }

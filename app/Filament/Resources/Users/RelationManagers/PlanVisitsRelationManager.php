@@ -63,7 +63,8 @@ class PlanVisitsRelationManager extends RelationManager
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->authorize('deleteAny'),
                 ]),
             ]);
     }

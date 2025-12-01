@@ -12,7 +12,7 @@ class BadanUsahaPolicy
 {
     use HandlesAuthorization;
 
-    public function viewAny(AuthUser $authUser, BadanUsaha $badanUsaha): bool
+    public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:BadanUsaha');
     }
@@ -22,7 +22,7 @@ class BadanUsahaPolicy
         return $authUser->can('View:BadanUsaha');
     }
 
-    public function create(AuthUser $authUser, BadanUsaha $badanUsaha): bool
+    public function create(AuthUser $authUser): bool
     {
         return $authUser->can('Create:BadanUsaha');
     }
@@ -37,6 +37,11 @@ class BadanUsahaPolicy
         return $authUser->can('Delete:BadanUsaha');
     }
 
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:BadanUsaha');
+    }
+
     public function restore(AuthUser $authUser, BadanUsaha $badanUsaha): bool
     {
         return $authUser->can('Restore:BadanUsaha');
@@ -47,12 +52,12 @@ class BadanUsahaPolicy
         return $authUser->can('ForceDelete:BadanUsaha');
     }
 
-    public function forceDeleteAny(AuthUser $authUser, BadanUsaha $badanUsaha): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
         return $authUser->can('ForceDeleteAny:BadanUsaha');
     }
 
-    public function restoreAny(AuthUser $authUser, BadanUsaha $badanUsaha): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:BadanUsaha');
     }

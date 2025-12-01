@@ -988,9 +988,12 @@ class RegisterResource extends Resource
                                     ->send();
                             }
                         }),
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->authorize('deleteAny'),
+                    ForceDeleteBulkAction::make()
+                        ->authorize('forceDeleteAny'),
+                    RestoreBulkAction::make()
+                        ->authorize('restoreAny'),
                 ]),
             ]);
     }

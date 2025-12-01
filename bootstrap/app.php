@@ -107,46 +107,52 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        // Handle HTTP exceptions (404, 403, etc from abort())
+        // Handle HTTP exceptions (404, 403, etc from abort()) - API only
         $exceptions->renderable(function (HttpException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
-                $statusCode = $e->getStatusCode();
-                $message = $e->getMessage() ?: match ($statusCode) {
-                    401 => 'Unauthenticated',
-                    403 => 'Forbidden',
-                    404 => 'Not found',
-                    405 => 'Method not allowed',
-                    429 => 'Too many requests',
-                    500 => 'Server error',
-                    503 => 'Service unavailable',
-                    default => 'Error occurred',
-                };
-
-                return response()->json([
-                    'meta' => [
-                        'code' => $statusCode,
-                        'status' => 'error',
-                        'message' => $message,
-                    ],
-                    'data' => null,
-                    'errors' => null,
-                ], $statusCode);
+            // Only handle for API requests
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null; // Let Laravel handle web requests
             }
+
+            $statusCode = $e->getStatusCode();
+            $message = $e->getMessage() ?: match ($statusCode) {
+                401 => 'Unauthenticated',
+                403 => 'Forbidden',
+                404 => 'Not found',
+                405 => 'Method not allowed',
+                429 => 'Too many requests',
+                500 => 'Server error',
+                503 => 'Service unavailable',
+                default => 'Error occurred',
+            };
+
+            return response()->json([
+                'meta' => [
+                    'code' => $statusCode,
+                    'status' => 'error',
+                    'message' => $message,
+                ],
+                'data' => null,
+                'errors' => null,
+            ], $statusCode);
         });
 
-        // Handle RuntimeException (file upload, etc)
+        // Handle RuntimeException (file upload, etc) - API only
         $exceptions->renderable(function (RuntimeException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
-                return response()->json([
-                    'meta' => [
-                        'code' => 422,
-                        'status' => 'error',
-                        'message' => $e->getMessage(),
-                    ],
-                    'data' => null,
-                    'errors' => null,
-                ], 422);
+            // Only handle for API requests
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null; // Let Laravel handle web requests with debug page
             }
+
+            return response()->json([
+                'meta' => [
+                    'code' => 422,
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ],
+                'data' => null,
+                'errors' => null,
+            ], 422);
         });
 
         // Handle validation exceptions for API

@@ -205,7 +205,8 @@ class RegionResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->authorize('deleteAny'),
                 ]),
             ]);
     }

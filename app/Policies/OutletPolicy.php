@@ -12,7 +12,7 @@ class OutletPolicy
 {
     use HandlesAuthorization;
 
-    public function viewAny(AuthUser $authUser, Outlet $outlet): bool
+    public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:Outlet');
     }
@@ -22,7 +22,7 @@ class OutletPolicy
         return $authUser->can('View:Outlet');
     }
 
-    public function create(AuthUser $authUser, Outlet $outlet): bool
+    public function create(AuthUser $authUser): bool
     {
         return $authUser->can('Create:Outlet');
     }
@@ -37,6 +37,11 @@ class OutletPolicy
         return $authUser->can('Delete:Outlet');
     }
 
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Outlet');
+    }
+
     public function restore(AuthUser $authUser, Outlet $outlet): bool
     {
         return $authUser->can('Restore:Outlet');
@@ -47,22 +52,22 @@ class OutletPolicy
         return $authUser->can('ForceDelete:Outlet');
     }
 
-    public function forceDeleteAny(AuthUser $authUser, Outlet $outlet): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
         return $authUser->can('ForceDeleteAny:Outlet');
     }
 
-    public function restoreAny(AuthUser $authUser, Outlet $outlet): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Outlet');
     }
 
-    public function export(AuthUser $authUser, Outlet $outlet): bool
+    public function export(AuthUser $authUser): bool
     {
         return $authUser->can('Export:Outlet');
     }
 
-    public function reset(AuthUser $authUser, Outlet $outlet): bool
+    public function reset(AuthUser $authUser): bool
     {
         return $authUser->can('Reset:Outlet');
     }

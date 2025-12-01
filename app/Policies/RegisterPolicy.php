@@ -12,7 +12,7 @@ class RegisterPolicy
 {
     use HandlesAuthorization;
 
-    public function viewAny(AuthUser $authUser, Register $register): bool
+    public function viewAny(AuthUser $authUser): bool
     {
         return $authUser->can('ViewAny:Register');
     }
@@ -22,7 +22,7 @@ class RegisterPolicy
         return $authUser->can('View:Register');
     }
 
-    public function create(AuthUser $authUser, Register $register): bool
+    public function create(AuthUser $authUser): bool
     {
         return $authUser->can('Create:Register');
     }
@@ -37,6 +37,11 @@ class RegisterPolicy
         return $authUser->can('Delete:Register');
     }
 
+    public function deleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('DeleteAny:Register');
+    }
+
     public function restore(AuthUser $authUser, Register $register): bool
     {
         return $authUser->can('Restore:Register');
@@ -47,12 +52,12 @@ class RegisterPolicy
         return $authUser->can('ForceDelete:Register');
     }
 
-    public function forceDeleteAny(AuthUser $authUser, Register $register): bool
+    public function forceDeleteAny(AuthUser $authUser): bool
     {
         return $authUser->can('ForceDeleteAny:Register');
     }
 
-    public function restoreAny(AuthUser $authUser, Register $register): bool
+    public function restoreAny(AuthUser $authUser): bool
     {
         return $authUser->can('RestoreAny:Register');
     }
@@ -72,7 +77,7 @@ class RegisterPolicy
         return $authUser->can('Reject:Register');
     }
 
-    public function export(AuthUser $authUser, Register $register): bool
+    public function export(AuthUser $authUser): bool
     {
         return $authUser->can('Export:Register');
     }

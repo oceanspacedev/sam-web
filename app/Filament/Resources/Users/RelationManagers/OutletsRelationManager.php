@@ -232,9 +232,12 @@ class OutletsRelationManager extends RelationManager
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->authorize('deleteAny'),
+                    ForceDeleteBulkAction::make()
+                        ->authorize('forceDeleteAny'),
+                    RestoreBulkAction::make()
+                        ->authorize('restoreAny'),
                     BulkAction::make('reset')
                         ->label('Reset Data Outlet')
                         ->icon('heroicon-o-building-storefront')

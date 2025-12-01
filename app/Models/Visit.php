@@ -23,6 +23,15 @@ class Visit extends Model
         'picture_visit_out',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'tanggal_visit' => 'date',
+            'check_in_time' => 'datetime',
+            'check_out_time' => 'datetime',
+        ];
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withTrashed();

@@ -22,11 +22,19 @@ class PlanVisit extends Model
         'deleted_at',
     ];
 
-    protected $casts = [
-        'period_start' => 'date',
-        'period_end' => 'date',
-        'realized_at' => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'period_start' => 'date',
+            'period_end' => 'date',
+            'realized_at' => 'datetime',
+        ];
+    }
 
     public function user(): BelongsTo
     {

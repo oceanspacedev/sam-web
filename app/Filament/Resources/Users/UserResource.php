@@ -579,9 +579,12 @@ class UserResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->authorize('deleteAny'),
+                    ForceDeleteBulkAction::make()
+                        ->authorize('forceDeleteAny'),
+                    RestoreBulkAction::make()
+                        ->authorize('restoreAny'),
                 ]),
             ]);
     }

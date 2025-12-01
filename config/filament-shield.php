@@ -125,6 +125,7 @@ return [
             'Create',
             'Update',
             'Delete',
+            'DeleteAny',
             'Restore',
             'ForceDelete',
             'ForceDeleteAny',
@@ -136,6 +137,8 @@ return [
             'DeleteAny',
             'ForceDeleteAny',
             'RestoreAny',
+            'Export', // bulk export - dipakai di beberapa resource
+            'Reset', // bulk reset - OutletResource
         ],
     ],
 

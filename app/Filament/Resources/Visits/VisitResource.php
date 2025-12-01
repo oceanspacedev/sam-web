@@ -7,6 +7,7 @@ use App\Filament\Resources\Visits\Pages\EditVisit;
 use App\Filament\Resources\Visits\Pages\ListVisits;
 use App\Filament\Resources\Visits\Pages\ViewVisit;
 use App\Models\Outlet;
+use App\Models\PlanVisit;
 use App\Models\User;
 use App\Models\Visit;
 use App\Services\FilenameGeneratorService;
@@ -59,8 +60,10 @@ class VisitResource extends Resource
                         Section::make('Visit Information')
                             ->schema([
                                 DateTimePicker::make('tanggal_visit')
-                                    ->default(Carbon::parse(now())->startOfDay()) // Setel waktu ke 00:00:00
+                                    ->default(Carbon::parse(now())->startOfDay())
                                     ->required()
+                                    ->live()
+                                    ->afterStateUpdated(fn (callable $set) => $set('outlet_id', null))
                                     ->label('Tanggal Visit'),
                                 ToggleButtons::make('tipe_visit')
                                     ->label('Tipe Visit')
@@ -78,12 +81,15 @@ class VisitResource extends Resource
                                         'PLANNED' => 'primary',
                                         'EXTRACALL' => 'info',
                                     ])
-                                    ->default('EXTRACALL'),
+                                    ->default('EXTRACALL')
+                                    ->live()
+                                    ->afterStateUpdated(fn (callable $set) => $set('outlet_id', null)),
                                 Select::make('user_id')
                                     ->searchable()
                                     ->preload()
                                     ->required()
-                                    ->reactive()
+                                    ->live()
+                                    ->afterStateUpdated(fn (callable $set) => $set('outlet_id', null))
                                     ->label('Pilih User')
                                     ->placeholder('Cari User berdasarkan nama lengkap')
                                     ->getSearchResultsUsing(function (string $search) {
@@ -147,11 +153,66 @@ class VisitResource extends Resource
                                     ->preload()
                                     ->required()
                                     ->label('Pilih Outlet')
-                                    ->placeholder('Cari Outlet berdasarkan nama/kode')
-                                    ->getSearchResultsUsing(function (string $search) {
+                                    ->placeholder(fn (callable $get) => $get('tipe_visit') === 'PLANNED'
+                                        ? 'Pilih outlet dari Plan Visit'
+                                        : 'Cari Outlet berdasarkan nama/kode')
+                                    ->helperText(fn (callable $get) => $get('tipe_visit') === 'PLANNED'
+                                        ? 'Hanya menampilkan outlet yang ada di Plan Visit untuk user dan tanggal yang dipilih'
+                                        : null)
+                                    ->getSearchResultsUsing(function (string $search, callable $get) {
                                         $currentUser = Auth::user();
+                                        $tipeVisit = $get('tipe_visit');
+                                        $selectedUserId = $get('user_id');
+                                        $tanggalVisit = $get('tanggal_visit');
 
-                                        // SECURITY FIX: Apply scope filtering to outlet search
+                                        // Jika PLANNED, filter berdasarkan PlanVisit
+                                        if ($tipeVisit === 'PLANNED' && $selectedUserId && $tanggalVisit) {
+                                            $visitDate = Carbon::parse($tanggalVisit);
+
+                                            // Ambil outlet_id dari PlanVisit untuk user dan tanggal tersebut
+                                            $plannedOutletIds = PlanVisit::query()
+                                                ->where('user_id', $selectedUserId)
+                                                ->whereNull('realized_at')
+                                                ->where(function ($q) use ($visitDate) {
+                                                    // Daily: tanggal_visit sama dengan tanggal yang dipilih
+                                                    $q->where(function ($daily) use ($visitDate) {
+                                                        $daily->where('schedule_scope', 'daily')
+                                                            ->whereDate('tanggal_visit', $visitDate);
+                                                    })
+                                                    // Weekly: tanggal yang dipilih dalam range period_start - period_end
+                                                        ->orWhere(function ($weekly) use ($visitDate) {
+                                                            $weekly->where('schedule_scope', 'weekly')
+                                                                ->whereDate('period_start', '<=', $visitDate)
+                                                                ->whereDate('period_end', '>=', $visitDate);
+                                                        });
+                                                })
+                                                ->pluck('outlet_id')
+                                                ->toArray();
+
+                                            if (empty($plannedOutletIds)) {
+                                                return [];
+                                            }
+
+                                            return Outlet::query()
+                                                ->with(['badanusaha:id,name', 'divisi:id,name'])
+                                                ->whereIn('id', $plannedOutletIds)
+                                                ->where(function ($q) use ($search) {
+                                                    $q->where('nama_outlet', 'like', "%{$search}%")
+                                                        ->orWhere('kode_outlet', 'like', "%{$search}%");
+                                                })
+                                                ->orderBy('nama_outlet')
+                                                ->limit(50)
+                                                ->get()
+                                                ->mapWithKeys(function ($outlet) {
+                                                    $badanusahaName = $outlet->badanusaha->name ?? '-';
+                                                    $divisiName = $outlet->divisi->name ?? '-';
+
+                                                    return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
+                                                })
+                                                ->toArray();
+                                        }
+
+                                        // EXTRACALL: Tampilkan semua outlet sesuai scope user
                                         $query = Outlet::query()
                                             ->with(['badanusaha:id,name', 'divisi:id,name'])
                                             ->where(function ($q) use ($search) {
@@ -185,8 +246,8 @@ class VisitResource extends Resource
                                             ->limit(50)
                                             ->get()
                                             ->mapWithKeys(function ($outlet) {
-                                                $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
-                                                $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
+                                                $badanusahaName = $outlet->badanusaha->name ?? '-';
+                                                $divisiName = $outlet->divisi->name ?? '-';
 
                                                 return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
                                             })
@@ -200,12 +261,12 @@ class VisitResource extends Resource
                                         if (! $outlet) {
                                             return null;
                                         }
-                                        $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
-                                        $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
+                                        $badanusahaName = $outlet->badanusaha->name ?? '-';
+                                        $divisiName = $outlet->divisi->name ?? '-';
 
                                         return "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}";
                                     })
-                                    ->reactive()
+                                    ->live()
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state) {
                                             $outlet = Outlet::find($state);
@@ -503,9 +564,12 @@ class VisitResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->authorize('deleteAny'),
+                    ForceDeleteBulkAction::make()
+                        ->authorize('forceDeleteAny'),
+                    RestoreBulkAction::make()
+                        ->authorize('restoreAny'),
                 ]),
             ]);
     }

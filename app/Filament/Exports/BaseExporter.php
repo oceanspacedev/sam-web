@@ -2,6 +2,8 @@
 
 namespace App\Filament\Exports;
 
+use Carbon\Carbon;
+use DateTimeInterface;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Actions\Exports\Exporter;
 use OpenSpout\Common\Entity\Style\CellAlignment;
@@ -12,6 +14,7 @@ use OpenSpout\Writer\XLSX\Options;
 use OpenSpout\Writer\XLSX\Options\PageOrientation;
 use OpenSpout\Writer\XLSX\Options\PageSetup;
 use OpenSpout\Writer\XLSX\Options\PaperSize;
+use Throwable;
 
 abstract class BaseExporter extends Exporter
 {
@@ -80,6 +83,23 @@ abstract class BaseExporter extends Exporter
 
             // Kolom 1-based di setColumnWidth.
             $options->setColumnWidth($width, $index + 1);
+        }
+    }
+
+    protected static function formatDateTimeValue(null|string|DateTimeInterface $state, string $format, string $fallback = '-'): string
+    {
+        if ($state === null || $state === '') {
+            return $fallback;
+        }
+
+        if ($state instanceof DateTimeInterface) {
+            return $state->format($format);
+        }
+
+        try {
+            return Carbon::parse($state)->format($format);
+        } catch (Throwable) {
+            return $fallback;
         }
     }
 }

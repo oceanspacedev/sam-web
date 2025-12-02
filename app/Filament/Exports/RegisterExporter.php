@@ -33,8 +33,8 @@ class RegisterExporter extends BaseExporter
             ExportColumn::make('poto_kanan')->label('Foto Kanan')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
             ExportColumn::make('poto_ktp')->label('Foto KTP')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
             ExportColumn::make('video')->label('Video')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
-            ExportColumn::make('created_at')->label('Dibuat pada')->formatStateUsing(fn ($s) => $s ? date('d M Y', strtotime($s)) : '-'),
-            ExportColumn::make('updated_at')->label('Diperbarui pada')->formatStateUsing(fn ($s) => $s ? date('d M Y', strtotime($s)) : '-'),
+            ExportColumn::make('created_at')->label('Dibuat pada')->formatStateUsing(fn ($s) => static::formatDateTimeValue($s, 'd M Y')),
+            ExportColumn::make('updated_at')->label('Diperbarui pada')->formatStateUsing(fn ($s) => static::formatDateTimeValue($s, 'd M Y')),
         ];
     }
 

@@ -22,7 +22,15 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'version' => 'required|string|in:1.2.0',
+            'version' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    if (version_compare($value, '1.2.0', '<')) {
+                        $fail('Gagal login, Update versi aplikasi SAM anda ke V1.2.0.');
+                    }
+                },
+            ],
             'username' => 'required|string',
             'password' => 'required|string',
             'notif_id' => 'required|string',
@@ -38,7 +46,6 @@ class LoginRequest extends FormRequest
     {
         return [
             'version.required' => 'Versi aplikasi wajib diisi',
-            'version.in' => 'Gagal login, Update versi aplikasi SAM anda ke V1.0.3.',
             'username.required' => 'Username wajib diisi',
             'password.required' => 'Password wajib diisi',
             'notif_id.required' => 'Notification ID wajib diisi',

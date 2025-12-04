@@ -150,15 +150,15 @@ class UserResource extends Resource
                                     ->schema([
                                         Select::make('badanUsahas')
                                             ->label('Badan Usaha')
-                                            ->multiple()
-                                            ->maxItems(function (callable $get) {
+                                            ->multiple(function (callable $get) {
+                                                // Multiple hanya jika scope level = badanusaha
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return null;
+                                                    return false;
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && $role->organizational_scope_level !== 'badanusaha' ? 1 : null;
+                                                return $role && $role->organizational_scope_level === 'badanusaha';
                                             })
                                             ->relationship('badanUsahas', 'name')
                                             ->searchable()
@@ -207,15 +207,15 @@ class UserResource extends Resource
                                             }),
                                         Select::make('divisis')
                                             ->label('Divisi')
-                                            ->multiple()
-                                            ->maxItems(function (callable $get) {
+                                            ->multiple(function (callable $get) {
+                                                // Multiple hanya jika scope level = divisi
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return null;
+                                                    return false;
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && $role->organizational_scope_level !== 'divisi' ? 1 : null;
+                                                return $role && $role->organizational_scope_level === 'divisi';
                                             })
                                             ->relationship('divisis', 'name')
                                             ->searchable()
@@ -271,15 +271,15 @@ class UserResource extends Resource
                                             }),
                                         Select::make('regions')
                                             ->label('Region')
-                                            ->multiple()
-                                            ->maxItems(function (callable $get) {
+                                            ->multiple(function (callable $get) {
+                                                // Multiple hanya jika scope level = region
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return null;
+                                                    return false;
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && $role->organizational_scope_level !== 'region' ? 1 : null;
+                                                return $role && $role->organizational_scope_level === 'region';
                                             })
                                             ->relationship('regions', 'name')
                                             ->searchable()

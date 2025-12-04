@@ -25,6 +25,15 @@ class OutletController extends Controller
 
     public function fetch(Request $request)
     {
+        // Basic input validation for filters
+        $request->validate([
+            'compact' => 'sometimes|boolean',
+            'search' => 'sometimes|string',
+            'per_page' => 'sometimes|integer|min:1|max:100',
+            'lat' => 'nullable|numeric',
+            'lng' => 'nullable|numeric',
+        ]);
+
         $user = Auth::user();
         // Default compact=true for lighter list payloads
         $compact = $request->boolean('compact', true);
@@ -128,14 +137,14 @@ class OutletController extends Controller
     {
         $user = Auth::user();
 
-        Log::channel('outlet')->info('Outlet update initiated', [
+        Log::channel('outlet')->info('Pembaruan outlet dimulai', [
             'user_id' => $user->id,
             'outlet_id' => $id,
         ]);
 
         $outlet = Outlet::visibleTo($user)->where('id', $id)->first();
         if (! $outlet) {
-            Log::channel('outlet')->warning('Outlet update failed: outlet not found', [
+            Log::channel('outlet')->warning('Pembaruan outlet gagal: outlet tidak ditemukan', [
                 'user_id' => $user->id,
                 'outlet_id' => $id,
             ]);
@@ -200,7 +209,7 @@ class OutletController extends Controller
         // This reverts archived outlets (UNMAINTAIN) back to active status
         if ($outlet->status_outlet !== 'MAINTAIN') {
             $outlet->status_outlet = 'MAINTAIN';
-            Log::channel('outlet')->info('Outlet status auto-activated to MAINTAIN', [
+            Log::channel('outlet')->info('Status outlet diaktifkan otomatis ke MAINTAIN', [
                 'outlet_id' => $outlet->id,
                 'kode_outlet' => $outlet->kode_outlet,
                 'previous_status' => $outlet->getOriginal('status_outlet'),
@@ -209,7 +218,7 @@ class OutletController extends Controller
 
         $outlet->save();
 
-        Log::channel('outlet')->info('Outlet update success', [
+        Log::channel('outlet')->info('Pembaruan outlet berhasil', [
             'user_id' => $user->id,
             'outlet_id' => $outlet->id,
             'kode_outlet' => $outlet->kode_outlet,
@@ -242,7 +251,7 @@ class OutletController extends Controller
             throw new ResourceNotFoundException('Outlet tidak ditemukan');
         }
 
-        Log::channel('outlet')->info('Outlet reset initiated', [
+        Log::channel('outlet')->info('Reset outlet dimulai', [
             'user_id' => $user->id,
             'outlet_id' => $outlet->id,
             'kode_outlet' => $outlet->kode_outlet,
@@ -258,7 +267,7 @@ class OutletController extends Controller
 
         $outlet->save();
 
-        Log::channel('outlet')->info('Outlet reset success', [
+        Log::channel('outlet')->info('Reset outlet berhasil', [
             'user_id' => $user->id,
             'outlet_id' => $outlet->id,
             'kode_outlet' => $outlet->kode_outlet,
@@ -289,7 +298,7 @@ class OutletController extends Controller
             throw new ResourceNotFoundException('Outlet tidak ditemukan');
         }
 
-        Log::channel('outlet')->info('Outlet delete initiated', [
+        Log::channel('outlet')->info('Penghapusan outlet dimulai', [
             'user_id' => $user->id,
             'outlet_id' => $outlet->id,
             'kode_outlet' => $outlet->kode_outlet,
@@ -298,7 +307,7 @@ class OutletController extends Controller
         // Soft delete
         $outlet->delete();
 
-        Log::channel('outlet')->info('Outlet deleted', [
+        Log::channel('outlet')->info('Outlet dihapus', [
             'user_id' => $user->id,
             'outlet_id' => $outlet->id,
             'kode_outlet' => $outlet->kode_outlet,
@@ -327,7 +336,7 @@ class OutletController extends Controller
             Storage::disk($disk)->delete($path);
         } catch (Throwable $e) {
             // Silent catch - log warning but don't fail the request
-            Log::channel('outlet')->warning('Failed to delete outlet media', [
+            Log::channel('outlet')->warning('Gagal menghapus media outlet', [
                 'path' => $path,
                 'disk' => $disk,
                 'error' => $e->getMessage(),

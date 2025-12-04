@@ -33,6 +33,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -545,6 +546,13 @@ class OutletResource extends Resource
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
+                SelectFilter::make('status_outlet')
+                    ->label('Status Outlet')
+                    ->options([
+                        'MAINTAIN' => 'MAINTAIN',
+                        'UNMAINTAIN' => 'UNMAINTAIN',
+                        'UNPRODUCTIVE' => 'UNPRODUCTIVE',
+                    ]),
                 Filter::make('region')
                     ->schema([
                         Select::make('businessEntity')

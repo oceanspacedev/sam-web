@@ -62,7 +62,7 @@ class RegisterController extends Controller
             }
 
             // Log Lead store initiated
-            Log::channel('lead')->info('Lead store initiated', [
+            Log::channel('lead')->info('Penyimpanan lead dimulai', [
                 'user_id' => $user->id,
                 'role_id' => $user->role_id,
                 'payload' => [
@@ -157,7 +157,7 @@ class RegisterController extends Controller
                 $video = $request->file('video');
                 $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
 
-                Log::channel('lead')->info('Lead store video queued', [
+                Log::channel('lead')->info('Video lead diantrekan untuk penyimpanan', [
                     'user_id' => $user->id,
                     'original_name' => $video->getClientOriginalName(),
                 ]);
@@ -177,7 +177,7 @@ class RegisterController extends Controller
             $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
 
             // Log Lead store completed
-            Log::channel('lead')->info('Lead store completed', [
+            Log::channel('lead')->info('Penyimpanan lead selesai', [
                 'lead_id' => $register->id,
                 'outlet_code' => 'LEAD'.$register->id,
             ]);
@@ -199,7 +199,7 @@ class RegisterController extends Controller
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
 
-            Log::channel('lead')->error('Lead store failed', [
+            Log::channel('lead')->error('Penyimpanan lead gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -251,7 +251,7 @@ class RegisterController extends Controller
         } catch (RuntimeException $e) {
             throw new FileUploadException($e->getMessage());
         } catch (Exception $e) {
-            Log::channel('lead')->error('Upgrade lead failed', [
+            Log::channel('lead')->error('Upgrade lead gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -319,7 +319,7 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            Log::channel('noo')->error('Fetch register failed', [
+            Log::channel('noo')->error('Pengambilan register gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -432,7 +432,7 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            Log::channel('noo')->error('Fetch all register failed', [
+            Log::channel('noo')->error('Pengambilan semua register gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -461,7 +461,7 @@ class RegisterController extends Controller
             }
 
             // Log NOO store initiated
-            Log::channel('noo')->info('NOO store initiated', [
+            Log::channel('noo')->info('Penyimpanan NOO dimulai', [
                 'user_id' => $user->id,
                 'role_id' => $user->role_id,
                 'payload' => [
@@ -543,7 +543,7 @@ class RegisterController extends Controller
                 $video = $request->file('video');
                 $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
 
-                Log::channel('noo')->info('NOO store video queued', [
+                Log::channel('noo')->info('Video NOO diantrekan untuk penyimpanan', [
                     'user_id' => $user->id,
                     'original_name' => $video->getClientOriginalName(),
                 ]);
@@ -557,7 +557,7 @@ class RegisterController extends Controller
                 $data['video'] = $temporaryPath;
             } else {
                 // Log missing video file (as seen in production logs)
-                Log::channel('noo')->warning('NOO store missing video file', [
+                Log::channel('noo')->warning('File video NOO hilang', [
                     'user_id' => $user->id,
                     'payload_outlet' => $request->nama_outlet,
                 ]);
@@ -578,7 +578,7 @@ class RegisterController extends Controller
             }
 
             // Log NOO store completed
-            Log::channel('noo')->info('NOO store completed', [
+            Log::channel('noo')->info('Penyimpanan NOO selesai', [
                 'noo_id' => $register->id,
                 'outlet_name' => $register->nama_outlet,
             ]);
@@ -600,7 +600,7 @@ class RegisterController extends Controller
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
 
-            Log::channel('noo')->error('NOO store failed', [
+            Log::channel('noo')->error('Penyimpanan NOO gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -649,7 +649,7 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            Log::channel('noo')->error('Confirm NOO failed', [
+            Log::channel('noo')->error('Konfirmasi NOO gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -756,7 +756,7 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            Log::channel('noo')->error('Approve NOO failed', [
+            Log::channel('noo')->error('Persetujuan NOO gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -800,7 +800,7 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            Log::channel('noo')->error('Reject NOO failed', [
+            Log::channel('noo')->error('Penolakan NOO gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -861,7 +861,7 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            Log::channel('noo')->error('Fetch pending register failed', [
+            Log::channel('noo')->error('Pengambilan register pending gagal', [
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -888,7 +888,7 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (Exception $e) {
-            Log::channel('noo')->warning('Register show failed', [
+            Log::channel('noo')->warning('Tampilkan register gagal', [
                 'user_id' => Auth::id(),
                 'register_id' => $id,
                 'error' => $e->getMessage(),

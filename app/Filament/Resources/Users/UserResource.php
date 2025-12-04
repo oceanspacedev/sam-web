@@ -33,6 +33,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -126,19 +127,33 @@ class UserResource extends Resource
                                                     return [];
                                                 }
 
-                                                $parentRoleId = Role::find($roleId)?->parent_role_id;
-
-                                                if (! $parentRoleId) {
+                                                $role = Role::find($roleId);
+                                                if (! $role) {
                                                     return [];
                                                 }
 
-                                                return User::where('role_id', $parentRoleId)
+                                                $ancestorRoleIds = self::getAncestorRoleIds($role);
+                                                if (empty($ancestorRoleIds)) {
+                                                    return [];
+                                                }
+
+                                                return User::whereIn('role_id', $ancestorRoleIds)
+                                                    ->with('role')
                                                     ->orderBy('nama_lengkap')
-                                                    ->pluck('nama_lengkap', 'id');
+                                                    ->get()
+                                                    ->mapWithKeys(function ($user) {
+                                                        $roleName = $user->role?->name ?? '-';
+
+                                                        return [$user->id => "{$user->nama_lengkap} ({$roleName})"];
+                                                    });
                                             })
                                             ->searchable()
                                             ->preload()
-                                            ->required(fn (callable $get) => (bool) Role::find($get('role_id'))?->parent_role_id)
+                                            ->required(function (callable $get) {
+                                                $role = Role::find($get('role_id'));
+
+                                                return ! empty(self::getAncestorRoleIds($role));
+                                            })
                                             ->placeholder('Pilih TM berdasarkan hirarki role'),
                                     ]),
                                 ]),
@@ -150,15 +165,23 @@ class UserResource extends Resource
                                     ->schema([
                                         Select::make('badanUsahas')
                                             ->label('Badan Usaha')
-                                            ->multiple(function (callable $get) {
-                                                // Multiple hanya jika scope level = badanusaha
+                                            ->multiple()
+                                            ->maxItems(function (callable $get) {
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return false;
+                                                    return null;
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && $role->organizational_scope_level === 'badanusaha';
+                                                if (! $role) {
+                                                    return null;
+                                                }
+
+                                                if (in_array($role->organizational_scope_level, ['region', 'cluster'], true)) {
+                                                    return null;
+                                                }
+
+                                                return $role->organizational_scope_level !== 'badanusaha' ? 1 : null;
                                             })
                                             ->relationship('badanUsahas', 'name')
                                             ->searchable()
@@ -207,15 +230,23 @@ class UserResource extends Resource
                                             }),
                                         Select::make('divisis')
                                             ->label('Divisi')
-                                            ->multiple(function (callable $get) {
-                                                // Multiple hanya jika scope level = divisi
+                                            ->multiple()
+                                            ->maxItems(function (callable $get) {
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return false;
+                                                    return null;
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && $role->organizational_scope_level === 'divisi';
+                                                if (! $role) {
+                                                    return null;
+                                                }
+
+                                                if (in_array($role->organizational_scope_level, ['region', 'cluster'], true)) {
+                                                    return null;
+                                                }
+
+                                                return $role->organizational_scope_level !== 'divisi' ? 1 : null;
                                             })
                                             ->relationship('divisis', 'name')
                                             ->searchable()
@@ -271,15 +302,19 @@ class UserResource extends Resource
                                             }),
                                         Select::make('regions')
                                             ->label('Region')
-                                            ->multiple(function (callable $get) {
-                                                // Multiple hanya jika scope level = region
+                                            ->multiple()
+                                            ->maxItems(function (callable $get) {
                                                 $roleId = $get('role_id');
                                                 if (! $roleId) {
-                                                    return false;
+                                                    return null;
                                                 }
                                                 $role = Role::find($roleId);
 
-                                                return $role && $role->organizational_scope_level === 'region';
+                                                if (! $role) {
+                                                    return null;
+                                                }
+
+                                                return in_array($role->organizational_scope_level, ['region', 'cluster'], true) ? null : 1;
                                             })
                                             ->relationship('regions', 'name')
                                             ->searchable()
@@ -322,7 +357,15 @@ class UserResource extends Resource
                                                     }
                                                 }
 
-                                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
+                                                return $query
+                                                    ->with('divisi')
+                                                    ->orderBy('name', 'asc')
+                                                    ->get()
+                                                    ->mapWithKeys(function ($region) {
+                                                        $divisionName = $region->divisi?->name ?? '-';
+
+                                                        return [$region->id => "{$region->name} > {$divisionName}"];
+                                                    });
                                             })
                                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                 $roleId = $get('role_id');
@@ -376,7 +419,16 @@ class UserResource extends Resource
                                                     }
                                                 }
 
-                                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
+                                                return $query
+                                                    ->with('region.divisi')
+                                                    ->orderBy('name', 'asc')
+                                                    ->get()
+                                                    ->mapWithKeys(function ($cluster) {
+                                                        $regionName = $cluster->region?->name ?? '-';
+                                                        $divisionName = $cluster->region?->divisi?->name ?? '-';
+
+                                                        return [$cluster->id => "{$cluster->name} > {$regionName} > {$divisionName}"];
+                                                    });
                                             }),
                                     ]),
                             ])
@@ -465,6 +517,7 @@ class UserResource extends Resource
                 // Tables\Columns\TextColumn::make('username')
                 //     ->searchable(),
                 TextColumn::make('role.name')
+                    ->searchable()
                     ->badge()
                     ->color(function ($record): string {
                         $scopeLevel = $record->role?->organizational_scope_level ?? 'cluster';
@@ -523,6 +576,12 @@ class UserResource extends Resource
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->filters([
+                SelectFilter::make('role_id')
+                    ->label('Role')
+                    ->multiple()
+                    ->searchable()
+                    ->options(fn () => Role::orderBy('name')->pluck('name', 'id')->toArray())
+                    ->placeholder('Pilih Role'),
                 Filter::make('region')
                     ->schema([
                         Select::make('businessEntity')
@@ -589,7 +648,15 @@ class UserResource extends Resource
                                     }
                                 }
 
-                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
+                                return $query
+                                    ->with('divisi')
+                                    ->orderBy('name', 'asc')
+                                    ->get()
+                                    ->mapWithKeys(function ($region) {
+                                        $divisionName = $region->divisi?->name ?? '-';
+
+                                        return [$region->id => "{$region->name} > {$divisionName}"];
+                                    });
                             })
                             ->reactive(),
                     ])
@@ -713,6 +780,32 @@ class UserResource extends Resource
                     });
                 }
             });
+    }
+
+    /**
+     * Get all ancestor role IDs (parent, grandparent, etc.) for the given role.
+     */
+    protected static function getAncestorRoleIds(?Role $role): array
+    {
+        $ids = [];
+        $depthGuard = 0;
+
+        while ($role && $role->parent_role_id && $depthGuard < 10) {
+            $parent = $role->parent ?? Role::find($role->parent_role_id);
+            if (! $parent) {
+                break;
+            }
+
+            if (in_array($parent->id, $ids, true)) {
+                break;
+            }
+
+            $ids[] = $parent->id;
+            $role = $parent;
+            $depthGuard++;
+        }
+
+        return $ids;
     }
 
     public static function getPages(): array

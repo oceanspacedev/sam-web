@@ -294,7 +294,7 @@ class VisitController extends Controller
                 ->first();
 
             if (! $outlet) {
-                Log::channel('visit')->warning('Visit check-in failed: outlet not found', [
+                Log::channel('visit')->warning('Check-in visit gagal: outlet tidak ditemukan', [
                     'user_id' => $user->id,
                     'outlet_id' => $request->outlet_id,
                 ]);
@@ -348,7 +348,7 @@ class VisitController extends Controller
                 $visit->refresh();
             }
 
-            Log::channel('visit')->info('Visit check-in success', [
+            Log::channel('visit')->info('Check-in visit berhasil', [
                 'visit_id' => $visit->id,
                 'user_id' => $user->id,
                 'outlet_id' => $outlet->id,
@@ -425,7 +425,7 @@ class VisitController extends Controller
                 $visit->refresh();
             }
 
-            Log::channel('visit')->info('Visit check-out success', [
+            Log::channel('visit')->info('Check-out visit berhasil', [
                 'visit_id' => $visit->id,
                 'user_id' => $user->id,
                 'durasi' => $duration.' minutes',

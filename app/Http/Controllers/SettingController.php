@@ -187,6 +187,9 @@ class SettingController extends Controller
 
             $query = Region::active();
 
+            // Track selected parents to avoid same-name collisions
+            $selectedBadanUsaha = null;
+
             // Apply scope filtering first
             if ($scopeLevel !== 'all') {
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
@@ -219,25 +222,36 @@ class SettingController extends Controller
                 }
             }
 
-            // Then apply optional filter by division parameter
-            $query->when($request->filled('div'), function ($q) use ($request) {
+            // Optional BU filter
+            if ($request->filled('bu')) {
+                $bu = $request->input('bu');
+                $selectedBadanUsaha = is_numeric($bu)
+                    ? BadanUsaha::findOrFail($bu)
+                    : BadanUsaha::where('name', $bu)->firstOrFail();
+
+                $query->where('badanusaha_id', $selectedBadanUsaha->id);
+            }
+
+            // Then apply optional filter by division parameter, scoped by BU if provided
+            if ($request->filled('div')) {
                 $div = $request->input('div');
-                $division = is_numeric($div)
-                    ? Division::findOrFail($div)
-                    : Division::where('name', $div)->firstOrFail();
 
-                $q->where('divisi_id', $division->id);
-
-                // Additional guard: if bu provided, ensure division belongs to it
-                if ($request->filled('bu')) {
-                    $bu = $request->input('bu');
-                    $badanUsaha = is_numeric($bu)
-                        ? BadanUsaha::findOrFail($bu)
-                        : BadanUsaha::where('name', $bu)->firstOrFail();
-
-                    $q->where('badanusaha_id', $badanUsaha->id);
+                $divisionQuery = Division::query();
+                if ($selectedBadanUsaha) {
+                    $divisionQuery->where('badanusaha_id', $selectedBadanUsaha->id);
                 }
-            });
+
+                $division = is_numeric($div)
+                    ? $divisionQuery->where('id', $div)->firstOrFail()
+                    : $divisionQuery->where('name', $div)->firstOrFail();
+
+                $query->where('divisi_id', $division->id);
+
+                // If BU was not provided but division resolved, align BU filter to division owner
+                if (! $selectedBadanUsaha) {
+                    $query->where('badanusaha_id', $division->badanusaha_id);
+                }
+            }
 
             $regions = $query->get();
 
@@ -302,7 +316,7 @@ class SettingController extends Controller
                 throw new UnauthorizedException;
             }
 
-            $query = Cluster::query();
+            $query = Cluster::active();
 
             // Apply scope filtering first
             if ($scopeLevel !== 'all') {
@@ -340,33 +354,52 @@ class SettingController extends Controller
                 }
             }
 
-            // Then apply optional hierarchical filters
-            $query->when($request->filled('bu'), function ($q) use ($request) {
+            // Then apply optional hierarchical filters (respect parent selections to avoid same-name collisions)
+            $badanUsaha = null;
+            $division = null;
+
+            if ($request->filled('bu')) {
                 $bu = $request->input('bu');
                 $badanUsaha = is_numeric($bu)
                     ? BadanUsaha::findOrFail($bu)
                     : BadanUsaha::where('name', $bu)->firstOrFail();
 
-                $q->where('badanusaha_id', $badanUsaha->id);
-            });
+                $query->where('badanusaha_id', $badanUsaha->id);
+            }
 
-            $query->when($request->filled('div'), function ($q) use ($request) {
+            if ($request->filled('div')) {
                 $div = $request->input('div');
+                $divisionQuery = Division::query();
+
+                if ($badanUsaha) {
+                    $divisionQuery->where('badanusaha_id', $badanUsaha->id);
+                }
+
                 $division = is_numeric($div)
-                    ? Division::findOrFail($div)
-                    : Division::where('name', $div)->firstOrFail();
+                    ? $divisionQuery->where('id', $div)->firstOrFail()
+                    : $divisionQuery->where('name', $div)->firstOrFail();
 
-                $q->where('divisi_id', $division->id);
-            });
+                $query->where('divisi_id', $division->id);
+            }
 
-            $query->when($request->filled('reg'), function ($q) use ($request) {
+            if ($request->filled('reg')) {
                 $reg = $request->input('reg');
-                $region = is_numeric($reg)
-                    ? Region::findOrFail($reg)
-                    : Region::where('name', $reg)->firstOrFail();
+                $regionQuery = Region::query();
 
-                $q->where('region_id', $region->id);
-            });
+                if ($badanUsaha) {
+                    $regionQuery->where('badanusaha_id', $badanUsaha->id);
+                }
+
+                if ($division) {
+                    $regionQuery->where('divisi_id', $division->id);
+                }
+
+                $region = is_numeric($reg)
+                    ? $regionQuery->where('id', $reg)->firstOrFail()
+                    : $regionQuery->where('name', $reg)->firstOrFail();
+
+                $query->where('region_id', $region->id);
+            }
 
             $clusters = $query->get();
 

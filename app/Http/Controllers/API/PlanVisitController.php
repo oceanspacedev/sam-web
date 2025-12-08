@@ -277,7 +277,7 @@ class PlanVisitController extends Controller
     {
         $user = Auth::user();
 
-        Log::channel('planvisit')->info('Plan visit delete initiated', [
+        Log::channel('planvisit')->info('Penghapusan plan visit dimulai', [
             'user_id' => $user->id,
             'payload' => [
                 'bulan' => $request->bulan,
@@ -289,7 +289,7 @@ class PlanVisitController extends Controller
         $outlet = Outlet::visibleTo($user)->find($request->outlet_id);
 
         if (! $outlet) {
-            Log::channel('planvisit')->warning('Plan visit delete failed: outlet not found', [
+            Log::channel('planvisit')->warning('Penghapusan plan visit gagal: outlet tidak ditemukan', [
                 'user_id' => $user->id,
                 'outlet_id' => $request->outlet_id,
             ]);
@@ -317,7 +317,7 @@ class PlanVisitController extends Controller
             ->first();
 
         if (! $planVisit) {
-            Log::channel('planvisit')->warning('Plan visit delete failed: plan not found', [
+            Log::channel('planvisit')->warning('Penghapusan plan visit gagal: plan tidak ditemukan', [
                 'user_id' => $user->id,
                 'outlet_id' => $outlet->id,
                 'bulan' => $request->bulan,
@@ -325,6 +325,17 @@ class PlanVisitController extends Controller
             ]);
 
             throw new ResourceNotFoundException('Plan visit tidak ditemukan');
+        }
+
+        if ($planVisit->schedule_scope === 'weekly') {
+            Log::channel('planvisit')->warning('Penghapusan plan visit gagal: jadwal mingguan tidak dapat dihapus', [
+                'user_id' => $user->id,
+                'outlet_id' => $outlet->id,
+                'plan_visit_id' => $planVisit->id,
+                'schedule_scope' => $planVisit->schedule_scope,
+            ]);
+
+            throw new BadRequestException('Plan visit mingguan tidak dapat dihapus');
         }
 
         $delete = PlanVisit::where('outlet_id', $outlet->id)
@@ -344,7 +355,7 @@ class PlanVisitController extends Controller
             ->delete();
 
         if (! $delete) {
-            Log::channel('planvisit')->warning('Plan visit delete failed: no records deleted', [
+            Log::channel('planvisit')->warning('Penghapusan plan visit gagal: tidak ada data yang dihapus', [
                 'user_id' => $user->id,
                 'outlet_id' => $outlet->id,
                 'bulan' => $request->bulan,
@@ -354,7 +365,7 @@ class PlanVisitController extends Controller
             throw new BadRequestException('Gagal menghapus plan visit');
         }
 
-        Log::channel('planvisit')->info('Plan visit delete success', [
+        Log::channel('planvisit')->info('Penghapusan plan visit berhasil', [
             'user_id' => $user->id,
             'outlet_id' => $outlet->id,
             'deleted_count' => $delete,

@@ -15,7 +15,7 @@ class VisitExporter extends BaseExporter
         return [
             ExportColumn::make('tanggal_visit')
                 ->label('Tanggal')
-                ->formatStateUsing(fn ($state) => $state ? date('d M Y', strtotime($state)) : '-'),
+                ->formatStateUsing(fn ($state) => static::formatDateTimeValue($state, 'd M Y')),
 
             ExportColumn::make('user.nama_lengkap')
                 ->label('Nama')
@@ -67,11 +67,11 @@ class VisitExporter extends BaseExporter
 
             ExportColumn::make('check_in_time')
                 ->label('Jam CI')
-                ->formatStateUsing(fn ($state) => $state ? date('H:i', strtotime($state)) : '-'),
+                ->formatStateUsing(fn ($state) => static::formatDateTimeValue($state, 'H:i')),
 
             ExportColumn::make('check_out_time')
                 ->label('Jam CO')
-                ->formatStateUsing(fn ($state) => $state ? date('H:i', strtotime($state)) : '-'),
+                ->formatStateUsing(fn ($state) => static::formatDateTimeValue($state, 'H:i')),
 
             ExportColumn::make('durasi_visit')
                 ->label('Durasi')

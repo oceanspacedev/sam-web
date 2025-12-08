@@ -63,7 +63,11 @@ class VisitResource extends Resource
                                     ->default(Carbon::parse(now())->startOfDay())
                                     ->required()
                                     ->live()
-                                    ->afterStateUpdated(fn (callable $set) => $set('outlet_id', null))
+                                    ->afterStateUpdated(function (callable $set, callable $get, string $context) {
+                                        if ($context !== 'edit' || $get('tipe_visit') !== 'EXTRACALL') {
+                                            $set('outlet_id', null);
+                                        }
+                                    })
                                     ->label('Tanggal Visit'),
                                 ToggleButtons::make('tipe_visit')
                                     ->label('Tipe Visit')
@@ -513,22 +517,6 @@ class VisitResource extends Resource
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
-                Filter::make('double_visit')
-                    ->label('Double Visit (User & Outlet & Tanggal)')
-                    ->toggle()
-                    ->query(function (Builder $query): Builder {
-                        return $query
-                            ->whereDate('tanggal_visit', Carbon::today())
-                            ->whereExists(function ($subQuery) {
-                                $subQuery->selectRaw('1')
-                                    ->from('visits as duplicates')
-                                    ->whereColumn('duplicates.user_id', 'visits.user_id')
-                                    ->whereColumn('duplicates.outlet_id', 'visits.outlet_id')
-                                    ->whereColumn('duplicates.tanggal_visit', 'visits.tanggal_visit')
-                                    ->whereColumn('duplicates.id', '!=', 'visits.id')
-                                    ->whereNull('duplicates.deleted_at');
-                            });
-                    }),
                 TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Visit::class)),
                 Filter::make('created_at')

@@ -36,7 +36,7 @@ class UserExporter extends BaseExporter
             ExportColumn::make('tm.nama_lengkap')->label('TM')->default('-'),
             ExportColumn::make('created_at')
                 ->label('Dibuat pada')
-                ->formatStateUsing(fn ($state) => $state ? date('d M Y', strtotime($state)) : '-'),
+                ->formatStateUsing(fn ($state) => static::formatDateTimeValue($state, 'd M Y')),
         ];
     }
 

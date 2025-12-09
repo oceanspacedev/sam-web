@@ -34,22 +34,22 @@ class OutletExporter extends BaseExporter
                 })
                 ->label('Tanggal Registrasi'),
             ExportColumn::make('poto_shop_sign')
-                ->formatStateUsing(fn ($state) => static::storageUrl($state))
+                ->formatStateUsing(fn ($state) => static::storageImageFormula($state))
                 ->label('Foto Shop Sign'),
             ExportColumn::make('poto_depan')
-                ->formatStateUsing(fn ($state) => static::storageUrl($state))
+                ->formatStateUsing(fn ($state) => static::storageImageFormula($state))
                 ->label('Foto Depan'),
             ExportColumn::make('poto_kiri')
-                ->formatStateUsing(fn ($state) => static::storageUrl($state))
+                ->formatStateUsing(fn ($state) => static::storageImageFormula($state))
                 ->label('Foto Kiri'),
             ExportColumn::make('poto_kanan')
-                ->formatStateUsing(fn ($state) => static::storageUrl($state))
+                ->formatStateUsing(fn ($state) => static::storageImageFormula($state))
                 ->label('Foto Kanan'),
             ExportColumn::make('poto_ktp')
-                ->formatStateUsing(fn ($state) => static::storageUrl($state))
+                ->formatStateUsing(fn ($state) => static::storageImageFormula($state))
                 ->label('Foto KTP'),
             ExportColumn::make('video')
-                ->formatStateUsing(fn ($state) => static::storageUrl($state))
+                ->formatStateUsing(fn ($state) => static::storageImageFormula($state))
                 ->label('Video'),
             ExportColumn::make('updated_at')
                 ->formatStateUsing(function ($state) {

@@ -51,11 +51,11 @@ class VisitExporter extends BaseExporter
 
             ExportColumn::make('picture_visit_in')
                 ->label('Foto CI')
-                ->formatStateUsing(fn ($state) => static::storageUrl($state)),
+                ->formatStateUsing(fn ($state) => static::storageImageFormula($state)),
 
             ExportColumn::make('picture_visit_out')
                 ->label('Foto CO')
-                ->formatStateUsing(fn ($state) => static::storageUrl($state)),
+                ->formatStateUsing(fn ($state) => static::storageImageFormula($state)),
 
             ExportColumn::make('latlong_in')
                 ->label('Lokasi CI')

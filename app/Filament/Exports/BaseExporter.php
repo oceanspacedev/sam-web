@@ -113,4 +113,17 @@ abstract class BaseExporter extends Exporter
 
         return $baseUrl.ltrim($path, '/');
     }
+
+    protected static function storageImageFormula(null|string $path, string $fallback = '-'): string
+    {
+        // Try IMAGE() (Excel 365) and fall back to clickable hyperlink if unsupported.
+        $url = static::storageUrl($path, '');
+
+        if ($url === '') {
+            return $fallback;
+        }
+
+        // IFERROR handles older Excel versions that don't support IMAGE().
+        return sprintf('=IFERROR(IMAGE("%1$s"),HYPERLINK("%1$s","%1$s"))', $url);
+    }
 }

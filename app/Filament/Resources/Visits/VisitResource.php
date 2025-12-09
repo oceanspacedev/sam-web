@@ -517,8 +517,6 @@ class VisitResource extends Resource
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
-                TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Visit::class)),
                 Filter::make('created_at')
                     ->schema([
                         DatePicker::make('tanggal_visit_from')
@@ -537,6 +535,8 @@ class VisitResource extends Resource
                                 fn (Builder $query, $date): Builder => $query->whereDate('tanggal_visit', '<=', $date),
                             );
                     }),
+                                    TrashedFilter::make()
+                    ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Visit::class)),
 
             ])
             ->recordActions([

@@ -793,10 +793,6 @@ class RegisterResource extends Resource
 
                         return $query;
                     }),
-                Filter::make('duplicates')
-                    ->label('Data Duplikat')
-                    ->toggle()
-                    ->query(fn (Builder $query): Builder => self::applyDuplicateFilter($query)),
                 TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Register::class)),
             ])
@@ -1101,24 +1097,6 @@ class RegisterResource extends Resource
                 if (! empty($clusterIds)) {
                     $query->whereIn('registers.cluster_id', $clusterIds);
                 }
-            });
-    }
-
-    public static function applyDuplicateFilter(Builder $query): Builder
-    {
-        $table = $query->getModel()->getTable();
-
-        return $query
-            ->whereNotNull("{$table}.created_by_id")
-            ->whereNotNull("{$table}.nama_outlet")
-            ->whereNotNull("{$table}.alamat_outlet")
-            ->whereExists(function ($subQuery) use ($table): void {
-                $subQuery->selectRaw(1)
-                    ->from("{$table} as duplicates")
-                    ->whereColumn('duplicates.created_by_id', "{$table}.created_by_id")
-                    ->whereColumn('duplicates.nama_outlet', "{$table}.nama_outlet")
-                    ->whereColumn('duplicates.alamat_outlet', "{$table}.alamat_outlet")
-                    ->whereColumn('duplicates.id', '!=', "{$table}.id");
             });
     }
 

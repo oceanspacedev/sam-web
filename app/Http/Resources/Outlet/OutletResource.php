@@ -84,12 +84,14 @@ class OutletResource extends JsonResource
         if (! $user) {
             return [
                 'can_reset' => false,
+                'can_reset_location' => false,
                 'can_delete' => false,
             ];
         }
 
         return [
             'can_reset' => $user->can('Reset:Outlet'),
+            'can_reset_location' => $user->can('ResetLocation:Outlet'),
             'can_delete' => $user->can('Delete:Outlet'),
         ];
     }

@@ -108,6 +108,6 @@ class Register extends Model
 
     public function outlet(): HasOne
     {
-        return $this->hasOne(Outlet::class);
+        return $this->hasOne(Outlet::class)->withTrashed();
     }
 }

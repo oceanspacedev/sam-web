@@ -71,4 +71,9 @@ class OutletPolicy
     {
         return $authUser->can('Reset:Outlet');
     }
+
+    public function resetLocation(AuthUser $authUser): bool
+    {
+        return $authUser->can('ResetLocation:Outlet');
+    }
 }

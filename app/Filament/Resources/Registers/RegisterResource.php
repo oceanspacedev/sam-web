@@ -545,6 +545,43 @@ class RegisterResource extends Resource
                                     TextEntry::make('tm.nama_lengkap')
                                         ->label('TM'),
                                 ]),
+                            Section::make('Outlet Hasil')
+                                ->schema([
+                                    TextEntry::make('outlet.kode_outlet')
+                                        ->label('Kode Outlet')
+                                        ->placeholder('-'),
+                                    TextEntry::make('outlet.nama_outlet')
+                                        ->label('Nama Outlet')
+                                        ->placeholder('-'),
+                                    TextEntry::make('outlet.status_outlet')
+                                        ->label('Status Outlet')
+                                        ->badge()
+                                        ->color(fn (?string $state): string => match ($state) {
+                                            'MAINTAIN' => 'success',
+                                            'UNMAINTAIN' => 'warning',
+                                            'UNPRODUCTIVE' => 'danger',
+                                            default => 'gray',
+                                        })
+                                        ->placeholder('-'),
+                                    TextEntry::make('outlet.deleted_at')
+                                        ->label('Status Data')
+                                        ->badge()
+                                        ->color('danger')
+                                        ->formatStateUsing(fn ($state) => $state ? 'Data Outlet Dihapus' : null)
+                                        ->visible(fn ($record) => $record->outlet?->deleted_at !== null),
+                                    TextEntry::make('outlet.id')
+                                        ->label('Lihat Outlet')
+                                        ->formatStateUsing(fn ($state) => $state ? 'Buka Detail Outlet' : null)
+                                        ->url(fn ($record) => $record->outlet && Gate::allows('ViewAny:Outlet')
+                                            ? route('filament.admin.resources.outlets.view', $record->outlet->id)
+                                            : null)
+                                        ->color('primary')
+                                        ->visible(fn ($record) => $record->outlet 
+                                            && $record->outlet?->deleted_at === null 
+                                            && Gate::allows('ViewAny:Outlet'))
+                                        ->placeholder('-'),
+                                ])
+                                ->visible(fn ($record) => $record->status === 'APPROVED' && $record->outlet !== null),
                         ])
                             ->columnSpan(['default' => 12, 'xl' => 4]),
                     ])

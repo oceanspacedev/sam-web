@@ -22,6 +22,13 @@ class Outlet extends Model
         'id',
     ];
 
+    protected $casts = [
+        'last_reset_at' => 'datetime',
+        'reset_count_yearly' => 'integer',
+        'limit' => 'integer',
+        'radius' => 'integer',
+    ];
+
     protected array $mediaCleanupFields = [
         'poto_shop_sign',
         'poto_depan',

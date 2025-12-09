@@ -131,6 +131,7 @@ return [
             'restoreAny',
             'export',
             'reset',
+            'resetLocation',
         ],
     ],
 
@@ -192,7 +193,7 @@ return [
             \App\Filament\Resources\Outlets\OutletResource::class => [
                 'viewAny', 'view', 'create', 'update', 'delete', 'deleteAny',
                 'restore', 'forceDelete', 'forceDeleteAny', 'restoreAny',
-                'export', 'reset',
+                'export', 'reset', 'resetLocation',
             ],
             \App\Filament\Resources\PlanVisits\PlanVisitResource::class => [
                 'viewAny', 'view', 'create', 'update', 'delete', 'deleteAny',

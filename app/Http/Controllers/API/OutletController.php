@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Exceptions\Api\BadRequestException;
 use App\Exceptions\Api\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\UpdateOutletRequest;
@@ -12,9 +13,12 @@ use App\Services\FileUploadService;
 use App\Support\StorageDisk;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 use Throwable;
 
 class OutletController extends Controller
@@ -200,10 +204,16 @@ class OutletController extends Controller
             $outlet->video = $path;
         }
 
-        // Update field teks
-        $outlet->nama_pemilik_outlet = strtoupper($request->nama_pemilik_outlet);
-        $outlet->nomer_tlp_outlet = $request->nomer_tlp_outlet;
-        $outlet->latlong = $request->latlong;
+        // Update field teks - hanya jika ada di request (untuk mendukung partial update)
+        if ($request->filled('nama_pemilik_outlet')) {
+            $outlet->nama_pemilik_outlet = strtoupper($request->nama_pemilik_outlet);
+        }
+        if ($request->filled('nomer_tlp_outlet')) {
+            $outlet->nomer_tlp_outlet = $request->nomer_tlp_outlet;
+        }
+        if ($request->filled('latlong')) {
+            $outlet->latlong = $request->latlong;
+        }
 
         // Auto-activate outlet when updated (set status to MAINTAIN)
         // This reverts archived outlets (UNMAINTAIN) back to active status
@@ -245,43 +255,110 @@ class OutletController extends Controller
     {
         $user = Auth::user();
 
-        $outlet = Outlet::visibleTo($user)->where('id', $id)->first();
+        return DB::transaction(function () use ($id, $user) {
+            // Use lockForUpdate to prevent race condition
+            $outlet = Outlet::visibleTo($user)->where('id', $id)->lockForUpdate()->first();
 
-        if (! $outlet) {
-            throw new ResourceNotFoundException('Outlet tidak ditemukan');
-        }
+            if (! $outlet) {
+                throw new ResourceNotFoundException('Outlet tidak ditemukan');
+            }
 
-        Log::channel('outlet')->info('Reset outlet dimulai', [
-            'user_id' => $user->id,
-            'outlet_id' => $outlet->id,
-            'kode_outlet' => $outlet->kode_outlet,
-        ]);
+            [$now, $resetCount] = $this->enforceResetLimits(
+                $outlet->last_reset_at,
+                (int) $outlet->reset_count_yearly,
+                'Reset data outlet'
+            );
 
-        // Delete all media files
-        $mediaFields = ['poto_depan', 'poto_kanan', 'poto_kiri', 'poto_ktp', 'poto_shop_sign', 'video'];
+            Log::channel('outlet')->info('Reset outlet dimulai', [
+                'user_id' => $user->id,
+                'outlet_id' => $outlet->id,
+                'kode_outlet' => $outlet->kode_outlet,
+            ]);
 
-        foreach ($mediaFields as $field) {
-            $this->deleteOutletMedia($outlet->{$field});
-            $outlet->{$field} = null;
-        }
+            // Delete all media files
+            $mediaFields = ['poto_depan', 'poto_kanan', 'poto_kiri', 'poto_ktp', 'poto_shop_sign', 'video'];
 
-        $outlet->save();
+            foreach ($mediaFields as $field) {
+                $this->deleteOutletMedia($outlet->{$field});
+                $outlet->{$field} = null;
+            }
 
-        Log::channel('outlet')->info('Reset outlet berhasil', [
-            'user_id' => $user->id,
-            'outlet_id' => $outlet->id,
-            'kode_outlet' => $outlet->kode_outlet,
-        ]);
+            $outlet->last_reset_at = $now;
+            $outlet->reset_count_yearly = $resetCount + 1;
+            $outlet->save();
 
-        return response()->json([
-            'meta' => [
-                'code' => 200,
-                'status' => 'success',
-                'message' => 'Media outlet berhasil direset',
-            ],
-            'data' => null,
-            'errors' => null,
-        ]);
+            Log::channel('outlet')->info('Reset outlet berhasil', [
+                'user_id' => $user->id,
+                'outlet_id' => $outlet->id,
+                'kode_outlet' => $outlet->kode_outlet,
+                'last_reset_at' => $outlet->last_reset_at,
+                'reset_count_yearly' => $outlet->reset_count_yearly,
+            ]);
+
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Media outlet berhasil direset',
+                ],
+                'data' => null,
+                'errors' => null,
+            ]);
+        });
+    }
+
+    /**
+     * Reset outlet location (lat/long) and track reset count.
+     * PATCH /outlet/{id}/reset-location
+     */
+    public function resetLocation(int $id)
+    {
+        $user = Auth::user();
+
+        return DB::transaction(function () use ($id, $user) {
+            // Use lockForUpdate to prevent race condition
+            $outlet = Outlet::visibleTo($user)->where('id', $id)->lockForUpdate()->first();
+
+            if (! $outlet) {
+                throw new ResourceNotFoundException('Outlet tidak ditemukan');
+            }
+
+            if ($user && Gate::denies('resetLocation', $outlet)) {
+                abort(403, 'Anda tidak memiliki akses untuk reset lokasi outlet ini.');
+            }
+
+            [$now, $resetCount] = $this->enforceResetLimits(
+                $outlet->last_reset_at,
+                (int) $outlet->reset_count_yearly,
+                'Reset lokasi outlet'
+            );
+
+            $outlet->latlong = null;
+            $outlet->last_reset_at = $now;
+            $outlet->reset_count_yearly = $resetCount + 1;
+            $outlet->save();
+
+            Log::channel('outlet')->info('Reset lokasi outlet', [
+                'user_id' => $user?->id,
+                'outlet_id' => $outlet->id,
+                'kode_outlet' => $outlet->kode_outlet,
+                'reset_count_yearly' => $outlet->reset_count_yearly,
+                'last_reset_at' => $outlet->last_reset_at,
+            ]);
+
+            return response()->json([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Lokasi outlet berhasil direset',
+                ],
+                'data' => [
+                    'last_reset_at' => $outlet->last_reset_at,
+                    'reset_count_yearly' => $outlet->reset_count_yearly,
+                ],
+                'errors' => null,
+            ]);
+        });
     }
 
     /**
@@ -322,6 +399,46 @@ class OutletController extends Controller
             'data' => null,
             'errors' => null,
         ]);
+    }
+
+    /**
+     * Enforce reset cooldown (30 hari) and yearly cap (4x) for outlet resets.
+     *
+     * @return array{0: \Carbon\CarbonInterface, 1: int} [now, normalizedResetCount]
+     *
+     * @throws BadRequestException
+     */
+    protected function enforceResetLimits(?Carbon $lastResetAt, int $resetCountYearly, string $actionLabel): array
+    {
+        $now = now();
+
+        if ($lastResetAt && $lastResetAt->diffInDays($now) < 30) {
+            $nextAllowedAt = $lastResetAt->copy()->addDays(30);
+
+            throw (new BadRequestException(sprintf('%s hanya dapat dilakukan setiap 30 hari', $actionLabel)))
+                ->withData([
+                    'last_reset_at' => $lastResetAt,
+                    'next_allowed_at' => $nextAllowedAt,
+                    'reset_count_yearly' => $resetCountYearly,
+                    'max_resets_per_year' => 4,
+                ]);
+        }
+
+        if ($lastResetAt && $lastResetAt->year !== $now->year) {
+            $resetCountYearly = 0;
+        }
+
+        if ($resetCountYearly >= 4) {
+            throw (new BadRequestException(sprintf('%s maksimal 4 kali dalam setahun', $actionLabel)))
+                ->withData([
+                    'last_reset_at' => $lastResetAt,
+                    'reset_count_yearly' => $resetCountYearly,
+                    'max_resets_per_year' => 4,
+                    'next_reset_window_start' => $now->copy()->startOfYear()->addYear(),
+                ]);
+        }
+
+        return [$now, $resetCountYearly];
     }
 
     protected function deleteOutletMedia(?string $path): void

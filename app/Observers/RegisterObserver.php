@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Outlet;
 use App\Models\Register;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 
 class RegisterObserver
 {
@@ -59,8 +60,34 @@ class RegisterObserver
 
         if ($outlet) {
             $outlet->forceFill($payload)->save();
+            Log::channel('outlet')->info('Updated outlet from approved register', [
+                'outlet_id' => $outlet->id,
+                'register_id' => $model->id,
+                'kode_outlet' => $model->kode_outlet,
+            ]);
         } else {
-            Outlet::create($payload);
+            $newOutlet = Outlet::create($payload);
+            Log::channel('outlet')->info('Created outlet from approved register', [
+                'outlet_id' => $newOutlet->id,
+                'register_id' => $model->id,
+                'kode_outlet' => $model->kode_outlet,
+            ]);
+        }
+    }
+
+    /**
+     * Handle the Register "updated" event.
+     */
+    public function updated(Register $model): void
+    {
+        // TIDAK sync kode_outlet - biarkan outlet mengelola kode_outletnya sendiri
+        // Hanya sync jika bukan perubahan kode_outlet
+        if ($model->wasChanged('kode_outlet') && $model->status === 'APPROVED') {
+            Log::channel('outlet')->info('Register kode_outlet changed (not syncing to outlet)', [
+                'register_id' => $model->id,
+                'old_kode_outlet' => $model->getOriginal('kode_outlet'),
+                'new_kode_outlet' => $model->kode_outlet,
+            ]);
         }
     }
 }

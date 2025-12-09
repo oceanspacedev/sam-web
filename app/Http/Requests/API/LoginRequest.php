@@ -27,7 +27,7 @@ class LoginRequest extends FormRequest
                 'string',
                 function ($attribute, $value, $fail) {
                     if (version_compare($value, '1.2.0', '<')) {
-                        $fail('Gagal login, Update versi aplikasi SAM anda ke V1.2.0.');
+                        $fail('Gagal login, Update versi aplikasi SAM anda ke minimal V1.2.0.');
                     }
                 },
             ],

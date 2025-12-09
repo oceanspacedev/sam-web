@@ -2,27 +2,43 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Outlet;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class MaintainOutletLifecycle extends Command
 {
     /**
      * The name and signature of the console command.
-     *
-     * @var string
+     * 
+     * Lifecycle: MAINTAIN → UNMAINTAIN → UNPRODUCTIVE → ARCHIVE
      */
     protected $signature = 'outlets:maintain-lifecycle 
-                            {--days=30 : Day threshold for activity checks}
-                            {--dry-run : Run all commands in dry-run mode}';
+                            {--days=30 : Days inactive before MAINTAIN → UNMAINTAIN (min 7)}
+                            {--unproductive-days=60 : Days inactive before UNMAINTAIN → UNPRODUCTIVE (min 30)}
+                            {--archive-days=90 : Days inactive before UNPRODUCTIVE → ARCHIVE (min 60)}
+                            {--dry-run : Run in simulation mode without making changes}';
 
     /**
      * The console command description.
-     *
-     * @var string
      */
-    protected $description = 'Run complete outlet lifecycle maintenance (sequential: validation → cleanup → lifecycle transitions)';
+    protected $description = 'Run outlet lifecycle: MAINTAIN → UNMAINTAIN → UNPRODUCTIVE → ARCHIVE';
+
+    /**
+     * Counters for summary
+     */
+    private array $counters = [
+        'reactivated' => 0,
+        'maintain_to_unmaintain' => 0,
+        'unmaintain_to_unproductive' => 0,
+        'archived' => 0,
+        'errors' => 0,
+    ];
 
     /**
      * Execute the console command.
@@ -30,174 +46,130 @@ class MaintainOutletLifecycle extends Command
     public function handle(): int
     {
         $dryRun = $this->option('dry-run');
-        $daysOption = (int) $this->option('days');
-        $days = $daysOption > 0 ? $daysOption : 30; // Default threshold
+        $days = max(7, (int) $this->option('days'));
+        $unproductiveDays = max(30, (int) $this->option('unproductive-days'));
+        $archiveDays = max(60, (int) $this->option('archive-days'));
 
-        $this->info('=======================================================');
-        $this->info('  OUTLET LIFECYCLE MAINTENANCE - Sequential Execution  ');
-        $this->info('=======================================================');
-        $this->newLine();
-
-        if ($dryRun) {
-            $this->warn('🔍 DRY RUN MODE - No actual changes will be made');
-            $this->newLine();
+        // Validate logical order: days < unproductive-days < archive-days
+        if ($days >= $unproductiveDays) {
+            $this->error('--days must be less than --unproductive-days');
+            return self::FAILURE;
         }
+        if ($unproductiveDays >= $archiveDays) {
+            $this->error('--unproductive-days must be less than --archive-days');
+            return self::FAILURE;
+        }
+
+        // Validate archive table exists
+        if (!Schema::hasTable('outlets_archives')) {
+            $this->error('Archive table "outlets_archives" does not exist.');
+            return self::FAILURE;
+        }
+
+        $this->printHeader($dryRun, $days, $unproductiveDays, $archiveDays);
 
         $startTime = microtime(true);
 
-        // ===================================
-        // PHASE 1: DATA VALIDATION & CLEANUP
-        // ===================================
-        $this->info('╔═══════════════════════════════════════════════════╗');
-        $this->info('║  PHASE 1: Data Validation & Cleanup              ║');
-        $this->info('╚═══════════════════════════════════════════════════╝');
-        $this->newLine();
+        Log::channel('daily')->info('Outlet lifecycle maintenance started', [
+            'mode' => $dryRun ? 'dry-run' : 'live',
+            'days' => $days,
+            'unproductive_days' => $unproductiveDays,
+            'archive_days' => $archiveDays,
+        ]);
 
-        // Step 1.1: Reactivate UNMAINTAIN outlets with recent visits
-        $reactivationCount = $this->processReactivation($days, $dryRun);
-        $this->newLine();
+        // ==============================================
+        // PHASE 1: REACTIVATION (rescue outlets with recent activity)
+        // ==============================================
+        $this->printPhaseHeader('1', 'Reactivation (UNMAINTAIN/UNPRODUCTIVE → MAINTAIN)');
+        $this->processReactivation($days, $dryRun);
 
-        // Step 1.2: Cleanup UNPRODUCTIVE outlets from main table
-        $cleanupCount = $this->processCleanup($days, $dryRun);
-        $this->newLine();
+        // ==============================================
+        // PHASE 2: MAINTAIN → UNMAINTAIN
+        // ==============================================
+        $this->printPhaseHeader('2', 'Stage 1: MAINTAIN → UNMAINTAIN');
+        $this->processMaintainToUnmaintain($days, $dryRun);
 
-        // ===================================
-        // PHASE 2: LIFECYCLE FORWARD
-        // ===================================
-        $this->info('╔═══════════════════════════════════════════════════╗');
-        $this->info('║  PHASE 2: Lifecycle Forward                      ║');
-        $this->info('╚═══════════════════════════════════════════════════╝');
-        $this->newLine();
+        // ==============================================
+        // PHASE 3: UNMAINTAIN → UNPRODUCTIVE
+        // ==============================================
+        $this->printPhaseHeader('3', 'Stage 2: UNMAINTAIN → UNPRODUCTIVE');
+        $this->processUnmaintainToUnproductive($unproductiveDays, $dryRun);
 
-        // Step 2.1: Stage 1 - MAINTAIN → UNMAINTAIN
-        $stage1Count = $this->processStage1($days, $dryRun);
-        $this->newLine();
-
-        // Step 2.2: Stage 2 - UNMAINTAIN → Archive (Weekly only on Monday)
-        $today = now()->dayOfWeek; // 0=Sunday, 1=Monday, etc.
-        $stage2Count = null;
-        if ($today === 1 || $dryRun) { // Monday or dry-run
-            $stage2Count = $this->processStage2($days, $dryRun);
+        // ==============================================
+        // PHASE 4: UNPRODUCTIVE → ARCHIVE (Weekly on Monday only)
+        // ==============================================
+        $isMonday = now()->dayOfWeek === Carbon::MONDAY;
+        if ($isMonday || $dryRun) {
+            $this->printPhaseHeader('4', 'Stage 3: UNPRODUCTIVE → ARCHIVE' . ($dryRun && !$isMonday ? ' (simulated)' : ''));
+            $this->processArchiving($archiveDays, $dryRun);
         } else {
-            $this->comment('→ Step 2.2: Stage 2 - Skipped (runs on Monday only)');
+            $this->newLine();
+            $this->comment('→ Phase 4: Archiving - SKIPPED (runs on Monday only)');
         }
-        $this->newLine();
 
-        // ===================================
+        // ==============================================
         // SUMMARY
-        // ===================================
-        $duration = round(microtime(true) - $startTime, 2);
+        // ==============================================
+        $this->printSummary($startTime, $dryRun);
 
-        $this->info('╔═══════════════════════════════════════════════════╗');
-        $this->info('║  MAINTENANCE COMPLETED                            ║');
-        $this->info('╚═══════════════════════════════════════════════════╝');
-        $this->table(
-            ['Metric', 'Value'],
-            [
-                ['Total Duration', "{$duration}s"],
-                ['Mode', $dryRun ? 'DRY RUN' : 'LIVE'],
-                ['Reactivation (UNMAINTAIN/UNPRODUCTIVE → MAINTAIN)', $reactivationCount],
-                ['Cleanup (UNPRODUCTIVE → archive)', $cleanupCount],
-                ['Stage 1 (MAINTAIN → UNMAINTAIN)', $stage1Count],
-                ['Stage 2 (UNMAINTAIN → archive)', $stage2Count === null ? 'SKIPPED (runs Monday)' : $stage2Count],
-            ]
-        );
+        Log::channel('daily')->info('Outlet lifecycle maintenance completed', $this->counters);
+
+        return $this->counters['errors'] > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * Phase 1: Reactivate UNMAINTAIN/UNPRODUCTIVE outlets with recent visits
+     */
+    private function processReactivation(int $days, bool $dryRun): void
+    {
+        $this->info('  Checking UNMAINTAIN/UNPRODUCTIVE outlets with visits in last ' . $days . ' days...');
+
+        $cutoffDate = now()->subDays($days);
+
+        // Reactivate both UNMAINTAIN and UNPRODUCTIVE if they have recent visits
+        $query = Outlet::whereIn('status_outlet', ['UNMAINTAIN', 'UNPRODUCTIVE'])
+            ->whereHas('visit', function ($q) use ($cutoffDate) {
+                $q->where('tanggal_visit', '>=', $cutoffDate);
+            })
+            ->orderBy('id');
+
+        $count = $query->count();
+        $this->info("  Found {$count} outlets to reactivate.");
+
+        if ($count === 0) {
+            return;
+        }
 
         if ($dryRun) {
-            $this->warn('DRY RUN completed - no actual changes were made');
-        } else {
-            $this->info('✅ Outlet lifecycle maintenance completed successfully!');
-        }
-
-        return self::SUCCESS;
-    }
-
-    /**
-     * Step 1.1: Reactivate outlets (UNMAINTAIN/UNPRODUCTIVE) that have recent visits
-     */
-    protected function processReactivation(int $days, bool $dryRun): int
-    {
-        $this->info('→ Step 1.1: Auto-Reactivation (UNMAINTAIN/UNPRODUCTIVE → MAINTAIN)');
-        $this->line("  Checking UNMAINTAIN/UNPRODUCTIVE outlets with visits in last {$days} days...");
-
-        $cutoffDate = now()->subDays($days);
-
-        $outlets = \App\Models\Outlet::whereIn('status_outlet', ['UNMAINTAIN', 'UNPRODUCTIVE'])
-            ->whereHas('visit', function ($query) use ($cutoffDate) {
-                $query->where('tanggal_visit', '>=', $cutoffDate);
-            })
-            ->orderBy('id');
-
-        $count = $outlets->count();
-        $this->line("  Found {$count} outlets to reactivate.");
-
-        if ($count === 0) {
-            return 0;
+            $this->showDryRunSample($query, 'reactivate to MAINTAIN');
+            $this->counters['reactivated'] = $count;
+            return;
         }
 
         $bar = $this->output->createProgressBar($count);
         $bar->start();
 
-        $outlets->chunkById(200, function ($outletsChunk) use ($dryRun, &$bar) {
-            foreach ($outletsChunk as $outlet) {
-                $fromStatus = $outlet->status_outlet;
-                if ($dryRun) {
-                    $this->line("\n  [DRY RUN] Would reactivate ({$fromStatus} → MAINTAIN): {$outlet->kode_outlet}");
-                } else {
-                    $outlet->update(['status_outlet' => 'MAINTAIN']);
-                }
-                $bar->advance();
-            }
-        });
+        $query->chunkById(200, function ($outlets) use (&$bar, $cutoffDate) {
+            foreach ($outlets as $outlet) {
+                try {
+                    DB::transaction(function () use ($outlet, $cutoffDate) {
+                        $locked = Outlet::where('id', $outlet->id)->lockForUpdate()->first();
+                        if (!$locked || !in_array($locked->status_outlet, ['UNMAINTAIN', 'UNPRODUCTIVE'])) {
+                            return;
+                        }
 
-        $bar->finish();
-        $this->newLine();
+                        // Verify still has recent visit
+                        $hasRecentVisit = $locked->visit()
+                            ->where('tanggal_visit', '>=', $cutoffDate)
+                            ->exists();
 
-        return $count;
-    }
-
-    /**
-     * Step 1.2: Cleanup UNPRODUCTIVE outlets (Archive & Delete)
-     */
-    protected function processCleanup(int $days, bool $dryRun): int
-    {
-        $this->info('→ Step 1.2: Cleanup UNPRODUCTIVE');
-        $this->line("  Archiving and removing UNPRODUCTIVE outlets inactive for {$days}+ days...");
-
-        $cutoffDate = now()->subDays($days);
-
-        $outlets = \App\Models\Outlet::where('status_outlet', 'UNPRODUCTIVE')
-            ->whereDoesntHave('visit', function ($query) use ($cutoffDate) {
-                $query->where('tanggal_visit', '>=', $cutoffDate);
-            })
-            ->whereDoesntHave('planvisit', function ($query) use ($cutoffDate) {
-                $query->whereNull('realized_at')
-                    ->where(function ($query) use ($cutoffDate) {
-                        $query->where('tanggal_visit', '>=', $cutoffDate)
-                            ->orWhere('period_end', '>=', $cutoffDate);
+                        if ($hasRecentVisit) {
+                            $locked->update(['status_outlet' => 'MAINTAIN']);
+                            $this->counters['reactivated']++;
+                        }
                     });
-            })
-            ->where(function ($query) use ($cutoffDate) {
-                $query->whereNull('updated_at')->orWhere('updated_at', '<', $cutoffDate);
-            })
-            ->orderBy('id');
-
-        $count = $outlets->count();
-        $this->line("  Found {$count} UNPRODUCTIVE outlets to cleanup (skips recently visited/updated).");
-
-        if ($count === 0) {
-            return 0;
-        }
-
-        $bar = $this->output->createProgressBar($count);
-        $bar->start();
-
-        $outlets->chunkById(200, function ($outletsChunk) use ($dryRun, &$bar) {
-            foreach ($outletsChunk as $outlet) {
-                if ($dryRun) {
-                    $this->line("\n  [DRY RUN] Would archive & delete: {$outlet->kode_outlet}");
-                } else {
-                    $this->archiveAndRemove($outlet);
+                } catch (Throwable $e) {
+                    $this->handleError('Reactivation', $outlet, $e);
                 }
                 $bar->advance();
             }
@@ -205,52 +177,63 @@ class MaintainOutletLifecycle extends Command
 
         $bar->finish();
         $this->newLine();
-
-        return $count;
     }
 
     /**
-     * Step 2.1: Stage 1 - MAINTAIN → UNMAINTAIN
+     * Phase 2: MAINTAIN → UNMAINTAIN for inactive outlets
      */
-    protected function processStage1(int $days, bool $dryRun): int
+    private function processMaintainToUnmaintain(int $days, bool $dryRun): void
     {
-        $this->info('→ Step 2.1: Stage 1 (MAINTAIN → UNMAINTAIN)');
-        $this->line("  Checking MAINTAIN outlets with no visits in {$days} days...");
+        $this->info('  Checking MAINTAIN outlets inactive for ' . $days . '+ days...');
 
         $cutoffDate = now()->subDays($days);
 
-        $outlets = \App\Models\Outlet::where('status_outlet', 'MAINTAIN')
-            ->whereDoesntHave('visit', function ($query) use ($cutoffDate) {
-                $query->where('tanggal_visit', '>=', $cutoffDate);
+        $query = Outlet::where('status_outlet', 'MAINTAIN')
+            ->whereDoesntHave('visit', function ($q) use ($cutoffDate) {
+                $q->where('tanggal_visit', '>=', $cutoffDate);
             })
-            ->whereDoesntHave('planvisit', function ($query) use ($cutoffDate) {
-                $query->whereNull('realized_at')
-                    ->where(function ($query) use ($cutoffDate) {
-                        $query->where('tanggal_visit', '>=', $cutoffDate)
-                            ->orWhere('period_end', '>=', $cutoffDate);
-                    });
-            })
-            ->where(function ($query) use ($cutoffDate) {
-                $query->whereNull('updated_at')->orWhere('updated_at', '<', $cutoffDate);
+            ->whereDoesntHave('planvisit', function ($q) {
+                $q->whereNull('realized_at')->where('period_end', '>=', now());
             })
             ->orderBy('id');
 
-        $count = $outlets->count();
-        $this->line("  Found {$count} inactive outlets to warn.");
+        $count = $query->count();
+        $this->info("  Found {$count} outlets to transition.");
 
         if ($count === 0) {
-            return 0;
+            return;
+        }
+
+        if ($dryRun) {
+            $this->showDryRunSample($query, 'set to UNMAINTAIN');
+            $this->counters['maintain_to_unmaintain'] = $count;
+            return;
         }
 
         $bar = $this->output->createProgressBar($count);
         $bar->start();
 
-        $outlets->chunkById(200, function ($outletsChunk) use ($dryRun, &$bar) {
-            foreach ($outletsChunk as $outlet) {
-                if ($dryRun) {
-                    $this->line("\n  [DRY RUN] Would set UNMAINTAIN: {$outlet->kode_outlet}");
-                } else {
-                    $outlet->update(['status_outlet' => 'UNMAINTAIN']);
+        $query->chunkById(200, function ($outlets) use (&$bar, $cutoffDate) {
+            foreach ($outlets as $outlet) {
+                try {
+                    DB::transaction(function () use ($outlet, $cutoffDate) {
+                        $locked = Outlet::where('id', $outlet->id)->lockForUpdate()->first();
+                        if (!$locked || $locked->status_outlet !== 'MAINTAIN') {
+                            return;
+                        }
+
+                        // Double-check no recent visit
+                        $hasRecentVisit = $locked->visit()
+                            ->where('tanggal_visit', '>=', $cutoffDate)
+                            ->exists();
+
+                        if (!$hasRecentVisit) {
+                            $locked->update(['status_outlet' => 'UNMAINTAIN']);
+                            $this->counters['maintain_to_unmaintain']++;
+                        }
+                    });
+                } catch (Throwable $e) {
+                    $this->handleError('Stage 1', $outlet, $e);
                 }
                 $bar->advance();
             }
@@ -258,54 +241,62 @@ class MaintainOutletLifecycle extends Command
 
         $bar->finish();
         $this->newLine();
-
-        return $count;
     }
 
     /**
-     * Step 2.2: Stage 2 - UNMAINTAIN → Archive
+     * Phase 3: UNMAINTAIN → UNPRODUCTIVE
      */
-    protected function processStage2(int $days, bool $dryRun): int
+    private function processUnmaintainToUnproductive(int $unproductiveDays, bool $dryRun): void
     {
-        $this->info('→ Step 2.2: Stage 2 (UNMAINTAIN → Archive)');
-        $this->line("  Checking UNMAINTAIN outlets with no activity in {$days} days...");
+        $this->info('  Checking UNMAINTAIN outlets inactive for ' . $unproductiveDays . '+ days...');
 
-        $cutoffDate = now()->subDays($days);
+        $cutoffDate = now()->subDays($unproductiveDays);
 
-        // Criteria: UNMAINTAIN + No Visit + No Update
-        $outlets = \App\Models\Outlet::where('status_outlet', 'UNMAINTAIN')
-            ->whereDoesntHave('visit', function ($query) use ($cutoffDate) {
-                $query->where('tanggal_visit', '>=', $cutoffDate);
+        $query = Outlet::where('status_outlet', 'UNMAINTAIN')
+            ->whereDoesntHave('visit', function ($q) use ($cutoffDate) {
+                $q->where('tanggal_visit', '>=', $cutoffDate);
             })
-            ->whereDoesntHave('planvisit', function ($query) use ($cutoffDate) {
-                $query->whereNull('realized_at')
-                    ->where(function ($query) use ($cutoffDate) {
-                        $query->where('tanggal_visit', '>=', $cutoffDate)
-                            ->orWhere('period_end', '>=', $cutoffDate);
-                    });
-            })
-            ->where(function ($query) use ($cutoffDate) {
-                $query->where('updated_at', '<', $cutoffDate)
-                    ->orWhereNull('updated_at');
+            ->whereDoesntHave('planvisit', function ($q) {
+                $q->whereNull('realized_at')->where('period_end', '>=', now());
             })
             ->orderBy('id');
 
-        $count = $outlets->count();
-        $this->line("  Found {$count} outlets to archive.");
+        $count = $query->count();
+        $this->info("  Found {$count} outlets to transition.");
 
         if ($count === 0) {
-            return 0;
+            return;
+        }
+
+        if ($dryRun) {
+            $this->showDryRunSample($query, 'set to UNPRODUCTIVE');
+            $this->counters['unmaintain_to_unproductive'] = $count;
+            return;
         }
 
         $bar = $this->output->createProgressBar($count);
         $bar->start();
 
-        $outlets->chunkById(200, function ($outletsChunk) use ($dryRun, &$bar) {
-            foreach ($outletsChunk as $outlet) {
-                if ($dryRun) {
-                    $this->line("\n  [DRY RUN] Would archive & delete: {$outlet->kode_outlet}");
-                } else {
-                    $this->archiveAndRemove($outlet);
+        $query->chunkById(200, function ($outlets) use (&$bar, $cutoffDate) {
+            foreach ($outlets as $outlet) {
+                try {
+                    DB::transaction(function () use ($outlet, $cutoffDate) {
+                        $locked = Outlet::where('id', $outlet->id)->lockForUpdate()->first();
+                        if (!$locked || $locked->status_outlet !== 'UNMAINTAIN') {
+                            return;
+                        }
+
+                        $hasRecentVisit = $locked->visit()
+                            ->where('tanggal_visit', '>=', $cutoffDate)
+                            ->exists();
+
+                        if (!$hasRecentVisit) {
+                            $locked->update(['status_outlet' => 'UNPRODUCTIVE']);
+                            $this->counters['unmaintain_to_unproductive']++;
+                        }
+                    });
+                } catch (Throwable $e) {
+                    $this->handleError('Stage 2', $outlet, $e);
                 }
                 $bar->advance();
             }
@@ -313,83 +304,246 @@ class MaintainOutletLifecycle extends Command
 
         $bar->finish();
         $this->newLine();
-
-        return $count;
     }
 
     /**
-     * Helper: Archive outlet data and remove from main table
+     * Phase 4: UNPRODUCTIVE → Archive
      */
-    protected function archiveAndRemove(\App\Models\Outlet $outlet): void
+    private function processArchiving(int $archiveDays, bool $dryRun): void
     {
-        // Collect media paths up front to avoid losing references if delete mutates model state
+        $this->info('  Checking UNPRODUCTIVE outlets inactive for ' . $archiveDays . '+ days...');
+
+        $cutoffDate = now()->subDays($archiveDays);
+
+        $query = Outlet::where('status_outlet', 'UNPRODUCTIVE')
+            ->whereDoesntHave('visit', function ($q) use ($cutoffDate) {
+                $q->where('tanggal_visit', '>=', $cutoffDate);
+            })
+            ->whereDoesntHave('planvisit', function ($q) {
+                $q->whereNull('realized_at')->where('period_end', '>=', now());
+            })
+            ->orderBy('id');
+
+        $count = $query->count();
+        $this->info("  Found {$count} outlets to archive.");
+
+        if ($count === 0) {
+            return;
+        }
+
+        if ($dryRun) {
+            $this->showDryRunSample($query, 'archive');
+            $this->counters['archived'] = $count;
+            return;
+        }
+
+        $bar = $this->output->createProgressBar($count);
+        $bar->start();
+
+        $query->chunkById(100, function ($outlets) use (&$bar, $cutoffDate) {
+            foreach ($outlets as $outlet) {
+                try {
+                    $this->archiveOutlet($outlet, $cutoffDate);
+                    $this->counters['archived']++;
+                } catch (Throwable $e) {
+                    $this->handleError('Archive', $outlet, $e);
+                }
+                $bar->advance();
+            }
+        });
+
+        $bar->finish();
+        $this->newLine();
+    }
+
+    /**
+     * Archive a single outlet with proper locking
+     */
+    private function archiveOutlet(Outlet $outlet, Carbon $cutoffDate): void
+    {
         $mediaFields = ['poto_shop_sign', 'poto_depan', 'poto_kiri', 'poto_kanan', 'poto_ktp', 'video'];
-        $mediaPaths = [];
+        $mediaPaths = array_filter(array_map(fn($f) => $outlet->$f, $mediaFields));
 
-        foreach ($mediaFields as $field) {
-            if (! empty($outlet->$field)) {
-                $mediaPaths[] = $outlet->$field;
+        DB::transaction(function () use ($outlet, $cutoffDate) {
+            $locked = Outlet::where('id', $outlet->id)->lockForUpdate()->first();
+
+            if (!$locked || $locked->status_outlet !== 'UNPRODUCTIVE') {
+                return;
             }
+
+            // Double-check no recent visit
+            $hasRecentVisit = $locked->visit()
+                ->where('tanggal_visit', '>=', $cutoffDate)
+                ->exists();
+
+            if ($hasRecentVisit) {
+                return;
+            }
+
+            // Check if already archived
+            $alreadyArchived = DB::table('outlets_archives')
+                ->where('outlet_id', $locked->id)
+                ->exists();
+
+            if ($alreadyArchived) {
+                $locked->forceDelete();
+                return;
+            }
+
+            // Archive
+            DB::table('outlets_archives')->insert([
+                'outlet_id' => $locked->id,
+                'kode_outlet' => $locked->kode_outlet,
+                'nama_outlet' => $locked->nama_outlet,
+                'alamat_outlet' => $locked->alamat_outlet,
+                'nama_pemilik_outlet' => $locked->nama_pemilik_outlet,
+                'nomer_tlp_outlet' => $locked->nomer_tlp_outlet,
+                'badanusaha_id' => $locked->badanusaha_id,
+                'divisi_id' => $locked->divisi_id,
+                'region_id' => $locked->region_id,
+                'cluster_id' => $locked->cluster_id,
+                'distric' => $locked->distric,
+                'poto_shop_sign' => $locked->poto_shop_sign,
+                'poto_depan' => $locked->poto_depan,
+                'poto_kiri' => $locked->poto_kiri,
+                'poto_kanan' => $locked->poto_kanan,
+                'poto_ktp' => $locked->poto_ktp,
+                'video' => $locked->video,
+                'limit' => $locked->limit,
+                'radius' => $locked->radius,
+                'latlong' => $locked->latlong,
+                'status_outlet' => $locked->status_outlet,
+                'archived_by' => 'SYSTEM',
+                'archived_at' => now(),
+                'archive_reason' => 'Lifecycle: UNPRODUCTIVE for extended period',
+                'original_created_at' => $locked->created_at,
+                'original_updated_at' => $locked->updated_at,
+                'original_deleted_at' => $locked->deleted_at,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $locked->forceDelete();
+        });
+
+        // Delete media files outside transaction
+        $this->deleteMediaFiles($mediaPaths);
+    }
+
+    /**
+     * Delete media files from storage
+     */
+    private function deleteMediaFiles(array $mediaPaths): void
+    {
+        if (empty($mediaPaths)) {
+            return;
         }
 
         try {
-            DB::transaction(function () use ($outlet) {
-                // 1. Archive Data (insert to archive table directly)
-                DB::table('outlets_archives')->insert([
-                    'outlet_id' => $outlet->id,
-                    'kode_outlet' => $outlet->kode_outlet,
-                    'nama_outlet' => $outlet->nama_outlet,
-                    'alamat_outlet' => $outlet->alamat_outlet,
-                    'nama_pemilik_outlet' => $outlet->nama_pemilik_outlet,
-                    'nomer_tlp_outlet' => $outlet->nomer_tlp_outlet,
-                    'badanusaha_id' => $outlet->badanusaha_id,
-                    'divisi_id' => $outlet->divisi_id,
-                    'region_id' => $outlet->region_id,
-                    'cluster_id' => $outlet->cluster_id,
-                    'distric' => $outlet->distric,
-                    'poto_shop_sign' => $outlet->poto_shop_sign,
-                    'poto_depan' => $outlet->poto_depan,
-                    'poto_kiri' => $outlet->poto_kiri,
-                    'poto_kanan' => $outlet->poto_kanan,
-                    'poto_ktp' => $outlet->poto_ktp,
-                    'video' => $outlet->video,
-                    'limit' => $outlet->limit,
-                    'radius' => $outlet->radius,
-                    'latlong' => $outlet->latlong,
-                    'status_outlet' => $outlet->status_outlet, // Preserve original status
-                    'archived_by' => 'SYSTEM',
-                    'archived_at' => now(),
-                    'archive_reason' => 'Automated Lifecycle Maintenance',
-                    'original_created_at' => $outlet->created_at,
-                    'original_updated_at' => $outlet->updated_at,
-                    'original_deleted_at' => $outlet->deleted_at,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-
-                // 2. Soft Delete (DB-level so it can be rolled back if archive fails)
-                $outlet->delete();
-            });
-
-            // 3. Delete Media Files (outside transaction)
-            $this->deleteMediaFiles($mediaPaths);
-
-        } catch (\Exception $e) {
-            $this->error("Failed to archive {$outlet->kode_outlet}: {$e->getMessage()}");
+            $disk = Storage::disk(\App\Support\StorageDisk::default());
+            foreach ($mediaPaths as $path) {
+                if ($path && $disk->exists($path)) {
+                    $disk->delete($path);
+                }
+            }
+        } catch (Throwable $e) {
+            Log::channel('daily')->warning('Failed to delete media files', [
+                'paths' => $mediaPaths,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
     /**
-     * Remove media assets for archived outlets.
+     * Show dry-run sample
      */
-    protected function deleteMediaFiles(array $mediaPaths): void
+    private function showDryRunSample($query, string $action): void
     {
-        $disk = Storage::disk(\App\Support\StorageDisk::default());
+        $count = $query->count();
+        $query->limit(5)->get()->each(function ($outlet) use ($action) {
+            $this->line("    [DRY RUN] Would {$action}: {$outlet->kode_outlet}");
+        });
+        if ($count > 5) {
+            $this->comment("    ... and " . ($count - 5) . " more.");
+        }
+    }
 
-        foreach ($mediaPaths as $path) {
-            if ($disk->exists($path)) {
-                $disk->delete($path);
-            }
+    /**
+     * Handle error
+     */
+    private function handleError(string $phase, Outlet $outlet, Throwable $e): void
+    {
+        $this->counters['errors']++;
+        Log::channel('daily')->error("{$phase} failed: {$outlet->kode_outlet}", [
+            'error' => $e->getMessage(),
+        ]);
+    }
+
+    /**
+     * Print header
+     */
+    private function printHeader(bool $dryRun, int $days, int $unproductiveDays, int $archiveDays): void
+    {
+        $this->newLine();
+        $this->info('╔═══════════════════════════════════════════════════════════════════════╗');
+        $this->info('║              OUTLET LIFECYCLE MAINTENANCE                             ║');
+        $this->info('║  MAINTAIN → UNMAINTAIN → UNPRODUCTIVE → ARCHIVE                       ║');
+        $this->info('╚═══════════════════════════════════════════════════════════════════════╝');
+        $this->newLine();
+        $this->table(
+            ['Setting', 'Value'],
+            [
+                ['Mode', $dryRun ? '🔍 DRY RUN' : '⚡ LIVE'],
+                ['MAINTAIN → UNMAINTAIN', "After {$days} days inactive"],
+                ['UNMAINTAIN → UNPRODUCTIVE', "After {$unproductiveDays} days inactive"],
+                ['UNPRODUCTIVE → ARCHIVE', "After {$archiveDays} days inactive (Monday only)"],
+                ['Run date', now()->format('Y-m-d H:i:s')],
+            ]
+        );
+        $this->newLine();
+    }
+
+    /**
+     * Print phase header
+     */
+    private function printPhaseHeader(string $phase, string $title): void
+    {
+        $this->newLine();
+        $this->info("┌─────────────────────────────────────────────────────────────┐");
+        $this->info("│  Phase {$phase}: {$title}");
+        $this->info("└─────────────────────────────────────────────────────────────┘");
+    }
+
+    /**
+     * Print summary
+     */
+    private function printSummary(float $startTime, bool $dryRun): void
+    {
+        $duration = round(microtime(true) - $startTime, 2);
+
+        $this->newLine(2);
+        $this->info('╔═══════════════════════════════════════════════════════════╗');
+        $this->info('║              MAINTENANCE SUMMARY                          ║');
+        $this->info('╚═══════════════════════════════════════════════════════════╝');
+
+        $this->table(
+            ['Transition', 'Count'],
+            [
+                ['Reactivated → MAINTAIN', $this->counters['reactivated']],
+                ['MAINTAIN → UNMAINTAIN', $this->counters['maintain_to_unmaintain']],
+                ['UNMAINTAIN → UNPRODUCTIVE', $this->counters['unmaintain_to_unproductive']],
+                ['UNPRODUCTIVE → ARCHIVE', $this->counters['archived']],
+                ['Errors', $this->counters['errors']],
+                ['Duration', "{$duration}s"],
+            ]
+        );
+
+        if ($this->counters['errors'] > 0) {
+            $this->error('⚠️  Completed with errors. Check logs.');
+        } elseif ($dryRun) {
+            $this->warn('🔍 DRY RUN completed - no changes made.');
+        } else {
+            $this->info('✅ Maintenance completed successfully!');
         }
     }
 }

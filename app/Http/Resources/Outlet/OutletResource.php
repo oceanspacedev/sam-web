@@ -25,6 +25,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * @property int $limit
  * @property int $radius
  * @property string $latlong
+ * @property \Illuminate\Support\Carbon|null $last_reset_at
+ * @property int $reset_count_yearly
  * @property string $status_outlet
  */
 class OutletResource extends JsonResource
@@ -53,6 +55,8 @@ class OutletResource extends JsonResource
             'limit' => $this->limit,
             'radius' => $this->radius,
             'latlong' => $this->latlong,
+            'last_reset_at' => $this->last_reset_at,
+            'reset_count_yearly' => $this->reset_count_yearly,
             'status_outlet' => $this->status_outlet,
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
                 return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;

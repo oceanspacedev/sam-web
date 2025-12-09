@@ -44,6 +44,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
+use Filament\Notifications\Notification;
+use Carbon\Carbon;
 
 class OutletResource extends Resource
 {
@@ -68,6 +71,12 @@ class OutletResource extends Resource
                                         ->helperText('Kode outlet tidak boleh mengandung spasi')
                                         ->rule(function (callable $get) {
                                             return function ($attribute, $value, $fail) use ($get) {
+                                                // Cek apakah kode_outlet mengandung LEAD
+                                                if (stripos($value, 'LEAD') === 0) {
+                                                    $fail('Kode Outlet tidak boleh diawali dengan "LEAD".');
+                                                    return;
+                                                }
+
                                                 $divisiId = $get('divisi_id');
                                                 $outletId = $get('id');
 
@@ -436,6 +445,25 @@ class OutletResource extends Resource
                                         ->label('Radius')
                                         ->suffix(' meter'),
                                 ]),
+                            Section::make('Riwayat Reset')
+                                ->schema([
+                                    TextEntry::make('last_reset_at')
+                                        ->label('Reset Terakhir')
+                                        ->dateTime('d M Y, H:i')
+                                        ->placeholder('Belum pernah reset'),
+                                    TextEntry::make('reset_count_yearly')
+                                        ->label('Jumlah Reset (Tahun Ini)')
+                                        ->suffix(' kali')
+                                        ->default(0)
+                                        ->badge()
+                                        ->color(fn ($state): string => match (true) {
+                                            $state >= 3 => 'danger',
+                                            $state >= 2 => 'warning',
+                                            default => 'gray',
+                                        }),
+                                ])
+                                ->columns(2)
+                                ->collapsible(),
                         ])
                             ->columnSpan(['default' => 12, 'xl' => 4]),
                     ])
@@ -655,46 +683,181 @@ class OutletResource extends Resource
                         ->authorize('forceDeleteAny'),
                     RestoreBulkAction::make()
                         ->authorize('restoreAny'),
+                    BulkAction::make('resetLocation')
+                        ->label('Reset Lokasi Outlet')
+                        ->icon('heroicon-o-map-pin')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records): void {
+                            $successCount = 0;
+                            $errors = [];
+
+                            $records->each(function (Outlet $record) use (&$successCount, &$errors): void {
+                                try {
+                                    // Refresh to get latest data from database
+                                    $record->refresh();
+
+                                    $normalizedCount = static::enforceResetLimits(
+                                        $record->last_reset_at,
+                                        (int) $record->reset_count_yearly,
+                                        'Reset lokasi outlet',
+                                        $record->kode_outlet
+                                    );
+
+                                    $record->update([
+                                        'latlong' => null,
+                                        'last_reset_at' => now(),
+                                        'reset_count_yearly' => $normalizedCount + 1,
+                                    ]);
+                                    $successCount++;
+                                } catch (ValidationException $e) {
+                                    // Get first error message from validation errors
+                                    $firstError = collect($e->errors())->flatten()->first();
+                                    $errors[] = $firstError ?? $e->getMessage();
+                                }
+                            });
+
+                            if (count($errors) > 0) {
+                                Notification::make()
+                                    ->title('Reset lokasi gagal')
+                                    ->body(implode("\n", array_slice(array_unique($errors), 0, 3)))
+                                    ->danger()
+                                    ->persistent()
+                                    ->send();
+
+                                return;
+                            }
+
+                            Notification::make()
+                                ->title('Berhasil')
+                                ->body("Lokasi {$successCount} outlet berhasil direset.")
+                                ->success()
+                                ->send();
+                        })
+                        ->authorize(fn () => Gate::allows('ResetLocation:Outlet'))
+                        ->deselectRecordsAfterCompletion(),
                     BulkAction::make('reset')
                         ->label('Reset Data Outlet')
                         ->icon('heroicon-o-building-storefront')
+                        ->requiresConfirmation()
                         ->action(function (Collection $records): void {
-                            $records->each(function (Outlet $record): void {
-                                if ($record->poto_shop_sign) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_shop_sign);
-                                }
-                                if ($record->poto_depan) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_depan);
-                                }
-                                if ($record->poto_kiri) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_kiri);
-                                }
-                                if ($record->poto_kanan) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_kanan);
-                                }
-                                if ($record->poto_ktp) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_ktp);
-                                }
-                                if ($record->video) {
-                                    Storage::disk(StorageDisk::default())->delete($record->video);
-                                }
+                            $successCount = 0;
+                            $errors = [];
 
-                                $record->update([
-                                    'nama_pemilik_outlet' => null,
-                                    'nomer_tlp_outlet' => null,
-                                    'latlong' => null,
-                                    'poto_shop_sign' => null,
-                                    'poto_depan' => null,
-                                    'poto_kiri' => null,
-                                    'poto_kanan' => null,
-                                    'poto_ktp' => null,
-                                    'video' => null,
-                                ]);
+                            $records->each(function (Outlet $record) use (&$successCount, &$errors): void {
+                                try {
+                                    // Refresh to get latest data from database
+                                    $record->refresh();
+
+                                    $normalizedCount = static::enforceResetLimits(
+                                        $record->last_reset_at,
+                                        (int) $record->reset_count_yearly,
+                                        'Reset data outlet',
+                                        $record->kode_outlet
+                                    );
+
+                                    if ($record->poto_shop_sign) {
+                                        Storage::disk(StorageDisk::default())->delete($record->poto_shop_sign);
+                                    }
+                                    if ($record->poto_depan) {
+                                        Storage::disk(StorageDisk::default())->delete($record->poto_depan);
+                                    }
+                                    if ($record->poto_kiri) {
+                                        Storage::disk(StorageDisk::default())->delete($record->poto_kiri);
+                                    }
+                                    if ($record->poto_kanan) {
+                                        Storage::disk(StorageDisk::default())->delete($record->poto_kanan);
+                                    }
+                                    if ($record->poto_ktp) {
+                                        Storage::disk(StorageDisk::default())->delete($record->poto_ktp);
+                                    }
+                                    if ($record->video) {
+                                        Storage::disk(StorageDisk::default())->delete($record->video);
+                                    }
+
+                                    $record->update([
+                                        'nama_pemilik_outlet' => null,
+                                        'nomer_tlp_outlet' => null,
+                                        'poto_shop_sign' => null,
+                                        'poto_depan' => null,
+                                        'poto_kiri' => null,
+                                        'poto_kanan' => null,
+                                        'poto_ktp' => null,
+                                        'video' => null,
+                                        'last_reset_at' => now(),
+                                        'reset_count_yearly' => $normalizedCount + 1,
+                                    ]);
+                                    $successCount++;
+                                } catch (ValidationException $e) {
+                                    // Get first error message from validation errors
+                                    $firstError = collect($e->errors())->flatten()->first();
+                                    $errors[] = $firstError ?? $e->getMessage();
+                                }
                             });
+
+                            if (count($errors) > 0) {
+                                Notification::make()
+                                    ->title('Reset data gagal')
+                                    ->body(implode("\n", array_slice(array_unique($errors), 0, 3)))
+                                    ->danger()
+                                    ->persistent()
+                                    ->send();
+
+                                return;
+                            }
+
+                            Notification::make()
+                                ->title('Berhasil')
+                                ->body("Data {$successCount} outlet berhasil direset.")
+                                ->success()
+                                ->send();
                         })
-                        ->authorize(fn () => Gate::allows('Reset:Outlet')),
+                        ->authorize(fn () => Gate::allows('Reset:Outlet'))
+                        ->deselectRecordsAfterCompletion(),
                 ]),
             ]);
+    }
+
+    /**
+     * Enforce shared reset limits: 30-day cooldown and max 4 per calendar year.
+     *
+     * @throws ValidationException
+     */
+    public static function enforceResetLimits(?Carbon $lastResetAt, int $resetCountYearly, string $actionLabel, string $kodeOutlet): int
+    {
+        $now = now();
+
+        if ($lastResetAt && $lastResetAt->diffInDays($now) < 30) {
+            $nextAllowedAt = $lastResetAt->copy()->addDays(30)->translatedFormat('l, d F Y H:i');
+
+            throw ValidationException::withMessages([
+                'reset' => sprintf(
+                    '%s untuk outlet %s hanya dapat dilakukan setiap 30 hari. Coba lagi setelah %s.',
+                    $actionLabel,
+                    $kodeOutlet,
+                    $nextAllowedAt
+                ),
+            ]);
+        }
+
+        if ($lastResetAt && $lastResetAt->year !== $now->year) {
+            $resetCountYearly = 0;
+        }
+
+        if ($resetCountYearly >= 4) {
+            $nextWindow = $now->copy()->startOfYear()->addYear()->toDateString();
+
+            throw ValidationException::withMessages([
+                'reset' => sprintf(
+                    '%s untuk outlet %s sudah mencapai batas 4 kali di tahun %s. Coba lagi setelah %s.',
+                    $actionLabel,
+                    $kodeOutlet,
+                    $now->year,
+                    $nextWindow
+                ),
+            ]);
+        }
+
+        return $resetCountYearly;
     }
 
     public static function getEloquentQuery(): Builder

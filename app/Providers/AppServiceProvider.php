@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
+use App\Models\Outlet;
 use App\Models\Permission;
 use App\Models\PlanVisit;
 use App\Models\Region;
@@ -13,6 +14,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Visit;
 use App\Observers\OrganizationalObserver;
+use App\Observers\OutletObserver;
 use App\Observers\PlanVisitObserver;
 use App\Observers\RegisterObserver;
 use App\Observers\UserObserver;
@@ -125,6 +127,7 @@ class AppServiceProvider extends ServiceProvider
         Visit::observe(VisitObserver::class);
         PlanVisit::observe(PlanVisitObserver::class);
         Register::observe(RegisterObserver::class);
+        Outlet::observe(OutletObserver::class);
     }
 
     /**

@@ -13,8 +13,6 @@ class OutletExporter extends BaseExporter
 
     public static function getColumns(): array
     {
-        $baseUrl = 'http://grosir.mediaselularindonesia.com/storage/';
-
         return [
             ExportColumn::make('badanusaha.name')->label('Badan Usaha'),
             ExportColumn::make('divisi.name')->label('Divisi'),
@@ -36,34 +34,22 @@ class OutletExporter extends BaseExporter
                 })
                 ->label('Tanggal Registrasi'),
             ExportColumn::make('poto_shop_sign')
-                ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl.$state : '-';
-                })
+                ->formatStateUsing(fn ($state) => static::storageUrl($state))
                 ->label('Foto Shop Sign'),
             ExportColumn::make('poto_depan')
-                ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl.$state : '-';
-                })
+                ->formatStateUsing(fn ($state) => static::storageUrl($state))
                 ->label('Foto Depan'),
             ExportColumn::make('poto_kiri')
-                ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl.$state : '-';
-                })
+                ->formatStateUsing(fn ($state) => static::storageUrl($state))
                 ->label('Foto Kiri'),
             ExportColumn::make('poto_kanan')
-                ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl.$state : '-';
-                })
+                ->formatStateUsing(fn ($state) => static::storageUrl($state))
                 ->label('Foto Kanan'),
             ExportColumn::make('poto_ktp')
-                ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl.$state : '-';
-                })
+                ->formatStateUsing(fn ($state) => static::storageUrl($state))
                 ->label('Foto KTP'),
             ExportColumn::make('video')
-                ->formatStateUsing(function ($state) use ($baseUrl) {
-                    return $state ? $baseUrl.$state : '-';
-                })
+                ->formatStateUsing(fn ($state) => static::storageUrl($state))
                 ->label('Video'),
             ExportColumn::make('updated_at')
                 ->formatStateUsing(function ($state) {

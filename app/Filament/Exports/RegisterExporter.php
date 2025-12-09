@@ -12,8 +12,6 @@ class RegisterExporter extends BaseExporter
 
     public static function getColumns(): array
     {
-        $storageBase = 'https://grosir.mediaselularindonesia.com/storage/';
-
         return [
             ExportColumn::make('kode_outlet')->label('Kode Outlet')->default('-'),
             ExportColumn::make('nama_outlet')->label('Nama Outlet')->default('-'),
@@ -27,12 +25,12 @@ class RegisterExporter extends BaseExporter
             ExportColumn::make('latlong')->label('Latlong')->default('-'),
             ExportColumn::make('limit')->label('Limit')->default('-'),
             ExportColumn::make('status')->label('Status')->default('-'),
-            ExportColumn::make('poto_shop_sign')->label('Foto Shop Sign')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
-            ExportColumn::make('poto_depan')->label('Foto Depan')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
-            ExportColumn::make('poto_kiri')->label('Foto Kiri')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
-            ExportColumn::make('poto_kanan')->label('Foto Kanan')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
-            ExportColumn::make('poto_ktp')->label('Foto KTP')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
-            ExportColumn::make('video')->label('Video')->formatStateUsing(fn ($s) => $s ? $storageBase.$s : '-'),
+            ExportColumn::make('poto_shop_sign')->label('Foto Shop Sign')->formatStateUsing(fn ($s) => static::storageUrl($s)),
+            ExportColumn::make('poto_depan')->label('Foto Depan')->formatStateUsing(fn ($s) => static::storageUrl($s)),
+            ExportColumn::make('poto_kiri')->label('Foto Kiri')->formatStateUsing(fn ($s) => static::storageUrl($s)),
+            ExportColumn::make('poto_kanan')->label('Foto Kanan')->formatStateUsing(fn ($s) => static::storageUrl($s)),
+            ExportColumn::make('poto_ktp')->label('Foto KTP')->formatStateUsing(fn ($s) => static::storageUrl($s)),
+            ExportColumn::make('video')->label('Video')->formatStateUsing(fn ($s) => static::storageUrl($s)),
             ExportColumn::make('created_at')->label('Dibuat pada')->formatStateUsing(fn ($s) => static::formatDateTimeValue($s, 'd M Y')),
             ExportColumn::make('updated_at')->label('Diperbarui pada')->formatStateUsing(fn ($s) => static::formatDateTimeValue($s, 'd M Y')),
         ];

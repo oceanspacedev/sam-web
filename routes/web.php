@@ -23,3 +23,6 @@ Route::get('download/app', function () {
         'Content-Disposition' => 'attachment; filename="android.apk"',
     ]);
 })->middleware('throttle:expensive');
+
+Route::view('/privacy-policy', 'privacy-policy');
+

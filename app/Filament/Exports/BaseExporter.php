@@ -19,13 +19,13 @@ use Throwable;
 abstract class BaseExporter extends Exporter
 {
     /**
-     * Sediakan dua opsi (CSV dan XLSX); XLSX tetap akan memakai OpenSpout + styling.
+     * Hanya sediakan XLSX (dengan styling OpenSpout).
      *
      * @return array<int, ExportFormat>
      */
     public function getFormats(): array
     {
-        return [ExportFormat::Csv, ExportFormat::Xlsx];
+        return [ExportFormat::Xlsx];
     }
 
     public function getXlsxCellStyle(): ?Style
@@ -101,5 +101,16 @@ abstract class BaseExporter extends Exporter
         } catch (Throwable) {
             return $fallback;
         }
+    }
+
+    protected static function storageUrl(null|string $path, string $fallback = '-'): string
+    {
+        if ($path === null || $path === '') {
+            return $fallback;
+        }
+
+        $baseUrl = rtrim(config('app.url'), '/').'/storage/';
+
+        return $baseUrl.ltrim($path, '/');
     }
 }

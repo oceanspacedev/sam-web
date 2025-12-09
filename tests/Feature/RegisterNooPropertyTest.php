@@ -21,7 +21,7 @@ uses(SeedsMasterData::class);
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -32,14 +32,14 @@ beforeEach(function () {
 function generateValidNooData(array $hierarchy, bool $withPhotos = true): array
 {
     $data = [
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik' => fake()->name(),
-        'nomer_pemilik' => '08' . fake()->numerify('##########'),
-        'nomer_perwakilan' => '08' . fake()->numerify('##########'),
+        'nomer_pemilik' => '08'.fake()->numerify('##########'),
+        'nomer_perwakilan' => '08'.fake()->numerify('##########'),
         'ktpnpwp' => fake()->numerify('################'), // Required for NOO
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => fake()->numberBetween(0, 99),
         'vivo' => fake()->numberBetween(0, 99),
         'samsung' => fake()->numberBetween(0, 99),
@@ -72,14 +72,14 @@ function createNooAuthenticatedUserWithHierarchy(): array
 {
     // Create unique organizational hierarchy for each call
     $suffix = uniqid();
-    
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     $role = \App\Models\Role::create([
-        'name' => 'DM-' . $suffix, 
+        'name' => 'DM-'.$suffix,
         'can_access_web' => true,
         'organizational_scope_level' => 'cluster',
     ]);
@@ -151,7 +151,6 @@ test('Property 6: NOO Creation Invariant - valid NOO submission creates register
     }
 });
 
-
 /**
  * **Feature: register-workflow, Property 7: NOO KTP Validation**
  *
@@ -169,7 +168,7 @@ test('Property 7: NOO KTP Validation - missing KTP information causes rejection'
         $hierarchy = $setup['hierarchy'];
 
         $nooData = generateValidNooData($hierarchy, withPhotos: true);
-        
+
         // Remove KTP number (ktpnpwp) - this is required for NOO
         unset($nooData['ktpnpwp']);
 

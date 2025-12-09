@@ -22,7 +22,7 @@ uses(SeedsMasterData::class);
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -33,14 +33,14 @@ beforeEach(function () {
 function createUserWithHierarchy(): array
 {
     $suffix = uniqid();
-    
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     $role = \App\Models\Role::create([
-        'name' => 'DM-' . $suffix, 
+        'name' => 'DM-'.$suffix,
         'can_access_web' => true,
         'organizational_scope_level' => 'cluster',
     ]);
@@ -64,13 +64,13 @@ function createUserWithHierarchy(): array
 function createOutletInScope(array $hierarchy): Outlet
 {
     return Outlet::create([
-        'kode_outlet' => 'OUT-' . fake()->unique()->numerify('######'),
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'kode_outlet' => 'OUT-'.fake()->unique()->numerify('######'),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'badanusaha_id' => $hierarchy['bu']->id,
         'divisi_id' => $hierarchy['div']->id,
         'region_id' => $hierarchy['reg']->id,
@@ -86,13 +86,11 @@ function generateValidCheckinData(int $outletId): array
 {
     return [
         'outlet_id' => $outletId,
-        'latlong_in' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'latlong_in' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'tipe_visit' => fake()->randomElement(['PLANNED', 'EXTRACALL']),
         'picture_visit' => UploadedFile::fake()->image('checkin.jpg', 800, 600),
     ];
 }
-
-
 
 /**
  * **Feature: register-workflow, Property 17: Checkin Creates Visit**
@@ -166,7 +164,7 @@ test('Property 18: Checkin Outlet Validation - checkin at non-existent outlet is
 
         $checkinData = [
             'outlet_id' => $nonExistentOutletId,
-            'latlong_in' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+            'latlong_in' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
             'tipe_visit' => fake()->randomElement(['PLANNED', 'EXTRACALL']),
             'picture_visit' => UploadedFile::fake()->image('checkin.jpg', 800, 600),
         ];
@@ -194,20 +192,20 @@ test('Property 18b: Checkin Outlet Validation - checkin at outlet outside scope 
 
         // Create a different organizational hierarchy (outside user's scope)
         $otherSuffix = uniqid('other');
-        $otherBu = \App\Models\BadanUsaha::create(['name' => 'OTHER-BU-' . $otherSuffix]);
-        $otherDiv = \App\Models\Division::create(['name' => 'OTHER-DIV-' . $otherSuffix, 'badanusaha_id' => $otherBu->id]);
-        $otherReg = \App\Models\Region::create(['name' => 'OTHER-REG-' . $otherSuffix, 'badanusaha_id' => $otherBu->id, 'divisi_id' => $otherDiv->id]);
-        $otherClus = \App\Models\Cluster::create(['name' => 'OTHER-CLUS-' . $otherSuffix, 'badanusaha_id' => $otherBu->id, 'divisi_id' => $otherDiv->id, 'region_id' => $otherReg->id]);
+        $otherBu = \App\Models\BadanUsaha::create(['name' => 'OTHER-BU-'.$otherSuffix]);
+        $otherDiv = \App\Models\Division::create(['name' => 'OTHER-DIV-'.$otherSuffix, 'badanusaha_id' => $otherBu->id]);
+        $otherReg = \App\Models\Region::create(['name' => 'OTHER-REG-'.$otherSuffix, 'badanusaha_id' => $otherBu->id, 'divisi_id' => $otherDiv->id]);
+        $otherClus = \App\Models\Cluster::create(['name' => 'OTHER-CLUS-'.$otherSuffix, 'badanusaha_id' => $otherBu->id, 'divisi_id' => $otherDiv->id, 'region_id' => $otherReg->id]);
 
         // Create outlet in different scope
         $outletOutsideScope = Outlet::create([
-            'kode_outlet' => 'OUT-OTHER-' . fake()->unique()->numerify('######'),
+            'kode_outlet' => 'OUT-OTHER-'.fake()->unique()->numerify('######'),
             'nama_outlet' => fake()->company(),
             'alamat_outlet' => fake()->address(),
             'nama_pemilik_outlet' => fake()->name(),
-            'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+            'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
             'distric' => 'D01',
-            'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+            'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
             'badanusaha_id' => $otherBu->id,
             'divisi_id' => $otherDiv->id,
             'region_id' => $otherReg->id,
@@ -307,13 +305,13 @@ test('Property 19b: Concurrent Visit Prevention - cannot checkin at same outlet 
 
         // Checkout from first visit
         $checkoutData = [
-            'latlong_out' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+            'latlong_out' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
             'laporan_visit' => fake()->sentence(10),
             'picture_visit' => UploadedFile::fake()->image('checkout.jpg', 800, 600),
             'transaksi' => fake()->randomElement(['YES', 'NO']),
         ];
         $this->actingAs($user, 'sanctum')
-            ->postJson('/api/visit/' . $visit->id . '/checkout', $checkoutData)
+            ->postJson('/api/visit/'.$visit->id.'/checkout', $checkoutData)
             ->assertStatus(200);
 
         $countBefore = Visit::count();

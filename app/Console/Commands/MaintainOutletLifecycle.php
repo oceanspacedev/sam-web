@@ -15,7 +15,7 @@ class MaintainOutletLifecycle extends Command
 {
     /**
      * The name and signature of the console command.
-     * 
+     *
      * Lifecycle: MAINTAIN → UNMAINTAIN → UNPRODUCTIVE → ARCHIVE
      */
     protected $signature = 'outlets:maintain-lifecycle 
@@ -53,16 +53,19 @@ class MaintainOutletLifecycle extends Command
         // Validate logical order: days < unproductive-days < archive-days
         if ($days >= $unproductiveDays) {
             $this->error('--days must be less than --unproductive-days');
+
             return self::FAILURE;
         }
         if ($unproductiveDays >= $archiveDays) {
             $this->error('--unproductive-days must be less than --archive-days');
+
             return self::FAILURE;
         }
 
         // Validate archive table exists
-        if (!Schema::hasTable('outlets_archives')) {
+        if (! Schema::hasTable('outlets_archives')) {
             $this->error('Archive table "outlets_archives" does not exist.');
+
             return self::FAILURE;
         }
 
@@ -100,7 +103,7 @@ class MaintainOutletLifecycle extends Command
         // ==============================================
         $isMonday = now()->dayOfWeek === Carbon::MONDAY;
         if ($isMonday || $dryRun) {
-            $this->printPhaseHeader('4', 'Stage 3: UNPRODUCTIVE → ARCHIVE' . ($dryRun && !$isMonday ? ' (simulated)' : ''));
+            $this->printPhaseHeader('4', 'Stage 3: UNPRODUCTIVE → ARCHIVE'.($dryRun && ! $isMonday ? ' (simulated)' : ''));
             $this->processArchiving($archiveDays, $dryRun);
         } else {
             $this->newLine();
@@ -122,7 +125,7 @@ class MaintainOutletLifecycle extends Command
      */
     private function processReactivation(int $days, bool $dryRun): void
     {
-        $this->info('  Checking UNMAINTAIN/UNPRODUCTIVE outlets with visits in last ' . $days . ' days...');
+        $this->info('  Checking UNMAINTAIN/UNPRODUCTIVE outlets with visits in last '.$days.' days...');
 
         $cutoffDate = now()->subDays($days);
 
@@ -143,6 +146,7 @@ class MaintainOutletLifecycle extends Command
         if ($dryRun) {
             $this->showDryRunSample($query, 'reactivate to MAINTAIN');
             $this->counters['reactivated'] = $count;
+
             return;
         }
 
@@ -154,7 +158,7 @@ class MaintainOutletLifecycle extends Command
                 try {
                     DB::transaction(function () use ($outlet, $cutoffDate) {
                         $locked = Outlet::where('id', $outlet->id)->lockForUpdate()->first();
-                        if (!$locked || !in_array($locked->status_outlet, ['UNMAINTAIN', 'UNPRODUCTIVE'])) {
+                        if (! $locked || ! in_array($locked->status_outlet, ['UNMAINTAIN', 'UNPRODUCTIVE'])) {
                             return;
                         }
 
@@ -184,7 +188,7 @@ class MaintainOutletLifecycle extends Command
      */
     private function processMaintainToUnmaintain(int $days, bool $dryRun): void
     {
-        $this->info('  Checking MAINTAIN outlets inactive for ' . $days . '+ days...');
+        $this->info('  Checking MAINTAIN outlets inactive for '.$days.'+ days...');
 
         $cutoffDate = now()->subDays($days);
 
@@ -207,6 +211,7 @@ class MaintainOutletLifecycle extends Command
         if ($dryRun) {
             $this->showDryRunSample($query, 'set to UNMAINTAIN');
             $this->counters['maintain_to_unmaintain'] = $count;
+
             return;
         }
 
@@ -218,7 +223,7 @@ class MaintainOutletLifecycle extends Command
                 try {
                     DB::transaction(function () use ($outlet, $cutoffDate) {
                         $locked = Outlet::where('id', $outlet->id)->lockForUpdate()->first();
-                        if (!$locked || $locked->status_outlet !== 'MAINTAIN') {
+                        if (! $locked || $locked->status_outlet !== 'MAINTAIN') {
                             return;
                         }
 
@@ -227,7 +232,7 @@ class MaintainOutletLifecycle extends Command
                             ->where('tanggal_visit', '>=', $cutoffDate)
                             ->exists();
 
-                        if (!$hasRecentVisit) {
+                        if (! $hasRecentVisit) {
                             $locked->update(['status_outlet' => 'UNMAINTAIN']);
                             $this->counters['maintain_to_unmaintain']++;
                         }
@@ -248,7 +253,7 @@ class MaintainOutletLifecycle extends Command
      */
     private function processUnmaintainToUnproductive(int $unproductiveDays, bool $dryRun): void
     {
-        $this->info('  Checking UNMAINTAIN outlets inactive for ' . $unproductiveDays . '+ days...');
+        $this->info('  Checking UNMAINTAIN outlets inactive for '.$unproductiveDays.'+ days...');
 
         $cutoffDate = now()->subDays($unproductiveDays);
 
@@ -271,6 +276,7 @@ class MaintainOutletLifecycle extends Command
         if ($dryRun) {
             $this->showDryRunSample($query, 'set to UNPRODUCTIVE');
             $this->counters['unmaintain_to_unproductive'] = $count;
+
             return;
         }
 
@@ -282,7 +288,7 @@ class MaintainOutletLifecycle extends Command
                 try {
                     DB::transaction(function () use ($outlet, $cutoffDate) {
                         $locked = Outlet::where('id', $outlet->id)->lockForUpdate()->first();
-                        if (!$locked || $locked->status_outlet !== 'UNMAINTAIN') {
+                        if (! $locked || $locked->status_outlet !== 'UNMAINTAIN') {
                             return;
                         }
 
@@ -290,7 +296,7 @@ class MaintainOutletLifecycle extends Command
                             ->where('tanggal_visit', '>=', $cutoffDate)
                             ->exists();
 
-                        if (!$hasRecentVisit) {
+                        if (! $hasRecentVisit) {
                             $locked->update(['status_outlet' => 'UNPRODUCTIVE']);
                             $this->counters['unmaintain_to_unproductive']++;
                         }
@@ -311,7 +317,7 @@ class MaintainOutletLifecycle extends Command
      */
     private function processArchiving(int $archiveDays, bool $dryRun): void
     {
-        $this->info('  Checking UNPRODUCTIVE outlets inactive for ' . $archiveDays . '+ days...');
+        $this->info('  Checking UNPRODUCTIVE outlets inactive for '.$archiveDays.'+ days...');
 
         $cutoffDate = now()->subDays($archiveDays);
 
@@ -334,6 +340,7 @@ class MaintainOutletLifecycle extends Command
         if ($dryRun) {
             $this->showDryRunSample($query, 'archive');
             $this->counters['archived'] = $count;
+
             return;
         }
 
@@ -362,12 +369,12 @@ class MaintainOutletLifecycle extends Command
     private function archiveOutlet(Outlet $outlet, Carbon $cutoffDate): void
     {
         $mediaFields = ['poto_shop_sign', 'poto_depan', 'poto_kiri', 'poto_kanan', 'poto_ktp', 'video'];
-        $mediaPaths = array_filter(array_map(fn($f) => $outlet->$f, $mediaFields));
+        $mediaPaths = array_filter(array_map(fn ($f) => $outlet->$f, $mediaFields));
 
         DB::transaction(function () use ($outlet, $cutoffDate) {
             $locked = Outlet::where('id', $outlet->id)->lockForUpdate()->first();
 
-            if (!$locked || $locked->status_outlet !== 'UNPRODUCTIVE') {
+            if (! $locked || $locked->status_outlet !== 'UNPRODUCTIVE') {
                 return;
             }
 
@@ -387,6 +394,7 @@ class MaintainOutletLifecycle extends Command
 
             if ($alreadyArchived) {
                 $locked->forceDelete();
+
                 return;
             }
 
@@ -464,7 +472,7 @@ class MaintainOutletLifecycle extends Command
             $this->line("    [DRY RUN] Would {$action}: {$outlet->kode_outlet}");
         });
         if ($count > 5) {
-            $this->comment("    ... and " . ($count - 5) . " more.");
+            $this->comment('    ... and '.($count - 5).' more.');
         }
     }
 
@@ -509,9 +517,9 @@ class MaintainOutletLifecycle extends Command
     private function printPhaseHeader(string $phase, string $title): void
     {
         $this->newLine();
-        $this->info("┌─────────────────────────────────────────────────────────────┐");
+        $this->info('┌─────────────────────────────────────────────────────────────┐');
         $this->info("│  Phase {$phase}: {$title}");
-        $this->info("└─────────────────────────────────────────────────────────────┘");
+        $this->info('└─────────────────────────────────────────────────────────────┘');
     }
 
     /**

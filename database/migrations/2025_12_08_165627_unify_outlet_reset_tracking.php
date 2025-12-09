@@ -62,12 +62,12 @@ return new class extends Migration
         });
 
         // Copy unified data to location fields (best effort restore)
-        DB::statement("
+        DB::statement('
             UPDATE outlets 
             SET last_location_reset_at = last_reset_at,
                 location_reset_count_yearly = reset_count_yearly
             WHERE last_reset_at IS NOT NULL
-        ");
+        ');
 
         Schema::table('outlets', function (Blueprint $table) {
             $table->dropColumn(['last_reset_at', 'reset_count_yearly']);

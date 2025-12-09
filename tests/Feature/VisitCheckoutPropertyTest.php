@@ -22,7 +22,7 @@ uses(SeedsMasterData::class);
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -33,14 +33,14 @@ beforeEach(function () {
 function createCheckoutUserWithHierarchy(): array
 {
     $suffix = uniqid();
-    
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     $role = \App\Models\Role::create([
-        'name' => 'DM-' . $suffix, 
+        'name' => 'DM-'.$suffix,
         'can_access_web' => true,
         'organizational_scope_level' => 'cluster',
     ]);
@@ -58,20 +58,19 @@ function createCheckoutUserWithHierarchy(): array
     return ['user' => $user, 'hierarchy' => ['bu' => $bu, 'div' => $div, 'reg' => $reg, 'clus' => $clus, 'role' => $role]];
 }
 
-
 /**
  * Helper to create an outlet within the user's organizational scope
  */
 function createCheckoutOutletInScope(array $hierarchy): Outlet
 {
     return Outlet::create([
-        'kode_outlet' => 'OUT-' . fake()->unique()->numerify('######'),
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'kode_outlet' => 'OUT-'.fake()->unique()->numerify('######'),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'badanusaha_id' => $hierarchy['bu']->id,
         'divisi_id' => $hierarchy['div']->id,
         'region_id' => $hierarchy['reg']->id,
@@ -90,9 +89,9 @@ function createActiveVisit(User $user, Outlet $outlet): Visit
         'user_id' => $user->id,
         'outlet_id' => $outlet->id,
         'tipe_visit' => fake()->randomElement(['PLANNED', 'EXTRACALL']),
-        'latlong_in' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'latlong_in' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'check_in_time' => now()->subMinutes(fake()->numberBetween(5, 60)),
-        'picture_visit_in' => 'tmp/test-checkin-' . uniqid() . '.jpg',
+        'picture_visit_in' => 'tmp/test-checkin-'.uniqid().'.jpg',
     ]);
 }
 
@@ -102,7 +101,7 @@ function createActiveVisit(User $user, Outlet $outlet): Visit
 function generateValidCheckoutData(): array
 {
     return [
-        'latlong_out' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'latlong_out' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'laporan_visit' => fake()->sentence(10),
         'picture_visit' => UploadedFile::fake()->image('checkout.jpg', 800, 600),
         'transaksi' => fake()->randomElement(['YES', 'NO']),
@@ -139,7 +138,7 @@ test('Property 20: Checkout State Transition - valid checkout updates visit with
 
         // Act: Perform checkout
         $response = $this->actingAs($user, 'sanctum')
-            ->postJson('/api/visit/' . $visit->id . '/checkout', $checkoutData);
+            ->postJson('/api/visit/'.$visit->id.'/checkout', $checkoutData);
 
         // Assert: Response is successful
         $response->assertStatus(200);
@@ -164,7 +163,6 @@ test('Property 20: Checkout State Transition - valid checkout updates visit with
     }
 });
 
-
 /**
  * **Feature: register-workflow, Property 21: Checkout Ownership Validation**
  *
@@ -183,7 +181,7 @@ test('Property 21: Checkout Ownership Validation - cannot checkout from another 
 
         // Create second user in same hierarchy
         $role2 = \App\Models\Role::create([
-            'name' => 'DM2-' . uniqid(), 
+            'name' => 'DM2-'.uniqid(),
             'can_access_web' => true,
             'organizational_scope_level' => 'cluster',
         ]);
@@ -206,7 +204,7 @@ test('Property 21: Checkout Ownership Validation - cannot checkout from another 
 
         // Act: user2 tries to checkout from user1's visit
         $response = $this->actingAs($user2, 'sanctum')
-            ->postJson('/api/visit/' . $visit->id . '/checkout', $checkoutData);
+            ->postJson('/api/visit/'.$visit->id.'/checkout', $checkoutData);
 
         // Assert: Request is rejected (404 - visit not found for this user)
         $response->assertStatus(404);
@@ -245,13 +243,13 @@ test('Property 22: Double Checkout Prevention - cannot checkout from already com
             'user_id' => $user->id,
             'outlet_id' => $outlet->id,
             'tipe_visit' => fake()->randomElement(['PLANNED', 'EXTRACALL']),
-            'latlong_in' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+            'latlong_in' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
             'check_in_time' => now()->subMinutes(60),
-            'picture_visit_in' => 'tmp/test-checkin-' . uniqid() . '.jpg',
+            'picture_visit_in' => 'tmp/test-checkin-'.uniqid().'.jpg',
             // Already checked out
-            'latlong_out' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+            'latlong_out' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
             'check_out_time' => now()->subMinutes(30),
-            'picture_visit_out' => 'tmp/test-checkout-' . uniqid() . '.jpg',
+            'picture_visit_out' => 'tmp/test-checkout-'.uniqid().'.jpg',
             'laporan_visit' => 'Original report',
             'transaksi' => 'YES',
             'durasi_visit' => 30,
@@ -267,7 +265,7 @@ test('Property 22: Double Checkout Prevention - cannot checkout from already com
 
         // Act: Try to checkout again
         $response = $this->actingAs($user, 'sanctum')
-            ->postJson('/api/visit/' . $completedVisit->id . '/checkout', $checkoutData);
+            ->postJson('/api/visit/'.$completedVisit->id.'/checkout', $checkoutData);
 
         // Assert: Request is rejected (404 - visit not found or already checked out)
         $response->assertStatus(404);

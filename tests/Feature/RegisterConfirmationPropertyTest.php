@@ -20,7 +20,7 @@ uses(SeedsMasterData::class);
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -31,15 +31,15 @@ beforeEach(function () {
 function createConfirmUserWithHierarchy(bool $withConfirmPermission = true): array
 {
     $suffix = uniqid();
-    
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     // Create role with 'web' guard (default for Spatie Permission)
     $role = \App\Models\Role::create([
-        'name' => 'TL-' . $suffix, 
+        'name' => 'TL-'.$suffix,
         'guard_name' => 'web',
         'can_access_web' => true,
         'organizational_scope_level' => 'cluster',
@@ -76,13 +76,13 @@ function createConfirmUserWithHierarchy(bool $withConfirmPermission = true): arr
 function createPendingNooRegister(array $hierarchy, int $creatorId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -111,10 +111,8 @@ function createPendingNooRegister(array $hierarchy, int $creatorId): Register
  */
 function generateUniqueOutletCode(): string
 {
-    return 'OUT-' . strtoupper(fake()->unique()->bothify('??###'));
+    return 'OUT-'.strtoupper(fake()->unique()->bothify('??###'));
 }
-
-
 
 /**
  * **Feature: register-workflow, Property 8: Confirmation State Transition**
@@ -135,7 +133,7 @@ test('Property 8: Confirmation State Transition - confirming pending NOO sets CO
 
         // Create a pending NOO register
         $register = createPendingNooRegister($hierarchy, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('PENDING')
             ->and($register->confirmed_by_id)->toBeNull()
@@ -147,7 +145,7 @@ test('Property 8: Confirmation State Transition - confirming pending NOO sets CO
 
         // Act: Confirm the NOO
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/confirm', [
+            ->patchJson('/api/registers/'.$register->id.'/confirm', [
                 'id' => $register->id,
                 'status' => 'CONFIRMED',
                 'kode_outlet' => $kodeOutlet,
@@ -192,7 +190,7 @@ test('Property 9: Confirmation Authorization - user without confirm permission c
 
         // Create a pending NOO register
         $register = createPendingNooRegister($hierarchy, $user->id);
-        
+
         $originalStatus = $register->status;
         $originalConfirmedById = $register->confirmed_by_id;
         $originalConfirmedAt = $register->confirmed_at;
@@ -203,7 +201,7 @@ test('Property 9: Confirmation Authorization - user without confirm permission c
 
         // Act: Try to confirm the NOO without permission
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/confirm', [
+            ->patchJson('/api/registers/'.$register->id.'/confirm', [
                 'id' => $register->id,
                 'status' => 'CONFIRMED',
                 'kode_outlet' => $kodeOutlet,

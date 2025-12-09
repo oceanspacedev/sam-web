@@ -576,8 +576,8 @@ class RegisterResource extends Resource
                                             ? route('filament.admin.resources.outlets.view', $record->outlet->id)
                                             : null)
                                         ->color('primary')
-                                        ->visible(fn ($record) => $record->outlet 
-                                            && $record->outlet?->deleted_at === null 
+                                        ->visible(fn ($record) => $record->outlet
+                                            && $record->outlet?->deleted_at === null
                                             && Gate::allows('ViewAny:Outlet'))
                                         ->placeholder('-'),
                                 ])

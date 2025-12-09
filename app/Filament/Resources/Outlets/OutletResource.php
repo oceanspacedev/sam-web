@@ -13,6 +13,7 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Services\FilenameGeneratorService;
 use App\Support\StorageDisk;
+use Carbon\Carbon;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -26,6 +27,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
@@ -45,8 +47,6 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
-use Filament\Notifications\Notification;
-use Carbon\Carbon;
 
 class OutletResource extends Resource
 {
@@ -74,6 +74,7 @@ class OutletResource extends Resource
                                                 // Cek apakah kode_outlet mengandung LEAD
                                                 if (stripos($value, 'LEAD') === 0) {
                                                     $fail('Kode Outlet tidak boleh diawali dengan "LEAD".');
+
                                                     return;
                                                 }
 

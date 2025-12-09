@@ -63,10 +63,10 @@ Schedule::call(function () {
 
     Log::info("LEAD outlets cleanup job completed. Soft deleted {$deletedCount} LEAD outlets (data kotor)");
 })
-->daily()
-->at('02:00')
-->description('Clean up LEAD outlets (data kotor yang perlu dibersihkan)')
-->withoutOverlapping();
+    ->daily()
+    ->at('02:00')
+    ->description('Clean up LEAD outlets (data kotor yang perlu dibersihkan)')
+    ->withoutOverlapping();
 
 // Sync kode_outlet from outlets to registers (fix mismatched kode_outlet)
 Schedule::call(function () {
@@ -94,10 +94,10 @@ Schedule::call(function () {
 
     Log::info("Sync kode_outlet job completed. Updated {$updatedCount} registers to match outlet.kode_outlet");
 })
-->daily()
-->at('03:00')
-->description('Sync kode_outlet from outlets to registers (fix mismatches)')
-->withoutOverlapping();
+    ->daily()
+    ->at('03:00')
+    ->description('Sync kode_outlet from outlets to registers (fix mismatches)')
+    ->withoutOverlapping();
 
 // Auto-delete registers with PENDING status or keterangan NULL/EMPTY/LEAD that haven't been updated for 3 months
 Schedule::call(function () {
@@ -117,7 +117,7 @@ Schedule::call(function () {
 
     Log::info("Auto-delete old registers job completed. Soft deleted {$deletedCount} old registers");
 })
-->daily()
-->at('04:00')
-->description('Auto-delete old registers with PENDING status or keterangan NULL/EMPTY/LEAD')
-->withoutOverlapping();
+    ->daily()
+    ->at('04:00')
+    ->description('Auto-delete old registers with PENDING status or keterangan NULL/EMPTY/LEAD')
+    ->withoutOverlapping();

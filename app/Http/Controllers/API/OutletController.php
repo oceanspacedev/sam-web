@@ -11,6 +11,7 @@ use App\Http\Resources\Outlet\OutletResource;
 use App\Models\Outlet;
 use App\Services\FileUploadService;
 use App\Support\StorageDisk;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,6 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 use Throwable;
 
 class OutletController extends Controller

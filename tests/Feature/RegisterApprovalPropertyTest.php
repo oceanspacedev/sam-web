@@ -21,7 +21,7 @@ uses(SeedsMasterData::class);
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -32,15 +32,15 @@ beforeEach(function () {
 function createApproveUserWithHierarchy(bool $withApprovePermission = true): array
 {
     $suffix = uniqid();
-    
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     // Create role with 'web' guard (default for Spatie Permission)
     $role = \App\Models\Role::create([
-        'name' => 'RM-' . $suffix, 
+        'name' => 'RM-'.$suffix,
         'guard_name' => 'web',
         'can_access_web' => true,
         'organizational_scope_level' => 'region',
@@ -77,13 +77,13 @@ function createApproveUserWithHierarchy(bool $withApprovePermission = true): arr
 function createConfirmedRegister(array $hierarchy, int $creatorId, int $confirmerId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -104,7 +104,7 @@ function createConfirmedRegister(array $hierarchy, int $creatorId, int $confirme
         'cluster_id' => $hierarchy['clus']->id,
         'status' => 'CONFIRMED',
         'keterangan' => null,
-        'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+        'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
         'limit' => fake()->numberBetween(1000000, 100000000),
         'confirmed_by_id' => $confirmerId,
         'confirmed_at' => now()->subHour(),
@@ -117,13 +117,13 @@ function createConfirmedRegister(array $hierarchy, int $creatorId, int $confirme
 function createPendingRegister(array $hierarchy, int $creatorId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -153,13 +153,13 @@ function createPendingRegister(array $hierarchy, int $creatorId): Register
 function createApprovedRegister(array $hierarchy, int $creatorId, int $confirmerId, int $approverId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -180,7 +180,7 @@ function createApprovedRegister(array $hierarchy, int $creatorId, int $confirmer
         'cluster_id' => $hierarchy['clus']->id,
         'status' => 'APPROVED',
         'keterangan' => null,
-        'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+        'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
         'limit' => fake()->numberBetween(1000000, 100000000),
         'confirmed_by_id' => $confirmerId,
         'confirmed_at' => now()->subHours(2),
@@ -188,7 +188,6 @@ function createApprovedRegister(array $hierarchy, int $creatorId, int $confirmer
         'approved_at' => now()->subHour(),
     ]);
 }
-
 
 /**
  * **Feature: register-workflow, Property 10: Approval State Transition**
@@ -208,7 +207,7 @@ test('Property 10: Approval State Transition - approving confirmed NOO sets APPR
 
         // Create a confirmed register
         $register = createConfirmedRegister($hierarchy, $user->id, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('CONFIRMED')
             ->and($register->approved_by_id)->toBeNull()
@@ -216,7 +215,7 @@ test('Property 10: Approval State Transition - approving confirmed NOO sets APPR
 
         // Act: Approve the NOO
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);
@@ -258,14 +257,14 @@ test('Property 11: Approval Creates Outlet - approving NOO creates matching Outl
 
         // Create a confirmed register with unique data
         $register = createConfirmedRegister($hierarchy, $user->id, $user->id);
-        
+
         // Verify no outlet exists for this register yet
         $existingOutlet = Outlet::where('register_id', $register->id)->first();
         expect($existingOutlet)->toBeNull('No outlet should exist before approval');
 
         // Act: Approve the NOO
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);
@@ -275,7 +274,7 @@ test('Property 11: Approval Creates Outlet - approving NOO creates matching Outl
 
         // Assert: Outlet was created with matching data
         $outlet = Outlet::where('register_id', $register->id)->first();
-        
+
         expect($outlet)->not->toBeNull('Outlet should be created after approval')
             ->and($outlet->register_id)->toBe($register->id, 'Outlet register_id should match')
             ->and($outlet->kode_outlet)->toBe($register->kode_outlet, 'Outlet kode_outlet should match')
@@ -313,7 +312,7 @@ test('Property 12: Approval Idempotency - re-approving updates existing Outlet i
 
         // First approval - creates outlet
         $response1 = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);
@@ -328,7 +327,7 @@ test('Property 12: Approval Idempotency - re-approving updates existing Outlet i
 
         // Update register data to verify outlet gets updated
         $register->refresh();
-        $newNamaOutlet = fake()->company() . ' Updated ' . fake()->randomNumber(3);
+        $newNamaOutlet = fake()->company().' Updated '.fake()->randomNumber(3);
         $register->nama_outlet = $newNamaOutlet;
         $register->status = 'CONFIRMED'; // Reset to CONFIRMED to allow re-approval
         $register->approved_by_id = null;
@@ -337,7 +336,7 @@ test('Property 12: Approval Idempotency - re-approving updates existing Outlet i
 
         // Second approval - should update existing outlet
         $response2 = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);

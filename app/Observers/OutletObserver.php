@@ -4,7 +4,6 @@ namespace App\Observers;
 
 use App\Models\Outlet;
 use App\Models\Register;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class OutletObserver
@@ -67,9 +66,6 @@ class OutletObserver
 
     /**
      * Sync kode_outlet to related registers.
-     *
-     * @param Outlet $outlet
-     * @return void
      */
     private function syncKodeOutletToRegisters(Outlet $outlet): void
     {
@@ -79,12 +75,12 @@ class OutletObserver
             // Prioritas 2: Register dengan kode_outlet lama
 
             $updated = Register::where(function ($query) use ($outlet) {
-                    // 1. Register dengan ID yang sama dengan outlet.register_id
-                    if ($outlet->register_id) {
-                        $query->where('id', $outlet->register_id)
-                            ->where('status', 'APPROVED');
-                    }
-                })
+                // 1. Register dengan ID yang sama dengan outlet.register_id
+                if ($outlet->register_id) {
+                    $query->where('id', $outlet->register_id)
+                        ->where('status', 'APPROVED');
+                }
+            })
                 ->orWhere(function ($query) use ($outlet) {
                     // 2. Register dengan kode_outlet lama yang sama
                     if ($outlet->getOriginal('kode_outlet')) {

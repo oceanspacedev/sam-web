@@ -4,4 +4,5 @@ return [
     App\Providers\AppServiceProvider::class,
     App\Providers\HorizonServiceProvider::class,
     App\Providers\Filament\AdminPanelProvider::class,
+    App\Providers\ActivityLogServiceProvider::class,
 ];

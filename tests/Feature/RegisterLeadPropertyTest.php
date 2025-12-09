@@ -21,7 +21,7 @@ uses(SeedsMasterData::class);
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -32,13 +32,13 @@ beforeEach(function () {
 function generateValidLeadData(array $hierarchy, bool $withPhotos = true): array
 {
     $data = [
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik' => fake()->name(),
-        'nomer_pemilik' => '08' . fake()->numerify('##########'),
-        'nomer_perwakilan' => '08' . fake()->numerify('##########'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'nomer_pemilik' => '08'.fake()->numerify('##########'),
+        'nomer_perwakilan' => '08'.fake()->numerify('##########'),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => fake()->numberBetween(0, 99),
         'vivo' => fake()->numberBetween(0, 99),
         'samsung' => fake()->numberBetween(0, 99),
@@ -71,14 +71,14 @@ function createAuthenticatedUserWithHierarchy(): array
 {
     // Create unique organizational hierarchy for each call
     $suffix = uniqid();
-    
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     $role = \App\Models\Role::create([
-        'name' => 'DM-' . $suffix, 
+        'name' => 'DM-'.$suffix,
         'can_access_web' => true,
         'organizational_scope_level' => 'cluster',
     ]);
@@ -142,7 +142,6 @@ test('Property 1: Lead Creation Invariant - valid lead submission creates regist
             ->and($register->latlong)->toBe($leadData['latlong']);
     }
 });
-
 
 /**
  * **Feature: register-workflow, Property 2: Lead Validation Rejection**
@@ -248,7 +247,7 @@ test('Property 4: Lead Upgrade State Transition - upgrading lead clears LEAD sta
 
         // Act: Upgrade lead with KTP
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $lead->id . '/upgrade', [
+            ->patchJson('/api/registers/'.$lead->id.'/upgrade', [
                 'id' => $lead->id,
                 'noktp' => $ktpNumber,
                 'photo' => UploadedFile::fake()->image('ktp.jpg', 800, 600),
@@ -296,13 +295,13 @@ test('Property 5: Non-Lead Upgrade Rejection - cannot upgrade non-lead registers
 
         // Create a register in non-lead state
         $register = Register::create([
-            'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+            'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
             'alamat_outlet' => fake()->address(),
             'nama_pemilik_outlet' => fake()->name(),
-            'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+            'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
             'ktp_outlet' => fake()->numerify('################'),
-            'distric' => 'D' . fake()->numerify('##'),
-            'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+            'distric' => 'D'.fake()->numerify('##'),
+            'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
             'oppo' => '0',
             'vivo' => '0',
             'samsung' => '0',
@@ -330,7 +329,7 @@ test('Property 5: Non-Lead Upgrade Rejection - cannot upgrade non-lead registers
 
         // Act: Try to upgrade non-lead register
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/upgrade', [
+            ->patchJson('/api/registers/'.$register->id.'/upgrade', [
                 'id' => $register->id,
                 'noktp' => fake()->numerify('################'),
                 'photo' => UploadedFile::fake()->image('ktp.jpg', 800, 600),

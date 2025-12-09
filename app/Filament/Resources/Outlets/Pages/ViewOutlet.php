@@ -42,7 +42,7 @@ class ViewOutlet extends ViewRecord
                             ->success()
                             ->send();
                     } catch (\Illuminate\Validation\ValidationException $e) {
-                         \Filament\Notifications\Notification::make()
+                        \Filament\Notifications\Notification::make()
                             ->title('Gagal reset lokasi')
                             ->body($e->getMessage())
                             ->danger()
@@ -55,7 +55,7 @@ class ViewOutlet extends ViewRecord
                 ->requiresConfirmation()
                 ->color('danger')
                 ->action(function () {
-                     $record = $this->getRecord();
+                    $record = $this->getRecord();
                     try {
                         $normalizedCount = OutletResource::enforceResetLimits(
                             $record->last_reset_at,
@@ -96,13 +96,13 @@ class ViewOutlet extends ViewRecord
                             'reset_count_yearly' => $normalizedCount + 1,
                         ]);
 
-                         \Filament\Notifications\Notification::make()
+                        \Filament\Notifications\Notification::make()
                             ->title('Berhasil')
                             ->body('Data outlet berhasil direset.')
                             ->success()
                             ->send();
                     } catch (\Illuminate\Validation\ValidationException $e) {
-                         \Filament\Notifications\Notification::make()
+                        \Filament\Notifications\Notification::make()
                             ->title('Gagal reset data')
                             ->body($e->getMessage())
                             ->danger()

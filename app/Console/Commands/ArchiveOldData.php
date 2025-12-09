@@ -61,12 +61,14 @@ class ArchiveOldData extends Command
         // Validate days
         if ($days < 30) {
             $this->error('Days must be at least 30 to prevent accidental data loss.');
+
             return Command::FAILURE;
         }
 
         // Validate chunk size
         if ($chunkSize < 100 || $chunkSize > 10000) {
             $this->error('Chunk size must be between 100 and 10000.');
+
             return Command::FAILURE;
         }
 
@@ -77,7 +79,7 @@ class ArchiveOldData extends Command
         $this->info('===========================================');
         $this->info("Cutoff date: {$cutoffDate->toDateTimeString()}");
         $this->info("Chunk size: {$chunkSize}");
-        $this->info('Mode: ' . ($dryRun ? 'DRY RUN (no changes)' : 'LIVE'));
+        $this->info('Mode: '.($dryRun ? 'DRY RUN (no changes)' : 'LIVE'));
         $this->newLine();
 
         Log::channel('daily')->info('Archive process started', [
@@ -138,20 +140,23 @@ class ArchiveOldData extends Command
         $this->info("Processing: {$source} → {$target}");
 
         // Validate source table exists
-        if (!Schema::hasTable($source)) {
+        if (! Schema::hasTable($source)) {
             $this->warn("  Source table '{$source}' does not exist. Skipping.");
+
             return 0;
         }
 
         // Validate target table exists
-        if (!Schema::hasTable($target)) {
+        if (! Schema::hasTable($target)) {
             $this->warn("  Target table '{$target}' does not exist. Skipping.");
+
             return 0;
         }
 
         // Validate date column exists
-        if (!Schema::hasColumn($source, $dateColumn)) {
+        if (! Schema::hasColumn($source, $dateColumn)) {
             $this->warn("  Column '{$dateColumn}' not found in '{$source}'. Skipping.");
+
             return 0;
         }
 
@@ -161,7 +166,8 @@ class ArchiveOldData extends Command
             ->count();
 
         if ($totalCount === 0) {
-            $this->info("  No records to archive.");
+            $this->info('  No records to archive.');
+
             return 0;
         }
 
@@ -169,13 +175,14 @@ class ArchiveOldData extends Command
 
         if ($dryRun) {
             $this->info("  [DRY RUN] Would archive {$totalCount} records.");
+
             return 0;
         }
 
         // Create progress bar
         $bar = $this->output->createProgressBar($totalCount);
         $bar->setFormat('  %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%');
-        
+
         $totalArchived = 0;
         $maxIterations = (int) ceil($totalCount / $chunkSize) + 10; // Safety limit
         $iterations = 0;

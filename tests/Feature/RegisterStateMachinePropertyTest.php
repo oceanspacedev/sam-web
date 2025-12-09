@@ -20,7 +20,7 @@ uses(SeedsMasterData::class);
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -31,15 +31,15 @@ beforeEach(function () {
 function createStateMachineUserWithHierarchy(array $permissions = []): array
 {
     $suffix = uniqid();
-    
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     // Create role with 'web' guard (default for Spatie Permission)
     $role = \App\Models\Role::create([
-        'name' => 'Admin-' . $suffix, 
+        'name' => 'Admin-'.$suffix,
         'guard_name' => 'web',
         'can_access_web' => true,
         'organizational_scope_level' => 'all',
@@ -76,13 +76,13 @@ function createStateMachineUserWithHierarchy(array $permissions = []): array
 function createLeadRegisterForStateMachine(array $hierarchy, int $creatorId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => '-',
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -111,13 +111,13 @@ function createLeadRegisterForStateMachine(array $hierarchy, int $creatorId): Re
 function createPendingNooForStateMachine(array $hierarchy, int $creatorId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -147,13 +147,13 @@ function createPendingNooForStateMachine(array $hierarchy, int $creatorId): Regi
 function createConfirmedForStateMachine(array $hierarchy, int $creatorId, int $confirmerId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -174,7 +174,7 @@ function createConfirmedForStateMachine(array $hierarchy, int $creatorId, int $c
         'cluster_id' => $hierarchy['clus']->id,
         'status' => 'CONFIRMED',
         'keterangan' => null,
-        'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+        'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
         'limit' => fake()->numberBetween(1000000, 100000000),
         'confirmed_by_id' => $confirmerId,
         'confirmed_at' => now()->subHour(),
@@ -187,13 +187,13 @@ function createConfirmedForStateMachine(array $hierarchy, int $creatorId, int $c
 function createApprovedForStateMachine(array $hierarchy, int $creatorId, int $confirmerId, int $approverId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -214,7 +214,7 @@ function createApprovedForStateMachine(array $hierarchy, int $creatorId, int $co
         'cluster_id' => $hierarchy['clus']->id,
         'status' => 'APPROVED',
         'keterangan' => null,
-        'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+        'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
         'limit' => fake()->numberBetween(1000000, 100000000),
         'confirmed_by_id' => $confirmerId,
         'confirmed_at' => now()->subHours(2),
@@ -229,13 +229,13 @@ function createApprovedForStateMachine(array $hierarchy, int $creatorId, int $co
 function createRejectedForStateMachine(array $hierarchy, int $creatorId, int $rejecterId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -261,7 +261,6 @@ function createRejectedForStateMachine(array $hierarchy, int $creatorId, int $re
     ]);
 }
 
-
 /**
  * **Feature: register-workflow, Property 23: State Machine Enforcement**
  *
@@ -285,22 +284,22 @@ test('Property 23: State Machine Enforcement - PENDING to CONFIRMED is allowed',
 
         // Create a pending NOO register
         $register = createPendingNooForStateMachine($hierarchy, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('PENDING');
 
         // Act: Confirm the NOO (PENDING → CONFIRMED)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/confirm', [
+            ->patchJson('/api/registers/'.$register->id.'/confirm', [
                 'id' => $register->id,
                 'status' => 'CONFIRMED',
-                'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+                'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
                 'limit' => fake()->numberBetween(1000000, 100000000),
             ]);
 
         // Assert: Transition is allowed
         $response->assertStatus(200);
-        
+
         $register->refresh();
         expect($register->status)->toBe('CONFIRMED', 'PENDING → CONFIRMED transition should be allowed');
     }
@@ -319,21 +318,21 @@ test('Property 23: State Machine Enforcement - PENDING to REJECTED is allowed', 
 
         // Create a pending NOO register
         $register = createPendingNooForStateMachine($hierarchy, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('PENDING');
 
         // Act: Reject the NOO (PENDING → REJECTED)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
-                'alasan' => 'Test rejection reason ' . fake()->sentence(),
+                'alasan' => 'Test rejection reason '.fake()->sentence(),
             ]);
 
         // Assert: Transition is allowed
         $response->assertStatus(200);
-        
+
         $register->refresh();
         expect($register->status)->toBe('REJECTED', 'PENDING → REJECTED transition should be allowed');
     }
@@ -352,20 +351,20 @@ test('Property 23: State Machine Enforcement - CONFIRMED to APPROVED is allowed'
 
         // Create a confirmed register
         $register = createConfirmedForStateMachine($hierarchy, $user->id, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('CONFIRMED');
 
         // Act: Approve the NOO (CONFIRMED → APPROVED)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);
 
         // Assert: Transition is allowed
         $response->assertStatus(200);
-        
+
         $register->refresh();
         expect($register->status)->toBe('APPROVED', 'CONFIRMED → APPROVED transition should be allowed');
     }
@@ -384,21 +383,21 @@ test('Property 23: State Machine Enforcement - CONFIRMED to REJECTED is allowed'
 
         // Create a confirmed register
         $register = createConfirmedForStateMachine($hierarchy, $user->id, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('CONFIRMED');
 
         // Act: Reject the NOO (CONFIRMED → REJECTED)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
-                'alasan' => 'Test rejection reason ' . fake()->sentence(),
+                'alasan' => 'Test rejection reason '.fake()->sentence(),
             ]);
 
         // Assert: Transition is allowed
         $response->assertStatus(200);
-        
+
         $register->refresh();
         expect($register->status)->toBe('REJECTED', 'CONFIRMED → REJECTED transition should be allowed');
     }
@@ -417,22 +416,22 @@ test('Property 23: State Machine Enforcement - APPROVED to CONFIRMED is blocked'
 
         // Create an approved register
         $register = createApprovedForStateMachine($hierarchy, $user->id, $user->id, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('APPROVED');
 
         // Act: Try to confirm an already approved register (invalid transition)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/confirm', [
+            ->patchJson('/api/registers/'.$register->id.'/confirm', [
                 'id' => $register->id,
                 'status' => 'CONFIRMED',
-                'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+                'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
                 'limit' => fake()->numberBetween(1000000, 100000000),
             ]);
 
         // Assert: Transition is blocked
         $response->assertStatus(400);
-        
+
         $register->refresh();
         expect($register->status)->toBe('APPROVED', 'APPROVED → CONFIRMED transition should be blocked');
     }
@@ -451,21 +450,21 @@ test('Property 23: State Machine Enforcement - APPROVED to REJECTED is blocked',
 
         // Create an approved register
         $register = createApprovedForStateMachine($hierarchy, $user->id, $user->id, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('APPROVED');
 
         // Act: Try to reject an already approved register (invalid transition)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
-                'alasan' => 'Test rejection reason ' . fake()->sentence(),
+                'alasan' => 'Test rejection reason '.fake()->sentence(),
             ]);
 
         // Assert: Transition is blocked
         $response->assertStatus(400);
-        
+
         $register->refresh();
         expect($register->status)->toBe('APPROVED', 'APPROVED → REJECTED transition should be blocked');
     }
@@ -484,22 +483,22 @@ test('Property 23: State Machine Enforcement - REJECTED to CONFIRMED is blocked'
 
         // Create a rejected register
         $register = createRejectedForStateMachine($hierarchy, $user->id, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('REJECTED');
 
         // Act: Try to confirm a rejected register (invalid transition)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/confirm', [
+            ->patchJson('/api/registers/'.$register->id.'/confirm', [
                 'id' => $register->id,
                 'status' => 'CONFIRMED',
-                'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+                'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
                 'limit' => fake()->numberBetween(1000000, 100000000),
             ]);
 
         // Assert: Transition is blocked
         $response->assertStatus(400);
-        
+
         $register->refresh();
         expect($register->status)->toBe('REJECTED', 'REJECTED → CONFIRMED transition should be blocked');
     }
@@ -518,20 +517,20 @@ test('Property 23: State Machine Enforcement - REJECTED to APPROVED is blocked',
 
         // Create a rejected register
         $register = createRejectedForStateMachine($hierarchy, $user->id, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('REJECTED');
 
         // Act: Try to approve a rejected register (invalid transition)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);
 
         // Assert: Transition is blocked
         $response->assertStatus(400);
-        
+
         $register->refresh();
         expect($register->status)->toBe('REJECTED', 'REJECTED → APPROVED transition should be blocked');
     }
@@ -551,21 +550,21 @@ test('Property 23: State Machine Enforcement - REJECTED to REJECTED is blocked',
         // Create a rejected register
         $register = createRejectedForStateMachine($hierarchy, $user->id, $user->id);
         $originalKeterangan = $register->keterangan;
-        
+
         // Verify initial state
         expect($register->status)->toBe('REJECTED');
 
         // Act: Try to reject an already rejected register (invalid transition)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
-                'alasan' => 'New rejection reason ' . fake()->sentence(),
+                'alasan' => 'New rejection reason '.fake()->sentence(),
             ]);
 
         // Assert: Transition is blocked
         $response->assertStatus(400);
-        
+
         $register->refresh();
         expect($register->status)->toBe('REJECTED', 'REJECTED → REJECTED transition should be blocked')
             ->and($register->keterangan)->toBe($originalKeterangan, 'Rejection reason should not change');
@@ -585,25 +584,24 @@ test('Property 23: State Machine Enforcement - PENDING to APPROVED is blocked', 
 
         // Create a pending NOO register
         $register = createPendingNooForStateMachine($hierarchy, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('PENDING');
 
         // Act: Try to approve a pending register directly (invalid transition)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);
 
         // Assert: Transition is blocked (must go through CONFIRMED first)
         $response->assertStatus(400);
-        
+
         $register->refresh();
         expect($register->status)->toBe('PENDING', 'PENDING → APPROVED transition should be blocked');
     }
 });
-
 
 /**
  * **Feature: register-workflow, Property 24: Audit Trail Completeness**
@@ -629,17 +627,17 @@ test('Property 24: Audit Trail Completeness - confirmation sets audit fields', f
 
         // Create a pending NOO register
         $register = createPendingNooForStateMachine($hierarchy, $user->id);
-        
+
         // Verify initial audit fields are null
         expect($register->confirmed_by_id)->toBeNull()
             ->and($register->confirmed_at)->toBeNull();
 
         // Act: Confirm the NOO
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/confirm', [
+            ->patchJson('/api/registers/'.$register->id.'/confirm', [
                 'id' => $register->id,
                 'status' => 'CONFIRMED',
-                'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+                'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
                 'limit' => fake()->numberBetween(1000000, 100000000),
             ]);
 
@@ -648,10 +646,10 @@ test('Property 24: Audit Trail Completeness - confirmation sets audit fields', f
 
         // Assert: Audit fields are set correctly
         $register->refresh();
-        
+
         expect($register->confirmed_by_id)->toBe($user->id, 'confirmed_by_id should match authenticated user')
             ->and($register->confirmed_at)->not->toBeNull('confirmed_at should be set');
-        
+
         // Verify timestamp is a valid datetime string
         $confirmedAt = \Carbon\Carbon::parse($register->confirmed_at);
         expect($confirmedAt)->toBeInstanceOf(\Carbon\Carbon::class, 'confirmed_at should be a valid timestamp');
@@ -671,14 +669,14 @@ test('Property 24: Audit Trail Completeness - approval sets audit fields', funct
 
         // Create a confirmed register
         $register = createConfirmedForStateMachine($hierarchy, $user->id, $user->id);
-        
+
         // Verify initial approval audit fields are null
         expect($register->approved_by_id)->toBeNull()
             ->and($register->approved_at)->toBeNull();
 
         // Act: Approve the NOO
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);
@@ -688,10 +686,10 @@ test('Property 24: Audit Trail Completeness - approval sets audit fields', funct
 
         // Assert: Audit fields are set correctly
         $register->refresh();
-        
+
         expect($register->approved_by_id)->toBe($user->id, 'approved_by_id should match authenticated user')
             ->and($register->approved_at)->not->toBeNull('approved_at should be set');
-        
+
         // Verify timestamp is a valid datetime string
         $approvedAt = \Carbon\Carbon::parse($register->approved_at);
         expect($approvedAt)->toBeInstanceOf(\Carbon\Carbon::class, 'approved_at should be a valid timestamp');
@@ -711,22 +709,22 @@ test('Property 24: Audit Trail Completeness - rejection sets audit fields', func
 
         // Randomly choose between PENDING and CONFIRMED status
         $initialStatus = fake()->randomElement(['PENDING', 'CONFIRMED']);
-        
+
         if ($initialStatus === 'PENDING') {
             $register = createPendingNooForStateMachine($hierarchy, $user->id);
         } else {
             $register = createConfirmedForStateMachine($hierarchy, $user->id, $user->id);
         }
-        
+
         // Verify initial rejection audit fields are null
         expect($register->rejected_by_id)->toBeNull()
             ->and($register->rejected_at)->toBeNull();
 
-        $rejectionReason = 'Test rejection reason ' . fake()->sentence();
+        $rejectionReason = 'Test rejection reason '.fake()->sentence();
 
         // Act: Reject the register
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
                 'alasan' => $rejectionReason,
@@ -737,11 +735,11 @@ test('Property 24: Audit Trail Completeness - rejection sets audit fields', func
 
         // Assert: Audit fields are set correctly
         $register->refresh();
-        
+
         expect($register->rejected_by_id)->toBe($user->id, 'rejected_by_id should match authenticated user')
             ->and($register->rejected_at)->not->toBeNull('rejected_at should be set')
             ->and($register->keterangan)->toBe($rejectionReason, 'keterangan should contain rejection reason');
-        
+
         // Verify timestamp is a valid datetime string
         $rejectedAt = \Carbon\Carbon::parse($register->rejected_at);
         expect($rejectedAt)->toBeInstanceOf(\Carbon\Carbon::class, 'rejected_at should be a valid timestamp');
@@ -761,13 +759,13 @@ test('Property 24: Audit Trail Completeness - full workflow preserves all audit 
 
         // Create a pending NOO register
         $register = createPendingNooForStateMachine($hierarchy, $user->id);
-        
+
         // Step 1: Confirm
-        $kodeOutlet = 'OUT-' . strtoupper(fake()->unique()->bothify('??###'));
+        $kodeOutlet = 'OUT-'.strtoupper(fake()->unique()->bothify('??###'));
         $limit = fake()->numberBetween(1000000, 100000000);
-        
+
         $response1 = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/confirm', [
+            ->patchJson('/api/registers/'.$register->id.'/confirm', [
                 'id' => $register->id,
                 'status' => 'CONFIRMED',
                 'kode_outlet' => $kodeOutlet,
@@ -785,7 +783,7 @@ test('Property 24: Audit Trail Completeness - full workflow preserves all audit 
 
         // Step 2: Approve
         $response2 = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/approve', [
+            ->patchJson('/api/registers/'.$register->id.'/approve', [
                 'id' => $register->id,
                 'status' => 'APPROVED',
             ]);
@@ -793,19 +791,19 @@ test('Property 24: Audit Trail Completeness - full workflow preserves all audit 
 
         // Assert: All audit fields are preserved and set correctly
         $register->refresh();
-        
+
         // Confirmation audit fields should be preserved
         expect($register->confirmed_by_id)->toBe($confirmedById, 'confirmed_by_id should be preserved')
             ->and($register->confirmed_at)->toBe($confirmedAt, 'confirmed_at should be preserved');
-        
+
         // Approval audit fields should be set
         expect($register->approved_by_id)->toBe($user->id, 'approved_by_id should match authenticated user')
             ->and($register->approved_at)->not->toBeNull('approved_at should be set');
-        
+
         // Verify timestamp is a valid datetime string
         $approvedAt = \Carbon\Carbon::parse($register->approved_at);
         expect($approvedAt)->toBeInstanceOf(\Carbon\Carbon::class, 'approved_at should be a valid timestamp');
-        
+
         // Rejection audit fields should remain null (not rejected)
         expect($register->rejected_by_id)->toBeNull('rejected_by_id should remain null')
             ->and($register->rejected_at)->toBeNull('rejected_at should remain null');

@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Storage;
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -33,12 +33,12 @@ beforeEach(function () {
 function createOrganizationalHierarchy(string $suffix = ''): array
 {
     $suffix = $suffix ?: uniqid();
-    
-    $bu = BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     return ['bu' => $bu, 'div' => $div, 'reg' => $reg, 'clus' => $clus];
 }
 
@@ -48,9 +48,9 @@ function createOrganizationalHierarchy(string $suffix = ''): array
 function createUserWithScope(array $hierarchy, string $scopeLevel): User
 {
     $suffix = uniqid();
-    
+
     $role = Role::create([
-        'name' => 'Role-' . $suffix, 
+        'name' => 'Role-'.$suffix,
         'can_access_web' => true,
         'organizational_scope_level' => $scopeLevel,
     ]);
@@ -75,13 +75,13 @@ function createUserWithScope(array $hierarchy, string $scopeLevel): User
 function createRegisterInHierarchy(array $hierarchy, User $creator, array $overrides = []): Register
 {
     return Register::create(array_merge([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -117,28 +117,28 @@ test('Property 15: Organizational Scope Filtering - users only see registers wit
     // Run 100 iterations as per design document
     for ($i = 0; $i < 100; $i++) {
         // Create two separate organizational hierarchies
-        $hierarchy1 = createOrganizationalHierarchy('h1-' . $i);
-        $hierarchy2 = createOrganizationalHierarchy('h2-' . $i);
-        
+        $hierarchy1 = createOrganizationalHierarchy('h1-'.$i);
+        $hierarchy2 = createOrganizationalHierarchy('h2-'.$i);
+
         // Create a user with cluster-level scope in hierarchy1
         $user1 = createUserWithScope($hierarchy1, 'cluster');
-        
+
         // Create registers in both hierarchies
         $register1 = createRegisterInHierarchy($hierarchy1, $user1);
         $register2 = createRegisterInHierarchy($hierarchy2, $user1);
-        
+
         // Act: Fetch registers as user1
         $response = $this->actingAs($user1, 'sanctum')
             ->getJson('/api/registers/all');
-        
+
         $response->assertStatus(200);
-        
+
         // Assert: User1 should only see register1 (in their hierarchy)
         $returnedIds = collect($response->json('data'))->pluck('id')->toArray();
-        
+
         $this->assertContains($register1->id, $returnedIds, 'User should see register in their hierarchy');
         $this->assertNotContains($register2->id, $returnedIds, 'User should NOT see register outside their hierarchy');
-        
+
         // Verify all returned registers are within user's scope
         foreach ($response->json('data') as $registerData) {
             $register = Register::find($registerData['id']);
@@ -149,7 +149,6 @@ test('Property 15: Organizational Scope Filtering - users only see registers wit
         }
     }
 });
-
 
 /**
  * **Feature: register-workflow, Property 16: Pending Filter Correctness**
@@ -162,11 +161,11 @@ test('Property 16: Pending Filter Correctness - pending endpoint returns only un
     // Run 100 iterations as per design document
     for ($i = 0; $i < 100; $i++) {
         // Create organizational hierarchy
-        $hierarchy = createOrganizationalHierarchy('pending-' . $i);
-        
+        $hierarchy = createOrganizationalHierarchy('pending-'.$i);
+
         // Create a user with cluster-level scope
         $user = createUserWithScope($hierarchy, 'cluster');
-        
+
         // Create registers with different approval states
         // 1. Pending register (approved_by_id = null)
         $pendingRegister = createRegisterInHierarchy($hierarchy, $user, [
@@ -174,29 +173,29 @@ test('Property 16: Pending Filter Correctness - pending endpoint returns only un
             'approved_by_id' => null,
             'approved_at' => null,
         ]);
-        
+
         // 2. Confirmed register (approved_by_id = null)
         $confirmedRegister = createRegisterInHierarchy($hierarchy, $user, [
             'status' => 'CONFIRMED',
             'confirmed_by_id' => $user->id,
             'confirmed_at' => now(),
-            'kode_outlet' => 'OUT-' . fake()->randomNumber(5),
+            'kode_outlet' => 'OUT-'.fake()->randomNumber(5),
             'limit' => fake()->numberBetween(1000000, 10000000),
             'approved_by_id' => null,
             'approved_at' => null,
         ]);
-        
+
         // 3. Approved register (approved_by_id != null)
         $approvedRegister = createRegisterInHierarchy($hierarchy, $user, [
             'status' => 'APPROVED',
             'confirmed_by_id' => $user->id,
             'confirmed_at' => now()->subDay(),
-            'kode_outlet' => 'OUT-' . fake()->randomNumber(5),
+            'kode_outlet' => 'OUT-'.fake()->randomNumber(5),
             'limit' => fake()->numberBetween(1000000, 10000000),
             'approved_by_id' => $user->id,
             'approved_at' => now(),
         ]);
-        
+
         // 4. Rejected register (approved_by_id = null but rejected)
         $rejectedRegister = createRegisterInHierarchy($hierarchy, $user, [
             'status' => 'REJECTED',
@@ -206,16 +205,16 @@ test('Property 16: Pending Filter Correctness - pending endpoint returns only un
             'approved_by_id' => null,
             'approved_at' => null,
         ]);
-        
+
         // Act: Fetch pending registers
         $response = $this->actingAs($user, 'sanctum')
             ->getJson('/api/registers/pending');
-        
+
         $response->assertStatus(200);
-        
+
         // Assert: All returned registers have approved_by_id = null
         $returnedIds = collect($response->json('data'))->pluck('id')->toArray();
-        
+
         foreach ($response->json('data') as $registerData) {
             $register = Register::find($registerData['id']);
             $this->assertNull(
@@ -223,14 +222,14 @@ test('Property 16: Pending Filter Correctness - pending endpoint returns only un
                 "Pending register {$register->id} should have approved_by_id = null"
             );
         }
-        
+
         // Assert: Pending and confirmed registers should be in results (they have approved_by_id = null)
         $this->assertContains($pendingRegister->id, $returnedIds, 'Pending register should be in pending list');
         $this->assertContains($confirmedRegister->id, $returnedIds, 'Confirmed register should be in pending list');
-        
+
         // Assert: Approved register should NOT be in results
         $this->assertNotContains($approvedRegister->id, $returnedIds, 'Approved register should NOT be in pending list');
-        
+
         // Note: Rejected registers with approved_by_id = null will be included in pending list
         // This is the current behavior based on the whereNull('approved_by_id') filter
         $this->assertContains($rejectedRegister->id, $returnedIds, 'Rejected register (with approved_by_id=null) is in pending list');

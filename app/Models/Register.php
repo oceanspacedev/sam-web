@@ -57,7 +57,7 @@ class Register extends Model
         // Filter by created_by_id OR tm_id
         return $query->where(function ($q) use ($user) {
             $q->where('created_by_id', $user->id)
-              ->orWhere('tm_id', $user->id);
+                ->orWhere('tm_id', $user->id);
         });
     }
 

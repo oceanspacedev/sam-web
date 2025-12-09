@@ -20,7 +20,7 @@ uses(SeedsMasterData::class);
 beforeEach(function () {
     Storage::fake('public');
     Storage::fake('s3');
-    
+
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 });
@@ -31,15 +31,15 @@ beforeEach(function () {
 function createRejectUserWithHierarchy(bool $withRejectPermission = true): array
 {
     $suffix = uniqid();
-    
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-' . $suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-' . $suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-' . $suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
-    
+
+    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+
     // Create role with 'web' guard (default for Spatie Permission)
     $role = \App\Models\Role::create([
-        'name' => 'TL-' . $suffix, 
+        'name' => 'TL-'.$suffix,
         'guard_name' => 'web',
         'can_access_web' => true,
         'organizational_scope_level' => 'cluster',
@@ -70,20 +70,19 @@ function createRejectUserWithHierarchy(bool $withRejectPermission = true): array
     return ['user' => $user, 'hierarchy' => ['bu' => $bu, 'div' => $div, 'reg' => $reg, 'clus' => $clus, 'role' => $role]];
 }
 
-
 /**
  * Helper to create a pending register (status=PENDING, keterangan=null)
  */
 function createPendingRegisterForRejection(array $hierarchy, int $creatorId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -113,13 +112,13 @@ function createPendingRegisterForRejection(array $hierarchy, int $creatorId): Re
 function createConfirmedRegisterForRejection(array $hierarchy, int $creatorId, int $confirmerId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -140,7 +139,7 @@ function createConfirmedRegisterForRejection(array $hierarchy, int $creatorId, i
         'cluster_id' => $hierarchy['clus']->id,
         'status' => 'CONFIRMED',
         'keterangan' => null,
-        'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+        'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
         'limit' => fake()->numberBetween(1000000, 100000000),
         'confirmed_by_id' => $confirmerId,
         'confirmed_at' => now()->subHour(),
@@ -153,13 +152,13 @@ function createConfirmedRegisterForRejection(array $hierarchy, int $creatorId, i
 function createApprovedRegisterForRejection(array $hierarchy, int $creatorId, int $confirmerId, int $approverId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -180,7 +179,7 @@ function createApprovedRegisterForRejection(array $hierarchy, int $creatorId, in
         'cluster_id' => $hierarchy['clus']->id,
         'status' => 'APPROVED',
         'keterangan' => null,
-        'kode_outlet' => 'OUT-' . strtoupper(fake()->unique()->bothify('??###')),
+        'kode_outlet' => 'OUT-'.strtoupper(fake()->unique()->bothify('??###')),
         'limit' => fake()->numberBetween(1000000, 100000000),
         'confirmed_by_id' => $confirmerId,
         'confirmed_at' => now()->subHours(2),
@@ -195,13 +194,13 @@ function createApprovedRegisterForRejection(array $hierarchy, int $creatorId, in
 function createRejectedRegisterForRejection(array $hierarchy, int $creatorId, int $rejecterId): Register
 {
     return Register::create([
-        'nama_outlet' => fake()->company() . ' ' . fake()->randomNumber(3),
+        'nama_outlet' => fake()->company().' '.fake()->randomNumber(3),
         'alamat_outlet' => fake()->address(),
         'nama_pemilik_outlet' => fake()->name(),
-        'nomer_tlp_outlet' => '08' . fake()->numerify('##########'),
+        'nomer_tlp_outlet' => '08'.fake()->numerify('##########'),
         'ktp_outlet' => fake()->numerify('################'),
-        'distric' => 'D' . fake()->numerify('##'),
-        'latlong' => fake()->latitude(-8, -6) . ',' . fake()->longitude(106, 115),
+        'distric' => 'D'.fake()->numerify('##'),
+        'latlong' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'oppo' => '0',
         'vivo' => '0',
         'samsung' => '0',
@@ -227,7 +226,6 @@ function createRejectedRegisterForRejection(array $hierarchy, int $creatorId, in
     ]);
 }
 
-
 /**
  * Helper to generate random rejection reason
  */
@@ -242,8 +240,8 @@ function generateRejectionReason(): string
         'Dokumen tidak valid',
         'Informasi pemilik tidak akurat',
     ];
-    
-    return fake()->randomElement($reasons) . ' - ' . fake()->sentence(3);
+
+    return fake()->randomElement($reasons).' - '.fake()->sentence(3);
 }
 
 /**
@@ -265,16 +263,16 @@ test('Property 13: Rejection State Transition - rejecting pending NOO sets REJEC
 
         // Randomly choose between PENDING and CONFIRMED status
         $initialStatus = fake()->randomElement(['PENDING', 'CONFIRMED']);
-        
+
         if ($initialStatus === 'PENDING') {
             $register = createPendingRegisterForRejection($hierarchy, $user->id);
         } else {
             $register = createConfirmedRegisterForRejection($hierarchy, $user->id, $user->id);
         }
-        
+
         // Generate random rejection reason
         $rejectionReason = generateRejectionReason();
-        
+
         // Verify initial state
         expect($register->status)->toBe($initialStatus)
             ->and($register->rejected_by_id)->toBeNull()
@@ -282,7 +280,7 @@ test('Property 13: Rejection State Transition - rejecting pending NOO sets REJEC
 
         // Act: Reject the register
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
                 'alasan' => $rejectionReason,
@@ -324,16 +322,16 @@ test('Property 13: Rejection State Transition - rejecting APPROVED register is b
 
         // Create an approved register
         $register = createApprovedRegisterForRejection($hierarchy, $user->id, $user->id, $user->id);
-        
+
         // Generate random rejection reason
         $rejectionReason = generateRejectionReason();
-        
+
         // Verify initial state
         expect($register->status)->toBe('APPROVED');
 
         // Act: Attempt to reject the approved register
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
                 'alasan' => $rejectionReason,
@@ -370,16 +368,16 @@ test('Property 13: Rejection State Transition - rejecting already REJECTED regis
         $originalRejectedById = $register->rejected_by_id;
         $originalRejectedAt = $register->rejected_at;
         $originalKeterangan = $register->keterangan;
-        
+
         // Generate new rejection reason
         $newRejectionReason = generateRejectionReason();
-        
+
         // Verify initial state
         expect($register->status)->toBe('REJECTED');
 
         // Act: Attempt to reject the already rejected register
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
                 'alasan' => $newRejectionReason,
@@ -395,7 +393,6 @@ test('Property 13: Rejection State Transition - rejecting already REJECTED regis
             ->and($register->keterangan)->toBe($originalKeterangan, 'keterangan should remain unchanged');
     }
 });
-
 
 /**
  * **Feature: register-workflow, Property 14: Rejection Reason Required**
@@ -415,7 +412,7 @@ test('Property 14: Rejection Reason Required - rejection without reason is rejec
 
         // Create a pending register
         $register = createPendingRegisterForRejection($hierarchy, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('PENDING')
             ->and($register->rejected_by_id)->toBeNull()
@@ -423,7 +420,7 @@ test('Property 14: Rejection Reason Required - rejection without reason is rejec
 
         // Act: Attempt to reject without providing reason (missing alasan field)
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
                 // alasan is missing
@@ -459,7 +456,7 @@ test('Property 14: Rejection Reason Required - rejection with empty reason is re
 
         // Create a confirmed register
         $register = createConfirmedRegisterForRejection($hierarchy, $user->id, $user->id);
-        
+
         // Verify initial state
         expect($register->status)->toBe('CONFIRMED')
             ->and($register->rejected_by_id)->toBeNull()
@@ -467,7 +464,7 @@ test('Property 14: Rejection Reason Required - rejection with empty reason is re
 
         // Act: Attempt to reject with empty string as reason
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson('/api/registers/' . $register->id . '/reject', [
+            ->patchJson('/api/registers/'.$register->id.'/reject', [
                 'id' => $register->id,
                 'status' => 'REJECTED',
                 'alasan' => '',

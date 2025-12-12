@@ -422,7 +422,13 @@ class OutletResource extends Resource
                                             ->disk(StorageDisk::default()),
                                         TextEntry::make('video')
                                             ->label('Video Toko')
-                                            ->formatStateUsing(fn ($state) => $state ? new HtmlString('<a href="'.StorageDisk::url($state).'" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
+                                            ->formatStateUsing(function ($state) {
+                                                if (! $state || $state === '-') {
+                                                    return '-';
+                                                }
+
+                                                return new HtmlString('<a href="'.StorageDisk::url($state).'" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>');
+                                            })
                                             ->html(),
                                     ]),
                                 ]),

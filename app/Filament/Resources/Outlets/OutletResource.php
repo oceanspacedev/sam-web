@@ -145,7 +145,9 @@ class OutletResource extends Resource
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                                 // Output: op241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
-                                            }),
+                                            })
+                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
+                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
                                         FileUpload::make('poto_depan')
                                             ->image()
                                             ->disk(StorageDisk::default())
@@ -155,7 +157,9 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            }),
+                                            })
+                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
+                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
                                         FileUpload::make('poto_kiri')
                                             ->image()
                                             ->disk(StorageDisk::default())
@@ -165,7 +169,9 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            }),
+                                            })
+                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
+                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
                                         FileUpload::make('poto_kanan')
                                             ->image()
                                             ->disk(StorageDisk::default())
@@ -175,7 +181,9 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            }),
+                                            })
+                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
+                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
                                         FileUpload::make('poto_ktp')
                                             ->image()
                                             ->disk(StorageDisk::default())
@@ -185,7 +193,9 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-ktp', $userId);
-                                            }),
+                                            })
+                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
+                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
                                         FileUpload::make('video')
                                             ->disk(StorageDisk::default())
                                             ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mkv'])
@@ -195,7 +205,9 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-video', $userId);
-                                            }),
+                                            })
+                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
+                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
                                     ]),
                                 ]),
                         ])

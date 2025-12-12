@@ -127,6 +127,9 @@ class UserController extends Controller
         $user->id_notif = $request->notif_id;
         $user->update();
 
+        // Hapus semua token lama sebelum membuat token baru
+        $user->tokens()->delete();
+
         $tokenResult = $user->createToken('authToken')->plainTextToken;
 
         return response()->json([

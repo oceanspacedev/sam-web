@@ -59,17 +59,32 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         // Log API errors with context
         $exceptions->reportable(function (Throwable $e) {
-            if (request()->is('api/*') && ! $e instanceof ValidationException) {
-                Log::error('API Error', [
-                    'exception' => get_class($e),
-                    'message' => $e->getMessage(),
-                    'url' => request()->fullUrl(),
-                    'method' => request()->method(),
-                    'user_id' => auth()->id(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                ]);
+            if (! request()->is('api/*') || $e instanceof ValidationException) {
+                return;
             }
+
+            $statusCode = null;
+
+            if ($e instanceof ApiException) {
+                $statusCode = $e->getStatusCode();
+            } elseif ($e instanceof HttpException) {
+                $statusCode = $e->getStatusCode();
+            } elseif ($e instanceof AuthenticationException) {
+                $statusCode = 401;
+            }
+
+            $logLevel = $statusCode !== null && $statusCode < 500 ? 'warning' : 'error';
+
+            Log::log($logLevel, 'API Error', [
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'url' => request()->fullUrl(),
+                'method' => request()->method(),
+                'user_id' => auth()->id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'status_code' => $statusCode,
+            ]);
         });
 
         // Custom API exceptions

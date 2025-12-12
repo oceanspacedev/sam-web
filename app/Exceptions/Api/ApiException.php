@@ -55,6 +55,14 @@ abstract class ApiException extends Exception
     }
 
     /**
+     * Expose HTTP status code for logging/monitoring purposes.
+     */
+    public function getStatusCode(): int
+    {
+        return $this->statusCode;
+    }
+
+    /**
      * Set additional error data
      */
     public function withData(mixed $data): static

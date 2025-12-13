@@ -59,11 +59,11 @@ class VisitExporter extends BaseExporter
 
             ExportColumn::make('latlong_in')
                 ->label('Lokasi CI')
-                ->formatStateUsing(fn ($state) => $state ? 'https://www.google.com/maps/place/'.$state : '-'),
+                ->formatStateUsing(fn ($state) => static::mapLinkFromLatLong($state)),
 
             ExportColumn::make('latlong_out')
                 ->label('Lokasi CO')
-                ->formatStateUsing(fn ($state) => $state ? 'https://www.google.com/maps/place/'.$state : '-'),
+                ->formatStateUsing(fn ($state) => static::mapLinkFromLatLong($state)),
 
             ExportColumn::make('check_in_time')
                 ->label('Jam CI')

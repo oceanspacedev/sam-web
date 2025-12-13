@@ -25,7 +25,9 @@ class OutletExporter extends BaseExporter
             ExportColumn::make('status_outlet')->label('Status Outlet'),
             ExportColumn::make('radius')->label('Radius'),
             ExportColumn::make('limit')->label('Limit'),
-            ExportColumn::make('latlong')->label('Latlong'),
+            ExportColumn::make('latlong')
+                ->formatStateUsing(fn ($state) => static::mapLinkFromLatLong($state))
+                ->label('Latlong'),
             ExportColumn::make('nama_pemilik_outlet')->label('Nama Pemilik Outlet'),
             ExportColumn::make('nomer_tlp_outlet')->label('Nomor Telepon Outlet'),
             ExportColumn::make('created_at')

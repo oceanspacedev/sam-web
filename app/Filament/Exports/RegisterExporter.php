@@ -22,7 +22,10 @@ class RegisterExporter extends BaseExporter
             ExportColumn::make('region.name')->label('Region')->default('-'),
             ExportColumn::make('cluster.name')->label('Cluster')->default('-'),
             ExportColumn::make('tm.nama_lengkap')->label('TM')->default('-'),
-            ExportColumn::make('latlong')->label('Latlong')->default('-'),
+            ExportColumn::make('latlong')
+                ->label('Latlong')
+                ->formatStateUsing(fn ($state) => static::mapLinkFromLatLong($state))
+                ->default('-'),
             ExportColumn::make('limit')->label('Limit')->default('-'),
             ExportColumn::make('status')->label('Status')->default('-'),
             ExportColumn::make('poto_shop_sign')->label('Foto Shop Sign')->formatStateUsing(fn ($s) => static::storageImageFormula($s)),

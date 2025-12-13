@@ -126,4 +126,19 @@ abstract class BaseExporter extends Exporter
         // IFERROR handles older Excel versions that don't support IMAGE().
         return sprintf('=IFERROR(IMAGE("%1$s"),HYPERLINK("%1$s","%1$s"))', $url);
     }
+
+    protected static function mapLinkFromLatLong(null|string $latlong, string $fallback = '-'): string
+    {
+        $value = trim((string) $latlong);
+
+        if ($value === '') {
+            return $fallback;
+        }
+
+        $encoded = rawurlencode($value);
+        $label = str_replace('"', '""', $value);
+        $url = "https://www.google.com/maps/search/?api=1&query={$encoded}";
+
+        return sprintf('=HYPERLINK("%s","%s")', $url, $label);
+    }
 }

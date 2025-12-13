@@ -222,7 +222,7 @@ class OutletsRelationManager extends RelationManager
                         return $query;
                     }),
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Outlet::class)),
+                    ->hidden(fn () => ! Gate::any(['RestoreAny:Outlet', 'ForceDeleteAny:Outlet'], Outlet::class)),
 
             ], layout: FiltersLayout::Modal)
             ->filtersFormWidth(Width::Large)

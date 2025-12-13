@@ -681,7 +681,7 @@ class UserResource extends Resource
                     }),
 
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], User::class)),
+                    ->hidden(fn () => ! Gate::any(['RestoreAny:User', 'ForceDeleteAny:User'], User::class)),
             ])
             ->recordActions([
                 ViewAction::make(),

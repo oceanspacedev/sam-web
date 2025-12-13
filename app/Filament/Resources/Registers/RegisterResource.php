@@ -794,7 +794,7 @@ class RegisterResource extends Resource
                         return $query;
                     }),
                 TrashedFilter::make()
-                    ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Register::class)),
+                    ->hidden(fn () => ! Gate::any(['RestoreAny:Register', 'ForceDeleteAny:Register'], Register::class)),
             ])
             ->recordActions([
                 ViewAction::make(),

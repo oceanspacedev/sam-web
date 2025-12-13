@@ -33,7 +33,7 @@ class ListOutlets extends ListRecords
         ];
 
         // Check if the user is authorized to export
-        if (Gate::allows('exportAll', Outlet::class)) {
+        if (Gate::allows('export', Outlet::class)) {
             $actions[] = ExportAction::make()
                 ->exporter(OutletExporter::class)
                 ->color('success')

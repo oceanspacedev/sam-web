@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\API;
 
+use App\Rules\VideoMimeOrSignature;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -51,7 +52,7 @@ class SubmitNooRequest extends FormRequest
             $rules["photo{$i}"] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
         }
 
-        $rules['video'] = ['nullable', 'file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
+        $rules['video'] = ['nullable', 'file', new VideoMimeOrSignature, 'max:51200'];
 
         return $rules;
     }

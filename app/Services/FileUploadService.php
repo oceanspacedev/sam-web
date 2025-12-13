@@ -82,7 +82,7 @@ class FileUploadService
         }
 
         $allowedMimes = $options['allowed_mimes'] ?? ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        $ext = $file->guessExtension() ?: $file->extension();
+        $ext = $this->resolveExtension($file);
 
         if (! in_array(strtolower($ext), $allowedMimes)) {
             throw new RuntimeException("File type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
@@ -112,7 +112,7 @@ class FileUploadService
         }
 
         $allowedMimes = $options['allowed_mimes'] ?? ['mp4', 'mov', 'avi', 'mkv', 'webm'];
-        $ext = $file->guessExtension() ?: $file->extension();
+        $ext = $this->resolveExtension($file);
 
         if (! in_array(strtolower($ext), $allowedMimes)) {
             throw new RuntimeException("Video type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
@@ -150,7 +150,7 @@ class FileUploadService
         }
 
         $allowedMimes = $options['allowed_mimes'] ?? ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        $ext = strtolower($file->guessExtension() ?: $file->extension());
+        $ext = strtolower($this->resolveExtension($file));
 
         if (! in_array($ext, $allowedMimes)) {
             throw new RuntimeException("File type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
@@ -179,7 +179,7 @@ class FileUploadService
         }
 
         $allowedMimes = $options['allowed_mimes'] ?? ['mp4', 'mov', 'avi', 'mkv', 'webm'];
-        $ext = $file->guessExtension() ?: $file->extension();
+        $ext = $this->resolveExtension($file);
 
         if (! in_array(strtolower($ext), $allowedMimes)) {
             throw new RuntimeException("Video type {$ext} not allowed. Allowed: ".implode(', ', $allowedMimes));
@@ -224,7 +224,7 @@ class FileUploadService
             throw new RuntimeException('Invalid temporary file upload');
         }
 
-        $ext = $file->guessExtension() ?: $file->extension();
+        $ext = $this->resolveExtension($file);
         $filename = $options['filename'] ?? ((string) Str::uuid().'.'.$ext);
 
         $putOptions = [];
@@ -320,5 +320,26 @@ class FileUploadService
     public function moveFile(string $from, string $to): bool
     {
         return $this->storage()->move($from, $to);
+    }
+
+    /**
+     * Resolve a safe extension for storage/validation.
+     *
+     * `guessExtension()` depends on server MIME detection, which can return null
+     * on some environments. We fall back to the original client extension.
+     */
+    protected function resolveExtension(UploadedFile $file): string
+    {
+        $ext = $file->guessExtension();
+        if (is_string($ext) && $ext !== '') {
+            return $ext;
+        }
+
+        $clientExt = $file->getClientOriginalExtension();
+        if (is_string($clientExt) && $clientExt !== '') {
+            return $clientExt;
+        }
+
+        return 'bin';
     }
 }

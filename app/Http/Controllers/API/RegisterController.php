@@ -24,6 +24,7 @@ use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Register;
 use App\Models\User;
+use App\Rules\VideoMimeOrSignature;
 use App\Services\FileUploadService;
 use Exception;
 use Illuminate\Http\Request;
@@ -115,7 +116,7 @@ class RegisterController extends Controller
                 }
             }
             if ($request->hasFile('video')) {
-                $rules['video'] = ['file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
+                $rules['video'] = ['file', new VideoMimeOrSignature, 'max:51200'];
             }
             if (! empty($rules)) {
                 $request->validate($rules);

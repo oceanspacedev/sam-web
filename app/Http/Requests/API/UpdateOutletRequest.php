@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\API;
 
+use App\Rules\VideoMimeOrSignature;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateOutletRequest extends FormRequest
@@ -25,7 +26,7 @@ class UpdateOutletRequest extends FormRequest
 
         $rules['photos'] = ['nullable', 'array', 'max:5'];
         $rules['photos.*'] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
-        $rules['video'] = ['nullable', 'file', 'mimetypes:video/mp4,video/quicktime,video/webm', 'max:51200'];
+        $rules['video'] = ['nullable', 'file', new VideoMimeOrSignature, 'max:51200'];
 
         return $rules;
     }

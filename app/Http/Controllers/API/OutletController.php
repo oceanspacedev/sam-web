@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Exceptions\Api\BadRequestException;
+use App\Exceptions\Api\FileUploadException;
 use App\Exceptions\Api\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\UpdateOutletRequest;
@@ -156,6 +157,34 @@ class OutletController extends Controller
             throw new ResourceNotFoundException('Outlet tidak ditemukan');
         }
 
+        // Proses foto dengan field name sesuai kolom DB (poto_*)
+        foreach ([
+            'poto_shop_sign',
+            'poto_depan',
+            'poto_kanan',
+            'poto_kiri',
+            'poto_ktp',
+        ] as $field) {
+            $file = $request->file($field);
+            if (! $file) {
+                continue;
+            }
+
+            if (! $file->isValid()) {
+                throw (new FileUploadException('File foto tidak valid'))
+                    ->withData(['field' => $field]);
+            }
+
+            try {
+                $path = $this->fileUpload->uploadImageOptimized($file, 'outlet-photo');
+            } catch (Throwable $e) {
+                throw (new FileUploadException('Gagal mengupload foto'))
+                    ->withData(['field' => $field]);
+            }
+            $this->deleteOutletMedia($outlet->{$field});
+            $outlet->{$field} = $path;
+        }
+
         // Proses foto (mendukung photo0..4 dan photos[])
         $photoFiles = [];
         for ($i = 0; $i <= 4; $i++) {
@@ -174,7 +203,7 @@ class OutletController extends Controller
 
         foreach ($photoFiles as $file) {
             if (! $file->isValid()) {
-                throw new \RuntimeException('File foto tidak valid');
+                throw new FileUploadException('File foto tidak valid');
             }
             $original = $file->getClientOriginalName();
             // Tentukan kolom tujuan berdasarkan pola nama (kompatibel lama)
@@ -190,21 +219,39 @@ class OutletController extends Controller
                 $targetField = 'poto_shop_sign';
             }
 
-            $path = $this->fileUpload->uploadImageOptimized($file, 'outlet-photo');
+            try {
+                $path = $this->fileUpload->uploadImageOptimized($file, 'outlet-photo');
+            } catch (Throwable $e) {
+                throw new FileUploadException('Gagal mengupload foto');
+            }
 
             $this->deleteOutletMedia($outlet->{$targetField});
             $outlet->{$targetField} = $path;
         }
 
         // Proses video (opsional)
-        if ($request->hasFile('video')) {
-            $path = $this->fileUpload->uploadVideoOptimized($request->file('video'), 'outlet-video');
+        $videoFile = $request->file('video');
+        if ($videoFile) {
+            if (! $videoFile->isValid()) {
+                throw (new FileUploadException('File video tidak valid'))
+                    ->withData(['field' => 'video']);
+            }
+
+            try {
+                $path = $this->fileUpload->uploadVideoOptimized($videoFile, 'outlet-video');
+            } catch (Throwable $e) {
+                throw (new FileUploadException('Gagal mengupload video'))
+                    ->withData(['field' => 'video']);
+            }
 
             $this->deleteOutletMedia($outlet->video);
             $outlet->video = $path;
         }
 
         // Update field teks - hanya jika ada di request (untuk mendukung partial update)
+        if ($request->filled('alamat_outlet')) {
+            $outlet->alamat_outlet = $request->alamat_outlet;
+        }
         if ($request->filled('nama_pemilik_outlet')) {
             $outlet->nama_pemilik_outlet = strtoupper($request->nama_pemilik_outlet);
         }
@@ -248,7 +295,7 @@ class OutletController extends Controller
     }
 
     /**
-     * Reset outlet media (photos and video)
+     * Reset outlet data (owner info + media)
      * PATCH /outlet/{id}/reset
      */
     public function reset(int $id)
@@ -275,13 +322,21 @@ class OutletController extends Controller
                 'kode_outlet' => $outlet->kode_outlet,
             ]);
 
-            // Delete all media files
-            $mediaFields = ['poto_depan', 'poto_kanan', 'poto_kiri', 'poto_ktp', 'poto_shop_sign', 'video'];
+            // Delete all media files (keep KTP photo)
+            $mediaFields = ['poto_depan', 'poto_kanan', 'poto_kiri', 'poto_shop_sign', 'video'];
 
             foreach ($mediaFields as $field) {
                 $this->deleteOutletMedia($outlet->{$field});
                 $outlet->{$field} = null;
             }
+
+            // Reset owner fields.
+            $outlet->nama_pemilik_outlet = null;
+            $outlet->nomer_tlp_outlet = null;
+            // `alamat_outlet` tidak nullable, gunakan placeholder yang konsisten.
+            $outlet->alamat_outlet = '-';
+            // Reset location as part of "reset data" for consistency.
+            $outlet->latlong = null;
 
             $outlet->last_reset_at = $now;
             $outlet->reset_count_yearly = $resetCount + 1;
@@ -299,7 +354,7 @@ class OutletController extends Controller
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'Media outlet berhasil direset',
+                'message' => 'Media outlet berhasil direset',
                 ],
                 'data' => null,
                 'errors' => null,
@@ -333,7 +388,17 @@ class OutletController extends Controller
                 'Reset lokasi outlet'
             );
 
+            // Reset lokasi sekaligus data pendukung (alamat + media) agar outlet perlu update ulang.
+            // KTP dipertahankan.
+            $mediaFields = ['poto_depan', 'poto_kanan', 'poto_kiri', 'poto_shop_sign', 'video'];
+            foreach ($mediaFields as $field) {
+                $this->deleteOutletMedia($outlet->{$field});
+                $outlet->{$field} = null;
+            }
+
             $outlet->latlong = null;
+            // `alamat_outlet` tidak nullable, gunakan placeholder yang konsisten.
+            $outlet->alamat_outlet = '-';
             $outlet->last_reset_at = $now;
             $outlet->reset_count_yearly = $resetCount + 1;
             $outlet->save();
@@ -350,7 +415,7 @@ class OutletController extends Controller
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'Lokasi outlet berhasil direset',
+                    'message' => 'Lokasi outlet dan data pendukung berhasil direset',
                 ],
                 'data' => [
                     'last_reset_at' => $outlet->last_reset_at,

@@ -314,6 +314,21 @@ class VisitController extends Controller
                 ))->withData(['existing_visit_id' => $existingVisit->id]);
             }
 
+            // Enforce outlet completeness before allowing visit (KTP is optional)
+            $requirements = $outlet->visitRequirements();
+            if (! $requirements['is_ready_for_visit']) {
+                Log::channel('visit')->warning('Check-in visit ditolak: data outlet belum lengkap', [
+                    'user_id' => $user->id,
+                    'outlet_id' => $outlet->id,
+                    'kode_outlet' => $outlet->kode_outlet,
+                    'missing_required' => $requirements['missing_required_fields'],
+                ]);
+
+                throw (new BadRequestException(
+                    'Data outlet belum lengkap. Silakan update data outlet terlebih dahulu.'
+                ))->withData($requirements);
+            }
+
             $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
             $imageName = date('Y-m-d').'-'.$user->username.'-IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
 
@@ -356,7 +371,18 @@ class VisitController extends Controller
             ]);
 
             return response()->json([
-                'meta' => ['code' => 200, 'status' => 'success', 'message' => 'Check-in berhasil'],
+                'meta' => array_filter([
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Check-in berhasil',
+                    // Soft reminder: Foto KTP missing should not block visit.
+                    'warnings' => ($requirements['ktp_missing'] ?? false) ? [
+                        [
+                            'code' => 'KTP_MISSING',
+                            'message' => 'Foto KTP outlet belum diunggah (opsional, tidak menghambat visit).',
+                        ],
+                    ] : null,
+                ]),
                 'data' => new VisitResource($visit),
                 'errors' => null,
             ]);

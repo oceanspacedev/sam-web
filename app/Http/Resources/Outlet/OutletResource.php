@@ -58,6 +58,9 @@ class OutletResource extends JsonResource
             'last_reset_at' => $this->last_reset_at,
             'reset_count_yearly' => $this->reset_count_yearly,
             'status_outlet' => $this->status_outlet,
+            // Consistent visit readiness info for web/mobile clients.
+            // KTP is a soft requirement and should not block visit.
+            'visit_requirements' => $this->visitRequirements(),
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
                 return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;
             }),

@@ -145,9 +145,7 @@ class OutletResource extends Resource
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
                                                 // Output: op241204123-a1b2c3-550e8400-e29b-41d4-a716-446655440000.jpg
-                                            })
-                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
-                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
+                                            }),
                                         FileUpload::make('poto_depan')
                                             ->image()
                                             ->disk(StorageDisk::default())
@@ -157,9 +155,7 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            })
-                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
-                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
+                                            }),
                                         FileUpload::make('poto_kiri')
                                             ->image()
                                             ->disk(StorageDisk::default())
@@ -169,9 +165,7 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            })
-                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
-                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
+                                            }),
                                         FileUpload::make('poto_kanan')
                                             ->image()
                                             ->disk(StorageDisk::default())
@@ -181,9 +175,7 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-photo', $userId);
-                                            })
-                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
-                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
+                                            }),
                                         FileUpload::make('poto_ktp')
                                             ->image()
                                             ->disk(StorageDisk::default())
@@ -193,9 +185,7 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-ktp', $userId);
-                                            })
-                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
-                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
+                                            }),
                                         FileUpload::make('video')
                                             ->disk(StorageDisk::default())
                                             ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mkv'])
@@ -205,9 +195,7 @@ class OutletResource extends Resource
                                                 $filenameGenerator = new FilenameGeneratorService;
 
                                                 return $filenameGenerator->generate($file, 'outlet-video', $userId);
-                                            })
-                                            ->formatStateUsing(fn ($state) => $state === '-' ? null : $state)
-                                            ->dehydrateStateUsing(fn ($state) => $state ?? '-'),
+                                            }),
                                     ]),
                                 ]),
                         ])
@@ -724,6 +712,12 @@ class OutletResource extends Resource
 
                                     $record->update([
                                         'latlong' => null,
+                                        'alamat_outlet' => '-',
+                                        'poto_shop_sign' => null,
+                                        'poto_depan' => null,
+                                        'poto_kiri' => null,
+                                        'poto_kanan' => null,
+                                        'video' => null,
                                         'last_reset_at' => now(),
                                         'reset_count_yearly' => $normalizedCount + 1,
                                     ]);
@@ -786,9 +780,6 @@ class OutletResource extends Resource
                                     if ($record->poto_kanan) {
                                         Storage::disk(StorageDisk::default())->delete($record->poto_kanan);
                                     }
-                                    if ($record->poto_ktp) {
-                                        Storage::disk(StorageDisk::default())->delete($record->poto_ktp);
-                                    }
                                     if ($record->video) {
                                         Storage::disk(StorageDisk::default())->delete($record->video);
                                     }
@@ -796,11 +787,12 @@ class OutletResource extends Resource
                                     $record->update([
                                         'nama_pemilik_outlet' => null,
                                         'nomer_tlp_outlet' => null,
+                                        'alamat_outlet' => '-',
+                                        'latlong' => null,
                                         'poto_shop_sign' => null,
                                         'poto_depan' => null,
                                         'poto_kiri' => null,
                                         'poto_kanan' => null,
-                                        'poto_ktp' => null,
                                         'video' => null,
                                         'last_reset_at' => now(),
                                         'reset_count_yearly' => $normalizedCount + 1,

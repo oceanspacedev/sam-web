@@ -48,6 +48,8 @@ class UpdateOutlet extends Page
 
     public ?string $nomor_pemilik = null;
 
+    public ?string $alamat_outlet = null;
+
     // Photos
     public $photo_shop_sign = null;
 
@@ -96,7 +98,8 @@ class UpdateOutlet extends Page
         $this->outlet_name = $outlet->nama_outlet;
         $this->outlet_code = $outlet->kode_outlet;
         $this->nama_pemilik = $outlet->nama_pemilik_outlet;
-        $this->nomor_pemilik = $outlet->nomor_pemilik_outlet;
+        $this->nomor_pemilik = $outlet->nomer_tlp_outlet;
+        $this->alamat_outlet = $outlet->alamat_outlet;
 
         // Load existing photos
         $this->existing_shop_sign = $outlet->poto_shop_sign;
@@ -177,7 +180,8 @@ class UpdateOutlet extends Page
         // Prepare update data
         $data = [
             'nama_pemilik_outlet' => $this->nama_pemilik,
-            'nomor_pemilik_outlet' => $this->nomor_pemilik,
+            'nomer_tlp_outlet' => $this->nomor_pemilik,
+            'alamat_outlet' => blank($this->alamat_outlet) ? '-' : $this->alamat_outlet,
             'latlong' => $this->current_latlong,
         ];
 

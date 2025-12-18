@@ -32,13 +32,19 @@ class ViewOutlet extends ViewRecord
 
                         $record->update([
                             'latlong' => null,
+                            'alamat_outlet' => '-',
+                            'poto_shop_sign' => null,
+                            'poto_depan' => null,
+                            'poto_kiri' => null,
+                            'poto_kanan' => null,
+                            'video' => null,
                             'last_reset_at' => now(),
                             'reset_count_yearly' => $normalizedCount + 1,
                         ]);
 
                         \Filament\Notifications\Notification::make()
                             ->title('Berhasil')
-                            ->body('Lokasi outlet berhasil direset.')
+                            ->body('Lokasi outlet dan data pendukung berhasil direset.')
                             ->success()
                             ->send();
                     } catch (\Illuminate\Validation\ValidationException $e) {
@@ -76,9 +82,6 @@ class ViewOutlet extends ViewRecord
                         if ($record->poto_kanan) {
                             \Illuminate\Support\Facades\Storage::disk(\App\Support\StorageDisk::default())->delete($record->poto_kanan);
                         }
-                        if ($record->poto_ktp) {
-                            \Illuminate\Support\Facades\Storage::disk(\App\Support\StorageDisk::default())->delete($record->poto_ktp);
-                        }
                         if ($record->video) {
                             \Illuminate\Support\Facades\Storage::disk(\App\Support\StorageDisk::default())->delete($record->video);
                         }
@@ -86,11 +89,12 @@ class ViewOutlet extends ViewRecord
                         $record->update([
                             'nama_pemilik_outlet' => null,
                             'nomer_tlp_outlet' => null,
+                            'alamat_outlet' => '-',
+                            'latlong' => null,
                             'poto_shop_sign' => null,
                             'poto_depan' => null,
                             'poto_kiri' => null,
                             'poto_kanan' => null,
-                            'poto_ktp' => null,
                             'video' => null,
                             'last_reset_at' => now(),
                             'reset_count_yearly' => $normalizedCount + 1,

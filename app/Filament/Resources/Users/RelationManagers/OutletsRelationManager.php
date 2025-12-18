@@ -256,9 +256,6 @@ class OutletsRelationManager extends RelationManager
                                 if ($record->poto_kanan) {
                                     Storage::disk(StorageDisk::default())->delete($record->poto_kanan);
                                 }
-                                if ($record->poto_ktp) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_ktp);
-                                }
                                 if ($record->video) {
                                     Storage::disk(StorageDisk::default())->delete($record->video);
                                 }
@@ -266,12 +263,12 @@ class OutletsRelationManager extends RelationManager
                                 $record->update([
                                     'nama_pemilik_outlet' => null,
                                     'nomer_tlp_outlet' => null,
+                                    'alamat_outlet' => '-',
                                     'latlong' => null,
                                     'poto_shop_sign' => null,
                                     'poto_depan' => null,
                                     'poto_kiri' => null,
                                     'poto_kanan' => null,
-                                    'poto_ktp' => null,
                                     'video' => null,
                                 ]);
                             }

@@ -109,6 +109,11 @@
                             <input type="tel" wire:model="nomor_pemilik" placeholder="08xxx"
                                 class="block w-full rounded-lg border-none bg-white dark:bg-white/5 py-2.5 px-3 text-gray-950 dark:text-white ring-1 ring-inset ring-gray-950/10 dark:ring-white/20 focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500 sm:text-sm sm:leading-6 shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500">
                         </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium leading-6 text-gray-950 dark:text-white mb-2">Alamat Outlet</label>
+                            <textarea wire:model="alamat_outlet" rows="3" placeholder="Alamat lengkap outlet"
+                                class="block w-full rounded-lg border-none bg-white dark:bg-white/5 py-2.5 px-3 text-gray-950 dark:text-white ring-1 ring-inset ring-gray-950/10 dark:ring-white/20 focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500 sm:text-sm sm:leading-6 shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500"></textarea>
+                        </div>
                     </div>
                 </div>
 

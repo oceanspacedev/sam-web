@@ -15,10 +15,22 @@ class UpdateOutletRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
+            'alamat_outlet' => ['nullable', 'string', 'max:2000'],
             'nama_pemilik_outlet' => ['nullable', 'string', 'max:255'],
             'nomer_tlp_outlet' => ['nullable', 'string', 'max:50'],
             'latlong' => ['nullable', 'string', 'regex:/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/'],
         ];
+
+        // Prefer named upload fields that match DB columns.
+        foreach ([
+            'poto_shop_sign',
+            'poto_depan',
+            'poto_kanan',
+            'poto_kiri',
+            'poto_ktp',
+        ] as $field) {
+            $rules[$field] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+        }
 
         for ($i = 0; $i <= 4; $i++) {
             $rules["photo{$i}"] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
@@ -34,6 +46,8 @@ class UpdateOutletRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'alamat_outlet.string' => 'Alamat outlet harus berupa teks',
+            'alamat_outlet.max' => 'Alamat outlet terlalu panjang',
             'nama_pemilik_outlet.string' => 'Nama pemilik outlet harus berupa teks',
             'nomer_tlp_outlet.string' => 'Nomor telepon outlet harus berupa teks',
             'latlong.string' => 'Lokasi harus berupa teks',

@@ -129,73 +129,7 @@ class Outlet extends Model
 
         return $query;
     }
-
-    /**
-     * Determine whether this outlet is ready for visit and what data is missing.
-     * KTP photo is treated as a soft requirement (optional) and should not block visit.
-     *
-     * @return array{
-     *   is_ready_for_visit: bool,
-     *   missing_required_fields: array<int, string>,
-     *   missing_required_items: array<int, string>,
-     *   missing_optional_fields: array<int, string>,
-     *   missing_optional_items: array<int, string>,
-     *   ktp_missing: bool
-     * }
-     */
-    public function visitRequirements(): array
-    {
-        $labels = self::visitRequirementLabels();
-
-        $missingRequired = [];
-
-        if (self::isMissingValue($this->alamat_outlet)) {
-            $missingRequired[] = 'alamat_outlet';
-        }
-        if (self::isMissingValue($this->nama_pemilik_outlet)) {
-            $missingRequired[] = 'nama_pemilik_outlet';
-        }
-        if (self::isMissingValue($this->nomer_tlp_outlet)) {
-            $missingRequired[] = 'nomer_tlp_outlet';
-        }
-        if (! self::isValidLatlong($this->latlong)) {
-            $missingRequired[] = 'latlong';
-        }
-
-        // Media required for visit
-        foreach (['poto_shop_sign', 'poto_depan', 'poto_kiri', 'poto_kanan', 'video'] as $field) {
-            if (self::isMissingValue($this->{$field})) {
-                $missingRequired[] = $field;
-            }
-        }
-
-        // Soft requirement: KTP photo
-        $missingOptional = [];
-        $ktpMissing = self::isMissingValue($this->poto_ktp);
-        if ($ktpMissing) {
-            $missingOptional[] = 'poto_ktp';
-        }
-
-        $missingRequiredItems = array_values(array_unique(array_map(
-            fn (string $field): string => $labels[$field] ?? $field,
-            $missingRequired
-        )));
-
-        $missingOptionalItems = array_values(array_unique(array_map(
-            fn (string $field): string => $labels[$field] ?? $field,
-            $missingOptional
-        )));
-
-        return [
-            'is_ready_for_visit' => empty($missingRequired),
-            'missing_required_fields' => array_values(array_unique($missingRequired)),
-            'missing_required_items' => $missingRequiredItems,
-            'missing_optional_fields' => $missingOptional,
-            'missing_optional_items' => $missingOptionalItems,
-            'ktp_missing' => $ktpMissing,
-        ];
-    }
-
+    
     /**
      * @return array<string, string>
      */

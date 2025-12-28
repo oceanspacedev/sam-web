@@ -52,7 +52,15 @@ class SubmitNooRequest extends FormRequest
             $rules["photo{$i}"] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
         }
 
-        $rules['video'] = ['nullable', 'file', new VideoMimeOrSignature, 'max:51200'];
+        $rules['video'] = [
+            'nullable',
+            'max:51200',
+            function ($attribute, $value, $fail) {
+                if ($value instanceof \Illuminate\Http\UploadedFile) {
+                    (new VideoMimeOrSignature)->validate($attribute, $value, $fail);
+                }
+            },
+        ];
 
         return $rules;
     }

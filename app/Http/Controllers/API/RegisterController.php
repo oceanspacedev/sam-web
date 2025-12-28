@@ -107,6 +107,7 @@ class RegisterController extends Controller
                 'divisi_id' => $hierarchy['divisi_id'],
                 'region_id' => $hierarchy['region_id'],
                 'cluster_id' => $hierarchy['cluster_id'],
+                'video' => $request->input('video', '-'),
             ];
 
             $rules = [];
@@ -504,6 +505,7 @@ class RegisterController extends Controller
                 'divisi_id' => $hierarchy['divisi_id'],
                 'region_id' => $hierarchy['region_id'],
                 'cluster_id' => $hierarchy['cluster_id'],
+                'video' => $request->input('video', '-'),
             ];
 
             // Queue photo uploads for background processing

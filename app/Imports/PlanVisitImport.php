@@ -69,6 +69,11 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             $divisionName = $this->requireValue($data, ['divisi'], 'divisi');
             $tanggal = $this->resolveScheduleDate($data);
 
+            $namaOutlet = $this->sanitizeString($data['nama_outlet'] ?? null);
+            if ($namaOutlet !== null) {
+                $this->assertNotFormula($namaOutlet, 'nama_outlet');
+            }
+
             $user = User::whereRaw('REPLACE(UPPER(username), " ", "") = ?', [$this->normalizeName($username)])->first();
 
             if (! $user) {
@@ -248,6 +253,9 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             throw new Exception('Kolom schedule_week dan schedule_year wajib diisi untuk import weekly.');
         }
 
+        $this->assertNotFormula($weekValue, 'schedule_week');
+        $this->assertNotFormula($yearValue, 'schedule_year');
+
         $week = $this->extractDigits($weekValue);
         $year = $this->extractDigits($yearValue);
 
@@ -281,7 +289,10 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private function assertScheduleDateIsAllowed(Carbon $tanggal): void
     {
-        $minimumAllowedDate = now()->startOfDay();
+        $now = now();
+        $today = $now->copy()->startOfDay();
+
+        $minimumAllowedDate = $today->copy();
 
         if ($this->scheduleScope === 'weekly') {
             $minimumAllowedDate = $minimumAllowedDate->startOfWeek(Carbon::MONDAY)->addWeek();
@@ -293,7 +304,9 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             throw new Exception('Tanggal '.$tanggal->format('Y-m-d').' tidak valid. Minimal satu minggu dari hari ini (>= '.$minimumAllowedDate->format('Y-m-d').').');
         }
 
-        if ($tanggal->weekOfYear <= now()->weekOfYear && now() > now()->startOfDay()->startOfWeek()->addDay(1)->addHour(10)) {
+        $cutoffTime = $today->copy()->startOfWeek(Carbon::MONDAY)->addDay(1)->addHour(10);
+
+        if ($tanggal->isoWeekYear === $now->isoWeekYear && $tanggal->weekOfYear <= $now->weekOfYear && $now->gt($cutoffTime)) {
             throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off Selasa 10.00.');
         }
     }
@@ -308,11 +321,24 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             $value = $this->sanitizeString($row[$key]);
 
             if ($value !== null && $value !== '') {
+                $this->assertNotFormula($value, $label);
+
                 return $value;
             }
         }
 
         throw new Exception('Kolom '.$label.' wajib diisi.');
+    }
+
+    private function assertNotFormula(?string $value, string $label): void
+    {
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        if (Str::startsWith(ltrim($value), '=')) {
+            throw new Exception('Kolom '.$label.' tidak boleh berisi formula.');
+        }
     }
 
     private function sanitizeString($value): ?string

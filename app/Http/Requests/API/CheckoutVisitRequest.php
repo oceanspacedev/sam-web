@@ -15,7 +15,7 @@ class CheckoutVisitRequest extends FormRequest
     {
         return [
             'latlong_out' => ['required', 'string', 'regex:/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/'],
-            'laporan_visit' => ['required', 'string', 'max:1000'],
+            'laporan_visit' => ['required', 'string', 'max:3000'],
             'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
             'transaksi' => ['required', 'string', 'in:YES,NO'],
         ];
@@ -27,7 +27,7 @@ class CheckoutVisitRequest extends FormRequest
             'latlong_out.required' => 'Lokasi check-out wajib diisi',
             'latlong_out.regex' => 'Format lokasi tidak valid (gunakan format: latitude,longitude)',
             'laporan_visit.required' => 'Laporan visit wajib diisi',
-            'laporan_visit.max' => 'Laporan visit maksimal 1000 karakter',
+            'laporan_visit.max' => 'Laporan visit maksimal 3000 karakter',
             'picture_visit.required' => 'Foto check-out wajib diupload',
             'picture_visit.image' => 'File harus berupa gambar',
             'picture_visit.mimes' => 'Format gambar harus jpg, jpeg, atau png',

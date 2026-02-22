@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Divisions\RelationManagers;
 
+use Filament\Actions;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -55,11 +56,11 @@ class SettingRelationManager extends RelationManager
                     ->suffix(' m'),
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make()
+                Actions\CreateAction::make()
                     ->visible(fn () => ! $this->getOwnerRecord()->setting()->exists()),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Actions\EditAction::make(),
             ]);
     }
 }

@@ -2,9 +2,10 @@
 
 namespace App\Filament\Resources\Divisions\RelationManagers;
 
+use Filament\Actions;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -14,9 +15,9 @@ class RegisterFieldsRelationManager extends RelationManager
 
     protected static ?string $title = 'Custom Fields';
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form->schema([
+        return $schema->schema([
             Forms\Components\TextInput::make('name')
                 ->label('Nama Field (Slug)')
                 ->required()
@@ -122,15 +123,15 @@ class RegisterFieldsRelationManager extends RelationManager
             ->defaultSort('sort_order')
             ->reorderable('sort_order')
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Actions\EditAction::make(),
+                Actions\DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                Actions\BulkActionGroup::make([
+                    Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }

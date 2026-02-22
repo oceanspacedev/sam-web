@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Division extends Model
@@ -55,5 +56,10 @@ class Division extends Model
     public function clusters(): HasMany
     {
         return $this->hasMany(Cluster::class, 'divisi_id');
+    }
+
+    public function setting(): HasOne
+    {
+        return $this->hasOne(DivisionSetting::class);
     }
 }

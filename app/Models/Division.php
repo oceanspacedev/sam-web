@@ -62,4 +62,9 @@ class Division extends Model
     {
         return $this->hasOne(DivisionSetting::class);
     }
+
+    public function registerFields(): HasMany
+    {
+        return $this->hasMany(DivisionRegisterField::class);
+    }
 }

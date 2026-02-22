@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -109,5 +110,10 @@ class Register extends Model
     public function outlet(): HasOne
     {
         return $this->hasOne(Outlet::class)->withTrashed();
+    }
+
+    public function fieldValues(): HasMany
+    {
+        return $this->hasMany(RegisterFieldValue::class);
     }
 }

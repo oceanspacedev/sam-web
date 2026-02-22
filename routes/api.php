@@ -78,6 +78,9 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::get('cluster', [SettingController::class, 'getcluster']);
     Route::get('form-options', [SettingController::class, 'getFormOptions']);
     Route::get('roles', [SettingController::class, 'getRoleOptions']);
+
+    // Custom Register Fields
+    Route::get('divisions/{id}/register-fields', [RegisterController::class, 'getRegisterFields']);
 });
 
 Route::post('notif', [SendNotif::class, 'sendMessage']);

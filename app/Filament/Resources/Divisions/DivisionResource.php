@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Divisions;
 
-use App\Filament\Resources\Divisions\Pages;
-use App\Filament\Resources\Divisions\RelationManagers;
 use App\Models\BadanUsaha;
 use App\Models\Division;
 use Filament\Actions\BulkActionGroup;
@@ -180,6 +178,7 @@ class DivisionResource extends Resource
     {
         return [
             RelationManagers\SettingRelationManager::class,
+            RelationManagers\RegisterFieldsRelationManager::class,
         ];
     }
 

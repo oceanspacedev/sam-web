@@ -23,6 +23,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -404,6 +405,53 @@ class RegisterResource extends Resource
                             ->columnSpan(['default' => 12, 'xl' => 4]),
                     ])
                     ->columnSpanFull(),
+                Section::make('Field Tambahan')
+                    ->description('Custom fields sesuai divisi')
+                    ->schema(function (callable $get) {
+                        $divisionId = $get('divisi_id');
+                        if (! $divisionId) {
+                            return [];
+                        }
+
+                        $fields = \App\Models\DivisionRegisterField::where('division_id', $divisionId)
+                            ->orderBy('sort_order')
+                            ->get();
+
+                        if ($fields->isEmpty()) {
+                            return [
+                                Forms\Components\Placeholder::make('no_custom_fields')
+                                    ->label('Tidak ada custom fields untuk divisi ini'),
+                            ];
+                        }
+
+                        return $fields->map(fn ($field) => match ($field->type) {
+                            'text' => Forms\Components\TextInput::make("custom_fields.{$field->name}")
+                                ->label($field->label)
+                                ->required($field->is_required),
+                            'number' => Forms\Components\TextInput::make("custom_fields.{$field->name}")
+                                ->label($field->label)
+                                ->numeric()
+                                ->required($field->is_required),
+                            'select' => Forms\Components\Select::make("custom_fields.{$field->name}")
+                                ->label($field->label)
+                                ->options(array_combine($field->options ?? [], $field->options ?? []))
+                                ->required($field->is_required),
+                            'checkbox' => Forms\Components\Checkbox::make("custom_fields.{$field->name}")
+                                ->label($field->label),
+                            'date' => Forms\Components\DatePicker::make("custom_fields.{$field->name}")
+                                ->label($field->label)
+                                ->required($field->is_required),
+                            'file' => Forms\Components\FileUpload::make("custom_files.{$field->name}")
+                                ->label($field->label)
+                                ->image()
+                                ->directory('custom_files')
+                                ->required($field->is_required),
+                            default => Forms\Components\TextInput::make("custom_fields.{$field->name}")
+                                ->label($field->label),
+                        })->toArray();
+                    })
+                    ->visible(fn (callable $get) => filled($get('divisi_id')))
+                    ->columns(2),
             ]);
     }
 

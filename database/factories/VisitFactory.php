@@ -17,7 +17,8 @@ class VisitFactory extends Factory
         return [
             'tanggal_visit' => Carbon::now()->toDateString(),
             'user_id' => User::factory(),
-            'outlet_id' => Outlet::factory(),
+            'visitable_type' => Outlet::class,
+            'visitable_id' => Outlet::factory(),
             'tipe_visit' => 'ROUTINE',
             'latlong_in' => '0,0',
             'check_in_time' => Carbon::now(),

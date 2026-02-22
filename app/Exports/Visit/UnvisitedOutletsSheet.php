@@ -22,8 +22,9 @@ class UnvisitedOutletsSheet implements FromCollection, WithHeadings, WithTitle
 
         $visitedOutletIds = Visit::query()
             ->where('user_id', $this->user->id)
+            ->where('visitable_type', Outlet::class)
             ->whereBetween('tanggal_visit', [$start, $end])
-            ->pluck('outlet_id')
+            ->pluck('visitable_id')
             ->unique()
             ->filter()
             ->values();

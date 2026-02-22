@@ -23,7 +23,8 @@ class PlanVisitSeeder extends Seeder
                 PlanVisit::schedulePayload($data['tanggal_visit']),
                 [
                     'user_id' => $data['user_id'],
-                    'outlet_id' => $data['outlet_id'],
+                    'visitable_type' => 'App\Models\Outlet',
+                    'visitable_id' => $data['outlet_id'],
                 ]
             ));
         });

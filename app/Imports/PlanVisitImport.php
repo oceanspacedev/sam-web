@@ -103,7 +103,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             $schedulePayload = PlanVisit::schedulePayload($tanggal, $this->scheduleScope);
 
             $existing = PlanVisit::query()
-                ->where('outlet_id', $outlet->id)
+                ->where('visitable_type', Outlet::class)
+                ->where('visitable_id', $outlet->id)
                 ->where('user_id', $user->id)
                 ->where('schedule_scope', $this->scheduleScope)
                 ->whereDate('period_start', $schedulePayload['period_start'])
@@ -112,7 +113,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             if ($existing) {
                 $existing->update(array_merge($schedulePayload, [
                     'user_id' => $user->id,
-                    'outlet_id' => $outlet->id,
+                    'visitable_type' => Outlet::class,
+                    'visitable_id' => $outlet->id,
                 ]));
 
                 $this->incrementUpdated();
@@ -122,7 +124,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
             PlanVisit::create(array_merge($schedulePayload, [
                 'user_id' => $user->id,
-                'outlet_id' => $outlet->id,
+                'visitable_type' => Outlet::class,
+                'visitable_id' => $outlet->id,
             ]));
 
             $this->incrementCreated();

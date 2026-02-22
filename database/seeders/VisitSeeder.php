@@ -18,7 +18,8 @@ class VisitSeeder extends Seeder
             [
                 'tanggal_visit' => '2021-10-01',
                 'user_id' => 1,
-                'outlet_id' => 1,
+                'visitable_type' => 'App\Models\Outlet',
+                'visitable_id' => 1,
                 'tipe_visit' => 'PLANNED',
                 'latlong_in' => '-6.7108306020177455,108.53886410485876',
                 'latlong_out' => '-6.7108306020177455,108.53886410485876',
@@ -34,7 +35,8 @@ class VisitSeeder extends Seeder
             [
                 'tanggal_visit' => '2021-10-01',
                 'user_id' => 1,
-                'outlet_id' => 2,
+                'visitable_type' => 'App\Models\Outlet',
+                'visitable_id' => 2,
                 'tipe_visit' => 'EXTRACALL',
                 'latlong_in' => '-6.7108306020177455,108.53886410485876',
                 'latlong_out' => null,

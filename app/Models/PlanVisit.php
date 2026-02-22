@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PlanVisit extends Model
@@ -41,9 +42,29 @@ class PlanVisit extends Model
         return $this->belongsTo(User::class)->withTrashed();
     }
 
+    public function visitable(): MorphTo
+    {
+        return $this->morphTo()->withTrashed();
+    }
+
+    public function isOutletVisit(): bool
+    {
+        return $this->visitable_type === Outlet::class;
+    }
+
+    public function isRegisterVisit(): bool
+    {
+        return $this->visitable_type === Register::class;
+    }
+
+    /**
+     * Backward-compat: load outlet relation via visitable when it's an Outlet.
+     */
     public function outlet(): BelongsTo
     {
-        return $this->belongsTo(Outlet::class)->withTrashed();
+        return $this->belongsTo(Outlet::class, 'visitable_id')
+            ->where($this->getTable().'.visitable_type', Outlet::class)
+            ->withTrashed();
     }
 
     public function realizedVisit(): BelongsTo

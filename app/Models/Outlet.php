@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Outlet extends Model
@@ -186,14 +187,14 @@ class Outlet extends Model
         return $this->belongsTo(Register::class)->withTrashed();
     }
 
-    public function planvisit(): HasMany
+    public function planvisit(): MorphMany
     {
-        return $this->hasMany(PlanVisit::class);
+        return $this->morphMany(PlanVisit::class, 'visitable');
     }
 
-    public function visit(): HasMany
+    public function visit(): MorphMany
     {
-        return $this->hasMany(Visit::class);
+        return $this->morphMany(Visit::class, 'visitable');
     }
 
     public function cluster(): BelongsTo

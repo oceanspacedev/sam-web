@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Register extends Model
@@ -115,5 +116,15 @@ class Register extends Model
     public function fieldValues(): HasMany
     {
         return $this->hasMany(RegisterFieldValue::class);
+    }
+
+    public function visits(): MorphMany
+    {
+        return $this->morphMany(Visit::class, 'visitable');
+    }
+
+    public function planVisits(): MorphMany
+    {
+        return $this->morphMany(PlanVisit::class, 'visitable');
     }
 }

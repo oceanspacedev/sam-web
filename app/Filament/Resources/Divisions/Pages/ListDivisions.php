@@ -4,9 +4,9 @@ namespace App\Filament\Resources\Divisions\Pages;
 
 use App\Filament\Resources\Divisions\DivisionResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ManageRecords;
+use Filament\Resources\Pages\ListRecords;
 
-class ManageDivisions extends ManageRecords
+class ListDivisions extends ListRecords
 {
     protected static string $resource = DivisionResource::class;
 

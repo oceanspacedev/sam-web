@@ -20,7 +20,8 @@ class StorePlanVisitRequest extends FormRequest
                 'date',
                 'after_or_equal:'.Carbon::now()->addDays(3)->toDateString(),
             ],
-            'outlet_id' => ['required', 'integer', 'exists:outlets,id'],
+            'outlet_id' => ['nullable', 'integer', 'exists:outlets,id', 'required_without:register_id', 'prohibited_if:register_id,*'],
+            'register_id' => ['nullable', 'integer', 'exists:registers,id', 'required_without:outlet_id', 'prohibited_if:outlet_id,*'],
         ];
     }
 
@@ -30,8 +31,10 @@ class StorePlanVisitRequest extends FormRequest
             'tanggal_visit.required' => 'Tanggal visit wajib diisi',
             'tanggal_visit.date' => 'Format tanggal tidak valid',
             'tanggal_visit.after_or_equal' => 'Plan visit harus dibuat minimal H-3 sebelum tanggal kunjungan',
-            'outlet_id.required' => 'Outlet wajib dipilih',
+            'outlet_id.required_without' => 'Outlet atau Register wajib dipilih',
             'outlet_id.exists' => 'Outlet tidak ditemukan',
+            'register_id.required_without' => 'Outlet atau Register wajib dipilih',
+            'register_id.exists' => 'Register tidak ditemukan',
         ];
     }
 }

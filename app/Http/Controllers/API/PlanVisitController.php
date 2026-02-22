@@ -11,6 +11,7 @@ use App\Http\Resources\PlanVisit\PlanVisitCompactResource;
 use App\Http\Resources\PlanVisit\PlanVisitResource;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
+use App\Models\Register;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -26,14 +27,14 @@ class PlanVisitController extends Controller
 
         $baseRelations = $compact
             ? [
-                'outlet:id,kode_outlet,nama_outlet,distric,latlong,alamat_outlet',
+                'visitable:id,kode_outlet,nama_outlet,distric,latlong,alamat_outlet',
                 'user:id,nama_lengkap',
             ]
             : [
-                'outlet.badanusaha',
-                'outlet.region',
-                'outlet.divisi',
-                'outlet.cluster',
+                'visitable.badanusaha',
+                'visitable.region',
+                'visitable.divisi',
+                'visitable.cluster',
                 'user.badanUsahas',
                 'user.regions',
                 'user.divisis',
@@ -49,7 +50,8 @@ class PlanVisitController extends Controller
             $query->select([
                 'id',
                 'user_id',
-                'outlet_id',
+                'visitable_type',
+                'visitable_id',
                 'schedule_scope',
                 'period_start',
                 'period_end',
@@ -215,18 +217,35 @@ class PlanVisitController extends Controller
             'payload' => [
                 'tanggal_visit' => $request->tanggal_visit,
                 'outlet_id' => $request->outlet_id,
+                'register_id' => $request->register_id,
             ],
         ]);
 
-        $outlet = Outlet::visibleTo($user)->find($request->outlet_id);
+        // Resolve visitable target
+        if ($request->filled('outlet_id')) {
+            $target = Outlet::visibleTo($user)->find($request->outlet_id);
 
-        if (! $outlet) {
-            Log::channel('planvisit')->warning('Plan visit add failed: outlet not found', [
-                'user_id' => $user->id,
-                'outlet_id' => $request->outlet_id,
-            ]);
+            if (! $target) {
+                Log::channel('planvisit')->warning('Plan visit add failed: outlet not found', [
+                    'user_id' => $user->id,
+                    'outlet_id' => $request->outlet_id,
+                ]);
 
-            throw new ResourceNotFoundException('Outlet tidak ditemukan');
+                throw new ResourceNotFoundException('Outlet tidak ditemukan');
+            }
+            $visitableType = Outlet::class;
+        } else {
+            $target = Register::visibleTo($user)->find($request->register_id);
+
+            if (! $target) {
+                Log::channel('planvisit')->warning('Plan visit add failed: register not found', [
+                    'user_id' => $user->id,
+                    'register_id' => $request->register_id,
+                ]);
+
+                throw new ResourceNotFoundException('Register tidak ditemukan');
+            }
+            $visitableType = Register::class;
         }
 
         $periodStart = Carbon::parse($request->tanggal_visit)->startOfDay();
@@ -234,7 +253,8 @@ class PlanVisitController extends Controller
 
         $existingPlan = PlanVisit::query()
             ->where('user_id', $user->id)
-            ->where('outlet_id', $outlet->id)
+            ->where('visitable_type', $visitableType)
+            ->where('visitable_id', $target->id)
             ->where('schedule_scope', 'daily')
             ->whereDate('period_start', $schedulePayload['period_start'])
             ->first();
@@ -242,22 +262,25 @@ class PlanVisitController extends Controller
         if ($existingPlan) {
             Log::channel('planvisit')->warning('Plan visit add failed: duplicate', [
                 'user_id' => $user->id,
-                'outlet_id' => $outlet->id,
+                'visitable_type' => $visitableType,
+                'visitable_id' => $target->id,
                 'period_start' => $schedulePayload['period_start'],
             ]);
 
-            throw new BadRequestException('Plan visit untuk outlet ini sudah ada');
+            throw new BadRequestException('Plan visit untuk target ini sudah ada');
         }
 
         $addPlan = PlanVisit::create(array_merge($schedulePayload, [
             'user_id' => (string) $user->id,
-            'outlet_id' => $outlet->id,
+            'visitable_type' => $visitableType,
+            'visitable_id' => $target->id,
         ]));
 
         Log::channel('planvisit')->info('Plan visit add success', [
             'plan_visit_id' => $addPlan->id,
             'user_id' => $user->id,
-            'outlet_id' => $outlet->id,
+            'visitable_type' => $visitableType,
+            'visitable_id' => $target->id,
             'schedule_scope' => $addPlan->schedule_scope,
             'period_start' => $addPlan->period_start,
             'period_end' => $addPlan->period_end,
@@ -283,24 +306,42 @@ class PlanVisitController extends Controller
                 'bulan' => $request->bulan,
                 'tahun' => $request->tahun,
                 'outlet_id' => $request->outlet_id,
+                'register_id' => $request->register_id,
             ],
         ]);
 
-        $outlet = Outlet::visibleTo($user)->find($request->outlet_id);
+        // Resolve visitable target
+        if ($request->filled('outlet_id')) {
+            $target = Outlet::visibleTo($user)->find($request->outlet_id);
 
-        if (! $outlet) {
-            Log::channel('planvisit')->warning('Penghapusan plan visit gagal: outlet tidak ditemukan', [
-                'user_id' => $user->id,
-                'outlet_id' => $request->outlet_id,
-            ]);
+            if (! $target) {
+                Log::channel('planvisit')->warning('Penghapusan plan visit gagal: outlet tidak ditemukan', [
+                    'user_id' => $user->id,
+                    'outlet_id' => $request->outlet_id,
+                ]);
 
-            throw new ResourceNotFoundException('Outlet tidak ditemukan');
+                throw new ResourceNotFoundException('Outlet tidak ditemukan');
+            }
+            $visitableType = Outlet::class;
+        } else {
+            $target = Register::visibleTo($user)->find($request->register_id);
+
+            if (! $target) {
+                Log::channel('planvisit')->warning('Penghapusan plan visit gagal: register tidak ditemukan', [
+                    'user_id' => $user->id,
+                    'register_id' => $request->register_id,
+                ]);
+
+                throw new ResourceNotFoundException('Register tidak ditemukan');
+            }
+            $visitableType = Register::class;
         }
 
         $rangeStart = Carbon::createFromDate((int) $request->tahun, (int) $request->bulan, 1)->startOfMonth();
         $rangeEnd = $rangeStart->copy()->endOfMonth();
 
-        $planVisit = PlanVisit::where('outlet_id', $outlet->id)
+        $planVisit = PlanVisit::where('visitable_type', $visitableType)
+            ->where('visitable_id', $target->id)
             ->where('user_id', $user->id)
             ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
                 $builder
@@ -319,7 +360,8 @@ class PlanVisitController extends Controller
         if (! $planVisit) {
             Log::channel('planvisit')->warning('Penghapusan plan visit gagal: plan tidak ditemukan', [
                 'user_id' => $user->id,
-                'outlet_id' => $outlet->id,
+                'visitable_type' => $visitableType,
+                'visitable_id' => $target->id,
                 'bulan' => $request->bulan,
                 'tahun' => $request->tahun,
             ]);
@@ -330,7 +372,8 @@ class PlanVisitController extends Controller
         if ($planVisit->schedule_scope === 'weekly') {
             Log::channel('planvisit')->warning('Penghapusan plan visit gagal: jadwal mingguan tidak dapat dihapus', [
                 'user_id' => $user->id,
-                'outlet_id' => $outlet->id,
+                'visitable_type' => $visitableType,
+                'visitable_id' => $target->id,
                 'plan_visit_id' => $planVisit->id,
                 'schedule_scope' => $planVisit->schedule_scope,
             ]);
@@ -338,7 +381,8 @@ class PlanVisitController extends Controller
             throw new BadRequestException('Plan visit mingguan tidak dapat dihapus');
         }
 
-        $delete = PlanVisit::where('outlet_id', $outlet->id)
+        $delete = PlanVisit::where('visitable_type', $visitableType)
+            ->where('visitable_id', $target->id)
             ->where('user_id', $user->id)
             ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
                 $builder
@@ -357,7 +401,8 @@ class PlanVisitController extends Controller
         if (! $delete) {
             Log::channel('planvisit')->warning('Penghapusan plan visit gagal: tidak ada data yang dihapus', [
                 'user_id' => $user->id,
-                'outlet_id' => $outlet->id,
+                'visitable_type' => $visitableType,
+                'visitable_id' => $target->id,
                 'bulan' => $request->bulan,
                 'tahun' => $request->tahun,
             ]);
@@ -367,7 +412,8 @@ class PlanVisitController extends Controller
 
         Log::channel('planvisit')->info('Penghapusan plan visit berhasil', [
             'user_id' => $user->id,
-            'outlet_id' => $outlet->id,
+            'visitable_type' => $visitableType,
+            'visitable_id' => $target->id,
             'deleted_count' => $delete,
             'bulan' => $request->bulan,
             'tahun' => $request->tahun,

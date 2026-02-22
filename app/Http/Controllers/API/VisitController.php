@@ -11,7 +11,9 @@ use App\Http\Requests\API\CheckinVisitRequest;
 use App\Http\Requests\API\CheckoutVisitRequest;
 use App\Http\Resources\Visit\VisitCompactResource;
 use App\Http\Resources\Visit\VisitResource;
+use App\Models\DivisionSetting;
 use App\Models\Outlet;
+use App\Models\Register;
 use App\Models\Visit;
 use App\Services\FileUploadService;
 use Carbon\Carbon;
@@ -51,14 +53,14 @@ class VisitController extends Controller
 
         $baseRelations = $compact
             ? [
-                'outlet:id,kode_outlet,nama_outlet',
+                'visitable:id,kode_outlet,nama_outlet',
                 'user:id,nama_lengkap,role_id',
             ]
             : [
-                'outlet.badanusaha',
-                'outlet.region',
-                'outlet.divisi',
-                'outlet.cluster',
+                'visitable.badanusaha',
+                'visitable.region',
+                'visitable.divisi',
+                'visitable.cluster',
                 'user.badanUsahas',
                 'user.regions',
                 'user.divisis',
@@ -88,7 +90,8 @@ class VisitController extends Controller
             $visit->select([
                 'id',
                 'user_id',
-                'outlet_id',
+                'visitable_type',
+                'visitable_id',
                 'tanggal_visit',
                 'tipe_visit',
                 'check_in_time',
@@ -179,13 +182,13 @@ class VisitController extends Controller
         $compact = $request->boolean('compact', true);
 
         $query = Visit::with($compact ? [
-            'outlet:id,kode_outlet,nama_outlet',
+            'visitable:id,kode_outlet,nama_outlet',
             'user:id,nama_lengkap,role_id',
         ] : [
-            'outlet.badanusaha',
-            'outlet.region',
-            'outlet.divisi',
-            'outlet.cluster',
+            'visitable.badanusaha',
+            'visitable.region',
+            'visitable.divisi',
+            'visitable.cluster',
             'user.badanUsahas',
             'user.regions',
             'user.divisis',
@@ -197,7 +200,8 @@ class VisitController extends Controller
             $query->select([
                 'id',
                 'user_id',
-                'outlet_id',
+                'visitable_type',
+                'visitable_id',
                 'tanggal_visit',
                 'tipe_visit',
                 'check_in_time',
@@ -283,34 +287,57 @@ class VisitController extends Controller
                 ->first();
 
             if ($activeVisit) {
+                $name = $activeVisit->visitable->nama_outlet ?? $activeVisit->visitable->kode_outlet ?? 'target';
                 throw (new BadRequestException(
-                    "Belum check out dari outlet {$activeVisit->outlet->kode_outlet}"
+                    "Belum check out dari {$name}"
                 ))->withData(['active_visit_id' => $activeVisit->id]);
             }
 
-            // Find outlet with organizational filtering
-            $outlet = Outlet::visibleTo($user)
-                ->where('id', $request->outlet_id)
-                ->first();
+            // Resolve visitable target
+            if ($request->filled('outlet_id')) {
+                $target = Outlet::visibleTo($user)->where('id', $request->outlet_id)->first();
+                if (! $target) {
+                    Log::channel('visit')->warning('Check-in visit gagal: outlet tidak ditemukan', [
+                        'user_id' => $user->id,
+                        'outlet_id' => $request->outlet_id,
+                    ]);
 
-            if (! $outlet) {
-                Log::channel('visit')->warning('Check-in visit gagal: outlet tidak ditemukan', [
-                    'user_id' => $user->id,
-                    'outlet_id' => $request->outlet_id,
-                ]);
+                    throw new ResourceNotFoundException('Outlet tidak ditemukan');
+                }
+                $visitableType = Outlet::class;
+            } else {
+                $target = Register::visibleTo($user)->where('id', $request->register_id)->first();
+                if (! $target) {
+                    Log::channel('visit')->warning('Check-in visit gagal: register tidak ditemukan', [
+                        'user_id' => $user->id,
+                        'register_id' => $request->register_id,
+                    ]);
 
-                throw new ResourceNotFoundException('Outlet tidak ditemukan');
+                    throw new ResourceNotFoundException('Register tidak ditemukan');
+                }
+                $visitableType = Register::class;
+
+                // Check division settings
+                $divisionSetting = DivisionSetting::where('division_id', $target->divisi_id)->first();
+                if (! $divisionSetting || ! $divisionSetting->allow_register_visit) {
+                    throw new BadRequestException('Divisi ini tidak mengizinkan visit ke LEAD/NOO');
+                }
             }
 
-            // Validate user hasn't visited this outlet today (prevent duplicate visits)
+            // Check max visit per day (for both outlet and register)
+            $this->enforceMaxVisitPerDay($user, $target);
+
+            // Check duplicate visit
             $existingVisit = Visit::where('user_id', $user->id)
-                ->where('outlet_id', $request->outlet_id)
+                ->where('visitable_type', $visitableType)
+                ->where('visitable_id', $target->id)
                 ->whereDate('tanggal_visit', today())
                 ->first();
 
             if ($existingVisit) {
+                $name = $target->nama_outlet ?? $target->kode_outlet ?? 'target';
                 throw (new BadRequestException(
-                    "Anda sudah pernah visit ke outlet {$outlet->kode_outlet} hari ini"
+                    "Anda sudah pernah visit ke {$name} hari ini"
                 ))->withData(['existing_visit_id' => $existingVisit->id]);
             }
 
@@ -331,11 +358,12 @@ class VisitController extends Controller
                 'filename' => $imageName,
             ];
 
-            // Create visit
+            // Create visit with polymorphic fields
             $visit = Visit::create([
                 'tanggal_visit' => today(),
                 'user_id' => $user->id,
-                'outlet_id' => $outlet->id,
+                'visitable_type' => $visitableType,
+                'visitable_id' => $target->id,
                 'tipe_visit' => $request->tipe_visit,
                 'latlong_in' => $request->latlong_in,
                 'check_in_time' => now(),
@@ -348,11 +376,13 @@ class VisitController extends Controller
                 $visit->refresh();
             }
 
+            $name = $target->nama_outlet ?? $target->kode_outlet ?? 'target';
             Log::channel('visit')->info('Check-in visit berhasil', [
                 'visit_id' => $visit->id,
                 'user_id' => $user->id,
-                'outlet_id' => $outlet->id,
-                'kode_outlet' => $outlet->kode_outlet,
+                'visitable_type' => $visitableType,
+                'visitable_id' => $target->id,
+                'name' => $name,
             ]);
 
             return response()->json([
@@ -445,6 +475,26 @@ class VisitController extends Controller
             if (! $mediaDispatched && $temporaryFiles !== []) {
                 $this->cleanupTemporaryFiles($temporaryFiles);
             }
+        }
+    }
+
+    private function enforceMaxVisitPerDay($user, Outlet|Register $target): void
+    {
+        $divisionId = $target instanceof Outlet ? $target->divisi_id : $target->divisi_id;
+        $setting = DivisionSetting::where('division_id', $divisionId)->first();
+
+        if (! $setting || $setting->max_visit_per_day === 0) {
+            return;
+        }
+
+        $todayCount = Visit::where('user_id', $user->id)
+            ->whereDate('tanggal_visit', today())
+            ->count();
+
+        if ($todayCount >= $setting->max_visit_per_day) {
+            throw new BadRequestException(
+                "Anda sudah mencapai batas maksimal {$setting->max_visit_per_day} visit per hari"
+            );
         }
     }
 

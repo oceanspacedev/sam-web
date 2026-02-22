@@ -35,7 +35,8 @@ class VisitObserver
 
     protected function markRelatedPlanVisit(Visit $visit): void
     {
-        if (! $visit->user_id || ! $visit->outlet_id || ! $visit->tanggal_visit) {
+        // Only match PlanVisit for outlet visits (registers don't have plan visits yet)
+        if (! $visit->user_id || ! $visit->visitable_id || ! $visit->tanggal_visit) {
             return;
         }
 
@@ -44,7 +45,8 @@ class VisitObserver
         /** @var PlanVisit|null $plan */
         $plan = PlanVisit::query()
             ->where('user_id', $visit->user_id)
-            ->where('outlet_id', $visit->outlet_id)
+            ->where('visitable_type', $visit->visitable_type)
+            ->where('visitable_id', $visit->visitable_id)
             ->unrealized()
             ->where(function (Builder $query) use ($visitDate): void {
                 $query->where(function (Builder $subQuery) use ($visitDate): void {

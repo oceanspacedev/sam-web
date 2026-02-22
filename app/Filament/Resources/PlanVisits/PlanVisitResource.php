@@ -7,6 +7,7 @@ use App\Filament\Resources\PlanVisits\Pages\EditPlanVisit;
 use App\Filament\Resources\PlanVisits\Pages\ListPlanVisits;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
+use App\Models\Register;
 use App\Models\User;
 use Carbon\Carbon;
 use Closure;
@@ -105,19 +106,48 @@ class PlanVisitResource extends Resource
 
                                 return "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}";
                             }),
-                        Select::make('outlet_id')
-                            ->searchable()
-                            ->preload()
+                        // Polymorphic visit target selector
+                        Select::make('visitable_type')
+                            ->label('Tipe Target')
+                            ->options([
+                                'App\\Models\\Outlet' => 'Outlet',
+                                'App\\Models\\Register' => 'Register (LEAD/NOO)',
+                            ])
                             ->required()
                             ->live()
-                            ->label('Pilih Outlet')
-                            ->placeholder('Cari Outlet berdasarkan nama/kode')
-                            ->getSearchResultsUsing(function (string $search) {
+                            ->default('App\\Models\\Outlet')
+                            ->afterStateUpdated(fn (callable $set) => $set('visitable_id', null)),
+                        Select::make('visitable_id')
+                            ->label('Target')
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Cari target berdasarkan nama/kode')
+                            ->getSearchResultsUsing(function (string $search, callable $get) {
+                                $type = $get('visitable_type');
                                 $currentUser = Auth::user();
 
-                                return Outlet::query()
-                                    ->with(['badanusaha:id,name', 'divisi:id,name'])
-                                    ->accessibleTo($currentUser)
+                                if ($type === 'App\\Models\\Outlet') {
+                                    return Outlet::query()
+                                        ->with(['badanusaha:id,name', 'divisi:id,name'])
+                                        ->accessibleTo($currentUser)
+                                        ->where(function ($q) use ($search) {
+                                            $q->where('nama_outlet', 'like', "%{$search}%")
+                                                ->orWhere('kode_outlet', 'like', "%{$search}%");
+                                        })
+                                        ->orderBy('nama_outlet')
+                                        ->limit(50)
+                                        ->get()
+                                        ->mapWithKeys(function ($outlet) {
+                                            $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
+                                            $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
+
+                                            return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
+                                        })
+                                        ->toArray();
+                                }
+
+                                return Register::query()
                                     ->where(function ($q) use ($search) {
                                         $q->where('nama_outlet', 'like', "%{$search}%")
                                             ->orWhere('kode_outlet', 'like', "%{$search}%");
@@ -125,31 +155,45 @@ class PlanVisitResource extends Resource
                                     ->orderBy('nama_outlet')
                                     ->limit(50)
                                     ->get()
-                                    ->mapWithKeys(function ($outlet) {
-                                        $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
-                                        $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
-
-                                        return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
+                                    ->mapWithKeys(function ($register) {
+                                        return [$register->id => "[{$register->kode_outlet}] {$register->nama_outlet} - Register"];
                                     })
                                     ->toArray();
                             })
-                            ->getOptionLabelUsing(function ($value) {
-                                if (! $value) {
-                                    return null;
-                                }
-                                $outlet = Outlet::with(['badanusaha:id,name', 'divisi:id,name'])->find($value);
-                                if (! $outlet) {
-                                    return null;
-                                }
-                                $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
-                                $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
+                            ->options(function (callable $get) {
+                                $id = $get('visitable_id');
+                                $type = $get('visitable_type');
 
-                                return "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}";
+                                if (! $id || ! $type) {
+                                    return [];
+                                }
+
+                                if ($type === 'App\\Models\\Outlet') {
+                                    $outlet = Outlet::with(['badanusaha:id,name', 'divisi:id,name'])->find($id);
+                                    if (! $outlet) {
+                                        return [];
+                                    }
+                                    $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
+                                    $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
+
+                                    return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
+                                }
+
+                                $register = Register::find($id);
+                                if (! $register) {
+                                    return [];
+                                }
+
+                                return [$register->id => "[{$register->kode_outlet}] {$register->nama_outlet} - Register"];
                             })
-                            ->afterStateUpdated(function ($state, callable $get, callable $set): void {
-                                $divisionId = $state ? Outlet::query()->whereKey($state)->value('divisi_id') : null;
-
-                                $set('outlet_division_id', $divisionId);
+                            ->afterStateUpdated(function ($state, callable $set, callable $get): void {
+                                $type = $get('visitable_type');
+                                if ($state && $type === 'App\\Models\\Outlet') {
+                                    $divisionId = Outlet::query()->whereKey($state)->value('divisi_id');
+                                    $set('outlet_division_id', $divisionId);
+                                } else {
+                                    $set('outlet_division_id', null);
+                                }
                             }),
                     ])
                     ->collapsible()
@@ -157,7 +201,7 @@ class PlanVisitResource extends Resource
                 Section::make('Visit Details')
                     ->schema([
                         Hidden::make('outlet_division_id')
-                            ->default(fn (?PlanVisit $record) => $record?->outlet?->divisi_id)
+                            ->default(fn (?PlanVisit $record) => $record?->isOutletVisit() ? $record?->visitable?->divisi_id : null)
                             ->dehydrated(false),
                         Radio::make('schedule_scope')
                             ->label('Jenis Plan')
@@ -240,12 +284,17 @@ class PlanVisitResource extends Resource
                 TextColumn::make('user.nama_lengkap')
                     ->label('Nama')
                     ->searchable(),
-                TextColumn::make('outlet.nama_outlet')
-                    ->label('Outlet')
+                TextColumn::make('visitable.nama_outlet')
+                    ->label('Target')
+                    ->badge()
+                    ->color(fn ($record) => $record->isOutletVisit() ? 'primary' : 'warning')
+                    ->formatStateUsing(fn ($state, $record) => $state ?? '-')
+                    ->tooltip(fn ($record) => $record->isOutletVisit() ? 'Outlet' : 'Register')
                     ->searchable(),
-                TextColumn::make('outlet.kode_outlet')
-                    ->label('Kode Outlet')
-                    ->searchable(),
+                TextColumn::make('visitable.kode_outlet')
+                    ->label('Kode Target')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('schedule_scope')
                     ->label('Tipe')
                     ->badge()

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Visit;
 
 use App\Http\Resources\Outlet\OutletResource;
+use App\Http\Resources\Register\RegisterResource;
 use App\Http\Resources\UserResource;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,7 +16,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * @property int $id
  * @property string $tanggal_visit
  * @property int $user_id
- * @property int $outlet_id
+ * @property int|null $outlet_id
+ * @property int|null $register_id
+ * @property string $visitable_type
+ * @property int|null $visitable_id
  * @property string $tipe_visit
  * @property string $latlong_in
  * @property string|null $latlong_out
@@ -40,7 +44,11 @@ class VisitResource extends JsonResource
             'id' => $this->id,
             'tanggal_visit' => Carbon::parse($this->tanggal_visit)->getPreciseTimestamp(3),
             'user_id' => $this->user_id,
+            'visitable_type' => $this->visitable_type === \App\Models\Outlet::class ? 'outlet' : 'register',
+            'visitable_id' => $this->visitable_id,
+            // Backward compatibility
             'outlet_id' => $this->outlet_id,
+            'register_id' => $this->register_id,
             'tipe_visit' => $this->tipe_visit,
             'latlong_in' => $this->latlong_in,
             'latlong_out' => $this->latlong_out,
@@ -53,8 +61,23 @@ class VisitResource extends JsonResource
             'transaksi' => $this->transaksi,
 
             // Relationships
-            'outlet' => $this->whenLoaded('outlet', function () {
-                return $this->outlet ? new OutletResource($this->outlet) : null;
+            'visitable' => $this->whenLoaded('visitable', function () {
+                if ($this->isOutletVisit()) {
+                    return $this->visitable ? new OutletResource($this->visitable) : null;
+                }
+
+                return $this->visitable ? new RegisterResource($this->visitable) : null;
+            }),
+            // Backward compatibility
+            'outlet' => $this->whenLoaded('visitable', function () {
+                return $this->isOutletVisit() && $this->visitable
+                    ? new OutletResource($this->visitable)
+                    : null;
+            }),
+            'register' => $this->whenLoaded('visitable', function () {
+                return $this->isRegisterVisit() && $this->visitable
+                    ? new RegisterResource($this->visitable)
+                    : null;
             }),
             'user' => $this->whenLoaded('user', function () {
                 return $this->user ? new UserResource($this->user) : null;

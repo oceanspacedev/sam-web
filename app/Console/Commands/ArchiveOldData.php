@@ -16,10 +16,7 @@ class ArchiveOldData extends Command
      *
      * @var string
      */
-    protected $signature = 'data:archive 
-                            {--days=730 : Number of days to retain data (default: 2 years)} 
-                            {--dry-run : Simulate the archiving process without making changes}
-                            {--chunk=1000 : Number of records to process per batch}';
+    protected $signature = 'data:archive {--days=730 : Number of days to retain data (default: 2 years)} {--dry-run : Simulate the archiving process without making changes} {--chunk=1000 : Number of records to process per batch}';
 
     /**
      * The console command description.

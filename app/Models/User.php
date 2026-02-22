@@ -144,7 +144,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         }
 
         $role = $this->role;
-        $scopeLevel = $role?->organizational_scope_level ?? 'cluster';
+        $scopeLevel = strtolower($role?->organizational_scope_level ?? 'cluster');
 
         $this->cachedOrganizationalIds = [
             'badanusaha' => $this->badanUsahas()->pluck('badan_usahas.id')->toArray(),

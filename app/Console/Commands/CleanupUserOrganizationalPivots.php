@@ -12,9 +12,7 @@ class CleanupUserOrganizationalPivots extends Command
      *
      * @var string
      */
-    protected $signature = 'users:cleanup-pivots 
-                            {--dry-run : Run in dry-run mode without making changes}
-                            {--user-id= : Clean up specific user ID only}';
+    protected $signature = 'users:cleanup-pivots {--dry-run : Run in dry-run mode without making changes} {--user-id= : Clean up specific user ID only}';
 
     /**
      * The console command description.

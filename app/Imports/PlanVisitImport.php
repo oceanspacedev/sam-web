@@ -292,19 +292,31 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
         $now = now();
         $today = $now->copy()->startOfDay();
 
-        $minimumAllowedDate = $today->copy();
+        $cutoffTime = $today->copy()->startOfWeek(Carbon::MONDAY)->addDay()->addHours(10);
 
         if ($this->scheduleScope === 'weekly') {
-            $minimumAllowedDate = $minimumAllowedDate->startOfWeek(Carbon::MONDAY)->addWeek();
-        } else {
-            $minimumAllowedDate = $minimumAllowedDate->addWeek();
+            if ($tanggal->isoWeekYear === $now->isoWeekYear && $tanggal->weekOfYear === $now->weekOfYear && $now->gt($cutoffTime)) {
+                throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off Selasa 10.00.');
+            }
+
+            $minimumAllowedDate = $today->copy()->startOfWeek(Carbon::MONDAY);
+
+            if ($now->gt($cutoffTime)) {
+                $minimumAllowedDate = $minimumAllowedDate->addWeek();
+            }
+
+            if ($tanggal->lt($minimumAllowedDate)) {
+                throw new Exception('Tanggal '.$tanggal->format('Y-m-d').' tidak valid. Minimal '.$minimumAllowedDate->format('Y-m-d').'.');
+            }
+
+            return;
         }
+
+        $minimumAllowedDate = $today->copy()->addWeek();
 
         if ($tanggal->lt($minimumAllowedDate)) {
             throw new Exception('Tanggal '.$tanggal->format('Y-m-d').' tidak valid. Minimal satu minggu dari hari ini (>= '.$minimumAllowedDate->format('Y-m-d').').');
         }
-
-        $cutoffTime = $today->copy()->startOfWeek(Carbon::MONDAY)->addDay(1)->addHour(10);
 
         if ($tanggal->isoWeekYear === $now->isoWeekYear && $tanggal->weekOfYear <= $now->weekOfYear && $now->gt($cutoffTime)) {
             throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off Selasa 10.00.');

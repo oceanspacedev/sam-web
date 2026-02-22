@@ -167,7 +167,24 @@ class RegisterResource extends Resource
                                         FileUpload::make('video')
                                             ->disk(StorageDisk::default())
                                             ->label('Video Toko')
-                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
+                                            ->afterStateHydrated(function (Set $set, $state): void {
+                                                if ($state === '-') {
+                                                    $set('video', null);
+                                                }
+                                            })
+                                            ->dehydrateStateUsing(function ($state) {
+                                                if (blank($state) || $state === '-') {
+                                                    return '-';
+                                                }
+
+                                                if (is_array($state)) {
+                                                    $first = reset($state);
+
+                                                    return filled($first) ? (string) $first : '-';
+                                                }
+
+                                                return $state;
+                                            })
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                                 $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
@@ -484,7 +501,7 @@ class RegisterResource extends Resource
                                             ->disk(StorageDisk::default()),
                                         TextEntry::make('video')
                                             ->label('Video Toko')
-                                            ->formatStateUsing(fn ($state) => $state ? new HtmlString('<a href="'.StorageDisk::url($state).'" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
+                                            ->formatStateUsing(fn ($state) => filled($state) && $state !== '-' ? new HtmlString('<a href="'.StorageDisk::url($state).'" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
                                             ->html(),
                                     ]),
                                 ]),
@@ -665,9 +682,9 @@ class RegisterResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('VIDEO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn ($state): ?string => filled($state) && $state !== '-' ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('oppo')
                     ->label('Oppo')

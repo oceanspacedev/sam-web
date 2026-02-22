@@ -8,6 +8,7 @@ use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Outlet;
+use App\Models\PlanVisit;
 use App\Models\Region;
 use App\Support\StorageDisk;
 use Exception;
@@ -170,6 +171,30 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 }
 
                 throw new Exception($message);
+            }
+
+            if ($existing->cluster_id !== $clusterId) {
+                $hasUnrealizedPlanVisits = PlanVisit::query()
+                    ->unrealized()
+                    ->where('outlet_id', $existing->id)
+                    ->exists();
+
+                if ($hasUnrealizedPlanVisits) {
+                    $currentClusterName = $existing->cluster()->value('name');
+                    $currentClusterName ??= (string) $existing->cluster_id;
+
+                    $message = "Perubahan cluster ditolak karena outlet {$existing->kode_outlet} masih memiliki plan visit yang belum terealisasi. "
+                        ."Cluster saat ini '{$currentClusterName}', target '{$targetClusterName}'.";
+
+                    if ($trackSummary) {
+                        $this->incrementSkipped();
+                        $this->rememberError($rowIndex, $data, $message);
+
+                        return null;
+                    }
+
+                    throw new Exception($message);
+                }
             }
 
             // kode_outlet boleh sama dengan milik sendiri, tapi tidak boleh sama dengan outlet lain dalam divisi yang sama

@@ -18,11 +18,7 @@ class MaintainOutletLifecycle extends Command
      *
      * Lifecycle: MAINTAIN → UNMAINTAIN → UNPRODUCTIVE → ARCHIVE
      */
-    protected $signature = 'outlets:maintain-lifecycle 
-                            {--days=30 : Days inactive before MAINTAIN → UNMAINTAIN (min 7)}
-                            {--unproductive-days=60 : Days inactive before UNMAINTAIN → UNPRODUCTIVE (min 30)}
-                            {--archive-days=90 : Days inactive before UNPRODUCTIVE → ARCHIVE (min 60)}
-                            {--dry-run : Run in simulation mode without making changes}';
+    protected $signature = 'outlets:maintain-lifecycle {--days=30 : Days inactive before MAINTAIN → UNMAINTAIN (min 7)} {--unproductive-days=60 : Days inactive before UNMAINTAIN → UNPRODUCTIVE (min 30)} {--archive-days=90 : Days inactive before UNPRODUCTIVE → ARCHIVE (min 60)} {--dry-run : Run in simulation mode without making changes}';
 
     /**
      * The console command description.

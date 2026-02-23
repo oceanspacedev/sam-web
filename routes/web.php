@@ -25,4 +25,3 @@ Route::get('download/app', function () {
 })->middleware('throttle:expensive');
 
 Route::view('/privacy-policy', 'privacy-policy');
-

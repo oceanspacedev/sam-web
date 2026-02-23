@@ -103,7 +103,7 @@ abstract class BaseExporter extends Exporter
         }
     }
 
-    protected static function storageUrl(null|string $path, string $fallback = '-'): string
+    protected static function storageUrl(?string $path, string $fallback = '-'): string
     {
         if ($path === null || $path === '') {
             return $fallback;
@@ -114,7 +114,7 @@ abstract class BaseExporter extends Exporter
         return $baseUrl.ltrim($path, '/');
     }
 
-    protected static function storageImageFormula(null|string $path, string $fallback = '-'): string
+    protected static function storageImageFormula(?string $path, string $fallback = '-'): string
     {
         // Try IMAGE() (Excel 365) and fall back to clickable hyperlink if unsupported.
         $url = static::storageUrl($path, '');
@@ -127,7 +127,7 @@ abstract class BaseExporter extends Exporter
         return sprintf('=IFERROR(IMAGE("%1$s"),HYPERLINK("%1$s","%1$s"))', $url);
     }
 
-    protected static function mapLinkFromLatLong(null|string $latlong, string $fallback = '-'): string
+    protected static function mapLinkFromLatLong(?string $latlong, string $fallback = '-'): string
     {
         $value = trim((string) $latlong);
 

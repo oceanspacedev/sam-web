@@ -130,7 +130,7 @@ class Outlet extends Model
 
         return $query;
     }
-    
+
     /**
      * @return array<string, string>
      */

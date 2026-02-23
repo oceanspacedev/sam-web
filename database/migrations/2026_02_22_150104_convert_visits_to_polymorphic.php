@@ -247,6 +247,7 @@ return new class extends Migration
     {
         try {
             $result = DB::select("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
+
             return count($result) > 0;
         } catch (\Exception $e) {
             return false;
@@ -260,14 +261,15 @@ return new class extends Migration
     {
         try {
             // For MySQL 5.7+
-            $result = DB::select("
+            $result = DB::select('
                 SELECT CONSTRAINT_NAME
                 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
                 WHERE TABLE_SCHEMA = DATABASE()
                 AND TABLE_NAME = ?
                 AND COLUMN_NAME = ?
                 AND REFERENCED_TABLE_NAME IS NOT NULL
-            ", [$table, $column]);
+            ', [$table, $column]);
+
             return count($result) > 0;
         } catch (\Exception $e) {
             return false;

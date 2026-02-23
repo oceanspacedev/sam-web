@@ -354,7 +354,7 @@ class OutletController extends Controller
                 'meta' => [
                     'code' => 200,
                     'status' => 'success',
-                'message' => 'Media outlet berhasil direset',
+                    'message' => 'Media outlet berhasil direset',
                 ],
                 'data' => null,
                 'errors' => null,

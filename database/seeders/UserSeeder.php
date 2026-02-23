@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -15,56 +16,69 @@ class UserSeeder extends Seeder
      */
     public function run()
     {
+        // Get roles by name (dynamic, not hardcoded IDs)
+        $superAdminRole = Role::where('name', 'SUPER ADMIN')->first();
+        $adminRole = Role::where('name', 'ADMIN')->first();
+        $asmRole = Role::where('name', 'ASM')->first();
+
+        if (!$superAdminRole || !$adminRole || !$asmRole) {
+            $this->command->error('Required roles not found! Please run RoleSeeder first.');
+            return;
+        }
+
         $users = [
+            [
+                'username' => 'superadmin',
+                'nama_lengkap' => 'SUPER ADMINISTRATOR',
+                'role_id' => $superAdminRole->id,
+                'password' => bcrypt('superadmin123'),
+            ],
+            [
+                'username' => 'admin',
+                'nama_lengkap' => 'ADMINISTRATOR',
+                'role_id' => $adminRole->id,
+                'password' => bcrypt('admin123'),
+            ],
             [
                 'username' => 'farid',
                 'nama_lengkap' => 'RADEN FARID LESMANA',
-                'role_id' => 1, // ASM
+                'role_id' => $asmRole->id,
                 'password' => bcrypt('complete123'),
-                // Assign to cluster
-                'cluster_id' => 1, // Will be assigned via pivot
             ],
             [
                 'username' => 'robby',
                 'nama_lengkap' => 'ROBBY AGUSTINA',
-                'role_id' => 1, // ASM
+                'role_id' => $asmRole->id,
                 'password' => bcrypt('complete123'),
             ],
             [
                 'username' => 'aritonang',
                 'nama_lengkap' => 'RHAMA ARITONANG',
-                'role_id' => 1, // ASM
+                'role_id' => $asmRole->id,
                 'password' => bcrypt('complete123'),
-            ],
-            [
-                'username' => 'admin',
-                'nama_lengkap' => 'ADMINISTRATOR',
-                'role_id' => 5, // ADMIN
-                'password' => bcrypt('admin123'),
-            ],
-            [
-                'username' => 'superadmin',
-                'nama_lengkap' => 'SUPER ADMINISTRATOR',
-                'role_id' => 13, // SUPER ADMIN
-                'password' => bcrypt('superadmin123'),
             ],
         ];
 
+        $clusterId = DB::table('clusters')->value('id'); // Get first cluster ID
+
         foreach ($users as $userData) {
-            $clusterId = $userData['cluster_id'] ?? null;
-            unset($userData['cluster_id']);
+            $user = User::updateOrCreate(
+                ['username' => $userData['username']],
+                [
+                    'nama_lengkap' => $userData['nama_lengkap'],
+                    'role_id' => $userData['role_id'],
+                    'password' => $userData['password'],
+                ]
+            );
 
-            $user = User::create($userData);
-
-            // Assign to organizational units via pivot tables if cluster_id is set
+            // Assign to organizational units via pivot tables if cluster exists
             if ($clusterId) {
-                // Get cluster info to determine badan_usaha, divisi, region
                 $cluster = DB::table('clusters')->where('id', $clusterId)->first();
 
                 if ($cluster) {
                     // Assign to badan_usaha
                     if ($cluster->badanusaha_id) {
-                        DB::table('user_badan_usaha')->insert([
+                        DB::table('user_badan_usaha')->insertOrIgnore([
                             'user_id' => $user->id,
                             'badan_usahas_id' => $cluster->badanusaha_id,
                         ]);
@@ -72,7 +86,7 @@ class UserSeeder extends Seeder
 
                     // Assign to divisi
                     if ($cluster->divisi_id) {
-                        DB::table('user_divisi')->insert([
+                        DB::table('user_divisi')->insertOrIgnore([
                             'user_id' => $user->id,
                             'divisions_id' => $cluster->divisi_id,
                         ]);
@@ -80,14 +94,14 @@ class UserSeeder extends Seeder
 
                     // Assign to region
                     if ($cluster->region_id) {
-                        DB::table('user_regions')->insert([
+                        DB::table('user_regions')->insertOrIgnore([
                             'user_id' => $user->id,
                             'regions_id' => $cluster->region_id,
                         ]);
                     }
 
                     // Assign to cluster
-                    DB::table('user_clusters')->insert([
+                    DB::table('user_clusters')->insertOrIgnore([
                         'user_id' => $user->id,
                         'clusters_id' => $clusterId,
                     ]);
@@ -95,6 +109,6 @@ class UserSeeder extends Seeder
             }
         }
 
-        $this->command->info('Users seeded successfully.');
+        $this->command->info('Users seeded successfully. Total: ' . User::count());
     }
 }

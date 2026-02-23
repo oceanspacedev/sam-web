@@ -7,28 +7,36 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed the application database.
      *
      * @return void
      */
     public function run()
     {
         $this->call([
-            // Run ShieldSeeder first to generate permissions
+            // 1. Generate permissions first (Shield)
             ShieldSeeder::class,
 
-            // Then seed roles
+            // 2. Seed roles (depends on Shield)
             RoleSeeder::class,
 
-            // Then assign permissions to roles
+            // 3. Assign permissions to roles (depends on Roles)
             RolePermissionSeeder::class,
 
-            // Commented out - data already exists in database
-            // BadanUsahaSeeder::class,
-            // DivisionSeeder::class,
-            // RegionSeeder::class,
-            // ClusterSeeder::class,
-            // UserSeeder::class,
+            // 4. Organizational hierarchy (correct order: BadanUsaha → Division → Region → Cluster)
+            BadanUsahaSeeder::class,
+            DivisionSeeder::class,
+            RegionSeeder::class,
+            ClusterSeeder::class,
+
+            // 5. Users (depends on Roles + Clusters)
+            UserSeeder::class,
+
+            // Commented out - not needed for basic setup
+            // OutletSeeder::class,
+            // PlanVisitSeeder::class,
+            // NooSeeder::class,
+            // VisitSeeder::class,
         ]);
     }
 }

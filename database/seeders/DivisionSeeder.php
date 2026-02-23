@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Division;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DivisionSeeder extends Seeder
 {
@@ -14,27 +15,35 @@ class DivisionSeeder extends Seeder
      */
     public function run()
     {
-        Division::insert([
+        // Use insertOrIgnore to avoid duplicate errors
+        DB::table('divisions')->insertOrIgnore([
             [
+                'id' => 1,
                 'badanusaha_id' => 1,
                 'name' => 'MSIS',
             ],
             [
+                'id' => 2,
                 'badanusaha_id' => 2,
                 'name' => 'ORAIMO',
             ],
             [
+                'id' => 3,
                 'badanusaha_id' => 2,
                 'name' => 'TECNO',
             ],
             [
+                'id' => 4,
                 'badanusaha_id' => 2,
                 'name' => 'REALME',
             ],
             [
+                'id' => 5,
                 'badanusaha_id' => 3,
                 'name' => '-',
             ],
         ]);
+
+        $this->command->info('Division seeded successfully.');
     }
 }

@@ -25,10 +25,9 @@ class RolePermissionSeeder extends Seeder
         $rolePermissions = [
             'SUPER ADMIN' => $this->getSuperAdminPermissions($permissions),
             'ADMIN' => $this->getAdminPermissions($permissions),
-            'AUDIT' => $this->getAuditPermissions($permissions),
             'AR' => $this->getARPermissions($permissions),
             'ASM' => $this->getASMPermissions($permissions),
-            'RGM' => $this->getRGMPermissions($permissions),
+            'SALES' => $this->getSalesPermissions($permissions),
         ];
 
         // Assign permissions to roles
@@ -69,45 +68,9 @@ class RolePermissionSeeder extends Seeder
      */
     private function getAdminPermissions($permissions): array
     {
-        return [
-            // BadanUsaha
-            'ViewAny:BadanUsaha', 'View:BadanUsaha', 'Create:BadanUsaha', 'Update:BadanUsaha',
-            // Division
-            'ViewAny:Division', 'View:Division', 'Create:Division', 'Update:Division',
-            // Region
-            'ViewAny:Region', 'View:Region', 'Create:Region', 'Update:Region',
-            // Cluster
-            'ViewAny:Cluster', 'View:Cluster', 'Create:Cluster', 'Update:Cluster',
-            // User
-            'ViewAny:User', 'View:User', 'Create:User', 'Update:User',
-            'Delete:User', 'DeleteAny:User', 'Export:User',
-            // Outlet
-            'ViewAny:Outlet', 'View:Outlet', 'Create:Outlet', 'Update:Outlet',
-            'Delete:Outlet', 'DeleteAny:Outlet', 'Export:Outlet', 'Reset:Outlet', 'ResetLocation:Outlet',
-            // Register
-            'ViewAny:Register', 'View:Register', 'Update:Register', 'Export:Register',
-            // Visit
-            'ViewAny:Visit', 'View:Visit', 'Export:Visit',
-            // PlanVisit
-            'ViewAny:PlanVisit', 'View:PlanVisit', 'Export:PlanVisit',
-        ];
-    }
-
-    /**
-     * AUDIT - Read-only access for audit purposes
-     */
-    private function getAuditPermissions($permissions): array
-    {
-        return [
-            'ViewAny:User', 'View:User',
-            'ViewAny:Outlet', 'View:Outlet',
-            'ViewAny:Register', 'View:Register',
-            'ViewAny:Visit', 'View:Visit',
-            'ViewAny:PlanVisit', 'View:PlanVisit',
-            'ViewAny:Division', 'View:Division',
-            'ViewAny:Region', 'View:Region',
-            'ViewAny:Cluster', 'View:Cluster',
-        ];
+        $all = array_keys($permissions);
+        // Remove some sensitive/admin-only permissions if needed
+        return $all;
     }
 
     /**
@@ -140,23 +103,25 @@ class RolePermissionSeeder extends Seeder
             // Visit monitoring
             'ViewAny:Visit', 'View:Visit',
             'ViewAny:PlanVisit', 'View:PlanVisit',
-            // Live visit access
-            'View:LiveVisit', 'View:UpdateOutlet',
             // Export reports
             'Export:Visit', 'Export:PlanVisit',
         ];
     }
 
     /**
-     * RGM - View team performance
+     * SALES - Mobile access for field operations
      */
-    private function getRGMPermissions($permissions): array
+    private function getSalesPermissions($permissions): array
     {
         return [
-            // User view
-            'ViewAny:User', 'View:User',
-            // Visit view
-            'ViewAny:Visit', 'View:Visit',
+            // Outlet access
+            'ViewAny:Outlet', 'View:Outlet',
+            // Register access
+            'ViewAny:Register', 'View:Register', 'Create:Register',
+            // Visit access
+            'ViewAny:Visit', 'View:Visit', 'Create:Visit', 'Update:Visit',
+            // PlanVisit access
+            'ViewAny:PlanVisit', 'View:PlanVisit', 'Create:PlanVisit', 'Update:PlanVisit', 'Delete:PlanVisit',
         ];
     }
 }

@@ -19,9 +19,11 @@ class UserSeeder extends Seeder
         // Get roles by name (dynamic, not hardcoded IDs)
         $superAdminRole = Role::where('name', 'SUPER ADMIN')->first();
         $adminRole = Role::where('name', 'ADMIN')->first();
+        $arRole = Role::where('name', 'AR')->first();
         $asmRole = Role::where('name', 'ASM')->first();
+        $salesRole = Role::where('name', 'SALES')->first();
 
-        if (!$superAdminRole || !$adminRole || !$asmRole) {
+        if (!$superAdminRole || !$adminRole || !$arRole || !$asmRole || !$salesRole) {
             $this->command->error('Required roles not found! Please run RoleSeeder first.');
             return;
         }
@@ -40,22 +42,22 @@ class UserSeeder extends Seeder
                 'password' => bcrypt('admin123'),
             ],
             [
-                'username' => 'farid',
-                'nama_lengkap' => 'RADEN FARID LESMANA',
-                'role_id' => $asmRole->id,
-                'password' => bcrypt('complete123'),
+                'username' => 'ar',
+                'nama_lengkap' => 'AR VALIDATOR',
+                'role_id' => $arRole->id,
+                'password' => bcrypt('ar123'),
             ],
             [
-                'username' => 'robby',
-                'nama_lengkap' => 'ROBBY AGUSTINA',
+                'username' => 'asm',
+                'nama_lengkap' => 'ASM SUPERVISOR',
                 'role_id' => $asmRole->id,
-                'password' => bcrypt('complete123'),
+                'password' => bcrypt('asm123'),
             ],
             [
-                'username' => 'aritonang',
-                'nama_lengkap' => 'RHAMA ARITONANG',
-                'role_id' => $asmRole->id,
-                'password' => bcrypt('complete123'),
+                'username' => 'sales',
+                'nama_lengkap' => 'SALES REPRESENTATIVE',
+                'role_id' => $salesRole->id,
+                'password' => bcrypt('sales123'),
             ],
         ];
 

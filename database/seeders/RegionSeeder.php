@@ -38,10 +38,8 @@ class RegionSeeder extends Seeder
             ['id' => 14, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGTEGALA'],
             ['id' => 15, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGTEGALB'],
             ['id' => 16, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGSEMARANG'],
-            // CJR
-            ['id' => 17, 'badanusaha_id' => 3, 'divisi_id' => 5, 'name' => '-'],
             // JABO
-            ['id' => 18, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'JABO'],
+            ['id' => 17, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'JABO'],
         ];
 
         foreach ($regions as $region) {

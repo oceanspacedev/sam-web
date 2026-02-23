@@ -25,10 +25,6 @@ class BadanUsahaSeeder extends Seeder
                 'id' => 2,
                 'name' => 'CV.TOP',
             ],
-            [
-                'id' => 3,
-                'name' => '-',
-            ],
         ]);
 
         $this->command->info('BadanUsaha seeded successfully.');

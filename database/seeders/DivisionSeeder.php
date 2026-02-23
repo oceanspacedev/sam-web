@@ -37,11 +37,6 @@ class DivisionSeeder extends Seeder
                 'badanusaha_id' => 2,
                 'name' => 'REALME',
             ],
-            [
-                'id' => 5,
-                'badanusaha_id' => 3,
-                'name' => '-',
-            ],
         ]);
 
         $this->command->info('Division seeded successfully.');

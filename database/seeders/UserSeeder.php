@@ -76,14 +76,6 @@ class UserSeeder extends Seeder
                 $cluster = DB::table('clusters')->where('id', $clusterId)->first();
 
                 if ($cluster) {
-                    // Assign to badan_usaha
-                    if ($cluster->badanusaha_id) {
-                        DB::table('user_badan_usaha')->insertOrIgnore([
-                            'user_id' => $user->id,
-                            'badanusaha_id' => $cluster->badanusaha_id,
-                        ]);
-                    }
-
                     // Assign to divisi
                     if ($cluster->divisi_id) {
                         DB::table('user_divisi')->insertOrIgnore([

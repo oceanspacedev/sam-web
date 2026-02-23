@@ -480,22 +480,88 @@ class VisitController extends Controller
 
     private function enforceMaxVisitPerDay($user, Outlet|Register $target): void
     {
-        $divisionId = $target instanceof Outlet ? $target->divisi_id : $target->divisi_id;
-        $setting = DivisionSetting::where('division_id', $divisionId)->first();
+        // Max visit per day check removed - no longer using DivisionSettings
+    }
 
-        if (! $setting || $setting->max_visit_per_day === 0) {
-            return;
-        }
+    public function getTargets(Request $request)
+    {
+        $request->validate([
+            'search' => 'sometimes|string',
+        ]);
 
-        $todayCount = Visit::where('user_id', $user->id)
-            ->whereDate('tanggal_visit', today())
-            ->count();
+        $user = Auth::user();
+        $search = $request->get('search');
 
-        if ($todayCount >= $setting->max_visit_per_day) {
-            throw new BadRequestException(
-                "Anda sudah mencapai batas maksimal {$setting->max_visit_per_day} visit per hari"
-            );
-        }
+        // Get outlets
+        $outlets = Outlet::with(['badanusaha:id,name', 'divisi:id,name', 'region:id,name', 'cluster:id,name'])
+            ->visibleTo($user)
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nama_outlet', 'like', "%{$search}%")
+                        ->orWhere('kode_outlet', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('nama_outlet')
+            ->get()
+            ->map(function ($outlet) {
+                return [
+                    'id' => $outlet->id,
+                    'type' => 'outlet',
+                    'kode' => $outlet->kode_outlet,
+                    'nama' => $outlet->nama_outlet,
+                    'latlong' => $outlet->latlong,
+                    'alamat' => $outlet->alamat_outlet,
+                    'distric' => $outlet->distric,
+                    'badanusaha' => $outlet->badanusaha->name ?? '-',
+                    'divisi' => $outlet->divisi->name ?? '-',
+                    'region' => $outlet->region->name ?? '-',
+                    'cluster' => $outlet->cluster->name ?? '-',
+                ];
+            });
+
+        // Get registers from divisions that allow visit
+        $registers = Register::visibleTo($user)
+            ->whereHas('divisi.setting', function ($q) {
+                $q->where('allow_register_visit', true);
+            })
+            ->with(['badanusaha:id,name', 'divisi:id,name', 'region:id,name', 'cluster:id,name'])
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nama_outlet', 'like', "%{$search}%")
+                        ->orWhere('kode_outlet', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('nama_outlet')
+            ->get()
+            ->map(function ($register) {
+                return [
+                    'id' => $register->id,
+                    'type' => 'register',
+                    'kode' => $register->kode_outlet,
+                    'nama' => $register->nama_outlet,
+                    'latlong' => $register->latlong,
+                    'alamat' => $register->alamat_outlet,
+                    'distric' => $register->distric,
+                    'badanusaha' => $register->badanusaha->name ?? '-',
+                    'divisi' => $register->divisi->name ?? '-',
+                    'region' => $register->region->name ?? '-',
+                    'cluster' => $register->cluster->name ?? '-',
+                    'type_register' => strtoupper($register->type ?? 'lead'),
+                ];
+            });
+
+        // Combine results
+        $targets = $outlets->concat($registers);
+
+        return response()->json([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'berhasil mendapatkan target visit',
+            ],
+            'data' => $targets,
+            'errors' => null,
+        ]);
     }
 
     private function cleanupTemporaryFiles(array $paths): void

@@ -23,6 +23,11 @@ class Division extends Model
         'created_at', 'updated_at', 'deleted_at',
     ];
 
+    protected static function booted(): void
+    {
+        //
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereNull('deleted_at');
@@ -63,8 +68,11 @@ class Division extends Model
         return $this->hasOne(DivisionSetting::class);
     }
 
-    public function registerFields(): HasMany
+    /**
+     * Check if this division allows visits to Register (LEAD/NOO)
+     */
+    public function allowsRegisterVisit(): bool
     {
-        return $this->hasMany(DivisionRegisterField::class);
+        return $this->setting?->allow_register_visit ?? false;
     }
 }

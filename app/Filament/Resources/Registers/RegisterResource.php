@@ -29,6 +29,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
+use Filament\Infolists\Components\BadgeEntry;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -94,8 +95,8 @@ class RegisterResource extends Resource
                                     TextInput::make('ktp_outlet')
                                         ->maxLength(255)
                                         ->label('KTP Pemilik Outlet')
-                                        ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
-                                        ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan'))),
+                                        ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
+                                        ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type'))),
                                     TextInput::make('latlong')
                                         ->required()
                                         ->maxLength(255)
@@ -112,8 +113,8 @@ class RegisterResource extends Resource
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Tanda Toko')
-                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
                                                 $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
@@ -124,8 +125,8 @@ class RegisterResource extends Resource
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Depan')
-                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
                                                 $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
@@ -135,8 +136,8 @@ class RegisterResource extends Resource
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Kiri')
-                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
                                                 $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
@@ -146,8 +147,8 @@ class RegisterResource extends Resource
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto Kanan')
-                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
                                                 $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
@@ -157,9 +158,9 @@ class RegisterResource extends Resource
                                             ->image()
                                             ->disk(StorageDisk::default())
                                             ->label('Foto KTP Pemilik')
-                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
-                                            ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('keterangan')))
-                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                                            ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
+                                            ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
+                                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
                                                 $userId = Auth::id();
                                                 $filenameGenerator = new FilenameGeneratorService;
 
@@ -227,6 +228,20 @@ class RegisterResource extends Resource
                         Group::make([
                             Section::make('Informasi Tambahan')
                                 ->schema([
+                                    ToggleButtons::make('type')
+                                        ->label('Tipe')
+                                        ->options([
+                                            'lead' => 'LEAD',
+                                            'noo' => 'NOO',
+                                        ])
+                                        ->required()
+                                        ->live()
+                                        ->inline()
+                                        ->colors([
+                                            'lead' => 'warning',
+                                            'noo' => 'primary',
+                                        ])
+                                        ->default('noo'),
                                     Select::make('created_by_id')
                                         ->label('Dibuat Oleh')
                                         ->searchable()
@@ -250,22 +265,6 @@ class RegisterResource extends Resource
 
                                             $set('tm_id', optional($creator->tm)->id ?? $creator->id);
                                         }),
-                                    ToggleButtons::make('keterangan')
-                                        ->label('Keterangan')
-                                        ->options([
-                                            'LEAD' => 'LEAD',
-                                            'NOO' => 'NOO',
-                                        ])
-                                        ->required()
-                                        ->live()
-                                        ->inline()
-                                        ->colors([
-                                            'LEAD' => 'warning',
-                                            'NOO' => 'primary',
-                                        ])
-                                        ->default('NOO')
-                                        ->formatStateUsing(fn (?string $state): string => $state === 'LEAD' ? 'LEAD' : 'NOO')
-                                        ->dehydrateStateUsing(fn (?string $state): ?string => $state === 'LEAD' ? 'LEAD' : null),
                                 ])
                                 ->columns(1),
                             Section::make('Struktur Organisasi')
@@ -405,59 +404,12 @@ class RegisterResource extends Resource
                             ->columnSpan(['default' => 12, 'xl' => 4]),
                     ])
                     ->columnSpanFull(),
-                Section::make('Field Tambahan')
-                    ->description('Custom fields sesuai divisi')
-                    ->schema(function (callable $get) {
-                        $divisionId = $get('divisi_id');
-                        if (! $divisionId) {
-                            return [];
-                        }
-
-                        $fields = \App\Models\DivisionRegisterField::where('division_id', $divisionId)
-                            ->orderBy('sort_order')
-                            ->get();
-
-                        if ($fields->isEmpty()) {
-                            return [
-                                Forms\Components\Placeholder::make('no_custom_fields')
-                                    ->label('Tidak ada custom fields untuk divisi ini'),
-                            ];
-                        }
-
-                        return $fields->map(fn ($field) => match ($field->type) {
-                            'text' => Forms\Components\TextInput::make("custom_fields.{$field->name}")
-                                ->label($field->label)
-                                ->required($field->is_required),
-                            'number' => Forms\Components\TextInput::make("custom_fields.{$field->name}")
-                                ->label($field->label)
-                                ->numeric()
-                                ->required($field->is_required),
-                            'select' => Forms\Components\Select::make("custom_fields.{$field->name}")
-                                ->label($field->label)
-                                ->options(array_combine($field->options ?? [], $field->options ?? []))
-                                ->required($field->is_required),
-                            'checkbox' => Forms\Components\Checkbox::make("custom_fields.{$field->name}")
-                                ->label($field->label),
-                            'date' => Forms\Components\DatePicker::make("custom_fields.{$field->name}")
-                                ->label($field->label)
-                                ->required($field->is_required),
-                            'file' => Forms\Components\FileUpload::make("custom_files.{$field->name}")
-                                ->label($field->label)
-                                ->image()
-                                ->directory('custom_files')
-                                ->required($field->is_required),
-                            default => Forms\Components\TextInput::make("custom_fields.{$field->name}")
-                                ->label($field->label),
-                        })->toArray();
-                    })
-                    ->visible(fn (callable $get) => filled($get('divisi_id')))
-                    ->columns(2),
             ]);
     }
 
-    protected static function isLead(?string $keterangan): bool
+    protected static function isLead(?string $type): bool
     {
-        return strtoupper((string) $keterangan) === 'LEAD';
+        return $type === 'lead';
     }
 
     protected static function getTmOptions(?int $creatorId, ?int $currentTmId): array
@@ -579,14 +531,18 @@ class RegisterResource extends Resource
                                     TextEntry::make('created_at')
                                         ->label('Tanggal Dibuat')
                                         ->date('d M Y'),
-                                    TextEntry::make('keterangan')
-                                        ->label('Keterangan')
+                                    TextEntry::make('type')
+                                        ->label('Tipe')
                                         ->badge()
                                         ->color(fn (string $state): string => match ($state) {
-                                            'LEAD' => 'warning',
-                                            'NOO' => 'primary',
+                                            'lead' => 'warning',
+                                            'noo' => 'primary',
                                             default => 'gray',
-                                        }),
+                                        })
+                                        ->formatStateUsing(fn (string $state): string => strtoupper($state)),
+                                    TextEntry::make('keterangan')
+                                        ->label('Keterangan')
+                                        ->placeholder('-'),
                                     TextEntry::make('status')
                                         ->label('Status')
                                         ->badge()
@@ -603,6 +559,11 @@ class RegisterResource extends Resource
                                         ->label('Badan Usaha'),
                                     TextEntry::make('divisi.name')
                                         ->label('Divisi'),
+                                    TextEntry::make('divisionSetting.default_register_radius')
+                                        ->label('Radius Default')
+                                        ->formatStateUsing(fn ($state) => $state ? $state . ' m' : '-')
+                                        ->badge()
+                                        ->color('primary'),
                                     TextEntry::make('region.name')
                                         ->label('Region'),
                                     TextEntry::make('cluster.name')
@@ -659,11 +620,21 @@ class RegisterResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('created_at')
-                    ->label('Tanggal Dibuat') // Capitalized the label for consistency
+                    ->label('Tanggal Dibuat')
                     ->date('d M Y'),
                 TextColumn::make('createdBy.nama_lengkap')
                     ->label('Dibuat Oleh')
                     ->searchable(),
+                TextColumn::make('type')
+                    ->label('Tipe')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'lead' => 'warning',
+                        'noo' => 'primary',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => strtoupper($state))
+                    ->sortable(),
                 TextColumn::make('kode_outlet')
                     ->label('Kode Outlet'),
                 TextColumn::make('divisi.name')
@@ -868,7 +839,7 @@ class RegisterResource extends Resource
                     ->label('Update KTP')
                     ->icon('heroicon-o-identification')
                     ->color('primary')
-                    ->visible(fn ($record) => $record->keterangan === 'LEAD' && Gate::allows('Upgrade:Register'))
+                    ->visible(fn ($record) => $record->type === 'lead' && Gate::allows('Upgrade:Register'))
                     ->form([
                         TextInput::make('ktp_outlet')
                             ->label('Nomor KTP Outlet')
@@ -879,7 +850,7 @@ class RegisterResource extends Resource
                             ->image()
                             ->disk(StorageDisk::default())
                             ->required()
-                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
+                            ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
                                 $userId = Auth::id();
                                 $filenameGenerator = new FilenameGeneratorService;
 
@@ -890,7 +861,7 @@ class RegisterResource extends Resource
                         $record->update([
                             'ktp_outlet' => $data['ktp_outlet'],
                             'poto_ktp' => $data['poto_ktp'],
-                            'keterangan' => null,
+                            'type' => 'noo',
                         ]);
 
                         Notification::make()
@@ -902,7 +873,7 @@ class RegisterResource extends Resource
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && $record->keterangan !== 'LEAD')
+                    ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && $record->type !== 'lead')
                     ->form([
                         TextInput::make('kode_outlet')
                             ->regex('/^\S+$/')
@@ -950,7 +921,7 @@ class RegisterResource extends Resource
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('Reject:Register', $record) && $record->keterangan !== 'LEAD')
+                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('Reject:Register', $record) && $record->type !== 'lead')
                     ->schema([
                         Textarea::make('alasan')
                             ->required(),

@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Flow Documentation - SAM System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #0a0a0a;
+            --color-surface: #141414;
+            --color-border: #2a2a2a;
+            --color-text: #e0e0e0;
+            --color-text-muted: #888;
+            --color-accent: #ff6b35;
+            --color-accent-secondary: #4ecdc4;
+            --color-success: #2ecc71;
+            --color-warning: #f39c12;
+            --color-error: #e74c3c;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-display: 'Space Grotesk', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-display);
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Grid Background */
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(255,107,53,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,107,53,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        header {
+            padding: 60px 0;
+            border-bottom: 3px solid var(--color-accent);
+            margin-bottom: 60px;
+        }
+
+        .header-meta {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--color-accent);
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        h1 {
+            font-size: clamp(48px, 8vw, 120px);
+            font-weight: 700;
+            line-height: 0.9;
+            margin-bottom: 20px;
+            letter-spacing: -0.03em;
+        }
+
+        h1 .accent {
+            color: var(--color-accent);
+        }
+
+        .subtitle {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            color: var(--color-text-muted);
+            max-width: 600px;
+        }
+
+        /* Section */
+        section {
+            margin-bottom: 100px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInSection 0.6s ease forwards;
+        }
+
+        section:nth-child(1) { animation-delay: 0.1s; }
+        section:nth-child(2) { animation-delay: 0.2s; }
+        section:nth-child(3) { animation-delay: 0.3s; }
+        section:nth-child(4) { animation-delay: 0.4s; }
+        section:nth-child(5) { animation-delay: 0.5s; }
+        section:nth-child(6) { animation-delay: 0.6s; }
+
+        @keyframes fadeInSection {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .section-number {
+            font-family: var(--font-mono);
+            font-size: 72px;
+            font-weight: 700;
+            color: var(--color-border);
+            line-height: 1;
+        }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        /* Architecture Diagram */
+        .architecture-diagram {
+            background: var(--color-surface);
+            border: 2px solid var(--color-border);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .architecture-diagram::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--color-accent), var(--color-accent-secondary));
+        }
+
+        .diagram-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+        }
+
+        /* Entity Cards */
+        .entity-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .entity-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 24px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .entity-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--color-accent);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .entity-card:hover {
+            border-color: var(--color-accent);
+            transform: translateX(4px);
+        }
+
+        .entity-card:hover::before {
+            transform: scaleY(1);
+        }
+
+        .entity-card .type {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--color-accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .entity-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .entity-card .description {
+            font-size: 14px;
+            color: var(--color-text-muted);
+            margin-bottom: 16px;
+        }
+
+        .entity-card .fields {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        .entity-card .fields span {
+            display: inline-block;
+            background: var(--color-bg);
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 2px;
+        }
+
+        /* Flow Diagram */
+        .flow-diagram {
+            position: relative;
+            padding: 60px 0;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 30px;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .flow-step::after {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 60px;
+            width: 2px;
+            height: calc(100% - 20px);
+            background: var(--color-border);
+        }
+
+        .flow-step:last-child::after {
+            display: none;
+        }
+
+        .flow-number {
+            width: 50px;
+            height: 50px;
+            background: var(--color-surface);
+            border: 2px solid var(--color-accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 18px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .flow-content {
+            flex: 1;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 24px;
+        }
+
+        .flow-content h4 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--color-accent);
+        }
+
+        .flow-content p {
+            font-size: 14px;
+            color: var(--color-text-muted);
+            margin-bottom: 12px;
+        }
+
+        .flow-content .api-endpoint {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            background: var(--color-bg);
+            padding: 8px 12px;
+            border-left: 3px solid var(--color-accent-secondary);
+            color: var(--color-text);
+        }
+
+        .flow-content .api-endpoint .method {
+            color: var(--color-accent);
+            font-weight: 700;
+            margin-right: 8px;
+        }
+
+        /* Access Control Table */
+        .access-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .access-table th,
+        .access-table td {
+            padding: 16px;
+            text-align: left;
+            border: 1px solid var(--color-border);
+        }
+
+        .access-table th {
+            background: var(--color-surface);
+            color: var(--color-accent);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .access-table tr:hover td {
+            background: var(--color-surface);
+        }
+
+        .access-table .scope {
+            color: var(--color-accent-secondary);
+            font-weight: 700;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 24px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: 'PHP';
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 10px;
+            color: var(--color-text-muted);
+            background: var(--color-bg);
+            padding: 4px 8px;
+        }
+
+        .code-block pre {
+            margin: 0;
+            color: var(--color-text);
+        }
+
+        .code-block .keyword { color: var(--color-accent); }
+        .code-block .string { color: var(--color-accent-secondary); }
+        .code-block .comment { color: var(--color-text-muted); font-style: italic; }
+        .code-block .function { color: var(--color-success); }
+
+        /* API Endpoints */
+        .api-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .api-endpoint-card {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .api-endpoint-card:hover {
+            border-color: var(--color-accent);
+        }
+
+        .api-method {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 2px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .api-method.get { background: rgba(78, 205, 196, 0.2); color: var(--color-accent-secondary); }
+        .api-method.post { background: rgba(255, 107, 53, 0.2); color: var(--color-accent); }
+        .api-method.patch { background: rgba(243, 156, 18, 0.2); color: var(--color-warning); }
+        .api-method.delete { background: rgba(231, 76, 60, 0.2); color: var(--color-error); }
+
+        .api-path {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            color: var(--color-text);
+            flex: 1;
+        }
+
+        .api-description {
+            font-size: 14px;
+            color: var(--color-text-muted);
+        }
+
+        /* Warning Box */
+        .warning-box {
+            background: rgba(243, 156, 18, 0.1);
+            border: 2px solid var(--color-warning);
+            padding: 24px;
+            margin: 40px 0;
+        }
+
+        .warning-box h4 {
+            color: var(--color-warning);
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .warning-box h4::before {
+            content: '⚠';
+            font-size: 20px;
+        }
+
+        .warning-box p {
+            font-size: 14px;
+            color: var(--color-text-muted);
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 0;
+            border-top: 3px solid var(--color-border);
+            margin-top: 100px;
+        }
+
+        footer p {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--color-text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 20px;
+            }
+
+            h1 {
+                font-size: 48px;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .section-number {
+                font-size: 48px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+
+            .entity-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .api-endpoint-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--color-success);
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+
+            .grid-bg {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <div class="container">
+        <header>
+            <div class="header-meta">
+                <span class="live-indicator"></span>
+                TECHNICAL DOCUMENTATION v2.0 | LAST UPDATED: 2026-02-23
+            </div>
+            <h1>DATA FLOW <span class="accent">ARCHITECTURE</span></h1>
+            <p class="subtitle">
+                Complete technical reference for SAM (Sales & Account Management) system.
+                Hierarchical organizational structure with role-based access control, LEAD/NOO workflow,
+                and visit management system.
+            </p>
+        </header>
+
+        <!-- Section 1: Architecture Overview -->
+        <section>
+            <div class="section-header">
+                <span class="section-number">01</span>
+                <h2>System Architecture</h2>
+            </div>
+
+            <div class="architecture-diagram">
+                <div class="diagram-container">
+                    <pre style="color: #e0e0e0;">
+<span style="color: #ff6b35;">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<span style="color: #ff6b35;">│</span>                              <span style="color: #4ecdc4;">ORGANIZATIONAL HIERARCHY</span>                              <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">├─────────────────────────────────────────────────────────────────────────────┤</span>
+<span style="color: #ff6b35;">│</span>                                                                             <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                              <span style="color: #ff6b35;">BadanUsaha</span>                                    <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>                                            <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">├──</span> <span style="color: #ff6b35;">Division</span> (1:N)                           <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>                                    <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">├──</span> <span style="color: #ff6b35;">Region</span> (1:N)               <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>       <span style="color: #888;">│</span>                        <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>       <span style="color: #888;">└──</span> <span style="color: #ff6b35;">Cluster</span> (1:N)  <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>           <span style="color: #888;">│</span>                    <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>           <span style="color: #888;">└──</span> <span style="color: #4ecdc4;">Outlet</span>    <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>           <span style="color: #888;">│</span>                    <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>           <span style="color: #888;">└──</span> <span style="color: #4ecdc4;">Register</span>  <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>           <span style="color: #888;">│</span>                    <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>           <span style="color: #888;">└──</span> <span style="color: #4ecdc4;">Visit</span>     <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">│</span>                                <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>       <span style="color: #888;">└──</span> <span style="color: #ff6b35;">DivisionSetting</span>                <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                                                             <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">├─────────────────────────────────────────────────────────────────────────────┤</span>
+<span style="color: #ff6b35;">│</span>                              <span style="color: #4ecdc4;">USER & AUTHENTICATION</span>                               <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">├─────────────────────────────────────────────────────────────────────────────┤</span>
+<span style="color: #ff6b35;">│</span>                                                                             <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                              <span style="color: #ff6b35;">User</span> <span style="color: #888;">◄──</span> <span style="color: #ff6b35;">Role</span> <span style="color: #888;">(Spati</span><span style="color: #ff6b35;">e</span><span style="color: #888;">)</span>                                <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">│</span>                                            <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">├──</span> <span style="color: #ff6b35;">BadanUsaha</span> (M:N)                        <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">├──</span> <span style="color: #ff6b35;">Division</span> (M:N)                         <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">├──</span> <span style="color: #ff6b35;">Region</span> (M:N)                           <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                   <span style="color: #888;">└──</span> <span style="color: #ff6b35;">Cluster</span> (M:N)                          <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">│</span>                                                                             <span style="color: #ff6b35;">│</span>
+<span style="color: #ff6b35;">└─────────────────────────────────────────────────────────────────────────────┘</span>
+                    </pre>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <h4>CRITICAL: Organizational Scope Cascading</h4>
+                <p>
+                    When a user is assigned to ANY level in the hierarchy, they automatically get access to ALL DESCENDANT levels.
+                    Example: Division access includes all Regions and Clusters under that Division.
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 2: Core Entities -->
+        <section>
+            <div class="section-header">
+                <span class="section-number">02</span>
+                <h2>Core Data Entities</h2>
+            </div>
+
+            <div class="entity-grid">
+                <div class="entity-card">
+                    <div class="type">Core Model</div>
+                    <h3>User</h3>
+                    <p class="description">Central authentication model with role-based hierarchical access control</p>
+                    <div class="fields">
+                        <span>id</span>
+                        <span>name</span>
+                        <span>email</span>
+                        <span>password</span>
+                        <span>role_id</span>
+                        <span>organizational_ids</span>
+                    </div>
+                </div>
+
+                <div class="entity-card">
+                    <div class="type">Core Model</div>
+                    <h3>Register</h3>
+                    <p class="description">LEAD/NOO management with state machine pattern for outlet registration</p>
+                    <div class="fields">
+                        <span>id</span>
+                        <span>code</span>
+                        <span>outlet_name</span>
+                        <span>status</span>
+                        <span>type</span>
+                        <span>division_id</span>
+                        <span>region_id</span>
+                        <span>cluster_id</span>
+                    </div>
+                </div>
+
+                <div class="entity-card">
+                    <div class="type">Core Model</div>
+                    <h3>Outlet</h3>
+                    <p class="description">Approved retail outlets from confirmed NOO records</p>
+                    <div class="fields">
+                        <span>id</span>
+                        <span>code</span>
+                        <span>name</span>
+                        <span>address</span>
+                        <span>division_id</span>
+                        <span>region_id</span>
+                        <span>cluster_id</span>
+                        <span>register_id</span>
+                    </div>
+                </div>
+
+                <div class="entity-card">
+                    <div class="type">Core Model</div>
+                    <h3>Visit</h3>
+                    <p class="description">Polymorphic relationship with Outlet/Register for customer visits</p>
+                    <div class="fields">
+                        <span>id</span>
+                        <span>user_id</span>
+                        <span>visitable_type</span>
+                        <span>visitable_id</span>
+                        <span>checkin_time</span>
+                        <span>checkout_time</span>
+                        <span>status</span>
+                    </div>
+                </div>
+
+                <div class="entity-card">
+                    <div class="type">Core Model</div>
+                    <h3>PlanVisit</h3>
+                    <p class="description">Scheduled visits with polymorphic target relationships</p>
+                    <div class="fields">
+                        <span>id</span>
+                        <span>user_id</span>
+                        <span>visitable_type</span>
+                        <span>visitable_id</span>
+                        <span>planned_date</span>
+                        <span>visit_id</span>
+                        <span>status</span>
+                    </div>
+                </div>
+
+                <div class="entity-card">
+                    <div class="type">Core Model</div>
+                    <h3>DivisionSetting</h3>
+                    <p class="description">Configuration per division for business rules</p>
+                    <div class="fields">
+                        <span>id</span>
+                        <span>division_id</span>
+                        <span>allow_visit_lead</span>
+                        <span>allow_visit_noo</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Access Control -->
+        <section>
+            <div class="section-header">
+                <span class="section-number">03</span>
+                <h2>Role-Based Access Control</h2>
+            </div>
+
+            <table class="access-table">
+                <thead>
+                    <tr>
+                        <th>Scope Level</th>
+                        <th>Filter By</th>
+                        <th>Cascade Access</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="scope">all</td>
+                        <td>No filtering</td>
+                        <td>Full system access</td>
+                        <td>Super Admin sees all data</td>
+                    </tr>
+                    <tr>
+                        <td class="scope">badanusaha</td>
+                        <td>user_badan_usaha</td>
+                        <td>→ Division → Region → Cluster</td>
+                        <td>Manager sees entire business unit</td>
+                    </tr>
+                    <tr>
+                        <td class="scope">divisi</td>
+                        <td>user_divisi</td>
+                        <td>→ Region → Cluster</td>
+                        <td>Division Head sees division + descendants</td>
+                    </tr>
+                    <tr>
+                        <td class="scope">region</td>
+                        <td>user_regions</td>
+                        <td>→ Cluster</td>
+                        <td>Region Manager sees region + clusters</td>
+                    </tr>
+                    <tr>
+                        <td class="scope">cluster</td>
+                        <td>user_clusters</td>
+                        <td>None (leaf node)</td>
+                        <td>Sales rep sees assigned clusters only</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-block" style="margin-top: 40px;">
+                <pre><span class="comment">// HasOrganizationalScope Trait - Applied to all models</span>
+<span class="keyword">public function</span> <span class="function">scopeWithOrganizationalAccess</span>(<span class="keyword">$query</span>, <span class="keyword">$user</span>)
+{
+    <span class="keyword">$scope</span> = <span class="keyword">$user</span>->role->organizational_scope_level;
+
+    <span class="keyword">if</span> (<span class="keyword">$scope</span> === <span class="string">'all'</span>) {
+        <span class="keyword">return</span> <span class="keyword">$query</span>;
+    }
+
+    <span class="keyword">$orgIds</span> = <span class="keyword">$user</span>->getOrganizationalIds(); <span class="comment">// Cached IDs</span>
+
+    <span class="keyword">return</span> <span class="keyword">$query</span>->where(function(<span class="keyword">$q</span>) <span class="keyword">use</span> (<span class="keyword">$orgIds</span>, <span class="keyword">$scope</span>) {
+        <span class="keyword">switch</span>(<span class="keyword">$scope</span>) {
+            <span class="keyword">case</span> <span class="string">'badanusaha'</span>:
+                <span class="keyword">$q</span>->whereIn(<span class="string">'badan_usaha_id'</span>, <span class="keyword">$orgIds</span>['badanusaha']);
+                <span class="keyword">break</span>;
+            <span class="keyword">case</span> <span class="string">'divisi'</span>:
+                <span class="keyword">$q</span>->whereIn(<span class="string">'division_id'</span>, <span class="keyword">$orgIds</span>['division']);
+                <span class="keyword">break</span>;
+            <span class="comment">// ... other scopes</span>
+        }
+    });
+}</pre>
+            </div>
+        </section>
+
+        <!-- Section 4: LEAD/NOO Workflow -->
+        <section>
+            <div class="section-header">
+                <span class="section-number">04</span>
+                <h2>LEAD/NOO Data Flow</h2>
+            </div>
+
+            <div class="flow-diagram">
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-content">
+                        <h4>Create LEAD</h4>
+                        <p>Submit new potential outlet with minimal requirements. No KTP needed at this stage.</p>
+                        <div class="api-endpoint">
+                            <span class="method">POST</span>
+                            <span>/api/registers/leads</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-content">
+                        <h4>Upgrade LEAD → NOO</h4>
+                        <p>Add KTP documentation and complete required fields to upgrade to NOO status.</p>
+                        <div class="api-endpoint">
+                            <span class="method">PATCH</span>
+                            <span>/api/registers/{id}/upgrade</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-content">
+                        <h4>Confirm NOO</h4>
+                        <p>Set outlet code and credit limit. Ready for approval.</p>
+                        <div class="api-endpoint">
+                            <span class="method">PATCH</span>
+                            <span>/api/registers/{id}/confirm</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-content">
+                        <h4>Approve/Reject NOO</h4>
+                        <p>Final decision. Approval creates Outlet record. Rejection marks with reason.</p>
+                        <div class="api-endpoint">
+                            <span class="method">PATCH</span>
+                            <span>/api/registers/{id}/approve</span>
+                        </div>
+                        <div class="api-endpoint" style="margin-top: 8px;">
+                            <span class="method">PATCH</span>
+                            <span>/api/registers/{id}/reject</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <div class="flow-content">
+                        <h4>Outlet Created (Automatic)</h4>
+                        <p>On approval, Outlet record is automatically created with data from NOO.</p>
+                        <div class="api-endpoint">
+                            <span class="comment">// Handled by Register model logic</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: Visit Management Flow -->
+        <section>
+            <div class="section-header">
+                <span class="section-number">05</span>
+                <h2>Visit Management Flow</h2>
+            </div>
+
+            <div class="flow-diagram">
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-content">
+                        <h4>Plan Visit</h4>
+                        <p>Create scheduled visits to Outlet or Register (LEAD/NOO) targets.</p>
+                        <div class="api-endpoint">
+                            <span class="method">POST</span>
+                            <span>/api/plan-visits</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-content">
+                        <h4>Check-in</h4>
+                        <p>Start visit with photo proof and GPS location. Creates Visit record.</p>
+                        <div class="api-endpoint">
+                            <span class="method">POST</span>
+                            <span>/api/visits/checkin</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-content">
+                        <h4>Check-out</h4>
+                        <p>End visit with photo proof. Updates Visit record with end time.</p>
+                        <div class="api-endpoint">
+                            <span class="method">POST</span>
+                            <span>/api/visits/{id}/checkout</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-content">
+                        <h4>Monitor Visits</h4>
+                        <p>Track active visits and visit history for supervision.</p>
+                        <div class="api-endpoint">
+                            <span class="method">GET</span>
+                            <span>/api/visits/monitor</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <h4>POLYMORPHIC RELATIONSHIPS</h4>
+                <p>
+                    Both <strong>Visit</strong> and <strong>PlanVisit</strong> use polymorphic <code>visitable</code> relationship
+                    that can target either <strong>Outlet</strong> or <strong>Register</strong> models.
+                    This enables unified visit management across different target types.
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 6: API Reference -->
+        <section>
+            <div class="section-header">
+                <span class="section-number">06</span>
+                <h2>API Endpoints Reference</h2>
+            </div>
+
+            <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 700;">Authentication</h3>
+            <div class="api-list" style="margin-bottom: 40px;">
+                <div class="api-endpoint-card">
+                    <div class="api-method post">POST</div>
+                    <div class="api-path">/api/login</div>
+                    <div class="api-description">Authenticate user and return token</div>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 700;">Register Management</h3>
+            <div class="api-list" style="margin-bottom: 40px;">
+                <div class="api-endpoint-card">
+                    <div class="api-method post">POST</div>
+                    <div class="api-path">/api/registers/leads</div>
+                    <div class="api-description">Create new LEAD</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method post">POST</div>
+                    <div class="api-path">/api/registers/noos</div>
+                    <div class="api-description">Create new NOO directly</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method patch">PATCH</div>
+                    <div class="api-path">/api/registers/{id}/upgrade</div>
+                    <div class="api-description">Upgrade LEAD to NOO</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method patch">PATCH</div>
+                    <div class="api-path">/api/registers/{id}/confirm</div>
+                    <div class="api-description">Confirm NOO with code & credit limit</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method patch">PATCH</div>
+                    <div class="api-path">/api/registers/{id}/approve</div>
+                    <div class="api-description">Approve NOO (creates Outlet)</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method patch">PATCH</div>
+                    <div class="api-path">/api/registers/{id}/reject</div>
+                    <div class="api-description">Reject NOO with reason</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method get">GET</div>
+                    <div class="api-path">/api/registers</div>
+                    <div class="api-description">List user's registers</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method get">GET</div>
+                    <div class="api-path">/api/registers/all</div>
+                    <div class="api-description">List with organizational scope</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method get">GET</div>
+                    <div class="api-path">/api/registers/pending</div>
+                    <div class="api-description">List pending approvals</div>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 700;">Visit Management</h3>
+            <div class="api-list" style="margin-bottom: 40px;">
+                <div class="api-endpoint-card">
+                    <div class="api-method get">GET</div>
+                    <div class="api-path">/api/visits</div>
+                    <div class="api-description">List user's visits</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method get">GET</div>
+                    <div class="api-path">/api/visits/targets</div>
+                    <div class="api-description">Get available visit targets</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method post">POST</div>
+                    <div class="api-path">/api/visits/checkin</div>
+                    <div class="api-description">Check-in to target</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method post">POST</div>
+                    <div class="api-path">/api/visits/{id}/checkout</div>
+                    <div class="api-description">Check-out from visit</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method get">GET</div>
+                    <div class="api-path">/api/visits/monitor</div>
+                    <div class="api-description">Monitor active visits</div>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 20px; font-size: 20px; font-weight: 700;">Plan Visit Management</h3>
+            <div class="api-list">
+                <div class="api-endpoint-card">
+                    <div class="api-method post">POST</div>
+                    <div class="api-path">/api/plan-visits</div>
+                    <div class="api-description">Create planned visit</div>
+                </div>
+                <div class="api-endpoint-card">
+                    <div class="api-method get">GET</div>
+                    <div class="api-path">/api/plan-visits</div>
+                    <div class="api-description">List user's planned visits</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>
+                SAM System Documentation v2.0 | Generated: 2026-02-23<br>
+                Laravel Framework | Filament Admin | Sanctum Authentication | Spatie Permissions
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Smooth scroll behavior
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Intersection Observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all sections
+        document.querySelectorAll('section').forEach(section => {
+            observer.observe(section);
+        });
+
+        // Add hover effect to entity cards
+        document.querySelectorAll('.entity-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(8px)';
+            });
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+            });
+        });
+    </script>
+</body>
+</html>

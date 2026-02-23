@@ -26,6 +26,14 @@ class Register extends Model
         'id',
     ];
 
+    protected $fillable = [
+        //
+    ];
+
+    protected $casts = [
+        'type' => 'string',
+    ];
+
     protected array $mediaCleanupFields = [
         'poto_shop_sign',
         'poto_depan',
@@ -83,6 +91,26 @@ class Register extends Model
         return $this->belongsTo(Division::class)->withTrashed();
     }
 
+    public function divisionSetting()
+    {
+        return $this->hasOneThrough(
+            \App\Models\DivisionSetting::class,
+            Division::class,
+            'id',
+            'division_id',
+            'divisi_id',
+            'id'
+        );
+    }
+
+    /**
+     * Check if this register's division allows visits
+     */
+    public function allowsVisit(): bool
+    {
+        return $this->divisi?->allowsRegisterVisit() ?? false;
+    }
+
     public function tm(): BelongsTo
     {
         return $this->belongsTo(User::class, 'tm_id')->withTrashed();
@@ -111,11 +139,6 @@ class Register extends Model
     public function outlet(): HasOne
     {
         return $this->hasOne(Outlet::class)->withTrashed();
-    }
-
-    public function fieldValues(): HasMany
-    {
-        return $this->hasMany(RegisterFieldValue::class);
     }
 
     public function visits(): MorphMany

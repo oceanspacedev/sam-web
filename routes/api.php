@@ -43,6 +43,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
 
     // VISIT
     Route::get('visit', [VisitController::class, 'fetch']);
+    Route::get('visit/targets', [VisitController::class, 'getTargets']);
     Route::post('visit/checkin', [VisitController::class, 'checkin']);
     Route::post('visit/{id}/checkout', [VisitController::class, 'checkout']);
     Route::get('visit/monitor', [VisitController::class, 'monitor']);

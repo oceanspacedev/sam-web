@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Divisions;
 
+use App\Filament\Resources\Divisions\Pages\ManageDivisions;
 use App\Models\BadanUsaha;
 use App\Models\Division;
 use Filament\Actions\BulkActionGroup;
@@ -130,7 +131,9 @@ class DivisionResource extends Resource
                     ->query(fn (Builder $query) => $query->doesntHave('regions')),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->slideOver()
+                    ->modalWidth('md'),
                 DeleteAction::make()
                     ->requiresConfirmation(),
             ])
@@ -174,19 +177,10 @@ class DivisionResource extends Resource
             });
     }
 
-    public static function getRelations(): array
-    {
-        return [
-            RelationManagers\SettingRelationManager::class,
-            RelationManagers\RegisterFieldsRelationManager::class,
-        ];
-    }
-
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListDivisions::route('/'),
-            'edit' => Pages\EditDivision::route('/{record}/edit'),
+            'index' => ManageDivisions::route('/'),
         ];
     }
 }

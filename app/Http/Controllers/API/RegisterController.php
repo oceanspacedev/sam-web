@@ -20,11 +20,9 @@ use App\Jobs\SendNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\DivisionRegisterField;
 use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Register;
-use App\Models\RegisterFieldValue;
 use App\Models\User;
 use App\Rules\VideoMimeOrSignature;
 use App\Services\FileUploadService;
@@ -176,44 +174,6 @@ class RegisterController extends Controller
             }
 
             $register = Register::create($data);
-
-            // Process custom fields
-            if ($request->has('custom_fields')) {
-                $fields = DivisionRegisterField::where('division_id', $hierarchy['divisi_id'])
-                    ->whereIn('name', array_keys($request->custom_fields))
-                    ->get()
-                    ->keyBy('name');
-
-                foreach ($request->custom_fields as $name => $value) {
-                    if ($field = $fields->get($name)) {
-                        RegisterFieldValue::create([
-                            'register_id' => $register->id,
-                            'field_id' => $field->id,
-                            'value' => $value,
-                        ]);
-                    }
-                }
-            }
-
-            // Handle custom file uploads
-            if ($request->has('custom_files')) {
-                foreach ($request->custom_files as $name => $file) {
-                    if ($request->hasFile("custom_files.{$name}")) {
-                        $field = DivisionRegisterField::where('division_id', $hierarchy['divisi_id'])
-                            ->where('name', $name)
-                            ->first();
-
-                        if ($field) {
-                            $path = $file->store('custom_files', 'public');
-                            RegisterFieldValue::create([
-                                'register_id' => $register->id,
-                                'field_id' => $field->id,
-                                'file_path' => $path,
-                            ]);
-                        }
-                    }
-                }
-            }
 
             // Process media files using unified trait
             $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
@@ -609,44 +569,6 @@ class RegisterController extends Controller
             $notifId = $this->buildNotificationRecipients($user, $hierarchy);
             $register = Register::create($data);
 
-            // Process custom fields
-            if ($request->has('custom_fields')) {
-                $fields = DivisionRegisterField::where('division_id', $hierarchy['divisi_id'])
-                    ->whereIn('name', array_keys($request->custom_fields))
-                    ->get()
-                    ->keyBy('name');
-
-                foreach ($request->custom_fields as $name => $value) {
-                    if ($field = $fields->get($name)) {
-                        RegisterFieldValue::create([
-                            'register_id' => $register->id,
-                            'field_id' => $field->id,
-                            'value' => $value,
-                        ]);
-                    }
-                }
-            }
-
-            // Handle custom file uploads
-            if ($request->has('custom_files')) {
-                foreach ($request->custom_files as $name => $file) {
-                    if ($request->hasFile("custom_files.{$name}")) {
-                        $field = DivisionRegisterField::where('division_id', $hierarchy['divisi_id'])
-                            ->where('name', $name)
-                            ->first();
-
-                        if ($field) {
-                            $path = $file->store('custom_files', 'public');
-                            RegisterFieldValue::create([
-                                'register_id' => $register->id,
-                                'field_id' => $field->id,
-                                'file_path' => $path,
-                            ]);
-                        }
-                    }
-                }
-            }
-
             if ($register && $notifId !== []) {
                 $this->dispatchNotification(
                     'Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
@@ -779,6 +701,13 @@ class RegisterController extends Controller
                 array_push($notif, $creatorNotifId);
             }
 
+            // Get default radius from division settings
+            $radius = 0;
+            $divisionSetting = \App\Models\DivisionSetting::where('division_id', $register->divisi_id)->first();
+            if ($divisionSetting) {
+                $radius = $divisionSetting->default_register_radius;
+            }
+
             $data = [
                 'register_id' => $register->id,
                 'kode_outlet' => $register->kode_outlet,
@@ -797,7 +726,7 @@ class RegisterController extends Controller
                 'poto_kiri' => $register->poto_kiri,
                 'poto_ktp' => $register->poto_ktp,
                 'video' => $register->video,
-                'radius' => 0,
+                'radius' => $radius,
                 'latlong' => $register->latlong,
                 'status_outlet' => 'MAINTAIN',
                 'limit' => $register->limit,

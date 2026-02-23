@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PlanVisits;
 use App\Filament\Resources\PlanVisits\Pages\CreatePlanVisit;
 use App\Filament\Resources\PlanVisits\Pages\EditPlanVisit;
 use App\Filament\Resources\PlanVisits\Pages\ListPlanVisits;
+use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\Register;
@@ -109,10 +110,22 @@ class PlanVisitResource extends Resource
                         // Polymorphic visit target selector
                         Select::make('visitable_type')
                             ->label('Tipe Target')
-                            ->options([
-                                'App\\Models\\Outlet' => 'Outlet',
-                                'App\\Models\\Register' => 'Register (LEAD/NOO)',
-                            ])
+                            ->options(function () {
+                                $options = [
+                                    'App\\Models\\Outlet' => 'Outlet',
+                                ];
+
+                                // Only show Register option if at least one division allows it
+                                $allowsRegisterVisit = \App\Models\Division::whereHas('setting', function ($q) {
+                                    $q->where('allow_register_visit', true);
+                                })->exists();
+
+                                if ($allowsRegisterVisit) {
+                                    $options['App\\Models\\Register'] = 'Register (LEAD/NOO)';
+                                }
+
+                                return $options;
+                            })
                             ->required()
                             ->live()
                             ->default('App\\Models\\Outlet')
@@ -151,6 +164,9 @@ class PlanVisitResource extends Resource
                                     ->where(function ($q) use ($search) {
                                         $q->where('nama_outlet', 'like', "%{$search}%")
                                             ->orWhere('kode_outlet', 'like', "%{$search}%");
+                                    })
+                                    ->whereHas('divisi.setting', function ($q) {
+                                        $q->where('allow_register_visit', true);
                                     })
                                     ->orderBy('nama_outlet')
                                     ->limit(50)

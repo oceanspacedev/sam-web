@@ -15,31 +15,35 @@ class RegionSeeder extends Seeder
      */
     public function run()
     {
+        // Hirarki: BadanUsaha → Division → Region → Cluster
+        // Region punya badanusaha_id & divisi_id (konsisten dengan schema)
+        // badanusaha_id diambil dari parent divisi
+
         $regions = [
-            // SWJ
+            // MSIS Division (PT.MSI - badanusaha_id: 1)
             ['id' => 1, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'SWJ'],
-            ['id' => 2, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'SWJ'],
-            // NWJ
-            ['id' => 3, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'NWJ'],
-            ['id' => 4, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'NWJ'],
-            ['id' => 5, 'badanusaha_id' => 2, 'divisi_id' => 3, 'name' => 'NWJ'],
-            // NCJ
-            ['id' => 6, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'NCJ'],
-            ['id' => 7, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'NCJ'],
-            ['id' => 8, 'badanusaha_id' => 2, 'divisi_id' => 3, 'name' => 'NCJ'],
-            // SCJ
-            ['id' => 9, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'SCJ'],
-            ['id' => 10, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'SCJ'],
-            ['id' => 11, 'badanusaha_id' => 2, 'divisi_id' => 3, 'name' => 'SCJ'],
-            // EJ
-            ['id' => 12, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'EJ'],
-            // BIGCIREBON
-            ['id' => 13, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGCIREBON'],
-            ['id' => 14, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGTEGALA'],
-            ['id' => 15, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGTEGALB'],
-            ['id' => 16, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGSEMARANG'],
-            // JABO
-            ['id' => 17, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'JABO'],
+            ['id' => 2, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'NWJ'],
+            ['id' => 3, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'NCJ'],
+            ['id' => 4, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'SCJ'],
+            ['id' => 5, 'badanusaha_id' => 1, 'divisi_id' => 1, 'name' => 'JABO'],
+
+            // ORAIMO Division (CV.TOP - badanusaha_id: 2)
+            ['id' => 6, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'SWJ'],
+            ['id' => 7, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'NWJ'],
+            ['id' => 8, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'NCJ'],
+            ['id' => 9, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'SCJ'],
+            ['id' => 10, 'badanusaha_id' => 2, 'divisi_id' => 2, 'name' => 'EJ'],
+
+            // TECNO Division (CV.TOP - badanusaha_id: 2)
+            ['id' => 11, 'badanusaha_id' => 2, 'divisi_id' => 3, 'name' => 'NWJ'],
+            ['id' => 12, 'badanusaha_id' => 2, 'divisi_id' => 3, 'name' => 'NCJ'],
+            ['id' => 13, 'badanusaha_id' => 2, 'divisi_id' => 3, 'name' => 'SCJ'],
+
+            // REALME Division (CV.TOP - badanusaha_id: 2)
+            ['id' => 14, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGCIREBON'],
+            ['id' => 15, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGTEGALA'],
+            ['id' => 16, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGTEGALB'],
+            ['id' => 17, 'badanusaha_id' => 2, 'divisi_id' => 4, 'name' => 'BIGSEMARANG'],
         ];
 
         foreach ($regions as $region) {

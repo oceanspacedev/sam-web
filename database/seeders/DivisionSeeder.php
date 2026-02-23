@@ -15,13 +15,14 @@ class DivisionSeeder extends Seeder
      */
     public function run()
     {
-        // Use insertOrIgnore to avoid duplicate errors
         DB::table('divisions')->insertOrIgnore([
+            // PT.MSI Divisions
             [
                 'id' => 1,
                 'badanusaha_id' => 1,
                 'name' => 'MSIS',
             ],
+            // CV.TOP Divisions
             [
                 'id' => 2,
                 'badanusaha_id' => 2,

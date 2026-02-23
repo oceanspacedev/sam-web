@@ -15,7 +15,6 @@ class BadanUsahaSeeder extends Seeder
      */
     public function run()
     {
-        // Use insertOrIgnore to avoid duplicate errors
         DB::table('badan_usahas')->insertOrIgnore([
             [
                 'id' => 1,

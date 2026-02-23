@@ -80,7 +80,7 @@ class UserSeeder extends Seeder
                     if ($cluster->badanusaha_id) {
                         DB::table('user_badan_usaha')->insertOrIgnore([
                             'user_id' => $user->id,
-                            'badan_usahas_id' => $cluster->badanusaha_id,
+                            'badanusaha_id' => $cluster->badanusaha_id,
                         ]);
                     }
 
@@ -88,7 +88,7 @@ class UserSeeder extends Seeder
                     if ($cluster->divisi_id) {
                         DB::table('user_divisi')->insertOrIgnore([
                             'user_id' => $user->id,
-                            'divisions_id' => $cluster->divisi_id,
+                            'divisi_id' => $cluster->divisi_id,
                         ]);
                     }
 
@@ -96,14 +96,14 @@ class UserSeeder extends Seeder
                     if ($cluster->region_id) {
                         DB::table('user_regions')->insertOrIgnore([
                             'user_id' => $user->id,
-                            'regions_id' => $cluster->region_id,
+                            'region_id' => $cluster->region_id,
                         ]);
                     }
 
                     // Assign to cluster
                     DB::table('user_clusters')->insertOrIgnore([
                         'user_id' => $user->id,
-                        'clusters_id' => $clusterId,
+                        'cluster_id' => $clusterId,
                     ]);
                 }
             }

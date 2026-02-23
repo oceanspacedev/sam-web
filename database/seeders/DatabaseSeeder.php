@@ -23,18 +23,12 @@ class DatabaseSeeder extends Seeder
             // Then assign permissions to roles
             RolePermissionSeeder::class,
 
-            // Other seeders
-            ClusterSeeder::class,
-            RegionSeeder::class,
-            DivisionSeeder::class,
-            BadanUsahaSeeder::class,
-            UserSeeder::class,
-
-            // Commented out for now
-            // OutletSeeder::class,
-            // PlanVisitSeeder::class,
-            // NooSeeder::class,
-            // VisitSeeder::class,
+            // Commented out - data already exists in database
+            // BadanUsahaSeeder::class,
+            // DivisionSeeder::class,
+            // RegionSeeder::class,
+            // ClusterSeeder::class,
+            // UserSeeder::class,
         ]);
     }
 }

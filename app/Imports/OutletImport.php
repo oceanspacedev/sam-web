@@ -176,7 +176,8 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             if ($existing->cluster_id !== $clusterId) {
                 $hasUnrealizedPlanVisits = PlanVisit::query()
                     ->unrealized()
-                    ->where('outlet_id', $existing->id)
+                    ->where('visitable_type', Outlet::class)
+                    ->where('visitable_id', $existing->id)
                     ->exists();
 
                 if ($hasUnrealizedPlanVisits) {

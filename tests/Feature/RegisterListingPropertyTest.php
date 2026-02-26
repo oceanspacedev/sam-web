@@ -16,8 +16,12 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Register;
 use App\Models\Role;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\SeedsSystemSettings;
+
+uses(SeedsSystemSettings::class);
 
 beforeEach(function () {
     Storage::fake('public');
@@ -25,6 +29,9 @@ beforeEach(function () {
 
     // Disable rate limiting middleware that requires Redis
     $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
+
+    // Create global system setting to avoid null references
+    $this->seedGlobalSystemSetting();
 });
 
 /**
@@ -101,31 +108,37 @@ function createRegisterInHierarchy(array $hierarchy, User $creator, array $overr
         'region_id' => $hierarchy['reg']->id,
         'cluster_id' => $hierarchy['clus']->id,
         'status' => 'PENDING',
+        'type' => 'NOO',
         'keterangan' => null,
     ], $overrides));
 }
 
 /**
- * **Feature: register-workflow, Property 15: Organizational Scope Filtering**
+ * **Feature: register-workflow, Property 15: Created/TM Scope Filtering**
  *
  * *For any* user fetching registers, the returned set SHALL contain only registers
- * where the register's organizational hierarchy is within the user's visible scope.
+ * where the user is either creator (`created_by_id`) or assigned TM (`tm_id`).
  *
  * **Validates: Requirements 7.1**
  */
-test('Property 15: Organizational Scope Filtering - users only see registers within their scope', function () {
+test('Property 15: Created/TM Scope Filtering - users only see registers where they are creator or TM', function () {
     // Run 100 iterations as per design document
     for ($i = 0; $i < 100; $i++) {
         // Create two separate organizational hierarchies
         $hierarchy1 = createOrganizationalHierarchy('h1-'.$i);
         $hierarchy2 = createOrganizationalHierarchy('h2-'.$i);
 
-        // Create a user with cluster-level scope in hierarchy1
+        // Create users in different hierarchies
         $user1 = createUserWithScope($hierarchy1, 'cluster');
+        $user2 = createUserWithScope($hierarchy2, 'cluster');
 
-        // Create registers in both hierarchies
-        $register1 = createRegisterInHierarchy($hierarchy1, $user1);
-        $register2 = createRegisterInHierarchy($hierarchy2, $user1);
+        // Create registers for different ownership/TM scenarios
+        $createdByUserInOwnHierarchy = createRegisterInHierarchy($hierarchy1, $user1);
+        $createdByUserInOtherHierarchy = createRegisterInHierarchy($hierarchy2, $user1);
+        $assignedToUserAsTm = createRegisterInHierarchy($hierarchy2, $user2, [
+            'tm_id' => $user1->id,
+        ]);
+        $unrelatedRegister = createRegisterInHierarchy($hierarchy2, $user2);
 
         // Act: Fetch registers as user1
         $response = $this->actingAs($user1, 'sanctum')
@@ -133,18 +146,20 @@ test('Property 15: Organizational Scope Filtering - users only see registers wit
 
         $response->assertStatus(200);
 
-        // Assert: User1 should only see register1 (in their hierarchy)
+        // Assert: User1 sees registers where they are creator or TM
         $returnedIds = collect($response->json('data'))->pluck('id')->toArray();
 
-        $this->assertContains($register1->id, $returnedIds, 'User should see register in their hierarchy');
-        $this->assertNotContains($register2->id, $returnedIds, 'User should NOT see register outside their hierarchy');
+        $this->assertContains($createdByUserInOwnHierarchy->id, $returnedIds, 'User should see register they created');
+        $this->assertContains($createdByUserInOtherHierarchy->id, $returnedIds, 'User should still see register they created in different hierarchy');
+        $this->assertContains($assignedToUserAsTm->id, $returnedIds, 'User should see register where they are assigned TM');
+        $this->assertNotContains($unrelatedRegister->id, $returnedIds, 'User should NOT see register where they are neither creator nor TM');
 
-        // Verify all returned registers are within user's scope
+        // Verify all returned registers satisfy created_by_id/tm_id visibility
         foreach ($response->json('data') as $registerData) {
             $register = Register::find($registerData['id']);
             $this->assertTrue(
-                $register->isVisibleTo($user1),
-                "Register {$register->id} should be visible to user"
+                $register->created_by_id === $user1->id || $register->tm_id === $user1->id,
+                "Register {$register->id} should be visible to user by created_by_id/tm_id"
             );
         }
     }

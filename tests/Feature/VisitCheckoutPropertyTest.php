@@ -87,7 +87,8 @@ function createActiveVisit(User $user, Outlet $outlet): Visit
     return Visit::create([
         'tanggal_visit' => today(),
         'user_id' => $user->id,
-        'outlet_id' => $outlet->id,
+        'visitable_type' => Outlet::class,
+        'visitable_id' => $outlet->id,
         'tipe_visit' => fake()->randomElement(['PLANNED', 'EXTRACALL']),
         'latlong_in' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
         'check_in_time' => now()->subMinutes(fake()->numberBetween(5, 60)),
@@ -241,7 +242,8 @@ test('Property 22: Double Checkout Prevention - cannot checkout from already com
         $completedVisit = Visit::create([
             'tanggal_visit' => today(),
             'user_id' => $user->id,
-            'outlet_id' => $outlet->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
             'tipe_visit' => fake()->randomElement(['PLANNED', 'EXTRACALL']),
             'latlong_in' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
             'check_in_time' => now()->subMinutes(60),

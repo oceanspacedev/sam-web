@@ -231,17 +231,17 @@ class RegisterResource extends Resource
                                     ToggleButtons::make('type')
                                         ->label('Tipe')
                                         ->options([
-                                            'lead' => 'LEAD',
-                                            'noo' => 'NOO',
+                                            'LEAD' => 'LEAD',
+                                            'NOO' => 'NOO',
                                         ])
                                         ->required()
                                         ->live()
                                         ->inline()
                                         ->colors([
-                                            'lead' => 'warning',
-                                            'noo' => 'primary',
+                                            'LEAD' => 'warning',
+                                            'NOO' => 'primary',
                                         ])
-                                        ->default('noo'),
+                                        ->default('NOO'),
                                     Select::make('created_by_id')
                                         ->label('Dibuat Oleh')
                                         ->searchable()
@@ -409,7 +409,7 @@ class RegisterResource extends Resource
 
     protected static function isLead(?string $type): bool
     {
-        return $type === 'lead';
+        return strtoupper((string) $type) === 'LEAD';
     }
 
     protected static function getTmOptions(?int $creatorId, ?int $currentTmId): array
@@ -535,8 +535,8 @@ class RegisterResource extends Resource
                                         ->label('Tipe')
                                         ->badge()
                                         ->color(fn (string $state): string => match ($state) {
-                                            'lead' => 'warning',
-                                            'noo' => 'primary',
+                                            'LEAD' => 'warning',
+                                            'NOO' => 'primary',
                                             default => 'gray',
                                         })
                                         ->formatStateUsing(fn (string $state): string => strtoupper($state)),
@@ -629,8 +629,8 @@ class RegisterResource extends Resource
                     ->label('Tipe')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'lead' => 'warning',
-                        'noo' => 'primary',
+                        'LEAD' => 'warning',
+                        'NOO' => 'primary',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => strtoupper($state))
@@ -839,7 +839,7 @@ class RegisterResource extends Resource
                     ->label('Update KTP')
                     ->icon('heroicon-o-identification')
                     ->color('primary')
-                    ->visible(fn ($record) => $record->type === 'lead' && Gate::allows('Upgrade:Register'))
+                    ->visible(fn ($record) => strtoupper((string) $record->type) === 'LEAD' && Gate::allows('Upgrade:Register'))
                     ->form([
                         TextInput::make('ktp_outlet')
                             ->label('Nomor KTP Outlet')
@@ -861,7 +861,7 @@ class RegisterResource extends Resource
                         $record->update([
                             'ktp_outlet' => $data['ktp_outlet'],
                             'poto_ktp' => $data['poto_ktp'],
-                            'type' => 'noo',
+                            'type' => 'NOO',
                         ]);
 
                         Notification::make()
@@ -873,7 +873,7 @@ class RegisterResource extends Resource
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && $record->type !== 'lead')
+                    ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && strtoupper((string) $record->type) !== 'LEAD')
                     ->form([
                         TextInput::make('kode_outlet')
                             ->regex('/^\S+$/')
@@ -921,7 +921,7 @@ class RegisterResource extends Resource
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('Reject:Register', $record) && $record->type !== 'lead')
+                    ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('Reject:Register', $record) && strtoupper((string) $record->type) !== 'LEAD')
                     ->schema([
                         Textarea::make('alasan')
                             ->required(),

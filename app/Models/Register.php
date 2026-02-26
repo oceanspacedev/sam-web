@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SystemSettingResolver;
 use App\Traits\CleansUpMedia;
 use App\Traits\HasOrganizationalScope;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,6 +43,18 @@ class Register extends Model
         'poto_ktp',
         'video',
     ];
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (self $register): void {
+            // Set default value for video field if not provided
+            if (! array_key_exists('video', $register->getAttributes()) || $register->video === null) {
+                $register->video = '-';
+            }
+        });
+    }
 
     public function scopeActive(Builder $query): Builder
     {
@@ -91,24 +104,12 @@ class Register extends Model
         return $this->belongsTo(Division::class)->withTrashed();
     }
 
-    public function divisionSetting()
-    {
-        return $this->hasOneThrough(
-            \App\Models\DivisionSetting::class,
-            Division::class,
-            'id',
-            'division_id',
-            'divisi_id',
-            'id'
-        );
-    }
-
     /**
      * Check if this register's division allows visits
      */
     public function allowsVisit(): bool
     {
-        return $this->divisi?->allowsRegisterVisit() ?? false;
+        return app(SystemSettingResolver::class)->allowsRegisterVisitForModel($this);
     }
 
     public function tm(): BelongsTo

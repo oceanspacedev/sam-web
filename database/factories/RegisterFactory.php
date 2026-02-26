@@ -46,8 +46,23 @@ class RegisterFactory extends Factory
             'latlong' => '0,0',
             'limit' => 0,
             'status' => 'PENDING',
+            'type' => 'NOO',
             'created_by_id' => User::factory(),
             'tm_id' => User::factory(),
         ];
+    }
+
+    public function noo(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'NOO',
+        ]);
+    }
+
+    public function lead(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'LEAD',
+        ]);
     }
 }

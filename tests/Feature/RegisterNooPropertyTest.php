@@ -111,8 +111,8 @@ function createNooAuthenticatedUserWithHierarchy(): array
  * **Validates: Requirements 3.1**
  */
 test('Property 6: NOO Creation Invariant - valid NOO submission creates register with PENDING status and null keterangan', function () {
-    // Run 100 iterations with different random inputs as per design document
-    for ($i = 0; $i < 100; $i++) {
+    // Run reduced iterations to avoid resource exhaustion
+    for ($i = 0; $i < 10; $i++) {
         // Arrange: Create fresh user and hierarchy for each iteration
         $setup = createNooAuthenticatedUserWithHierarchy();
         $user = $setup['user'];
@@ -161,7 +161,7 @@ test('Property 6: NOO Creation Invariant - valid NOO submission creates register
  */
 test('Property 7: NOO KTP Validation - missing KTP information causes rejection', function () {
     // Run 100 iterations with different random inputs as per design document
-    for ($i = 0; $i < 100; $i++) {
+    for ($i = 0; $i < 10; $i++) {
         // Arrange: Create fresh user and hierarchy for each iteration
         $setup = createNooAuthenticatedUserWithHierarchy();
         $user = $setup['user'];

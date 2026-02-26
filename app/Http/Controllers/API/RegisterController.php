@@ -26,6 +26,7 @@ use App\Models\Register;
 use App\Models\User;
 use App\Rules\VideoMimeOrSignature;
 use App\Services\FileUploadService;
+use App\Services\SystemSettingResolver;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +41,8 @@ class RegisterController extends Controller
     use HasMediaUpload;
 
     public function __construct(
-        protected FileUploadService $fileUpload
+        protected FileUploadService $fileUpload,
+        protected SystemSettingResolver $systemSettings,
     ) {}
 
     public function submitLead(SubmitLeadRequest $request)
@@ -101,7 +103,7 @@ class RegisterController extends Controller
                 'latlong' => $request->latlong,
                 'created_by_id' => $user->id,
                 'tm_id' => $hierarchy['tm_id'],
-                'keterangan' => 'LEAD',
+                'type' => 'LEAD',
                 'poto_ktp' => '-',
                 'badanusaha_id' => $hierarchy['badanusaha_id'],
                 'divisi_id' => $hierarchy['divisi_id'],
@@ -213,10 +215,10 @@ class RegisterController extends Controller
     public function upgradeLead(UpgradeLeadRequest $request)
     {
         try {
-            $lead = Register::find($request->id);
+            $lead = Register::findOrFail($request->id);
 
             // Validate that register is a LEAD before allowing upgrade
-            if ($lead->keterangan !== 'LEAD') {
+            if (strtoupper((string) $lead->type) !== 'LEAD') {
                 throw new BadRequestException('Register bukan LEAD');
             }
 
@@ -225,7 +227,7 @@ class RegisterController extends Controller
             $path = $this->fileUpload->uploadImageOptimized($file, 'register-ktp');
             $lead['poto_ktp'] = $path;
             $lead['ktp_outlet'] = $request->noktp;
-            $lead['keterangan'] = null;
+            $lead['type'] = 'NOO';
             $lead->update();
 
             $recipientIds = $this->buildNotificationRecipients(Auth::user(), [
@@ -296,6 +298,7 @@ class RegisterController extends Controller
                     'nama_outlet',
                     'alamat_outlet',
                     'status',
+                    'type',
                     'keterangan',
                     'distric',
                     'latlong',
@@ -340,8 +343,8 @@ class RegisterController extends Controller
         $query = Register::visibleTo($user);
 
         $counts = [
-            'lead' => (clone $query)->where('keterangan', 'LEAD')->count(),
-            'pending' => (clone $query)->where('status', 'PENDING')->whereNull('keterangan')->count(),
+            'lead' => (clone $query)->where('type', 'LEAD')->count(),
+            'pending' => (clone $query)->where('status', 'PENDING')->where('type', 'NOO')->count(),
             'confirmed' => (clone $query)->where('status', 'CONFIRMED')->count(),
             'approved' => (clone $query)->where('status', 'APPROVED')->count(),
             'rejected' => (clone $query)->where('status', 'REJECTED')->count(),
@@ -363,6 +366,12 @@ class RegisterController extends Controller
     {
         try {
             $user = Auth::user();
+            $request->validate([
+                'compact' => 'sometimes|boolean',
+                'search' => 'sometimes|string',
+                'status' => 'sometimes|string|in:lead,pending,confirmed,approved,rejected',
+                'per_page' => 'sometimes|integer|min:1|max:100',
+            ]);
             $compact = $request->boolean('compact', true);
 
             // CRITICAL: Block access if user or role is null
@@ -404,6 +413,7 @@ class RegisterController extends Controller
                 'nama_outlet',
                 'alamat_outlet',
                 'status',
+                'type',
                 'keterangan',
                 'distric',
                 'latlong',
@@ -420,10 +430,65 @@ class RegisterController extends Controller
             }
 
             // Apply organizational scope filtering
-            $registers = $query->visibleTo($user)->latest()->get();
+            $query = $query->visibleTo($user);
+
+            if ($request->filled('search')) {
+                $search = trim((string) $request->input('search'));
+                $query->where(function ($builder) use ($search): void {
+                    $builder
+                        ->where('nama_outlet', 'like', "%{$search}%")
+                        ->orWhere('kode_outlet', 'like', "%{$search}%")
+                        ->orWhere('distric', 'like', "%{$search}%");
+                });
+            }
+
+            $status = (string) $request->input('status', '');
+            if ($status !== '') {
+                switch ($status) {
+                    case 'lead':
+                        $query->where('type', 'LEAD');
+                        break;
+                    case 'pending':
+                        $query->where('type', 'NOO')->where('status', 'PENDING');
+                        break;
+                    case 'confirmed':
+                        $query->where('status', 'CONFIRMED');
+                        break;
+                    case 'approved':
+                        $query->where('status', 'APPROVED');
+                        break;
+                    case 'rejected':
+                        $query->where('status', 'REJECTED');
+                        break;
+                }
+            }
+
+            $perPage = min((int) $request->input('per_page', 0), 100);
+            $query = $query->latest();
 
             // Determine resource class based on compact mode
             $resourceClass = $compact ? RegisterCompactResource::class : RegisterResource::class;
+
+            if ($perPage > 0) {
+                $registers = $query->paginate($perPage);
+
+                return $resourceClass::collection($registers)->additional([
+                    'meta' => [
+                        'code' => 200,
+                        'status' => 'success',
+                        'message' => 'fetch register success',
+                        'pagination' => [
+                            'current_page' => $registers->currentPage(),
+                            'per_page' => $registers->perPage(),
+                            'total' => $registers->total(),
+                            'last_page' => $registers->lastPage(),
+                        ],
+                    ],
+                    'errors' => null,
+                ]);
+            }
+
+            $registers = $query->get();
 
             return $resourceClass::collection($registers)->additional([
                 'meta' => [
@@ -501,6 +566,7 @@ class RegisterController extends Controller
                 'latlong' => $request->latlong,
                 'created_by_id' => $user->id,
                 'tm_id' => $hierarchy['tm_id'],
+                'type' => 'NOO',
                 'badanusaha_id' => $hierarchy['badanusaha_id'],
                 'divisi_id' => $hierarchy['divisi_id'],
                 'region_id' => $hierarchy['region_id'],
@@ -618,9 +684,12 @@ class RegisterController extends Controller
         try {
             $register = Register::findOrFail($request->id);
 
-            // Validate that register.status is PENDING before allowing confirmation
-            // Only pending NOO (status=PENDING) or upgraded LEAD (status=PENDING, keterangan=null) can be confirmed
-            // Note: Database has status as enum with default 'PENDING', not null
+            // Only NOO can be confirmed.
+            if (strtoupper((string) $register->type) !== 'NOO') {
+                throw new BadRequestException('Register bukan NOO');
+            }
+
+            // Validate that register.status is PENDING before allowing confirmation.
             if ($register->status !== 'PENDING') {
                 throw new BadRequestException('Register sudah diproses sebelumnya');
             }
@@ -682,10 +751,14 @@ class RegisterController extends Controller
     public function approveNoo(ApproveNooRequest $request)
     {
         try {
-            $register = Register::find($request->id);
+            $register = Register::findOrFail($request->id);
 
-            // Validate that register.status is 'CONFIRMED' before allowing approval
-            // Only confirmed NOO can be approved (state machine: CONFIRMED → APPROVED)
+            // Only NOO can be approved.
+            if (strtoupper((string) $register->type) !== 'NOO') {
+                throw new BadRequestException('Register bukan NOO');
+            }
+
+            // Validate that register.status is 'CONFIRMED' before allowing approval.
             if ($register->status !== 'CONFIRMED') {
                 throw new BadRequestException('Register belum dikonfirmasi');
             }
@@ -701,12 +774,13 @@ class RegisterController extends Controller
                 array_push($notif, $creatorNotifId);
             }
 
-            // Get default radius from division settings
-            $radius = 0;
-            $divisionSetting = \App\Models\DivisionSetting::where('division_id', $register->divisi_id)->first();
-            if ($divisionSetting) {
-                $radius = $divisionSetting->default_register_radius;
-            }
+            $radius = $this->systemSettings->defaultRegisterRadiusForIds(
+                $register->badanusaha_id ? (int) $register->badanusaha_id : null,
+                $register->divisi_id ? (int) $register->divisi_id : null,
+                $register->region_id ? (int) $register->region_id : null,
+                $register->cluster_id ? (int) $register->cluster_id : null,
+                100
+            );
 
             $data = [
                 'register_id' => $register->id,
@@ -781,9 +855,12 @@ class RegisterController extends Controller
         try {
             $register = Register::findOrFail($request->id);
 
-            // Validate that register.status is null or 'CONFIRMED' before allowing rejection
-            // State machine: null/LEAD → REJECTED, CONFIRMED → REJECTED
-            // Already APPROVED or REJECTED registers cannot be rejected again
+            // Only NOO can be rejected.
+            if (strtoupper((string) $register->type) !== 'NOO') {
+                throw new BadRequestException('Register bukan NOO');
+            }
+
+            // Already APPROVED or REJECTED registers cannot be rejected again.
             if ($register->status === 'APPROVED' || $register->status === 'REJECTED') {
                 throw new BadRequestException('Register sudah diproses sebelumnya');
             }
@@ -843,6 +920,7 @@ class RegisterController extends Controller
                 'nama_outlet',
                 'alamat_outlet',
                 'status',
+                'type',
                 'keterangan',
                 'distric',
                 'latlong',

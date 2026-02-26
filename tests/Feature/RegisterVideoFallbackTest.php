@@ -10,6 +10,7 @@ use App\Models\Register;
 use App\Models\Role;
 use App\Models\User;
 use Filament\Facades\Filament;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -62,6 +63,12 @@ it('stores dash when video is not uploaded via the Filament create form', functi
             'nama_pemilik_outlet' => 'Pemilik Test',
             'nomer_tlp_outlet' => '08123',
             'latlong' => '0,0',
+            'ktp_outlet' => fake()->numerify('################'),
+            'poto_shop_sign' => UploadedFile::fake()->image('sign.jpg'),
+            'poto_depan' => UploadedFile::fake()->image('front.jpg'),
+            'poto_kiri' => UploadedFile::fake()->image('left.jpg'),
+            'poto_kanan' => UploadedFile::fake()->image('right.jpg'),
+            'poto_ktp' => UploadedFile::fake()->image('ktp.jpg'),
 
             'oppo' => 0,
             'vivo' => 0,
@@ -71,7 +78,7 @@ it('stores dash when video is not uploaded via the Filament create form', functi
             'fl' => 0,
 
             'created_by_id' => $user->id,
-            'keterangan' => 'LEAD',
+            'type' => 'NOO',
 
             'badanusaha_id' => $badanUsaha->id,
             'divisi_id' => $division->id,

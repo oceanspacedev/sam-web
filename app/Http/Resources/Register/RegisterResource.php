@@ -28,6 +28,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * @property string $latlong
  * @property int|null $limit
  * @property string|null $status
+ * @property string|null $type
  * @property string|null $keterangan
  * @property int $created_by_id
  * @property string|null $rejected_at
@@ -73,6 +74,7 @@ class RegisterResource extends JsonResource
             'fl' => $this->fl,
             'limit' => $this->limit,
             'status' => $this->status,
+            'type' => $this->type,
             'keterangan' => $this->keterangan,
             'created_by_id' => $this->created_by_id,
             'created_by' => $this->createdBy?->nama_lengkap,

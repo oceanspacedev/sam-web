@@ -97,7 +97,7 @@ class OutletController extends Controller
         }
 
         // Normal pagination for non-nearby search
-        $perPage = min((int) $request->get('per_page', 20), 100);
+        $perPage = min((int) $request->get('per_page', 10), 100);
         $outlets = $query->orderBy('nama_outlet')->paginate($perPage);
 
         return $resourceClass::collection($outlets)->additional([

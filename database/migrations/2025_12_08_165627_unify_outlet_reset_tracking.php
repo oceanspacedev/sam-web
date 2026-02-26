@@ -19,14 +19,16 @@ return new class extends Migration
             $table->unsignedInteger('reset_count_yearly')->default(0)->after('last_reset_at');
         });
 
-        // Migrate data: use the most recent reset date from either location or data
+        // Migrate data: use the most recent reset date from either location or data.
+        // SQLite does not support GREATEST(), so use MAX(x, y) there.
+        $greatestExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? 'MAX(COALESCE(last_location_reset_at, \'1900-01-01\'), COALESCE(last_data_reset_at, \'1900-01-01\'))'
+            : 'GREATEST(COALESCE(last_location_reset_at, \'1900-01-01\'), COALESCE(last_data_reset_at, \'1900-01-01\'))';
+
         DB::statement("
-            UPDATE outlets 
-            SET last_reset_at = GREATEST(
-                COALESCE(last_location_reset_at, '1900-01-01'),
-                COALESCE(last_data_reset_at, '1900-01-01')
-            ),
-            reset_count_yearly = COALESCE(location_reset_count_yearly, 0) + COALESCE(data_reset_count_yearly, 0)
+            UPDATE outlets
+            SET last_reset_at = {$greatestExpression},
+                reset_count_yearly = COALESCE(location_reset_count_yearly, 0) + COALESCE(data_reset_count_yearly, 0)
             WHERE last_location_reset_at IS NOT NULL OR last_data_reset_at IS NOT NULL
         ");
 

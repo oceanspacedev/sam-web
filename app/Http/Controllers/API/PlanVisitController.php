@@ -12,6 +12,7 @@ use App\Http\Resources\PlanVisit\PlanVisitResource;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\Register;
+use App\Services\SystemSettingResolver;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -21,8 +22,20 @@ use Illuminate\Support\Facades\Log;
 
 class PlanVisitController extends Controller
 {
+    public function __construct(protected SystemSettingResolver $systemSettings) {}
+
     public function fetch(Request $request): JsonResponse
     {
+        $request->validate([
+            'compact' => ['sometimes', 'boolean'],
+            'period' => ['sometimes', 'string', 'in:today,week,month'],
+            'date_from' => ['sometimes', 'date'],
+            'date_to' => ['sometimes', 'date', 'after_or_equal:date_from'],
+            'bulan' => ['sometimes', 'integer', 'min:1', 'max:12'],
+            'tahun' => ['sometimes', 'integer', 'min:2000', 'max:2100'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
         $compact = $request->boolean('compact', true);
 
         $baseRelations = $compact
@@ -68,30 +81,22 @@ class PlanVisitController extends Controller
         // Priority 1: Legacy bulan/tahun filter (backward compatibility)
         if ($request->has(['bulan', 'tahun'])) {
             $request->validate([
-                'bulan' => ['required', 'string'],
-                'tahun' => ['required', 'string'],
+                'bulan' => ['required', 'integer', 'min:1', 'max:12'],
+                'tahun' => ['required', 'integer', 'min:2000', 'max:2100'],
             ]);
 
             $rangeStart = Carbon::createFromDate((int) $request->tahun, (int) $request->bulan, 1)->startOfMonth();
             $rangeEnd = $rangeStart->copy()->endOfMonth();
 
-            $plan = $query
+            return $this->respondWithPlanCollection(
+                $query
                 ->where('schedule_scope', 'daily')
                 ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
-                ->orderBy('period_start')
-                ->get();
-
-            // Determine resource class based on compact mode
-            $resourceClass = $compact ? PlanVisitCompactResource::class : PlanVisitResource::class;
-
-            return $resourceClass::collection($plan)->additional([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'errors' => null,
-            ])->response();
+                ->orderBy('period_start'),
+                $request,
+                $compact,
+                'berhasil'
+            );
         }
 
         // Priority 2: Custom date range filter
@@ -99,32 +104,23 @@ class PlanVisitController extends Controller
             $dateFrom = Carbon::parse($request->date_from)->startOfDay();
             $dateTo = Carbon::parse($request->date_to)->endOfDay();
 
-            $plan = $query->where(function (Builder $builder) use ($dateFrom, $dateTo): void {
-                $builder
-                    ->where(function (Builder $sub) use ($dateFrom, $dateTo): void {
-                        $sub->where('schedule_scope', 'daily')
-                            ->whereBetween('period_start', [$dateFrom->toDateString(), $dateTo->toDateString()]);
-                    })
-                    ->orWhere(function (Builder $sub) use ($dateFrom, $dateTo): void {
-                        $sub->where('schedule_scope', 'weekly')
-                            ->whereDate('period_start', '<=', $dateTo->toDateString())
-                            ->whereDate('period_end', '>=', $dateFrom->toDateString());
-                    });
-            })
-                ->orderBy('period_start')
-                ->get();
-
-            // Determine resource class based on compact mode
-            $resourceClass = $compact ? PlanVisitCompactResource::class : PlanVisitResource::class;
-
-            return $resourceClass::collection($plan)->additional([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'berhasil',
-                ],
-                'errors' => null,
-            ])->response();
+            return $this->respondWithPlanCollection(
+                $query->where(function (Builder $builder) use ($dateFrom, $dateTo): void {
+                    $builder
+                        ->where(function (Builder $sub) use ($dateFrom, $dateTo): void {
+                            $sub->where('schedule_scope', 'daily')
+                                ->whereBetween('period_start', [$dateFrom->toDateString(), $dateTo->toDateString()]);
+                        })
+                        ->orWhere(function (Builder $sub) use ($dateFrom, $dateTo): void {
+                            $sub->where('schedule_scope', 'weekly')
+                                ->whereDate('period_start', '<=', $dateTo->toDateString())
+                                ->whereDate('period_end', '>=', $dateFrom->toDateString());
+                        });
+                })->orderBy('period_start'),
+                $request,
+                $compact,
+                'berhasil'
+            );
         }
 
         // Priority 3: Period-based filtering
@@ -136,7 +132,7 @@ class PlanVisitController extends Controller
                 $rangeStart = Carbon::now()->startOfWeek();
                 $rangeEnd = Carbon::now()->endOfWeek();
 
-                $plan = $query->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
+                $query->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
                     $builder
                         ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
                             $sub->where('schedule_scope', 'daily')
@@ -147,9 +143,7 @@ class PlanVisitController extends Controller
                                 ->whereDate('period_start', '<=', $rangeEnd->toDateString())
                                 ->whereDate('period_end', '>=', $rangeStart->toDateString());
                         });
-                })
-                    ->orderBy('period_start')
-                    ->get();
+                });
                 break;
 
             case 'month':
@@ -157,7 +151,7 @@ class PlanVisitController extends Controller
                 $rangeStart = Carbon::now()->startOfMonth();
                 $rangeEnd = Carbon::now()->endOfMonth();
 
-                $plan = $query->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
+                $query->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
                     $builder
                         ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
                             $sub->where('schedule_scope', 'daily')
@@ -168,9 +162,7 @@ class PlanVisitController extends Controller
                                 ->whereDate('period_start', '<=', $rangeEnd->toDateString())
                                 ->whereDate('period_end', '>=', $rangeStart->toDateString());
                         });
-                })
-                    ->orderBy('period_start')
-                    ->get();
+                });
                 break;
 
             case 'today':
@@ -178,7 +170,7 @@ class PlanVisitController extends Controller
                 // Today's plan visits (default)
                 $today = now()->toDateString();
 
-                $plan = $query->where(function (Builder $builder) use ($today): void {
+                $query->where(function (Builder $builder) use ($today): void {
                     $builder
                         ->where(function (Builder $sub) use ($today): void {
                             $sub->where('schedule_scope', 'daily')
@@ -189,20 +181,53 @@ class PlanVisitController extends Controller
                                 ->whereDate('period_start', '<=', $today)
                                 ->whereDate('period_end', '>=', $today);
                         });
-                })
-                    ->orderBy('period_start')
-                    ->get();
+                });
                 break;
         }
 
-        // Determine resource class based on compact mode
+        return $this->respondWithPlanCollection(
+            $query->orderBy('period_start'),
+            $request,
+            $compact,
+            'ok'
+        );
+    }
+
+    private function respondWithPlanCollection(
+        Builder $query,
+        Request $request,
+        bool $compact,
+        string $message
+    ): JsonResponse {
         $resourceClass = $compact ? PlanVisitCompactResource::class : PlanVisitResource::class;
+        $perPage = min((int) $request->input('per_page', 0), 100);
+
+        if ($perPage > 0) {
+            $plan = $query->paginate($perPage);
+
+            return $resourceClass::collection($plan)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => $message,
+                    'pagination' => [
+                        'current_page' => $plan->currentPage(),
+                        'per_page' => $plan->perPage(),
+                        'total' => $plan->total(),
+                        'last_page' => $plan->lastPage(),
+                    ],
+                ],
+                'errors' => null,
+            ])->response();
+        }
+
+        $plan = $query->get();
 
         return $resourceClass::collection($plan)->additional([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',
-                'message' => 'ok',
+                'message' => $message,
             ],
             'errors' => null,
         ])->response();
@@ -245,10 +270,35 @@ class PlanVisitController extends Controller
 
                 throw new ResourceNotFoundException('Register tidak ditemukan');
             }
+
+            if (strtoupper((string) $target->status) === 'APPROVED') {
+                throw new BadRequestException('Register sudah menjadi outlet, gunakan target outlet');
+            }
+
+            if (! $this->systemSettings->allowsRegisterVisitForModel($target)) {
+                throw new BadRequestException('Setting sistem tidak mengizinkan visit/plan visit ke LEAD/NOO untuk target ini');
+            }
+
             $visitableType = Register::class;
         }
 
         $periodStart = Carbon::parse($request->tanggal_visit)->startOfDay();
+        $minPlanDays = $this->systemSettings->planVisitMinDaysForIds(
+            $target->badanusaha_id ? (int) $target->badanusaha_id : null,
+            $target->divisi_id ? (int) $target->divisi_id : null,
+            $target->region_id ? (int) $target->region_id : null,
+            $target->cluster_id ? (int) $target->cluster_id : null,
+            3
+        );
+        $minAllowedDate = now()->startOfDay()->addDays($minPlanDays);
+        if ($periodStart->lt($minAllowedDate)) {
+            throw new BadRequestException(
+                $minPlanDays > 0
+                    ? "Plan visit harus dibuat minimal H+{$minPlanDays} dari hari ini"
+                    : 'Plan visit tidak boleh di tanggal lampau'
+            );
+        }
+
         $schedulePayload = PlanVisit::schedulePayload($periodStart, 'daily');
 
         $existingPlan = PlanVisit::query()

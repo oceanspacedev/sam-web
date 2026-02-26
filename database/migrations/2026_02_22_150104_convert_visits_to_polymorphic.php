@@ -36,6 +36,8 @@ return new class extends Migration
 
         // Drop outlet_id and add new indexes if not yet done
         if (Schema::hasColumn('visits', 'outlet_id')) {
+            $this->dropIndexesContainingColumn('visits', 'outlet_id');
+
             Schema::table('visits', function (Blueprint $table) {
                 // Make columns non-nullable
                 $table->string('visitable_type')->nullable(false)->change();
@@ -112,6 +114,8 @@ return new class extends Migration
 
         // Drop outlet_id and finalize columns
         if (Schema::hasColumn('plan_visits', 'outlet_id')) {
+            $this->dropIndexesContainingColumn('plan_visits', 'outlet_id');
+
             Schema::table('plan_visits', function (Blueprint $table) {
                 $table->string('visitable_type')->nullable(false)->change();
                 $table->unsignedBigInteger('visitable_id')->nullable(false)->change();
@@ -158,6 +162,8 @@ return new class extends Migration
                         'visitable_id' => DB::raw('outlet_id'),
                     ]);
 
+                $this->dropIndexesContainingColumn('visits_archives', 'outlet_id');
+
                 Schema::table('visits_archives', function (Blueprint $table) {
                     if ($this->indexExists('visits_archives', 'visits_archives_outlet_date_idx')) {
                         $table->dropIndex('visits_archives_outlet_date_idx');
@@ -195,6 +201,8 @@ return new class extends Migration
                         'visitable_type' => 'App\\Models\\Outlet',
                         'visitable_id' => DB::raw('outlet_id'),
                     ]);
+
+                $this->dropIndexesContainingColumn('plan_visits_archives', 'outlet_id');
 
                 Schema::table('plan_visits_archives', function (Blueprint $table) {
                     foreach ([
@@ -246,6 +254,18 @@ return new class extends Migration
     protected function indexExists(string $table, string $indexName): bool
     {
         try {
+            if (DB::connection()->getDriverName() === 'sqlite') {
+                $indexes = DB::select("PRAGMA index_list('{$table}')");
+
+                foreach ($indexes as $index) {
+                    if (($index->name ?? null) === $indexName) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
             $result = DB::select("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
 
             return count($result) > 0;
@@ -260,6 +280,18 @@ return new class extends Migration
     protected function foreignKeyExists(string $table, string $column): bool
     {
         try {
+            if (DB::connection()->getDriverName() === 'sqlite') {
+                $foreignKeys = DB::select("PRAGMA foreign_key_list('{$table}')");
+
+                foreach ($foreignKeys as $foreignKey) {
+                    if (($foreignKey->from ?? null) === $column) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
             // For MySQL 5.7+
             $result = DB::select('
                 SELECT CONSTRAINT_NAME
@@ -274,5 +306,43 @@ return new class extends Migration
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    /**
+     * Drop all non-internal indexes referencing a specific column (SQLite only).
+     */
+    protected function dropIndexesContainingColumn(string $table, string $column): void
+    {
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            return;
+        }
+
+        $indexes = DB::select("PRAGMA index_list('{$table}')");
+        $indexesToDrop = [];
+
+        foreach ($indexes as $index) {
+            $indexName = $index->name ?? null;
+            if (! is_string($indexName) || str_starts_with($indexName, 'sqlite_')) {
+                continue;
+            }
+
+            $indexInfo = DB::select("PRAGMA index_info('{$indexName}')");
+            foreach ($indexInfo as $info) {
+                if (($info->name ?? null) === $column) {
+                    $indexesToDrop[] = $indexName;
+                    break;
+                }
+            }
+        }
+
+        if ($indexesToDrop === []) {
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $tableBlueprint) use ($indexesToDrop) {
+            foreach (array_unique($indexesToDrop) as $indexName) {
+                $tableBlueprint->dropIndex($indexName);
+            }
+        });
     }
 };

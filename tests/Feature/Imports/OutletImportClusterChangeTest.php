@@ -47,9 +47,15 @@ it('blocks outlet cluster changes on import when there are unrealized plan visit
 
     PlanVisit::create([
         'user_id' => $user->id,
-        'outlet_id' => $outlet->id,
-        'tanggal_visit' => now(),
+        'visitable_type' => Outlet::class,
+        'visitable_id' => $outlet->id,
+        'tanggal_visit' => now()->toDateString(),
         'realized_at' => null,
+        'schedule_scope' => 'daily',
+        'period_start' => now()->startOfDay(),
+        'period_end' => now()->endOfDay(),
+        'schedule_week' => now()->weekOfYear,
+        'schedule_year' => now()->year,
     ]);
 
     $import = new OutletImport('update');

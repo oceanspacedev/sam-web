@@ -3,18 +3,10 @@
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Redis;
 
 beforeEach(function () {
-    // Skip if Redis is not available
-    try {
-        Redis::ping();
-    } catch (\Exception $e) {
-        $this->markTestSkipped('Redis is not available');
-    }
-
-    // Clear Redis before each test
-    Redis::flushdb();
+    // Disable the rate limiting middleware that requires Redis
+    $this->withoutMiddleware(\App\Http\Middleware\RateLimitUploads::class);
 
     // Disable Laravel's standard rate limiters to test only our upload limiter
     RateLimiter::clear('api');

@@ -446,10 +446,16 @@ class SettingController extends Controller
     {
         try {
             $user = Auth::user();
+            $request->validate([
+                'role_id' => 'sometimes|integer|exists:roles,id',
+                'include_options' => 'sometimes|boolean',
+            ]);
 
             if (! $user || ! $user->role) {
                 throw new UnauthorizedException;
             }
+
+            $includeOptions = $request->boolean('include_options', true);
 
             // Determine which role to check (for form validation)
             $roleId = $request->query('role_id');
@@ -490,76 +496,78 @@ class SettingController extends Controller
             // Get options based on current user's permissions
             $userScopeLevel = $user->role->organizational_scope_level;
 
-            // BadanUsaha options
-            if ($fields['badanusaha']['visible']) {
-                if ($userScopeLevel === 'all') {
-                    $fields['badanusaha']['options'] = BadanUsaha::active()->orderBy('name')->get(['id', 'name']);
-                } else {
-                    $fields['badanusaha']['options'] = $user->badanUsahas()->active()->orderBy('name')->get(['badan_usahas.id as id', 'name']);
-                }
-            }
-
-            // Divisi options - use same logic as getdivisi endpoint
-            if ($fields['divisi']['visible']) {
-                $query = Division::active();
-                if ($userScopeLevel !== 'all') {
-                    $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-
-                    if (! empty($badanUsahaIds)) {
-                        $query->whereIn('badanusaha_id', $badanUsahaIds);
-                    }
-                    if (! empty($divisiIds)) {
-                        $query->whereIn('id', $divisiIds);
+            if ($includeOptions) {
+                // BadanUsaha options
+                if ($fields['badanusaha']['visible']) {
+                    if ($userScopeLevel === 'all') {
+                        $fields['badanusaha']['options'] = BadanUsaha::active()->orderBy('name')->get(['id', 'name']);
+                    } else {
+                        $fields['badanusaha']['options'] = $user->badanUsahas()->active()->orderBy('name')->get(['badan_usahas.id as id', 'name']);
                     }
                 }
-                $fields['divisi']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id']);
-            }
 
-            // Region options - use same logic as getregion endpoint
-            if ($fields['region']['visible']) {
-                $query = Region::active();
-                if ($userScopeLevel !== 'all') {
-                    $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                // Divisi options - use same logic as getdivisi endpoint
+                if ($fields['divisi']['visible']) {
+                    $query = Division::active();
+                    if ($userScopeLevel !== 'all') {
+                        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
 
-                    if (! empty($badanUsahaIds)) {
-                        $query->whereIn('badanusaha_id', $badanUsahaIds);
+                        if (! empty($badanUsahaIds)) {
+                            $query->whereIn('badanusaha_id', $badanUsahaIds);
+                        }
+                        if (! empty($divisiIds)) {
+                            $query->whereIn('id', $divisiIds);
+                        }
                     }
-                    if (! empty($divisiIds)) {
-                        $query->whereIn('divisi_id', $divisiIds);
-                    }
-                    if (! empty($regionIds)) {
-                        $query->whereIn('id', $regionIds);
-                    }
+                    $fields['divisi']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id']);
                 }
-                $fields['region']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id']);
-            }
 
-            // Cluster options - use same logic as getcluster endpoint
-            if ($fields['cluster']['visible']) {
-                $query = Cluster::active();
-                if ($userScopeLevel !== 'all') {
-                    $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                    $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+                // Region options - use same logic as getregion endpoint
+                if ($fields['region']['visible']) {
+                    $query = Region::active();
+                    if ($userScopeLevel !== 'all') {
+                        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                        $regionIds = $user->regions()->pluck('regions.id')->toArray();
 
-                    if (! empty($badanUsahaIds)) {
-                        $query->whereIn('badanusaha_id', $badanUsahaIds);
+                        if (! empty($badanUsahaIds)) {
+                            $query->whereIn('badanusaha_id', $badanUsahaIds);
+                        }
+                        if (! empty($divisiIds)) {
+                            $query->whereIn('divisi_id', $divisiIds);
+                        }
+                        if (! empty($regionIds)) {
+                            $query->whereIn('id', $regionIds);
+                        }
                     }
-                    if (! empty($divisiIds)) {
-                        $query->whereIn('divisi_id', $divisiIds);
-                    }
-                    if (! empty($regionIds)) {
-                        $query->whereIn('region_id', $regionIds);
-                    }
-                    if (! empty($clusterIds)) {
-                        $query->whereIn('id', $clusterIds);
-                    }
+                    $fields['region']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id']);
                 }
-                $fields['cluster']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
+
+                // Cluster options - use same logic as getcluster endpoint
+                if ($fields['cluster']['visible']) {
+                    $query = Cluster::active();
+                    if ($userScopeLevel !== 'all') {
+                        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+                        $regionIds = $user->regions()->pluck('regions.id')->toArray();
+                        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+                        if (! empty($badanUsahaIds)) {
+                            $query->whereIn('badanusaha_id', $badanUsahaIds);
+                        }
+                        if (! empty($divisiIds)) {
+                            $query->whereIn('divisi_id', $divisiIds);
+                        }
+                        if (! empty($regionIds)) {
+                            $query->whereIn('region_id', $regionIds);
+                        }
+                        if (! empty($clusterIds)) {
+                            $query->whereIn('id', $clusterIds);
+                        }
+                    }
+                    $fields['cluster']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
+                }
             }
 
             return response()->json([

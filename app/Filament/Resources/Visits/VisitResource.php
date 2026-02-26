@@ -6,13 +6,13 @@ use App\Filament\Resources\Visits\Pages\CreateVisit;
 use App\Filament\Resources\Visits\Pages\EditVisit;
 use App\Filament\Resources\Visits\Pages\ListVisits;
 use App\Filament\Resources\Visits\Pages\ViewVisit;
-use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\Register;
 use App\Models\User;
 use App\Models\Visit;
 use App\Services\FilenameGeneratorService;
+use App\Services\SystemSettingResolver;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Actions\BulkActionGroup;
@@ -162,10 +162,8 @@ class VisitResource extends Resource
                                             'App\\Models\\Outlet' => 'Outlet',
                                         ];
 
-                                        // Only show Register option if at least one division allows it
-                                        $allowsRegisterVisit = \App\Models\Division::whereHas('setting', function ($q) {
-                                            $q->where('allow_register_visit', true);
-                                        })->exists();
+                                        // Show register target only when system setting enables register visit.
+                                        $allowsRegisterVisit = app(SystemSettingResolver::class)->hasAnyAllowRegisterVisit();
 
                                         if ($allowsRegisterVisit) {
                                             $options['App\\Models\\Register'] = 'Register (LEAD/NOO)';
@@ -261,13 +259,15 @@ class VisitResource extends Resource
                                                     $q->where('nama_outlet', 'like', "%{$search}%")
                                                         ->orWhere('kode_outlet', 'like', "%{$search}%");
                                                 })
-                                                ->whereHas('divisi.setting', function ($q) {
-                                                    $q->where('allow_register_visit', true);
+                                                ->where(function ($q) {
+                                                    $q->whereNull('status')->orWhere('status', '!=', 'APPROVED');
                                                 })
+                                                ->whereDoesntHave('outlet')
                                                 ->whereIn('id', $plannedIds)
                                                 ->orderBy('nama_outlet')
                                                 ->limit(50)
                                                 ->get()
+                                                ->filter(fn (Register $register) => app(SystemSettingResolver::class)->allowsRegisterVisitForModel($register))
                                                 ->mapWithKeys(function ($register) {
                                                     return [$register->id => "[{$register->kode_outlet}] {$register->nama_outlet} - Register"];
                                                 })
@@ -306,12 +306,14 @@ class VisitResource extends Resource
                                                 $q->where('nama_outlet', 'like', "%{$search}%")
                                                     ->orWhere('kode_outlet', 'like', "%{$search}%");
                                             })
-                                            ->whereHas('divisi.setting', function ($q) {
-                                                $q->where('allow_register_visit', true);
+                                            ->where(function ($q) {
+                                                $q->whereNull('status')->orWhere('status', '!=', 'APPROVED');
                                             })
+                                            ->whereDoesntHave('outlet')
                                             ->orderBy('nama_outlet')
                                             ->limit(50)
                                             ->get()
+                                            ->filter(fn (Register $register) => app(SystemSettingResolver::class)->allowsRegisterVisitForModel($register))
                                             ->mapWithKeys(function ($register) {
                                                 return [$register->id => "[{$register->kode_outlet}] {$register->nama_outlet} - Register"];
                                             })

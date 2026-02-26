@@ -15,6 +15,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * @property string $nama_outlet
  * @property string $alamat_outlet
  * @property string|null $status
+ * @property string|null $type
  * @property string|null $keterangan
  * @property string $distric
  * @property string $latlong
@@ -35,6 +36,7 @@ class RegisterCompactResource extends JsonResource
             'nama_outlet' => $this->nama_outlet,
             'alamat_outlet' => $this->alamat_outlet,
             'status' => $this->status,
+            'type' => $this->type,
             'keterangan' => $this->keterangan,
             'distric' => $this->distric,
             'latlong' => $this->latlong,

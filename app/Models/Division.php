@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SystemSettingResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -65,7 +66,8 @@ class Division extends Model
 
     public function setting(): HasOne
     {
-        return $this->hasOne(DivisionSetting::class);
+        return $this->hasOne(SystemSetting::class, 'division_id')
+            ->where('scope_level', SystemSetting::SCOPE_DIVISION);
     }
 
     /**
@@ -73,6 +75,11 @@ class Division extends Model
      */
     public function allowsRegisterVisit(): bool
     {
-        return $this->setting?->allow_register_visit ?? false;
+        return app(SystemSettingResolver::class)->allowsRegisterVisitForIds(
+            $this->badanusaha_id ? (int) $this->badanusaha_id : null,
+            $this->id ? (int) $this->id : null,
+            null,
+            null,
+        );
     }
 }

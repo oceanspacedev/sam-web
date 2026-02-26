@@ -24,11 +24,15 @@ Route::post('login', [UserController::class, 'login'])->middleware('throttle:log
 Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // USER (single - current user)
     Route::get('user', [UserController::class, 'fetch']);
+    Route::put('user', [UserController::class, 'updateProfile']);
+    Route::post('user/photo', [UserController::class, 'updateProfilePhoto']);
+    Route::delete('user', [UserController::class, 'deleteAccount']);
     Route::get('user/stats', [UserController::class, 'stats']);
     Route::post('logout', [UserController::class, 'logout']);
 
     // USERS (manage all users - CRUD)
     Route::get('users', [UserController::class, 'index']);
+    Route::get('users/{id}', [UserController::class, 'show']);
     Route::post('users', [UserController::class, 'store']);
     Route::put('users/{id}', [UserController::class, 'update']);
     Route::delete('users/{id}', [UserController::class, 'destroy']);

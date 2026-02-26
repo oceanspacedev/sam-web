@@ -35,7 +35,7 @@ class VisitObserver
 
     protected function markRelatedPlanVisit(Visit $visit): void
     {
-        // Only match PlanVisit for outlet visits (registers don't have plan visits yet)
+        // Match planned target for both outlet and register polymorphic visitables.
         if (! $visit->user_id || ! $visit->visitable_id || ! $visit->tanggal_visit) {
             return;
         }

@@ -11,12 +11,14 @@ use App\Http\Requests\API\CheckinVisitRequest;
 use App\Http\Requests\API\CheckoutVisitRequest;
 use App\Http\Resources\Visit\VisitCompactResource;
 use App\Http\Resources\Visit\VisitResource;
-use App\Models\DivisionSetting;
 use App\Models\Outlet;
+use App\Models\PlanVisit;
 use App\Models\Register;
 use App\Models\Visit;
 use App\Services\FileUploadService;
+use App\Services\SystemSettingResolver;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +28,10 @@ class VisitController extends Controller
 {
     use HasMediaUpload;
 
-    public function __construct(protected FileUploadService $fileUpload) {}
+    public function __construct(
+        protected FileUploadService $fileUpload,
+        protected SystemSettingResolver $systemSettings,
+    ) {}
 
     public function monitor(Request $request)
     {
@@ -179,6 +184,16 @@ class VisitController extends Controller
 
     public function fetch(Request $request)
     {
+        $request->validate([
+            'compact' => 'sometimes|boolean',
+            'period' => 'sometimes|string|in:today,week,month',
+            'year' => 'sometimes|integer|min:2000|max:2100',
+            'month' => 'sometimes|integer|min:1|max:12',
+            'date_from' => 'sometimes|date',
+            'date_to' => 'sometimes|date|after_or_equal:date_from',
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $compact = $request->boolean('compact', true);
 
         $query = Visit::with($compact ? [
@@ -256,10 +271,32 @@ class VisitController extends Controller
             }
         }
 
-        $visit = $query->latest()->get();
+        $perPage = min((int) $request->input('per_page', 0), 100);
+        $query = $query->latest();
 
         // Determine resource class based on compact mode
         $resourceClass = $compact ? VisitCompactResource::class : VisitResource::class;
+
+        if ($perPage > 0) {
+            $visit = $query->paginate($perPage);
+
+            return $resourceClass::collection($visit)->additional([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'fetch visit succes',
+                    'pagination' => [
+                        'current_page' => $visit->currentPage(),
+                        'per_page' => $visit->perPage(),
+                        'total' => $visit->total(),
+                        'last_page' => $visit->lastPage(),
+                    ],
+                ],
+                'errors' => null,
+            ]);
+        }
+
+        $visit = $query->get();
 
         return $resourceClass::collection($visit)->additional([
             'meta' => [
@@ -317,10 +354,42 @@ class VisitController extends Controller
                 }
                 $visitableType = Register::class;
 
-                // Check division settings
-                $divisionSetting = DivisionSetting::where('division_id', $target->divisi_id)->first();
-                if (! $divisionSetting || ! $divisionSetting->allow_register_visit) {
-                    throw new BadRequestException('Divisi ini tidak mengizinkan visit ke LEAD/NOO');
+                if (! $this->systemSettings->allowsRegisterVisitForModel($target)) {
+                    throw new BadRequestException('Setting sistem tidak mengizinkan visit ke LEAD/NOO untuk target ini');
+                }
+
+                // Approved register must be visited via Outlet target.
+                if (strtoupper((string) $target->status) === 'APPROVED') {
+                    throw new BadRequestException('Register sudah menjadi outlet, gunakan target outlet');
+                }
+            }
+
+            if ($request->tipe_visit === 'PLANNED') {
+                $today = now()->toDateString();
+
+                $hasPlannedTarget = PlanVisit::query()
+                    ->where('user_id', $user->id)
+                    ->where('visitable_type', $visitableType)
+                    ->where('visitable_id', $target->id)
+                    ->unrealized()
+                    ->where(function (Builder $query) use ($today): void {
+                        $query
+                            ->where(function (Builder $daily) use ($today): void {
+                                $daily
+                                    ->where('schedule_scope', 'daily')
+                                    ->whereDate('period_start', $today);
+                            })
+                            ->orWhere(function (Builder $weekly) use ($today): void {
+                                $weekly
+                                    ->where('schedule_scope', 'weekly')
+                                    ->whereDate('period_start', '<=', $today)
+                                    ->whereDate('period_end', '>=', $today);
+                            });
+                    })
+                    ->exists();
+
+                if (! $hasPlannedTarget) {
+                    throw new BadRequestException('Target ini tidak ada di Plan Visit hari ini. Gunakan EXTRACALL.');
                 }
             }
 
@@ -480,28 +549,32 @@ class VisitController extends Controller
 
     private function enforceMaxVisitPerDay($user, Outlet|Register $target): void
     {
-        // Max visit per day check removed - no longer using DivisionSettings
+        // Max visit per day check removed by business rule.
     }
 
     public function getTargets(Request $request)
     {
         $request->validate([
             'search' => 'sometimes|string',
+            'context' => 'sometimes|string|in:visit,plan',
+            'limit' => 'sometimes|integer|min:1|max:100',
         ]);
 
         $user = Auth::user();
-        $search = $request->get('search');
+        $search = trim((string) $request->get('search', ''));
+        $limit = min((int) $request->input('limit', 10), 100);
 
         // Get outlets
         $outlets = Outlet::with(['badanusaha:id,name', 'divisi:id,name', 'region:id,name', 'cluster:id,name'])
             ->visibleTo($user)
-            ->when($search, function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($q) use ($search): void {
                     $q->where('nama_outlet', 'like', "%{$search}%")
                         ->orWhere('kode_outlet', 'like', "%{$search}%");
                 });
             })
             ->orderBy('nama_outlet')
+            ->limit($limit)
             ->get()
             ->map(function ($outlet) {
                 return [
@@ -516,23 +589,34 @@ class VisitController extends Controller
                     'divisi' => $outlet->divisi->name ?? '-',
                     'region' => $outlet->region->name ?? '-',
                     'cluster' => $outlet->cluster->name ?? '-',
+                    'plan_visit_min_days' => $this->systemSettings->planVisitMinDaysForIds(
+                        $outlet->badanusaha_id ? (int) $outlet->badanusaha_id : null,
+                        $outlet->divisi_id ? (int) $outlet->divisi_id : null,
+                        $outlet->region_id ? (int) $outlet->region_id : null,
+                        $outlet->cluster_id ? (int) $outlet->cluster_id : null,
+                    ),
                 ];
             });
 
-        // Get registers from divisions that allow visit
+        // Get registers that are still active as register targets and allowed by dynamic system setting.
         $registers = Register::visibleTo($user)
-            ->whereHas('divisi.setting', function ($q) {
-                $q->where('allow_register_visit', true);
+            // Avoid duplicate target when register has already become an outlet.
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'APPROVED');
             })
+            ->whereDoesntHave('outlet')
             ->with(['badanusaha:id,name', 'divisi:id,name', 'region:id,name', 'cluster:id,name'])
-            ->when($search, function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($q) use ($search): void {
                     $q->where('nama_outlet', 'like', "%{$search}%")
                         ->orWhere('kode_outlet', 'like', "%{$search}%");
                 });
             })
             ->orderBy('nama_outlet')
+            ->limit($limit)
             ->get()
+            ->filter(fn (Register $register): bool => $this->systemSettings->allowsRegisterVisitForModel($register))
+            ->values()
             ->map(function ($register) {
                 return [
                     'id' => $register->id,
@@ -546,12 +630,21 @@ class VisitController extends Controller
                     'divisi' => $register->divisi->name ?? '-',
                     'region' => $register->region->name ?? '-',
                     'cluster' => $register->cluster->name ?? '-',
-                    'type_register' => strtoupper($register->type ?? 'lead'),
+                    'type_register' => strtoupper((string) $register->type),
+                    'plan_visit_min_days' => $this->systemSettings->planVisitMinDaysForIds(
+                        $register->badanusaha_id ? (int) $register->badanusaha_id : null,
+                        $register->divisi_id ? (int) $register->divisi_id : null,
+                        $register->region_id ? (int) $register->region_id : null,
+                        $register->cluster_id ? (int) $register->cluster_id : null,
+                    ),
                 ];
             });
 
         // Combine results
-        $targets = $outlets->concat($registers);
+        $targets = $outlets->concat($registers)
+            ->sortBy(fn ($target): string => strtolower((string) ($target['nama'] ?? '')))
+            ->take($limit)
+            ->values();
 
         return response()->json([
             'meta' => [

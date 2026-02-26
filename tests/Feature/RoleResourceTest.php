@@ -47,7 +47,7 @@ it('syncs selected permissions when creating and editing a role', function (): v
         'Create:User',
         'ViewAny:User',
     ];
-    $customPermissions = ['impersonate'];
+    $customPermissions = ['Impersonate'];
 
     Livewire::test(CreateRolePage::class)
         ->fillForm([

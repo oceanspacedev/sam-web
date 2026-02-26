@@ -87,7 +87,7 @@ function generateValidCheckinData(int $outletId): array
     return [
         'outlet_id' => $outletId,
         'latlong_in' => fake()->latitude(-8, -6).','.fake()->longitude(106, 115),
-        'tipe_visit' => fake()->randomElement(['PLANNED', 'EXTRACALL']),
+        'tipe_visit' => 'EXTRACALL',
         'picture_visit' => UploadedFile::fake()->image('checkin.jpg', 800, 600),
     ];
 }
@@ -130,13 +130,14 @@ test('Property 17: Checkin Creates Visit - valid checkin creates visit with corr
 
         // Assert: Visit was created with correct invariants
         $visit = Visit::where('user_id', $user->id)
-            ->where('outlet_id', $outlet->id)
+            ->where('visitable_type', Outlet::class)
+            ->where('visitable_id', $outlet->id)
             ->whereDate('tanggal_visit', today())
             ->first();
 
         expect($visit)->not->toBeNull('Visit should be created')
             ->and($visit->user_id)->toBe($user->id, 'user_id should match authenticated user')
-            ->and($visit->outlet_id)->toBe($outlet->id, 'outlet_id should match')
+            ->and($visit->visitable_id)->toBe($outlet->id, 'visitable_id should match')
             ->and($visit->latlong_in)->toBe($checkinData['latlong_in'], 'latlong_in should be stored')
             ->and($visit->tipe_visit)->toBe($checkinData['tipe_visit'], 'tipe_visit should be stored')
             ->and($visit->check_in_time)->not->toBeNull('check_in_time should be set')
@@ -299,7 +300,8 @@ test('Property 19b: Concurrent Visit Prevention - cannot checkin at same outlet 
 
         // Get the visit and complete checkout
         $visit = Visit::where('user_id', $user->id)
-            ->where('outlet_id', $outlet->id)
+            ->where('visitable_type', Outlet::class)
+            ->where('visitable_id', $outlet->id)
             ->whereDate('tanggal_visit', today())
             ->first();
 

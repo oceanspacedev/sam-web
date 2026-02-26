@@ -113,17 +113,14 @@ class DataOverview extends StatsOverviewWidget implements HasActions
                 'label' => 'Register NOO',
                 'model' => Register::class,
                 'dateColumn' => 'updated_at', // capture upgrades from lead → NOO
-                'constraint' => fn (Builder $query) => $query->where(function (Builder $query) {
-                    $query->whereNull('keterangan')
-                        ->orWhere('keterangan', '!=', 'LEAD');
-                }),
+                'constraint' => fn (Builder $query) => $query->where('type', 'NOO'),
                 'permission' => 'ViewAny:Register',
             ],
             [
                 'label' => 'Register Lead',
                 'model' => Register::class,
                 'dateColumn' => 'created_at',
-                'constraint' => fn (Builder $query) => $query->where('keterangan', 'LEAD'),
+                'constraint' => fn (Builder $query) => $query->where('type', 'LEAD'),
                 'permission' => 'ViewAny:Register',
             ],
             [

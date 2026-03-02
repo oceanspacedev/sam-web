@@ -28,6 +28,10 @@ class VisitController extends Controller
 {
     use HasMediaUpload;
 
+    private const MAX_LEAD_VISITS_PER_WINDOW = 4;
+
+    private const LEAD_VISIT_LIMIT_WINDOW_DAYS = 30;
+
     public function __construct(
         protected FileUploadService $fileUpload,
         protected SystemSettingResolver $systemSettings,
@@ -358,9 +362,20 @@ class VisitController extends Controller
                     throw new BadRequestException('Setting sistem tidak mengizinkan visit ke LEAD/NOO untuk target ini');
                 }
 
+                $registerType = strtoupper((string) $target->type);
+                $registerStatus = strtoupper((string) $target->status);
+
                 // Approved register must be visited via Outlet target.
-                if (strtoupper((string) $target->status) === 'APPROVED') {
+                if ($registerStatus === 'APPROVED') {
                     throw new BadRequestException('Register sudah menjadi outlet, gunakan target outlet');
+                }
+
+                if ($registerStatus === 'REJECTED') {
+                    throw new BadRequestException('Register sudah REJECTED dan tidak dapat dijadikan target visit');
+                }
+
+                if ($registerType === 'LEAD') {
+                    $this->enforceLeadVisitLimit($user, $target);
                 }
             }
 
@@ -557,52 +572,33 @@ class VisitController extends Controller
         $request->validate([
             'search' => 'sometimes|string',
             'context' => 'sometimes|string|in:visit,plan',
+            'lat' => 'sometimes|numeric|between:-90,90|required_with:lng',
+            'lng' => 'sometimes|numeric|between:-180,180|required_with:lat',
+            'nearby_radius_km' => 'sometimes|numeric|between:5,10',
             'limit' => 'sometimes|integer|min:1|max:100',
         ]);
 
         $user = Auth::user();
         $search = trim((string) $request->get('search', ''));
+        $context = (string) $request->input('context', 'visit');
         $limit = min((int) $request->input('limit', 10), 100);
+        $nearbyRadiusKm = (float) $request->input('nearby_radius_km', 10);
+        $hasCoordinates = $request->filled(['lat', 'lng']);
+        $useNearestTargets = $context === 'visit' && $search === '' && $hasCoordinates;
 
-        // Get outlets
-        $outlets = Outlet::with(['badanusaha:id,name', 'divisi:id,name', 'region:id,name', 'cluster:id,name'])
+        $outletsQuery = Outlet::with(['badanusaha:id,name', 'divisi:id,name', 'region:id,name', 'cluster:id,name'])
             ->visibleTo($user)
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($q) use ($search): void {
                     $q->where('nama_outlet', 'like', "%{$search}%")
                         ->orWhere('kode_outlet', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy('nama_outlet')
-            ->limit($limit)
-            ->get()
-            ->map(function ($outlet) {
-                return [
-                    'id' => $outlet->id,
-                    'type' => 'outlet',
-                    'kode' => $outlet->kode_outlet,
-                    'nama' => $outlet->nama_outlet,
-                    'latlong' => $outlet->latlong,
-                    'alamat' => $outlet->alamat_outlet,
-                    'distric' => $outlet->distric,
-                    'badanusaha' => $outlet->badanusaha->name ?? '-',
-                    'divisi' => $outlet->divisi->name ?? '-',
-                    'region' => $outlet->region->name ?? '-',
-                    'cluster' => $outlet->cluster->name ?? '-',
-                    'plan_visit_min_days' => $this->systemSettings->planVisitMinDaysForIds(
-                        $outlet->badanusaha_id ? (int) $outlet->badanusaha_id : null,
-                        $outlet->divisi_id ? (int) $outlet->divisi_id : null,
-                        $outlet->region_id ? (int) $outlet->region_id : null,
-                        $outlet->cluster_id ? (int) $outlet->cluster_id : null,
-                    ),
-                ];
             });
 
-        // Get registers that are still active as register targets and allowed by dynamic system setting.
-        $registers = Register::visibleTo($user)
+        $registersQuery = Register::visibleTo($user)
             // Avoid duplicate target when register has already become an outlet.
             ->where(function ($q) {
-                $q->whereNull('status')->orWhere('status', '!=', 'APPROVED');
+                $q->whereNull('status')->orWhereNotIn('status', ['APPROVED', 'REJECTED']);
             })
             ->whereDoesntHave('outlet')
             ->with(['badanusaha:id,name', 'divisi:id,name', 'region:id,name', 'cluster:id,name'])
@@ -611,40 +607,87 @@ class VisitController extends Controller
                     $q->where('nama_outlet', 'like', "%{$search}%")
                         ->orWhere('kode_outlet', 'like', "%{$search}%");
                 });
-            })
-            ->orderBy('nama_outlet')
-            ->limit($limit)
-            ->get()
-            ->filter(fn (Register $register): bool => $this->systemSettings->allowsRegisterVisitForModel($register))
-            ->values()
-            ->map(function ($register) {
-                return [
-                    'id' => $register->id,
-                    'type' => 'register',
-                    'kode' => $register->kode_outlet,
-                    'nama' => $register->nama_outlet,
-                    'latlong' => $register->latlong,
-                    'alamat' => $register->alamat_outlet,
-                    'distric' => $register->distric,
-                    'badanusaha' => $register->badanusaha->name ?? '-',
-                    'divisi' => $register->divisi->name ?? '-',
-                    'region' => $register->region->name ?? '-',
-                    'cluster' => $register->cluster->name ?? '-',
-                    'type_register' => strtoupper((string) $register->type),
-                    'plan_visit_min_days' => $this->systemSettings->planVisitMinDaysForIds(
-                        $register->badanusaha_id ? (int) $register->badanusaha_id : null,
-                        $register->divisi_id ? (int) $register->divisi_id : null,
-                        $register->region_id ? (int) $register->region_id : null,
-                        $register->cluster_id ? (int) $register->cluster_id : null,
-                    ),
-                ];
             });
 
-        // Combine results
-        $targets = $outlets->concat($registers)
-            ->sortBy(fn ($target): string => strtolower((string) ($target['nama'] ?? '')))
-            ->take($limit)
-            ->values();
+        if ($useNearestTargets) {
+            $lat = (float) $request->input('lat');
+            $lng = (float) $request->input('lng');
+
+            $outlets = $outletsQuery
+                ->get()
+                ->map(function (Outlet $outlet) use ($lat, $lng): ?array {
+                    $distance = $this->distanceFromLatlong($outlet->latlong, $lat, $lng);
+                    if ($distance === null) {
+                        return null;
+                    }
+
+                    $target = $this->formatOutletTarget($outlet);
+                    $target['_distance'] = $distance;
+
+                    return $target;
+                })
+                ->filter(fn (?array $target): bool => $target !== null)
+                ->values();
+
+            $registers = $registersQuery
+                ->get()
+                ->filter(fn (Register $register): bool => $this->systemSettings->allowsRegisterVisitForModel($register))
+                ->values()
+                ->map(function (Register $register) use ($lat, $lng): ?array {
+                    $distance = $this->distanceFromLatlong($register->latlong, $lat, $lng);
+                    if ($distance === null) {
+                        return null;
+                    }
+
+                    $target = $this->formatRegisterTarget($register);
+                    $target['_distance'] = $distance;
+
+                    return $target;
+                })
+                ->filter(fn (?array $target): bool => $target !== null)
+                ->values();
+
+            $targets = $outlets->concat($registers)
+                ->filter(fn (array $target): bool => ($target['_distance'] ?? INF) <= $nearbyRadiusKm)
+                ->sort(function (array $first, array $second): int {
+                    $distanceCompare = ($first['_distance'] ?? INF) <=> ($second['_distance'] ?? INF);
+                    if ($distanceCompare !== 0) {
+                        return $distanceCompare;
+                    }
+
+                    return strcasecmp((string) ($first['nama'] ?? ''), (string) ($second['nama'] ?? ''));
+                })
+                ->map(function (array $target): array {
+                    unset($target['_distance']);
+
+                    return $target;
+                })
+                ->values();
+
+            if ($request->filled('limit')) {
+                $targets = $targets->take($limit)->values();
+            }
+        } else {
+            $outlets = $outletsQuery
+                ->orderBy('nama_outlet')
+                ->limit($limit)
+                ->get()
+                ->map(fn (Outlet $outlet): array => $this->formatOutletTarget($outlet));
+
+            $registers = $registersQuery
+                ->orderBy('nama_outlet')
+                ->limit($limit)
+                ->get()
+                ->filter(fn (Register $register): bool => $this->systemSettings->allowsRegisterVisitForModel($register))
+                ->values()
+                ->map(fn (Register $register): array => $this->formatRegisterTarget($register));
+
+            // Combine results
+            $targets = $outlets->concat($registers)
+                ->sortBy(fn ($target): string => strtolower((string) ($target['nama'] ?? '')))
+                ->take($limit)
+                ->values();
+        }
 
         return response()->json([
             'meta' => [
@@ -654,6 +697,130 @@ class VisitController extends Controller
             ],
             'data' => $targets,
             'errors' => null,
+        ]);
+    }
+
+    private function formatOutletTarget(Outlet $outlet): array
+    {
+        return [
+            'id' => $outlet->id,
+            'type' => 'outlet',
+            'target_type' => 'outlet',
+            'target_type_label' => 'OUTLET',
+            'kode' => $outlet->kode_outlet,
+            'nama' => $outlet->nama_outlet,
+            'latlong' => $outlet->latlong,
+            'alamat' => $outlet->alamat_outlet,
+            'distric' => $outlet->distric,
+            'badanusaha' => $outlet->badanusaha->name ?? '-',
+            'divisi' => $outlet->divisi->name ?? '-',
+            'region' => $outlet->region->name ?? '-',
+            'cluster' => $outlet->cluster->name ?? '-',
+            'plan_visit_min_days' => $this->systemSettings->planVisitMinDaysForIds(
+                $outlet->badanusaha_id ? (int) $outlet->badanusaha_id : null,
+                $outlet->divisi_id ? (int) $outlet->divisi_id : null,
+                $outlet->region_id ? (int) $outlet->region_id : null,
+                $outlet->cluster_id ? (int) $outlet->cluster_id : null,
+            ),
+            'radius' => $outlet->radius ? (int) $outlet->radius : 100,
+        ];
+    }
+
+    private function formatRegisterTarget(Register $register): array
+    {
+        $registerType = strtoupper((string) $register->type) === 'LEAD' ? 'LEAD' : 'NOO';
+
+        return [
+            'id' => $register->id,
+            'type' => 'register',
+            'target_type' => 'register',
+            'target_type_label' => 'REGISTER',
+            'kode' => $register->kode_outlet,
+            'nama' => $register->nama_outlet,
+            'latlong' => $register->latlong,
+            'alamat' => $register->alamat_outlet,
+            'distric' => $register->distric,
+            'badanusaha' => $register->badanusaha->name ?? '-',
+            'divisi' => $register->divisi->name ?? '-',
+            'region' => $register->region->name ?? '-',
+            'cluster' => $register->cluster->name ?? '-',
+            'type_register' => $registerType,
+            'register_type' => $registerType,
+            'plan_visit_min_days' => $this->systemSettings->planVisitMinDaysForIds(
+                $register->badanusaha_id ? (int) $register->badanusaha_id : null,
+                $register->divisi_id ? (int) $register->divisi_id : null,
+                $register->region_id ? (int) $register->region_id : null,
+                $register->cluster_id ? (int) $register->cluster_id : null,
+            ),
+            'radius' => $this->systemSettings->defaultRegisterRadiusForIds(
+                $register->badanusaha_id ? (int) $register->badanusaha_id : null,
+                $register->divisi_id ? (int) $register->divisi_id : null,
+                $register->region_id ? (int) $register->region_id : null,
+                $register->cluster_id ? (int) $register->cluster_id : null,
+            ),
+        ];
+    }
+
+    private function distanceFromLatlong(?string $latlong, float $userLat, float $userLng): ?float
+    {
+        if (! $latlong) {
+            return null;
+        }
+
+        $parts = explode(',', $latlong);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $targetLatRaw = trim($parts[0]);
+        $targetLngRaw = trim($parts[1]);
+        if (! is_numeric($targetLatRaw) || ! is_numeric($targetLngRaw)) {
+            return null;
+        }
+
+        $targetLat = (float) $targetLatRaw;
+        $targetLng = (float) $targetLngRaw;
+
+        if ($targetLat < -90 || $targetLat > 90 || $targetLng < -180 || $targetLng > 180) {
+            return null;
+        }
+
+        $latDistance = deg2rad($targetLat - $userLat);
+        $lngDistance = deg2rad($targetLng - $userLng);
+
+        $a = sin($latDistance / 2) ** 2
+            + cos(deg2rad($userLat))
+            * cos(deg2rad($targetLat))
+            * sin($lngDistance / 2) ** 2;
+        $c = 2 * atan2(sqrt($a), sqrt(max(0, 1 - $a)));
+
+        return 6371 * $c;
+    }
+
+    private function enforceLeadVisitLimit($user, Register $target): void
+    {
+        $windowStart = now()
+            ->subDays(self::LEAD_VISIT_LIMIT_WINDOW_DAYS - 1)
+            ->startOfDay();
+
+        $leadVisitCount = Visit::query()
+            ->where('user_id', $user->id)
+            ->where('visitable_type', Register::class)
+            ->where('visitable_id', $target->id)
+            ->whereDate('tanggal_visit', '>=', $windowStart->toDateString())
+            ->count();
+
+        if ($leadVisitCount < self::MAX_LEAD_VISITS_PER_WINDOW) {
+            return;
+        }
+
+        throw (new BadRequestException(
+            'Lead ini sudah di-visit '.self::MAX_LEAD_VISITS_PER_WINDOW.'x dalam '.self::LEAD_VISIT_LIMIT_WINDOW_DAYS.' hari terakhir. Upgrade ke NOO atau update status lead terlebih dahulu.'
+        ))->withData([
+            'lead_visit_count_in_window' => $leadVisitCount,
+            'max_lead_visits_in_window' => self::MAX_LEAD_VISITS_PER_WINDOW,
+            'lead_visit_window_days' => self::LEAD_VISIT_LIMIT_WINDOW_DAYS,
+            'lead_visit_window_start' => $windowStart->toDateString(),
         ]);
     }
 

@@ -49,6 +49,7 @@ class RegisterResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $systemSettings = app(\App\Services\SystemSettingResolver::class);
         return [
             'id' => $this->id,
             'kode_outlet' => $this->kode_outlet,
@@ -66,6 +67,12 @@ class RegisterResource extends JsonResource
             'poto_ktp' => $this->poto_ktp,
             'video' => $this->video,
             'latlong' => $this->latlong,
+            'radius' => $systemSettings->defaultRegisterRadiusForIds(
+                $this->badanusaha_id ? (int) $this->badanusaha_id : null,
+                $this->divisi_id ? (int) $this->divisi_id : null,
+                $this->region_id ? (int) $this->region_id : null,
+                $this->cluster_id ? (int) $this->cluster_id : null,
+            ),
             'oppo' => $this->oppo,
             'vivo' => $this->vivo,
             'realme' => $this->realme,

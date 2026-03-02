@@ -539,12 +539,22 @@ class VisitResource extends Resource
                 TextColumn::make('user.nama_lengkap')
                     ->label('Nama')
                     ->searchable(),
+                TextColumn::make('visitable_type')
+                    ->label('Jenis Target')
+                    ->badge()
+                    ->formatStateUsing(function (?string $state): string {
+                        $normalized = strtolower((string) $state);
+
+                        return str_contains($normalized, 'register') ? 'REGISTER' : 'OUTLET';
+                    })
+                    ->color(function (?string $state): string {
+                        $normalized = strtolower((string) $state);
+
+                        return str_contains($normalized, 'register') ? 'warning' : 'primary';
+                    }),
                 TextColumn::make('visitable.nama_outlet')
                     ->label('Target')
-                    ->badge()
-                    ->color(fn ($record) => $record->isOutletVisit() ? 'primary' : 'warning')
-                    ->formatStateUsing(fn ($state, $record) => $state ?? '-')
-                    ->tooltip(fn ($record) => $record->isOutletVisit() ? 'Outlet' : 'Register')
+                    ->formatStateUsing(fn ($state) => $state ?? '-')
                     ->searchable(),
                 TextColumn::make('tipe_visit')
                     ->label('Tipe Visit')
@@ -557,14 +567,14 @@ class VisitResource extends Resource
                 TextColumn::make('latlong_in')
                     ->label('Lokasi Check-In')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString($state ? 'LOKASI' : '-'))
+                    ->url(fn (?string $state): ?string => filled($state) ? 'https://www.google.com/maps/place/'.$state : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong_out')
                     ->label('Lokasi Check-Out')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString($state ? 'LOKASI' : '-'))
+                    ->url(fn (?string $state): ?string => filled($state) ? 'https://www.google.com/maps/place/'.$state : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('check_in_time')
                     ->label('Jam Check-In')
@@ -577,14 +587,14 @@ class VisitResource extends Resource
                 TextColumn::make('picture_visit_in')
                     ->label('Foto Check-In')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString($state ? 'FOTO' : '-'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('picture_visit_out')
                     ->label('Foto Check-Out')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString($state ? 'FOTO' : '-'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('transaksi')
                     ->label('Transaksi')
@@ -596,6 +606,7 @@ class VisitResource extends Resource
                     }),
                 TextColumn::make('durasi_visit')
                     ->label('Durasi Visit')
+                    ->formatStateUsing(fn (?int $state): string => $state !== null ? $state.' menit' : '-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->label('Tanggal Dibuat')

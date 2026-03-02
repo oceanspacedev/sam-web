@@ -16,7 +16,7 @@ class ViewVisit extends ViewRecord
         /** @var Visit $record */
         $record = $this->getRecord();
 
-        return 'Detail Visit: '.$record->outlet->nama_outlet ?? 'Visit';
+        return 'Detail Visit: '.($record->visitable?->nama_outlet ?? 'Visit');
     }
 
     protected function getHeaderActions(): array

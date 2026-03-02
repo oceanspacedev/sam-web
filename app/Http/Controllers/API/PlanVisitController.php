@@ -15,6 +15,7 @@ use App\Models\Register;
 use App\Services\SystemSettingResolver;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +41,40 @@ class PlanVisitController extends Controller
 
         $baseRelations = $compact
             ? [
-                'visitable:id,kode_outlet,nama_outlet,distric,latlong,alamat_outlet',
+                'visitable' => function (MorphTo $morphTo): void {
+                    $morphTo->constrain([
+                        Outlet::class => function (Builder $query): void {
+                            $query->select([
+                                'id',
+                                'kode_outlet',
+                                'nama_outlet',
+                                'distric',
+                                'latlong',
+                                'alamat_outlet',
+                                'radius',
+                                'badanusaha_id',
+                                'divisi_id',
+                                'region_id',
+                                'cluster_id',
+                            ]);
+                        },
+                        Register::class => function (Builder $query): void {
+                            $query->select([
+                                'id',
+                                'kode_outlet',
+                                'nama_outlet',
+                                'distric',
+                                'latlong',
+                                'alamat_outlet',
+                                'type',
+                                'badanusaha_id',
+                                'divisi_id',
+                                'region_id',
+                                'cluster_id',
+                            ]);
+                        },
+                    ]);
+                },
                 'user:id,nama_lengkap',
             ]
             : [
@@ -271,8 +305,14 @@ class PlanVisitController extends Controller
                 throw new ResourceNotFoundException('Register tidak ditemukan');
             }
 
-            if (strtoupper((string) $target->status) === 'APPROVED') {
+            $registerStatus = strtoupper((string) $target->status);
+
+            if ($registerStatus === 'APPROVED') {
                 throw new BadRequestException('Register sudah menjadi outlet, gunakan target outlet');
+            }
+
+            if ($registerStatus === 'REJECTED') {
+                throw new BadRequestException('Register sudah REJECTED dan tidak dapat dijadikan target plan visit');
             }
 
             if (! $this->systemSettings->allowsRegisterVisitForModel($target)) {

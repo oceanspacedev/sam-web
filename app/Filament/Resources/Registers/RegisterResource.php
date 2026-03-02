@@ -42,6 +42,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -239,7 +240,7 @@ class RegisterResource extends Resource
                                         ->inline()
                                         ->colors([
                                             'LEAD' => 'warning',
-                                            'NOO' => 'primary',
+                                            'NOO' => 'success',
                                         ])
                                         ->default('NOO'),
                                     Select::make('created_by_id')
@@ -412,6 +413,24 @@ class RegisterResource extends Resource
         return strtoupper((string) $type) === 'LEAD';
     }
 
+    protected static function registerTypeColor(?string $type): string
+    {
+        return match (strtoupper((string) $type)) {
+            'LEAD' => 'warning',
+            'NOO' => 'success',
+            default => 'gray',
+        };
+    }
+
+    protected static function registerTypeLabel(?string $type): string
+    {
+        return match (strtoupper((string) $type)) {
+            'LEAD' => 'LEAD',
+            'NOO' => 'NOO',
+            default => '-',
+        };
+    }
+
     protected static function getTmOptions(?int $creatorId, ?int $currentTmId): array
     {
         $options = [];
@@ -534,12 +553,8 @@ class RegisterResource extends Resource
                                     TextEntry::make('type')
                                         ->label('Tipe')
                                         ->badge()
-                                        ->color(fn (string $state): string => match ($state) {
-                                            'LEAD' => 'warning',
-                                            'NOO' => 'primary',
-                                            default => 'gray',
-                                        })
-                                        ->formatStateUsing(fn (string $state): string => strtoupper($state)),
+                                        ->color(fn (?string $state): string => self::registerTypeColor($state))
+                                        ->formatStateUsing(fn (?string $state): string => self::registerTypeLabel($state)),
                                     TextEntry::make('keterangan')
                                         ->label('Keterangan')
                                         ->placeholder('-'),
@@ -626,14 +641,10 @@ class RegisterResource extends Resource
                     ->label('Dibuat Oleh')
                     ->searchable(),
                 TextColumn::make('type')
-                    ->label('Tipe')
+                    ->label('Jenis Register')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'LEAD' => 'warning',
-                        'NOO' => 'primary',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => strtoupper($state))
+                    ->color(fn (?string $state): string => self::registerTypeColor($state))
+                    ->formatStateUsing(fn (?string $state): string => self::registerTypeLabel($state))
                     ->sortable(),
                 TextColumn::make('kode_outlet')
                     ->label('Kode Outlet'),
@@ -746,6 +757,12 @@ class RegisterResource extends Resource
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->filters([
+                SelectFilter::make('type')
+                    ->label('Jenis Register')
+                    ->options([
+                        'LEAD' => 'LEAD',
+                        'NOO' => 'NOO',
+                    ]),
                 Filter::make('region')
                     ->schema([
                         Select::make('businessEntity')

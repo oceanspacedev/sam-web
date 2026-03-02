@@ -2,6 +2,7 @@
 
 namespace App\Exports\Visit;
 
+use App\Models\Outlet;
 use App\Models\User;
 use App\Models\Visit;
 use Carbon\Carbon;
@@ -22,6 +23,7 @@ class VisitsThisMonthSheet implements FromCollection, WithHeadings, WithTitle
         $visits = Visit::query()
             ->with(['outlet:id,kode_outlet,nama_outlet,distric,region_id,cluster_id,status_outlet,latlong', 'outlet.region:id,name', 'outlet.cluster:id,name'])
             ->where('user_id', $this->user->id)
+            ->where('visitable_type', Outlet::class)
             ->whereBetween('tanggal_visit', [$start, $end])
             ->orderBy('tanggal_visit')
             ->get();

@@ -63,7 +63,6 @@ class PlanVisit extends Model
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class, 'visitable_id')
-            ->where($this->getTable().'.visitable_type', Outlet::class)
             ->withTrashed();
     }
 

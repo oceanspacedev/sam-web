@@ -3,11 +3,8 @@
 namespace App\Filament\Resources\SystemSettings;
 
 use App\Filament\Resources\SystemSettings\Pages;
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
-use App\Models\Region;
 use App\Models\SystemSetting;
+use App\Support\OrganizationalHierarchyOptions;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -17,6 +14,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class SystemSettingResource extends Resource
 {
@@ -49,8 +47,20 @@ class SystemSettingResource extends Resource
             ->schema([
                 Forms\Components\Select::make('scope_level')
                     ->label('Level Aturan')
-                    ->options(static::scopeOptions())
-                    ->default(SystemSetting::SCOPE_DIVISION)
+                    ->options(static::scopeOptionsForCurrentUser())
+                    ->default(function (): ?string {
+                        $allowedScopes = array_keys(static::scopeOptionsForCurrentUser());
+
+                        if ($allowedScopes === []) {
+                            return null;
+                        }
+
+                        if (in_array(SystemSetting::SCOPE_DIVISION, $allowedScopes, true)) {
+                            return SystemSetting::SCOPE_DIVISION;
+                        }
+
+                        return $allowedScopes[0];
+                    })
                     ->required()
                     ->native(false)
                     ->live()
@@ -86,9 +96,11 @@ class SystemSettingResource extends Resource
                     ->helperText('Semakin spesifik level-nya, aturan akan override level di atasnya.'),
                 Forms\Components\Select::make('badanusaha_id')
                     ->label('Badan Usaha')
-                    ->options(fn () => BadanUsaha::active()->orderBy('name')->pluck('name', 'id'))
                     ->searchable()
                     ->preload()
+                    ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha())
+                    ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search))
+                    ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value))
                     ->native(false)
                     ->visible(fn (callable $get): bool => in_array($get('scope_level'), [
                         SystemSetting::SCOPE_BADANUSAHA,
@@ -110,16 +122,11 @@ class SystemSettingResource extends Resource
                     }),
                 Forms\Components\Select::make('division_id')
                     ->label('Division')
-                    ->options(function (callable $get) {
-                        $badanusahaId = $get('badanusaha_id');
-
-                        return Division::active()
-                            ->when($badanusahaId, fn ($query) => $query->where('badanusaha_id', $badanusahaId))
-                            ->orderBy('name')
-                            ->pluck('name', 'id');
-                    })
                     ->searchable()
                     ->preload()
+                    ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id')))
+                    ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
+                    ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                     ->native(false)
                     ->visible(fn (callable $get): bool => in_array($get('scope_level'), [
                         SystemSetting::SCOPE_DIVISION,
@@ -138,16 +145,11 @@ class SystemSettingResource extends Resource
                     }),
                 Forms\Components\Select::make('region_id')
                     ->label('Region')
-                    ->options(function (callable $get) {
-                        $divisionId = $get('division_id');
-
-                        return Region::active()
-                            ->when($divisionId, fn ($query) => $query->where('divisi_id', $divisionId))
-                            ->orderBy('name')
-                            ->pluck('name', 'id');
-                    })
                     ->searchable()
                     ->preload()
+                    ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division_id')))
+                    ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division_id')))
+                    ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
                     ->native(false)
                     ->visible(fn (callable $get): bool => in_array($get('scope_level'), [
                         SystemSetting::SCOPE_REGION,
@@ -163,16 +165,11 @@ class SystemSettingResource extends Resource
                     }),
                 Forms\Components\Select::make('cluster_id')
                     ->label('Cluster')
-                    ->options(function (callable $get) {
-                        $regionId = $get('region_id');
-
-                        return Cluster::active()
-                            ->when($regionId, fn ($query) => $query->where('region_id', $regionId))
-                            ->orderBy('name')
-                            ->pluck('name', 'id');
-                    })
                     ->searchable()
                     ->preload()
+                    ->options(fn (callable $get): array => OrganizationalHierarchyOptions::cluster($get('region_id')))
+                    ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchCluster($search, $get('region_id')))
+                    ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::clusterLabel($value))
                     ->native(false)
                     ->visible(fn (callable $get): bool => $get('scope_level') === SystemSetting::SCOPE_CLUSTER)
                     ->required(fn (callable $get): bool => $get('scope_level') === SystemSetting::SCOPE_CLUSTER),
@@ -274,7 +271,63 @@ class SystemSettingResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['badanusaha', 'division', 'region', 'cluster']);
+        $query = parent::getEloquentQuery()->with(['badanusaha', 'division', 'region', 'cluster']);
+
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (! $user || ! $user->role) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $scopeLevel = strtolower((string) $user->role->organizational_scope_level);
+
+        if ($scopeLevel === 'all') {
+            return $query;
+        }
+
+        $ids = $user->getOrganizationalIds();
+        $badanUsahaIds = $ids['badanusaha'] ?? [];
+        $divisionIds = $ids['divisi'] ?? [];
+        $regionIds = $ids['region'] ?? [];
+        $clusterIds = $ids['cluster'] ?? [];
+
+        $hasAnyAssignment = $badanUsahaIds !== [] || $divisionIds !== [] || $regionIds !== [] || $clusterIds !== [];
+        if (! $hasAnyAssignment) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $scopeQuery) use ($scopeLevel, $badanUsahaIds, $divisionIds, $regionIds, $clusterIds): void {
+            if ($scopeLevel === 'badanusaha') {
+                if ($badanUsahaIds !== []) {
+                    $scopeQuery->whereIn('system_settings.badanusaha_id', $badanUsahaIds);
+                } else {
+                    $scopeQuery->whereRaw('1 = 0');
+                }
+
+                return;
+            }
+
+            if ($badanUsahaIds !== []) {
+                $scopeQuery->orWhere(function (Builder $query) use ($badanUsahaIds): void {
+                    $query
+                        ->where('system_settings.scope_level', SystemSetting::SCOPE_BADANUSAHA)
+                        ->whereIn('system_settings.badanusaha_id', $badanUsahaIds);
+                });
+            }
+
+            if ($divisionIds !== []) {
+                $scopeQuery->orWhereIn('system_settings.division_id', $divisionIds);
+            }
+
+            if (in_array($scopeLevel, ['region', 'cluster'], true) && $regionIds !== []) {
+                $scopeQuery->orWhereIn('system_settings.region_id', $regionIds);
+            }
+
+            if ($scopeLevel === 'cluster' && $clusterIds !== []) {
+                $scopeQuery->orWhereIn('system_settings.cluster_id', $clusterIds);
+            }
+        });
     }
 
     public static function getPages(): array
@@ -296,5 +349,48 @@ class SystemSettingResource extends Resource
             SystemSetting::SCOPE_REGION => 'Region',
             SystemSetting::SCOPE_CLUSTER => 'Cluster',
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function scopeOptionsForCurrentUser(): array
+    {
+        $allScopes = static::scopeOptions();
+
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $scopeLevel = strtolower((string) ($user?->role?->organizational_scope_level ?? ''));
+
+        $allowedScopeKeys = match ($scopeLevel) {
+            'all' => [
+                SystemSetting::SCOPE_GLOBAL,
+                SystemSetting::SCOPE_BADANUSAHA,
+                SystemSetting::SCOPE_DIVISION,
+                SystemSetting::SCOPE_REGION,
+                SystemSetting::SCOPE_CLUSTER,
+            ],
+            'badanusaha' => [
+                SystemSetting::SCOPE_BADANUSAHA,
+                SystemSetting::SCOPE_DIVISION,
+                SystemSetting::SCOPE_REGION,
+                SystemSetting::SCOPE_CLUSTER,
+            ],
+            'divisi' => [
+                SystemSetting::SCOPE_DIVISION,
+                SystemSetting::SCOPE_REGION,
+                SystemSetting::SCOPE_CLUSTER,
+            ],
+            'region' => [
+                SystemSetting::SCOPE_REGION,
+                SystemSetting::SCOPE_CLUSTER,
+            ],
+            'cluster' => [
+                SystemSetting::SCOPE_CLUSTER,
+            ],
+            default => [],
+        };
+
+        return array_intersect_key($allScopes, array_flip($allowedScopeKeys));
     }
 }

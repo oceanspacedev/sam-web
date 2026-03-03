@@ -571,7 +571,7 @@ class VisitController extends Controller
     {
         $request->validate([
             'search' => 'sometimes|string',
-            'context' => 'sometimes|string|in:visit,plan',
+            'context' => 'sometimes|string|in:extracall,planned',
             'lat' => 'sometimes|numeric|between:-90,90|required_with:lng',
             'lng' => 'sometimes|numeric|between:-180,180|required_with:lat',
             'nearby_radius_km' => 'sometimes|numeric|between:5,10',
@@ -580,11 +580,11 @@ class VisitController extends Controller
 
         $user = Auth::user();
         $search = trim((string) $request->get('search', ''));
-        $context = (string) $request->input('context', 'visit');
+        $context = (string) $request->input('context', 'extracall');
         $limit = min((int) $request->input('limit', 10), 100);
         $nearbyRadiusKm = (float) $request->input('nearby_radius_km', 10);
         $hasCoordinates = $request->filled(['lat', 'lng']);
-        $useNearestTargets = $context === 'visit' && $search === '' && $hasCoordinates;
+        $useNearestTargets = $context === 'extracall' && $search === '' && $hasCoordinates;
 
         $outletsQuery = Outlet::with(['badanusaha:id,name', 'divisi:id,name', 'region:id,name', 'cluster:id,name'])
             ->visibleTo($user)

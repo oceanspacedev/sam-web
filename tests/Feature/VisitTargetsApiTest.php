@@ -111,7 +111,7 @@ test('visit targets without search returns default limited data', function () {
         ->and(count($data))->toBeGreaterThanOrEqual(10);
 });
 
-test('visit targets with coordinates returns nearest locations sorted by distance for visit context', function () {
+test('visit targets with coordinates returns nearest locations sorted by distance for extracall context', function () {
     $hierarchy = createVisitTargetsHierarchy();
     $user = createVisitTargetsUser($hierarchy);
 
@@ -132,7 +132,7 @@ test('visit targets with coordinates returns nearest locations sorted by distanc
     }
 
     $response = $this->actingAs($user, 'sanctum')
-        ->getJson('/api/visit/targets?context=visit&lat=-6.2000&lng=106.8000');
+        ->getJson('/api/visit/targets?context=extracall&lat=-6.2000&lng=106.8000');
 
     $response->assertStatus(200);
     $response->assertJsonPath('meta.code', 200);
@@ -154,7 +154,7 @@ test('visit targets nearest recommendation excludes targets outside radius', fun
     $far = createOutletForVisitTarget($hierarchy, 3, '-6.2000,107.7000'); // ~100 km
 
     $responseDefaultRadius = $this->actingAs($user, 'sanctum')
-        ->getJson('/api/visit/targets?context=visit&lat=-6.2000&lng=106.8000');
+        ->getJson('/api/visit/targets?context=extracall&lat=-6.2000&lng=106.8000');
 
     $responseDefaultRadius->assertStatus(200);
     $defaultData = collect($responseDefaultRadius->json('data'));
@@ -164,7 +164,7 @@ test('visit targets nearest recommendation excludes targets outside radius', fun
         ->and($defaultData->contains(fn (array $target): bool => $target['id'] === $far->id))->toBeFalse();
 
     $response5KmRadius = $this->actingAs($user, 'sanctum')
-        ->getJson('/api/visit/targets?context=visit&lat=-6.2000&lng=106.8000&nearby_radius_km=5');
+        ->getJson('/api/visit/targets?context=extracall&lat=-6.2000&lng=106.8000&nearby_radius_km=5');
 
     $response5KmRadius->assertStatus(200);
     $radius5Data = collect($response5KmRadius->json('data'));
@@ -186,7 +186,7 @@ test('visit targets excludes approved and rejected registers for visit', functio
     $approved = createRegisterForVisitTarget($hierarchy, $user, 3, 'APPROVED', 'NOO');
 
     $response = $this->actingAs($user, 'sanctum')
-        ->getJson('/api/visit/targets?context=visit&search=Register');
+        ->getJson('/api/visit/targets?context=extracall&search=Register');
 
     $response->assertStatus(200);
     $response->assertJsonPath('meta.code', 200);
@@ -208,7 +208,7 @@ test('visit targets still include lead registers for visit', function () {
     $noo = createRegisterForVisitTarget($hierarchy, $user, 12, 'PENDING', 'NOO');
 
     $response = $this->actingAs($user, 'sanctum')
-        ->getJson('/api/visit/targets?context=visit&search=Register');
+        ->getJson('/api/visit/targets?context=extracall&search=Register');
 
     $response->assertStatus(200);
     $data = collect($response->json('data'));

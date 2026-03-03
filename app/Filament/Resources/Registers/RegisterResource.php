@@ -6,13 +6,10 @@ use App\Filament\Resources\Registers\Pages\CreateRegister;
 use App\Filament\Resources\Registers\Pages\EditRegister;
 use App\Filament\Resources\Registers\Pages\ListRegisters;
 use App\Filament\Resources\Registers\Pages\ViewRegister;
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
-use App\Models\Region;
 use App\Models\Register;
 use App\Models\User;
 use App\Services\FilenameGeneratorService;
+use App\Support\OrganizationalHierarchyOptions;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Actions\Action;
@@ -246,6 +243,7 @@ class RegisterResource extends Resource
                                     Select::make('created_by_id')
                                         ->label('Dibuat Oleh')
                                         ->searchable()
+                                        ->preload()
                                         ->required()
                                         ->relationship('createdBy', 'nama_lengkap')
                                         ->live()
@@ -275,27 +273,13 @@ class RegisterResource extends Resource
                                             Select::make('badanusaha_id')
                                                 ->label('Badan Usaha')
                                                 ->searchable()
+                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->placeholder('Pilih badan usaha')
-                                                ->options(function (callable $get) {
-                                                    /** @var User|null $user */
-                                                    $user = Auth::user();
-
-                                                    if (! $user) {
-                                                        return [];
-                                                    }
-
-                                                    $role = $user->role;
-
-                                                    // If role has 'all' scope, show all
-                                                    if ($role->organizational_scope_level === 'all') {
-                                                        return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id');
-                                                    }
-
-                                                    // Use pivot table for current user's assignments
-                                                    return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
-                                                })
+                                                ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha(activeOnly: false))
+                                                ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
+                                                ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value, activeOnly: false))
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('divisi_id', null);
                                                     $set('region_id', null);
@@ -307,27 +291,9 @@ class RegisterResource extends Resource
                                                 ->preload()
                                                 ->required()
                                                 ->reactive()
-                                                ->options(function (callable $get) {
-                                                    $badanusahaId = $get('badanusaha_id');
-
-                                                    if (! $badanusahaId) {
-                                                        return [];
-                                                    }
-
-                                                    /** @var User|null $user */
-                                                    $user = Auth::user();
-                                                    $query = Division::where('badanusaha_id', $badanusahaId);
-
-                                                    // Apply user scope filtering
-                                                    if ($user && $user->role->organizational_scope_level !== 'all') {
-                                                        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                                                        if (! empty($divisiIds)) {
-                                                            $query->whereIn('divisions.id', $divisiIds);
-                                                        }
-                                                    }
-
-                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                                                })
+                                                ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id'), activeOnly: false))
+                                                ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id'), activeOnly: false))
+                                                ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('region_id', null);
                                                     $set('cluster_id', null);
@@ -338,27 +304,9 @@ class RegisterResource extends Resource
                                                 ->preload()
                                                 ->required()
                                                 ->reactive()
-                                                ->options(function (callable $get) {
-                                                    $divisiId = $get('divisi_id');
-
-                                                    if (! $divisiId) {
-                                                        return [];
-                                                    }
-
-                                                    /** @var User|null $user */
-                                                    $user = Auth::user();
-                                                    $query = Region::where('divisi_id', $divisiId);
-
-                                                    // Apply user scope filtering
-                                                    if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                                        $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                                                        if (! empty($regionIds)) {
-                                                            $query->whereIn('regions.id', $regionIds);
-                                                        }
-                                                    }
-
-                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                                                })
+                                                ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('divisi_id'), activeOnly: false))
+                                                ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('divisi_id'), activeOnly: false))
+                                                ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('cluster_id', null);
                                                 }),
@@ -368,27 +316,9 @@ class RegisterResource extends Resource
                                                 ->preload()
                                                 ->required()
                                                 ->reactive()
-                                                ->options(function (callable $get) {
-                                                    $regionId = $get('region_id');
-
-                                                    if (! $regionId) {
-                                                        return [];
-                                                    }
-
-                                                    /** @var User|null $user */
-                                                    $user = Auth::user();
-                                                    $query = Cluster::where('region_id', $regionId);
-
-                                                    // Apply user scope filtering
-                                                    if ($user && $user->role->organizational_scope_level === 'cluster') {
-                                                        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-                                                        if (! empty($clusterIds)) {
-                                                            $query->whereIn('clusters.id', $clusterIds);
-                                                        }
-                                                    }
-
-                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                                                }),
+                                                ->options(fn (callable $get): array => OrganizationalHierarchyOptions::cluster($get('region_id'), activeOnly: false))
+                                                ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchCluster($search, $get('region_id'), activeOnly: false))
+                                                ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::clusterLabel($value)),
                                         ]),
                                 ]),
                             Section::make('TM')
@@ -398,7 +328,9 @@ class RegisterResource extends Resource
                                         ->required()
                                         ->searchable()
                                         ->preload()
-                                        ->options(fn (Get $get): array => self::getTmOptions($get('created_by_id'), $get('tm_id')))
+                                        ->options(fn (Get $get): array => self::getTmOptions('', $get('created_by_id'), $get('tm_id')))
+                                        ->getSearchResultsUsing(fn (string $search, Get $get): array => self::getTmOptions($search, $get('created_by_id'), $get('tm_id')))
+                                        ->getOptionLabelUsing(fn ($value): ?string => self::tmLabel($value))
                                         ->live(),
                                 ]),
                         ])
@@ -431,9 +363,10 @@ class RegisterResource extends Resource
         };
     }
 
-    protected static function getTmOptions(?int $creatorId, ?int $currentTmId): array
+    protected static function getTmOptions(string $search, ?int $creatorId, ?int $currentTmId, int $limit = 50): array
     {
         $options = [];
+        $keyword = trim($search);
 
         if ($creatorId) {
             $creator = User::find($creatorId);
@@ -449,22 +382,32 @@ class RegisterResource extends Resource
             }
         }
 
-        if ($currentTmId && ! array_key_exists($currentTmId, $options)) {
-            $currentTm = User::query()->find($currentTmId);
+        $query = User::query()
+            ->select(['id', 'nama_lengkap'])
+            ->when($keyword !== '', fn (Builder $builder) => $builder->where('nama_lengkap', 'like', '%'.$keyword.'%'))
+            ->orderBy('nama_lengkap')
+            ->limit($limit)
+            ->get()
+            ->mapWithKeys(fn (User $user): array => [$user->id => $user->nama_lengkap])
+            ->toArray();
 
+        if ($currentTmId && ! array_key_exists($currentTmId, $options) && ! array_key_exists($currentTmId, $query)) {
+            $currentTm = User::query()->select(['id', 'nama_lengkap'])->find($currentTmId);
             if ($currentTm) {
                 $options[$currentTm->id] = $currentTm->nama_lengkap;
             }
         }
 
-        if (! empty($options)) {
-            return $options;
+        return $options + $query;
+    }
+
+    protected static function tmLabel(int|string|null $id): ?string
+    {
+        if (! $id) {
+            return null;
         }
 
-        return User::query()
-            ->orderBy('nama_lengkap')
-            ->pluck('nama_lengkap', 'id')
-            ->toArray();
+        return User::query()->whereKey($id)->value('nama_lengkap');
     }
 
     public static function infolist(Schema $schema): Schema
@@ -683,32 +626,32 @@ class RegisterResource extends Resource
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
                     ->color('primary')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('KTP'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('KTP'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
                     ->color('primary')
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
@@ -767,17 +710,12 @@ class RegisterResource extends Resource
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->options(function () {
-                                $user = Auth::user();
-
-                                if ($user && $user->role->organizational_scope_level === 'all') {
-                                    return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray();
-                                }
-
-                                return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id')->toArray();
-                            })
                             ->reactive()
                             ->searchable()
+                            ->preload()
+                            ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha(activeOnly: false))
+                            ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value, activeOnly: false))
                             ->placeholder('Pilih Business Entity')
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $set('division', null);
@@ -785,26 +723,12 @@ class RegisterResource extends Resource
                             }),
                         Select::make('division')
                             ->label('Divisi')
-                            ->options(function (callable $get) {
-                                $businessEntityId = $get('businessEntity');
-                                if (! $businessEntityId) {
-                                    return [];
-                                }
-
-                                $user = Auth::user();
-                                $query = Division::where('badanusaha_id', $businessEntityId);
-
-                                if ($user && $user->role->organizational_scope_level !== 'all') {
-                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                                    if (! empty($divisiIds)) {
-                                        $query->whereIn('divisions.id', $divisiIds);
-                                    }
-                                }
-
-                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                            })
                             ->reactive()
                             ->searchable()
+                            ->preload()
+                            ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('businessEntity'), activeOnly: false))
+                            ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity'), activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                             ->placeholder('Pilih Division')
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $set('region', null);
@@ -812,25 +736,11 @@ class RegisterResource extends Resource
                         Select::make('region')
                             ->label('Region')
                             ->searchable()
+                            ->preload()
                             ->placeholder('Pilih Region')
-                            ->options(function (callable $get) {
-                                $divisionId = $get('division');
-                                if (! $divisionId) {
-                                    return [];
-                                }
-
-                                $user = Auth::user();
-                                $query = Region::where('divisi_id', $divisionId);
-
-                                if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                                    if (! empty($regionIds)) {
-                                        $query->whereIn('regions.id', $regionIds);
-                                    }
-                                }
-
-                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                            })
+                            ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division'), activeOnly: false))
+                            ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division'), activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
                             ->reactive(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {

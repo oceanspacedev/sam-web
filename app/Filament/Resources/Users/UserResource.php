@@ -16,6 +16,7 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\OrganizationalHierarchyOptions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -97,58 +98,34 @@ class UserResource extends Resource
                                         'md' => 2,
                                     ])->schema([
                                         Select::make('role_id')
-                                            ->relationship('role', 'name')
                                             ->searchable()
                                             ->preload()
                                             ->required()
                                             ->reactive()  // Make reactive to trigger field visibility
                                             ->label('Role')
                                             ->placeholder('Pilih role')
-                                            ->options(function (callable $get) {
-                                                $user = Auth::user();
+                                            ->options(fn (): array => self::searchAssignableRoles(''))
+                                            ->getSearchResultsUsing(fn (string $search): array => self::searchAssignableRoles($search))
+                                            ->getOptionLabelUsing(fn ($value): ?string => self::assignableRoleLabel($value))
+                                            ->afterStateUpdated(function ($state, callable $set) {
+                                                $role = $state ? Role::find($state) : null;
+                                                $scopeLevel = $role?->organizational_scope_level;
 
-                                                if ($user->role->name === 'SUPER ADMIN') {
-                                                    return Role::orderBy('name')->pluck('name', 'id')->toArray();
-                                                }
-
-                                                $descendantIds = \App\Filament\Resources\Roles\RoleResource::getAllDescendantIds($user->role);
-
-                                                return Role::whereIn('roles.id', $descendantIds)
-                                                    ->orderBy('name')
-                                                    ->pluck('name', 'id')
-                                                    ->toArray();
+                                                // Reset dependent field states when role changes.
+                                                $set('tm_id', null);
+                                                $set('badanUsahas', in_array($scopeLevel, ['badanusaha', 'divisi', 'region', 'cluster'], true) ? [] : null);
+                                                $set('divisis', in_array($scopeLevel, ['divisi', 'region', 'cluster'], true) ? [] : null);
+                                                $set('regions', in_array($scopeLevel, ['region', 'cluster'], true) ? [] : null);
+                                                $set('clusters', $scopeLevel === 'cluster' ? [] : null);
                                             }),
                                         Select::make('tm_id')
                                             ->label('TM')
                                             ->disabled(fn (callable $get) => ! filled($get('role_id')))
-                                            ->options(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                if (! $roleId) {
-                                                    return [];
-                                                }
-
-                                                $role = Role::find($roleId);
-                                                if (! $role) {
-                                                    return [];
-                                                }
-
-                                                $ancestorRoleIds = self::getAncestorRoleIds($role);
-                                                if (empty($ancestorRoleIds)) {
-                                                    return [];
-                                                }
-
-                                                return User::whereIn('role_id', $ancestorRoleIds)
-                                                    ->with('role')
-                                                    ->orderBy('nama_lengkap')
-                                                    ->get()
-                                                    ->mapWithKeys(function ($user) {
-                                                        $roleName = $user->role?->name ?? '-';
-
-                                                        return [$user->id => "{$user->nama_lengkap} ({$roleName})"];
-                                                    });
-                                            })
                                             ->searchable()
                                             ->preload()
+                                            ->options(fn (callable $get): array => self::searchTmOptions('', $get('role_id'), $get('tm_id')))
+                                            ->getSearchResultsUsing(fn (string $search, callable $get): array => self::searchTmOptions($search, $get('role_id'), $get('tm_id')))
+                                            ->getOptionLabelUsing(fn ($value): ?string => self::tmUserLabel($value))
                                             ->required(function (callable $get) {
                                                 $role = Role::find($get('role_id'));
 
@@ -183,7 +160,27 @@ class UserResource extends Resource
 
                                                 return $role->organizational_scope_level !== 'badanusaha' ? 1 : null;
                                             })
-                                            ->relationship('badanUsahas', 'name')
+                                            ->relationship('badanUsahas', 'name', modifyQueryUsing: function (Builder $query): Builder {
+                                                $user = Auth::user();
+
+                                                if (! $user) {
+                                                    return $query->whereRaw('1 = 0');
+                                                }
+
+                                                if ($user->role->organizational_scope_level === 'all') {
+                                                    return $query->orderBy('name', 'asc');
+                                                }
+
+                                                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+
+                                                if (empty($badanUsahaIds)) {
+                                                    return $query->whereRaw('1 = 0');
+                                                }
+
+                                                return $query
+                                                    ->whereIn('badan_usahas.id', $badanUsahaIds)
+                                                    ->orderBy('name', 'asc');
+                                            })
                                             ->searchable()
                                             ->preload()
                                             ->reactive()
@@ -206,27 +203,62 @@ class UserResource extends Resource
 
                                                 return $role && in_array($role->organizational_scope_level, ['badanusaha', 'divisi', 'region', 'cluster']);
                                             })
-                                            ->options(function (callable $get) {
-                                                $user = Auth::user();
-                                                $role = $user->role;
-
-                                                if ($role->organizational_scope_level === 'all') {
-                                                    return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id');
-                                                }
-
-                                                return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
-                                            })
                                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                 $roleId = $get('role_id');
                                                 $role = $roleId ? Role::find($roleId) : null;
                                                 $scopeLevel = $role?->organizational_scope_level;
 
-                                                // Reset child fields
-                                                if ($scopeLevel !== 'badanusaha') {
-                                                    $set('divisis', $scopeLevel === 'divisi' ? [] : null);
+                                                if (! in_array($scopeLevel, ['divisi', 'region', 'cluster'], true)) {
+                                                    $set('divisis', null);
+                                                    $set('regions', null);
+                                                    $set('clusters', null);
+
+                                                    return;
                                                 }
-                                                $set('regions', in_array($scopeLevel, ['region', 'cluster']) ? [] : null);
-                                                $set('clusters', $scopeLevel === 'cluster' ? [] : null);
+
+                                                $badanUsahaIds = self::normalizeSelection($state);
+
+                                                $currentDivisionIds = self::normalizeSelection($get('divisis'));
+                                                $allowedDivisionIds = empty($badanUsahaIds)
+                                                    ? []
+                                                    : Division::query()
+                                                        ->whereIn('badanusaha_id', $badanUsahaIds)
+                                                        ->pluck('id')
+                                                        ->all();
+                                                $nextDivisionIds = self::intersectSelection($currentDivisionIds, $allowedDivisionIds);
+                                                $set('divisis', $nextDivisionIds);
+
+                                                if (! in_array($scopeLevel, ['region', 'cluster'], true)) {
+                                                    $set('regions', null);
+                                                    $set('clusters', null);
+
+                                                    return;
+                                                }
+
+                                                $currentRegionIds = self::normalizeSelection($get('regions'));
+                                                $allowedRegionIds = empty($nextDivisionIds)
+                                                    ? []
+                                                    : Region::query()
+                                                        ->whereIn('divisi_id', $nextDivisionIds)
+                                                        ->pluck('id')
+                                                        ->all();
+                                                $nextRegionIds = self::intersectSelection($currentRegionIds, $allowedRegionIds);
+                                                $set('regions', $nextRegionIds);
+
+                                                if ($scopeLevel !== 'cluster') {
+                                                    $set('clusters', null);
+
+                                                    return;
+                                                }
+
+                                                $currentClusterIds = self::normalizeSelection($get('clusters'));
+                                                $allowedClusterIds = empty($nextRegionIds)
+                                                    ? []
+                                                    : Cluster::query()
+                                                        ->whereIn('region_id', $nextRegionIds)
+                                                        ->pluck('id')
+                                                        ->all();
+                                                $set('clusters', self::intersectSelection($currentClusterIds, $allowedClusterIds));
                                             }),
                                         Select::make('divisis')
                                             ->label('Divisi')
@@ -248,7 +280,29 @@ class UserResource extends Resource
 
                                                 return $role->organizational_scope_level !== 'divisi' ? 1 : null;
                                             })
-                                            ->relationship('divisis', 'name')
+                                            ->relationship('divisis', 'name', modifyQueryUsing: function (Builder $query, callable $get): Builder {
+                                                $badanUsahaIds = $get('badanUsahas');
+
+                                                if (empty($badanUsahaIds)) {
+                                                    return $query->whereRaw('1 = 0');
+                                                }
+
+                                                $badanUsahaIds = is_array($badanUsahaIds) ? $badanUsahaIds : [$badanUsahaIds];
+
+                                                $query->whereIn('badanusaha_id', $badanUsahaIds);
+
+                                                $user = Auth::user();
+
+                                                if ($user && $user->role->organizational_scope_level !== 'all') {
+                                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+
+                                                    if (! empty($divisiIds)) {
+                                                        $query->whereIn('divisions.id', $divisiIds);
+                                                    }
+                                                }
+
+                                                return $query->orderBy('name', 'asc');
+                                            })
                                             ->searchable()
                                             ->preload()
                                             ->reactive()
@@ -271,34 +325,44 @@ class UserResource extends Resource
 
                                                 return $role && in_array($role->organizational_scope_level, ['divisi', 'region', 'cluster']);
                                             })
-                                            ->options(function (callable $get) {
-                                                $badanUsahaIds = $get('badanUsahas');
-                                                // Handle both single value and array
-                                                if (empty($badanUsahaIds)) {
-                                                    return [];
-                                                }
-                                                $badanUsahaIds = is_array($badanUsahaIds) ? $badanUsahaIds : [$badanUsahaIds];
-
-                                                $user = Auth::user();
-                                                $query = Division::whereIn('badanusaha_id', $badanUsahaIds);
-
-                                                if ($user && $user->role->organizational_scope_level !== 'all') {
-                                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                                                    if (! empty($divisiIds)) {
-                                                        $query->whereIn('divisions.id', $divisiIds);
-                                                    }
-                                                }
-
-                                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                                            })
                                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                 $roleId = $get('role_id');
                                                 $role = $roleId ? Role::find($roleId) : null;
                                                 $scopeLevel = $role?->organizational_scope_level;
 
-                                                // Reset child fields
-                                                $set('regions', in_array($scopeLevel, ['region', 'cluster']) ? [] : null);
-                                                $set('clusters', $scopeLevel === 'cluster' ? [] : null);
+                                                if (! in_array($scopeLevel, ['region', 'cluster'], true)) {
+                                                    $set('regions', null);
+                                                    $set('clusters', null);
+
+                                                    return;
+                                                }
+
+                                                $divisionIds = self::normalizeSelection($state);
+
+                                                $currentRegionIds = self::normalizeSelection($get('regions'));
+                                                $allowedRegionIds = empty($divisionIds)
+                                                    ? []
+                                                    : Region::query()
+                                                        ->whereIn('divisi_id', $divisionIds)
+                                                        ->pluck('id')
+                                                        ->all();
+                                                $nextRegionIds = self::intersectSelection($currentRegionIds, $allowedRegionIds);
+                                                $set('regions', $nextRegionIds);
+
+                                                if ($scopeLevel !== 'cluster') {
+                                                    $set('clusters', null);
+
+                                                    return;
+                                                }
+
+                                                $currentClusterIds = self::normalizeSelection($get('clusters'));
+                                                $allowedClusterIds = empty($nextRegionIds)
+                                                    ? []
+                                                    : Cluster::query()
+                                                        ->whereIn('region_id', $nextRegionIds)
+                                                        ->pluck('id')
+                                                        ->all();
+                                                $set('clusters', self::intersectSelection($currentClusterIds, $allowedClusterIds));
                                             }),
                                         Select::make('regions')
                                             ->label('Region')
@@ -316,7 +380,31 @@ class UserResource extends Resource
 
                                                 return in_array($role->organizational_scope_level, ['region', 'cluster'], true) ? null : 1;
                                             })
-                                            ->relationship('regions', 'name')
+                                            ->relationship('regions', 'name', modifyQueryUsing: function (Builder $query, callable $get): Builder {
+                                                $divisiIds = $get('divisis');
+
+                                                if (empty($divisiIds)) {
+                                                    return $query->whereRaw('1 = 0');
+                                                }
+
+                                                $divisiIds = is_array($divisiIds) ? $divisiIds : [$divisiIds];
+
+                                                $query->whereIn('divisi_id', $divisiIds);
+
+                                                $user = Auth::user();
+
+                                                if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
+                                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
+
+                                                    if (! empty($regionIds)) {
+                                                        $query->whereIn('regions.id', $regionIds);
+                                                    }
+                                                }
+
+                                                return $query
+                                                    ->with('divisi:id,name')
+                                                    ->orderBy('name', 'asc');
+                                            })
                                             ->searchable()
                                             ->preload()
                                             ->reactive()
@@ -339,46 +427,64 @@ class UserResource extends Resource
 
                                                 return $role && in_array($role->organizational_scope_level, ['region', 'cluster'], true);
                                             })
-                                            ->options(function (callable $get) {
-                                                $divisiIds = $get('divisis');
-                                                // Handle both single value and array
-                                                if (empty($divisiIds)) {
-                                                    return [];
-                                                }
-                                                $divisiIds = is_array($divisiIds) ? $divisiIds : [$divisiIds];
+                                            ->getOptionLabelFromRecordUsing(function (Region $region): string {
+                                                $divisionName = $region->divisi?->name ?? '-';
 
-                                                $user = Auth::user();
-                                                $query = Region::whereIn('divisi_id', $divisiIds);
-
-                                                if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                                                    if (! empty($regionIds)) {
-                                                        $query->whereIn('regions.id', $regionIds);
-                                                    }
-                                                }
-
-                                                return $query
-                                                    ->with('divisi')
-                                                    ->orderBy('name', 'asc')
-                                                    ->get()
-                                                    ->mapWithKeys(function ($region) {
-                                                        $divisionName = $region->divisi?->name ?? '-';
-
-                                                        return [$region->id => "{$region->name} > {$divisionName}"];
-                                                    });
+                                                return "Region: {$region->name} > Divisi: {$divisionName}";
                                             })
                                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                 $roleId = $get('role_id');
                                                 $role = $roleId ? Role::find($roleId) : null;
                                                 $scopeLevel = $role?->organizational_scope_level;
 
-                                                // Reset child fields
-                                                $set('clusters', $scopeLevel === 'cluster' ? [] : null);
+                                                if ($scopeLevel !== 'cluster') {
+                                                    $set('clusters', null);
+
+                                                    return;
+                                                }
+
+                                                $regionIds = self::normalizeSelection($state);
+                                                $currentClusterIds = self::normalizeSelection($get('clusters'));
+                                                $allowedClusterIds = empty($regionIds)
+                                                    ? []
+                                                    : Cluster::query()
+                                                        ->whereIn('region_id', $regionIds)
+                                                        ->pluck('id')
+                                                        ->all();
+
+                                                $set('clusters', self::intersectSelection($currentClusterIds, $allowedClusterIds));
                                             }),
                                         Select::make('clusters')
                                             ->label('Cluster')
                                             ->multiple() // Cluster selalu multiple jika visible (scope = cluster)
-                                            ->relationship('clusters', 'name')
+                                            ->relationship('clusters', 'name', modifyQueryUsing: function (Builder $query, callable $get): Builder {
+                                                $regionIds = $get('regions');
+
+                                                if (empty($regionIds)) {
+                                                    return $query->whereRaw('1 = 0');
+                                                }
+
+                                                $regionIds = is_array($regionIds) ? $regionIds : [$regionIds];
+
+                                                $query->whereIn('region_id', $regionIds);
+
+                                                $user = Auth::user();
+
+                                                if ($user && $user->role->organizational_scope_level === 'cluster') {
+                                                    $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+
+                                                    if (! empty($clusterIds)) {
+                                                        $query->whereIn('clusters.id', $clusterIds);
+                                                    }
+                                                }
+
+                                                return $query
+                                                    ->with([
+                                                        'region:id,name,divisi_id',
+                                                        'region.divisi:id,name',
+                                                    ])
+                                                    ->orderBy('name', 'asc');
+                                            })
                                             ->searchable()
                                             ->preload()
                                             ->reactive()
@@ -401,34 +507,11 @@ class UserResource extends Resource
 
                                                 return $role && $role->organizational_scope_level === 'cluster';
                                             })
-                                            ->options(function (callable $get) {
-                                                $regionIds = $get('regions');
-                                                // Handle both single value and array
-                                                if (empty($regionIds)) {
-                                                    return [];
-                                                }
-                                                $regionIds = is_array($regionIds) ? $regionIds : [$regionIds];
+                                            ->getOptionLabelFromRecordUsing(function (Cluster $cluster): string {
+                                                $regionName = $cluster->region?->name ?? '-';
+                                                $divisionName = $cluster->region?->divisi?->name ?? '-';
 
-                                                $user = Auth::user();
-                                                $query = Cluster::whereIn('region_id', $regionIds);
-
-                                                if ($user && $user->role->organizational_scope_level === 'cluster') {
-                                                    $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-                                                    if (! empty($clusterIds)) {
-                                                        $query->whereIn('clusters.id', $clusterIds);
-                                                    }
-                                                }
-
-                                                return $query
-                                                    ->with('region.divisi')
-                                                    ->orderBy('name', 'asc')
-                                                    ->get()
-                                                    ->mapWithKeys(function ($cluster) {
-                                                        $regionName = $cluster->region?->name ?? '-';
-                                                        $divisionName = $cluster->region?->divisi?->name ?? '-';
-
-                                                        return [$cluster->id => "{$cluster->name} > {$regionName} > {$divisionName}"];
-                                                    });
+                                                return "Cluster: {$cluster->name} > Region: {$regionName} > Divisi: {$divisionName}";
                                             }),
                                     ]),
                             ])
@@ -580,23 +663,18 @@ class UserResource extends Resource
                     ->label('Role')
                     ->multiple()
                     ->searchable()
-                    ->options(fn () => Role::orderBy('name')->pluck('name', 'id')->toArray())
+                    ->relationship('role', 'name')
                     ->placeholder('Pilih Role'),
                 Filter::make('region')
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->options(function () {
-                                $user = Auth::user();
-
-                                if ($user && $user->role->organizational_scope_level === 'all') {
-                                    return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray();
-                                }
-
-                                return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id')->toArray();
-                            })
                             ->reactive()
                             ->searchable()
+                            ->preload()
+                            ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha(activeOnly: false))
+                            ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value, activeOnly: false))
                             ->placeholder('Pilih Business Entity')
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $set('division', null);
@@ -604,26 +682,12 @@ class UserResource extends Resource
                             }),
                         Select::make('division')
                             ->label('Divisi')
-                            ->options(function (callable $get) {
-                                $businessEntityId = $get('businessEntity');
-                                if (! $businessEntityId) {
-                                    return [];
-                                }
-
-                                $user = Auth::user();
-                                $query = Division::where('badanusaha_id', $businessEntityId);
-
-                                if ($user && $user->role->organizational_scope_level !== 'all') {
-                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                                    if (! empty($divisiIds)) {
-                                        $query->whereIn('divisions.id', $divisiIds);
-                                    }
-                                }
-
-                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                            })
                             ->reactive()
                             ->searchable()
+                            ->preload()
+                            ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('businessEntity'), activeOnly: false))
+                            ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity'), activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                             ->placeholder('Pilih Division')
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $set('region', null);
@@ -631,33 +695,11 @@ class UserResource extends Resource
                         Select::make('region')
                             ->label('Region')
                             ->searchable()
+                            ->preload()
                             ->placeholder('Pilih Region')
-                            ->options(function (callable $get) {
-                                $divisionId = $get('division');
-                                if (! $divisionId) {
-                                    return [];
-                                }
-
-                                $user = Auth::user();
-                                $query = Region::where('divisi_id', $divisionId);
-
-                                if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                                    if (! empty($regionIds)) {
-                                        $query->whereIn('regions.id', $regionIds);
-                                    }
-                                }
-
-                                return $query
-                                    ->with('divisi')
-                                    ->orderBy('name', 'asc')
-                                    ->get()
-                                    ->mapWithKeys(function ($region) {
-                                        $divisionName = $region->divisi?->name ?? '-';
-
-                                        return [$region->id => "{$region->name} > {$divisionName}"];
-                                    });
-                            })
+                            ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division'), activeOnly: false))
+                            ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division'), activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
                             ->reactive(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
@@ -782,6 +824,118 @@ class UserResource extends Resource
             });
     }
 
+    protected static function assignableRoleQuery(): Builder
+    {
+        $query = Role::query()->select(['id', 'name']);
+        $user = Auth::user();
+
+        if (! $user || ! $user->role) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->role->name === 'SUPER ADMIN') {
+            return $query;
+        }
+
+        $descendantIds = \App\Filament\Resources\Roles\RoleResource::getAllDescendantIds($user->role);
+
+        if ($descendantIds === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereIn('roles.id', $descendantIds);
+    }
+
+    protected static function searchAssignableRoles(string $search, int $limit = 50): array
+    {
+        $keyword = trim($search);
+
+        return self::assignableRoleQuery()
+            ->when($keyword !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$keyword.'%'))
+            ->orderBy('name')
+            ->limit($limit)
+            ->pluck('name', 'id')
+            ->toArray();
+    }
+
+    protected static function assignableRoleLabel(int|string|null $id): ?string
+    {
+        if (! $id) {
+            return null;
+        }
+
+        return self::assignableRoleQuery()->whereKey($id)->value('name')
+            ?? Role::query()->whereKey($id)->value('name');
+    }
+
+    protected static function searchTmOptions(string $search, ?int $roleId, ?int $currentTmId, int $limit = 50): array
+    {
+        if (! $roleId) {
+            return [];
+        }
+
+        $role = Role::find($roleId);
+        if (! $role) {
+            return [];
+        }
+
+        $ancestorRoleIds = self::getAncestorRoleIds($role);
+        if ($ancestorRoleIds === []) {
+            return [];
+        }
+
+        $keyword = trim($search);
+
+        $options = User::query()
+            ->select(['id', 'nama_lengkap', 'role_id'])
+            ->with('role:id,name')
+            ->whereIn('role_id', $ancestorRoleIds)
+            ->when($keyword !== '', fn (Builder $query) => $query->where('nama_lengkap', 'like', '%'.$keyword.'%'))
+            ->orderBy('nama_lengkap')
+            ->limit($limit)
+            ->get()
+            ->mapWithKeys(function (User $user): array {
+                $roleName = $user->role?->name ?? '-';
+
+                return [$user->id => "{$user->nama_lengkap} ({$roleName})"];
+            })
+            ->toArray();
+
+        if ($currentTmId && ! array_key_exists($currentTmId, $options)) {
+            $currentTm = User::query()
+                ->select(['id', 'nama_lengkap', 'role_id'])
+                ->with('role:id,name')
+                ->find($currentTmId);
+
+            if ($currentTm) {
+                $roleName = $currentTm->role?->name ?? '-';
+                $options[$currentTm->id] = "{$currentTm->nama_lengkap} ({$roleName})";
+            }
+        }
+
+        return $options;
+    }
+
+    protected static function tmUserLabel(int|string|null $id): ?string
+    {
+        if (! $id) {
+            return null;
+        }
+
+        $user = User::query()
+            ->select(['id', 'nama_lengkap', 'role_id'])
+            ->with('role:id,name')
+            ->find($id);
+
+        if (! $user) {
+            return null;
+        }
+
+        $roleName = $user->role?->name ?? '-';
+
+        return "{$user->nama_lengkap} ({$roleName})";
+    }
+
     /**
      * Get all ancestor role IDs (parent, grandparent, etc.) for the given role.
      */
@@ -806,6 +960,33 @@ class UserResource extends Resource
         }
 
         return $ids;
+    }
+
+    protected static function normalizeSelection(mixed $state): array
+    {
+        if ($state === null || $state === '' || $state === []) {
+            return [];
+        }
+
+        $values = is_array($state) ? $state : [$state];
+        $values = array_map(static fn ($value): string => (string) $value, $values);
+        $values = array_filter($values, static fn (string $value): bool => $value !== '');
+
+        return array_values(array_unique($values));
+    }
+
+    protected static function intersectSelection(array $selected, array $allowed): array
+    {
+        if ($selected === [] || $allowed === []) {
+            return [];
+        }
+
+        $allowedLookup = array_fill_keys(array_map(static fn ($id): string => (string) $id, $allowed), true);
+
+        return array_values(array_filter(
+            self::normalizeSelection($selected),
+            static fn (string $id): bool => isset($allowedLookup[$id]),
+        ));
     }
 
     public static function getPages(): array

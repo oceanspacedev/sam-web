@@ -2,10 +2,8 @@
 
 namespace App\Filament\Resources\Users\RelationManagers;
 
-use App\Models\BadanUsaha;
-use App\Models\Division;
 use App\Models\Outlet;
-use App\Models\Region;
+use App\Support\OrganizationalHierarchyOptions;
 use App\Support\StorageDisk;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -23,7 +21,6 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
@@ -77,38 +74,38 @@ class OutletsRelationManager extends RelationManager
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO KTP'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('VIDEO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('limit')
@@ -119,8 +116,8 @@ class OutletsRelationManager extends RelationManager
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->url(fn (?string $state): ?string => filled($state) ? 'https://www.google.com/maps/place/'.$state : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
@@ -142,17 +139,11 @@ class OutletsRelationManager extends RelationManager
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->options(function () {
-                                $user = Auth::user();
-
-                                if ($user && $user->role->organizational_scope_level === 'all') {
-                                    return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray();
-                                }
-
-                                return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id')->toArray();
-                            })
                             ->reactive()
                             ->searchable()
+                            ->preload()
+                            ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value, activeOnly: false))
                             ->placeholder('Pilih Business Entity')
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $set('division', null);
@@ -160,26 +151,11 @@ class OutletsRelationManager extends RelationManager
                             }),
                         Select::make('division')
                             ->label('Divisi')
-                            ->options(function (callable $get) {
-                                $businessEntityId = $get('businessEntity');
-                                if (! $businessEntityId) {
-                                    return [];
-                                }
-
-                                $user = Auth::user();
-                                $query = Division::where('badanusaha_id', $businessEntityId);
-
-                                if ($user && $user->role->organizational_scope_level !== 'all') {
-                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                                    if (! empty($divisiIds)) {
-                                        $query->whereIn('divisions.id', $divisiIds);
-                                    }
-                                }
-
-                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                            })
                             ->reactive()
                             ->searchable()
+                            ->preload()
+                            ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity'), activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                             ->placeholder('Pilih Division')
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $set('region', null);
@@ -187,25 +163,10 @@ class OutletsRelationManager extends RelationManager
                         Select::make('region')
                             ->label('Region')
                             ->searchable()
+                            ->preload()
                             ->placeholder('Pilih Region')
-                            ->options(function (callable $get) {
-                                $divisionId = $get('division');
-                                if (! $divisionId) {
-                                    return [];
-                                }
-
-                                $user = Auth::user();
-                                $query = Region::where('divisi_id', $divisionId);
-
-                                if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                                    if (! empty($regionIds)) {
-                                        $query->whereIn('regions.id', $regionIds);
-                                    }
-                                }
-
-                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                            })
+                            ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division'), activeOnly: false))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
                             ->reactive(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {

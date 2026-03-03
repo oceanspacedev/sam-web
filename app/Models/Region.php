@@ -22,6 +22,39 @@ class Region extends Model
         'created_at', 'updated_at', 'deleted_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Region $region): void {
+            if (! $region->divisi_id) {
+                return;
+            }
+
+            $division = Division::withTrashed()
+                ->select('id', 'badanusaha_id')
+                ->find($region->divisi_id);
+
+            if (! $division) {
+                return;
+            }
+
+            $region->badanusaha_id = $division->badanusaha_id;
+        });
+
+        static::updated(function (Region $region): void {
+            if (! $region->wasChanged(['divisi_id', 'badanusaha_id'])) {
+                return;
+            }
+
+            Cluster::query()
+                ->where('region_id', $region->id)
+                ->update([
+                    'divisi_id' => $region->divisi_id,
+                    'badanusaha_id' => $region->badanusaha_id,
+                    'updated_at' => now(),
+                ]);
+        });
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereNull('deleted_at');

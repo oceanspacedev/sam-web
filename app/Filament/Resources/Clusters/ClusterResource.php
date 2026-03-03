@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\Clusters;
 
 use App\Filament\Resources\Clusters\Pages\ManageClusters;
-use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Region;
+use App\Support\OrganizationalHierarchyOptions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -37,18 +37,23 @@ class ClusterResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $canCreateBadanUsaha = auth()->user()?->can('create', \App\Models\BadanUsaha::class) ?? false;
+        $canCreateDivision = auth()->user()?->can('create', \App\Models\Division::class) ?? false;
+        $canCreateRegion = auth()->user()?->can('create', \App\Models\Region::class) ?? false;
+
         return $schema
             ->columns(1)
             ->components([
                 Select::make('badanusaha_id')
                     ->label('Badan Usaha')
-                    ->relationship('badanUsaha', 'name')
+                    ->relationship('badanUsaha', 'name', modifyQueryUsing: fn (Builder $query): Builder => OrganizationalHierarchyOptions::applyBadanUsahaScope($query))
                     ->searchable()
+                    ->preload()
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
                     ->createOptionForm(
-                        auth()->user()->can('create', \App\Models\BadanUsaha::class)
+                        $canCreateBadanUsaha
                         ? [
                             TextInput::make('name')
                                 ->required()
@@ -60,22 +65,10 @@ class ClusterResource extends Resource
                         : null
                     )
                     ->helperText(
-                        auth()->user()->can('create', \App\Models\BadanUsaha::class)
+                        $canCreateBadanUsaha
                         ? 'Pilih Badan Usaha atau tambah baru.'
                         : 'Pilih Badan Usaha.'
                     )
-                    ->options(function (callable $get) {
-                        $user = auth()->user();
-                        $role = $user->role;
-
-                        // If role has 'all' scope, show all
-                        if ($role->organizational_scope_level === 'all') {
-                            return BadanUsaha::active()->orderBy('name', 'asc')->pluck('name', 'id');
-                        }
-
-                        // Use pivot table for current user's assignments
-                        return $user->badanUsahas()->active()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
-                    })
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('divisi_id', null);
                         $set('region_id', null);
@@ -89,7 +82,7 @@ class ClusterResource extends Resource
                     ->reactive()
                     ->placeholder('Pilih divisi')
                     ->createOptionForm(
-                        auth()->user()->can('create', \App\Models\Division::class)
+                        $canCreateDivision
                         ? [
                             TextInput::make('name')
                                 ->required()
@@ -114,29 +107,12 @@ class ClusterResource extends Resource
                         return $division->id;
                     })
                     ->helperText(
-                        auth()->user()->can('create', \App\Models\Division::class)
+                        $canCreateDivision
                         ? 'Divisi akan muncul setelah Badan Usaha dipilih. Atau tambah baru jika belum ada.'
                         : 'Divisi akan muncul setelah Badan Usaha dipilih.'
                     )
-                    ->options(function (callable $get) {
-                        $badanusahaId = $get('badanusaha_id');
-                        if (! $badanusahaId) {
-                            return [];
-                        }
-
-                        $user = auth()->user();
-                        $query = Division::active()->where('badanusaha_id', $badanusahaId);
-
-                        // Apply user scope filtering
-                        if ($user && $user->role->organizational_scope_level !== 'all') {
-                            $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                            if (! empty($divisiIds)) {
-                                $query->whereIn('divisions.id', $divisiIds);
-                            }
-                        }
-
-                        return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                    })
+                    ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
+                    ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('region_id', null);
                     }),
@@ -148,7 +124,7 @@ class ClusterResource extends Resource
                     ->reactive()
                     ->placeholder('Pilih region')
                     ->createOptionForm(
-                        auth()->user()->can('create', \App\Models\Region::class)
+                        $canCreateRegion
                         ? [
                             TextInput::make('name')
                                 ->required()
@@ -165,37 +141,29 @@ class ClusterResource extends Resource
                             throw new \Exception('Pilih Divisi terlebih dahulu.');
                         }
 
+                        $division = Division::query()
+                            ->select('id', 'badanusaha_id')
+                            ->find($divisiId);
+
+                        if (! $division) {
+                            throw new \Exception('Divisi tidak ditemukan.');
+                        }
+
                         $region = \App\Models\Region::create([
                             'name' => $data['name'],
-                            'divisi_id' => $divisiId,
+                            'divisi_id' => $division->id,
+                            'badanusaha_id' => $division->badanusaha_id,
                         ]);
 
                         return $region->id;
                     })
                     ->helperText(
-                        auth()->user()->can('create', \App\Models\Region::class)
+                        $canCreateRegion
                         ? 'Region akan muncul setelah Divisi dipilih. Atau tambah baru jika belum ada.'
                         : 'Region akan muncul setelah Divisi dipilih.'
                     )
-                    ->options(function (callable $get) {
-                        $divisiId = $get('divisi_id');
-                        if (! $divisiId) {
-                            return [];
-                        }
-
-                        $user = auth()->user();
-                        $query = Region::where('divisi_id', $divisiId);
-
-                        // Apply user scope filtering
-                        if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
-                            $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                            if (! empty($regionIds)) {
-                                $query->whereIn('regions.id', $regionIds);
-                            }
-                        }
-
-                        return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                    }),
+                    ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('divisi_id')))
+                    ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value)),
                 TextInput::make('name')
                     ->required()
                     ->unique(ignoreRecord: true)

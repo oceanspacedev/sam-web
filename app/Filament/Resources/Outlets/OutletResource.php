@@ -6,12 +6,9 @@ use App\Filament\Resources\Outlets\Pages\CreateOutlet;
 use App\Filament\Resources\Outlets\Pages\EditOutlet;
 use App\Filament\Resources\Outlets\Pages\ListOutlets;
 use App\Filament\Resources\Outlets\Pages\ViewOutlet;
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
 use App\Models\Outlet;
-use App\Models\Region;
 use App\Services\FilenameGeneratorService;
+use App\Support\OrganizationalHierarchyOptions;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Filament\Actions\BulkAction;
@@ -208,25 +205,13 @@ class OutletResource extends Resource
                                             Select::make('badanusaha_id')
                                                 ->label('Badan Usaha')
                                                 ->searchable()
+                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->placeholder('Pilih badan usaha')
-                                                ->options(function (callable $get) {
-                                                    /** @var \App\Models\User|null $user */
-                                                    $user = Auth::user();
-                                                    if (! $user) {
-                                                        return [];
-                                                    }
-                                                    $role = $user->role;
-
-                                                    // If role has 'all' scope, show all
-                                                    if ($role->organizational_scope_level === 'all') {
-                                                        return BadanUsaha::active()->orderBy('name', 'asc')->pluck('name', 'id');
-                                                    }
-
-                                                    // Use pivot table for current user's assignments
-                                                    return $user->badanUsahas()->active()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
-                                                })
+                                                ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha())
+                                                ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search))
+                                                ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value))
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('divisi_id', null);
                                                     $set('region_id', null);
@@ -238,26 +223,9 @@ class OutletResource extends Resource
                                                 ->preload()
                                                 ->required()
                                                 ->reactive()
-                                                ->options(function (callable $get) {
-                                                    $badanusahaId = $get('badanusaha_id');
-
-                                                    if (! $badanusahaId) {
-                                                        return [];
-                                                    }
-
-                                                    $user = Auth::user();
-                                                    $query = Division::active()->where('badanusaha_id', $badanusahaId);
-
-                                                    // Apply user scope filtering
-                                                    if ($user && $user->role->organizational_scope_level !== 'all') {
-                                                        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                                                        if (! empty($divisiIds)) {
-                                                            $query->whereIn('divisions.id', $divisiIds);
-                                                        }
-                                                    }
-
-                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                                                })
+                                                ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id')))
+                                                ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
+                                                ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('region_id', null);
                                                     $set('cluster_id', null);
@@ -268,26 +236,9 @@ class OutletResource extends Resource
                                                 ->preload()
                                                 ->required()
                                                 ->reactive()
-                                                ->options(function (callable $get) {
-                                                    $divisiId = $get('divisi_id');
-
-                                                    if (! $divisiId) {
-                                                        return [];
-                                                    }
-
-                                                    $user = Auth::user();
-                                                    $query = Region::active()->where('divisi_id', $divisiId);
-
-                                                    // Apply user scope filtering
-                                                    if ($user && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                                        $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                                                        if (! empty($regionIds)) {
-                                                            $query->whereIn('regions.id', $regionIds);
-                                                        }
-                                                    }
-
-                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                                                })
+                                                ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('divisi_id')))
+                                                ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('divisi_id')))
+                                                ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
                                                 ->afterStateUpdated(function ($state, callable $set) {
                                                     $set('cluster_id', null);
                                                 }),
@@ -297,26 +248,9 @@ class OutletResource extends Resource
                                                 ->preload()
                                                 ->required()
                                                 ->reactive()
-                                                ->options(function (callable $get) {
-                                                    $regionId = $get('region_id');
-
-                                                    if (! $regionId) {
-                                                        return [];
-                                                    }
-
-                                                    $user = Auth::user();
-                                                    $query = Cluster::active()->where('region_id', $regionId);
-
-                                                    // Apply user scope filtering
-                                                    if ($user && $user->role->organizational_scope_level === 'cluster') {
-                                                        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-                                                        if (! empty($clusterIds)) {
-                                                            $query->whereIn('clusters.id', $clusterIds);
-                                                        }
-                                                    }
-
-                                                    return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                                                }),
+                                                ->options(fn (callable $get): array => OrganizationalHierarchyOptions::cluster($get('region_id')))
+                                                ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchCluster($search, $get('region_id')))
+                                                ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::clusterLabel($value)),
                                         ]),
                                 ]),
                             Section::make('Status & Limit Outlet')
@@ -521,38 +455,38 @@ class OutletResource extends Resource
                     ->label('Distrik'),
                 TextColumn::make('poto_shop_sign')
                     ->label('Foto Tanda Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_depan')
                     ->label('Foto Depan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kiri')
                     ->label('Foto Kiri')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_kanan')
                     ->label('Foto Kanan')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poto_ktp')
                     ->label('Foto KTP')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('FOTO KTP'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('FOTO KTP'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('video')
                     ->label('Video Outlet')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('VIDEO'))
-                    ->url(fn ($state): string => StorageDisk::url($state), shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('VIDEO'))
+                    ->url(fn (?string $state): ?string => filled($state) ? StorageDisk::url($state) : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('limit')
@@ -562,8 +496,8 @@ class OutletResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('latlong')
                     ->label('Lokasi (LatLong)')
-                    ->formatStateUsing(fn (string $state): HtmlString => new HtmlString('LOKASI'))
-                    ->url(fn ($state): string => 'https://www.google.com/maps/place/'.$state, shouldOpenInNewTab: true)
+                    ->formatStateUsing(fn (?string $state): HtmlString => new HtmlString('LOKASI'))
+                    ->url(fn (?string $state): ?string => filled($state) ? 'https://www.google.com/maps/place/'.$state : null, shouldOpenInNewTab: true)
                     ->color('primary')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
@@ -592,18 +526,12 @@ class OutletResource extends Resource
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->options(function () {
-                                $user = Auth::user();
-
-                                // SECURITY FIX: Apply user scope to filter options
-                                if ($user && $user->role && $user->role->organizational_scope_level === 'all') {
-                                    return BadanUsaha::orderBy('name', 'asc')->pluck('name', 'id')->toArray();
-                                }
-
-                                return $user->badanUsahas()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id')->toArray();
-                            })
                             ->reactive()
                             ->searchable()
+                            ->preload()
+                            ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha())
+                            ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value))
                             ->placeholder('Pilih Business Entity')
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $set('division', null);
@@ -611,27 +539,12 @@ class OutletResource extends Resource
                             }),
                         Select::make('division')
                             ->label('Divisi')
-                            ->options(function (callable $get) {
-                                $businessEntityId = $get('businessEntity');
-                                if (! $businessEntityId) {
-                                    return [];
-                                }
-
-                                $user = Auth::user();
-                                $query = Division::where('badanusaha_id', $businessEntityId);
-
-                                // SECURITY FIX: Apply user scope filtering
-                                if ($user && $user->role && $user->role->organizational_scope_level !== 'all') {
-                                    $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                                    if (! empty($divisiIds)) {
-                                        $query->whereIn('divisions.id', $divisiIds);
-                                    }
-                                }
-
-                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                            })
                             ->reactive()
                             ->searchable()
+                            ->preload()
+                            ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('businessEntity')))
+                            ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity')))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                             ->placeholder('Pilih Division')
                             ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 $set('region', null);
@@ -639,26 +552,11 @@ class OutletResource extends Resource
                         Select::make('region')
                             ->label('Region')
                             ->searchable()
+                            ->preload()
                             ->placeholder('Pilih Region')
-                            ->options(function (callable $get) {
-                                $divisionId = $get('division');
-                                if (! $divisionId) {
-                                    return [];
-                                }
-
-                                $user = Auth::user();
-                                $query = Region::where('divisi_id', $divisionId);
-
-                                // SECURITY FIX: Apply user scope filtering
-                                if ($user && $user->role && in_array($user->role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                    $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                                    if (! empty($regionIds)) {
-                                        $query->whereIn('regions.id', $regionIds);
-                                    }
-                                }
-
-                                return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                            })
+                            ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division')))
+                            ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division')))
+                            ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
                             ->reactive(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {

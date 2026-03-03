@@ -3,8 +3,8 @@
 namespace App\Filament\Resources\Divisions;
 
 use App\Filament\Resources\Divisions\Pages\ManageDivisions;
-use App\Models\BadanUsaha;
 use App\Models\Division;
+use App\Support\OrganizationalHierarchyOptions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -35,17 +35,20 @@ class DivisionResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $canCreateBadanUsaha = auth()->user()?->can('create', \App\Models\BadanUsaha::class) ?? false;
+
         return $schema
             ->columns(1)
             ->components([
                 Select::make('badanusaha_id')
                     ->label('Badan Usaha')
-                    ->relationship('badanUsaha', 'name')
+                    ->relationship('badanUsaha', 'name', modifyQueryUsing: fn (Builder $query): Builder => OrganizationalHierarchyOptions::applyBadanUsahaScope($query))
                     ->searchable()
+                    ->preload()
                     ->required()
                     ->placeholder('Pilih badan usaha')
                     ->createOptionForm(
-                        auth()->user()->can('create', \App\Models\BadanUsaha::class)
+                        $canCreateBadanUsaha
                         ? [
                             TextInput::make('name')
                                 ->required()
@@ -57,22 +60,10 @@ class DivisionResource extends Resource
                         : null
                     )
                     ->helperText(
-                        auth()->user()->can('create', \App\Models\BadanUsaha::class)
+                        $canCreateBadanUsaha
                         ? 'Pilih Badan Usaha atau tambah baru jika belum ada.'
                         : 'Pilih Badan Usaha.'
-                    )
-                    ->options(function (callable $get) {
-                        $user = auth()->user();
-                        $role = $user->role;
-
-                        // If role has 'all' scope, show all
-                        if ($role->organizational_scope_level === 'all') {
-                            return BadanUsaha::active()->orderBy('name', 'asc')->pluck('name', 'id');
-                        }
-
-                        // Use pivot table for current user's assignments
-                        return $user->badanUsahas()->active()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
-                    }),
+                    ),
                 TextInput::make('name')
                     ->required()
                     ->unique(ignoreRecord: true)
@@ -154,8 +145,20 @@ class DivisionResource extends Resource
         return parent::getEloquentQuery()
             ->where(function ($query) {
                 $user = auth()->user();
-                $role = $user->role;
-                $scopeLevel = $role->organizational_scope_level ?? 'division';
+
+                if (! $user || ! $user->role) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $scopeLevel = $user->role->organizational_scope_level;
+
+                if (! $scopeLevel) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
 
                 // If role has 'all' access, no filtering needed
                 if ($scopeLevel === 'all') {
@@ -165,6 +168,12 @@ class DivisionResource extends Resource
                 // Get user's organizational assignments from pivot tables
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
                 $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
+
+                if (empty($badanUsahaIds) && empty($divisiIds)) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
 
                 // Apply filters based on assignments
                 if (! empty($badanUsahaIds)) {

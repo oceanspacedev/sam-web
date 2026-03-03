@@ -22,6 +22,26 @@ class Cluster extends Model
         'created_at', 'updated_at', 'deleted_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Cluster $cluster): void {
+            if (! $cluster->region_id) {
+                return;
+            }
+
+            $region = Region::withTrashed()
+                ->select('id', 'divisi_id', 'badanusaha_id')
+                ->find($cluster->region_id);
+
+            if (! $region) {
+                return;
+            }
+
+            $cluster->divisi_id = $region->divisi_id;
+            $cluster->badanusaha_id = $region->badanusaha_id;
+        });
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereNull('deleted_at');

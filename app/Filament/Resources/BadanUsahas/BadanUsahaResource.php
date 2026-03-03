@@ -122,8 +122,20 @@ class BadanUsahaResource extends Resource
         return parent::getEloquentQuery()
             ->where(function ($query) {
                 $user = auth()->user();
-                $role = $user->role;
-                $scopeLevel = $role->organizational_scope_level ?? 'badan_usaha';
+
+                if (! $user || ! $user->role) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $scopeLevel = $user->role->organizational_scope_level;
+
+                if (! $scopeLevel) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
 
                 // If role has 'all' access, no filtering needed
                 if ($scopeLevel === 'all') {
@@ -133,10 +145,14 @@ class BadanUsahaResource extends Resource
                 // Get user's organizational assignments from pivot tables
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
 
-                // Apply filters based on assignments
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn('badan_usahas.id', $badanUsahaIds);
+                if (empty($badanUsahaIds)) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
                 }
+
+                // Apply filters based on assignments
+                $query->whereIn('badan_usahas.id', $badanUsahaIds);
             });
     }
 

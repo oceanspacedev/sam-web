@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\Regions;
 
 use App\Filament\Resources\Regions\Pages\ManageRegions;
-use App\Models\BadanUsaha;
 use App\Models\Division;
 use App\Models\Region;
+use App\Support\OrganizationalHierarchyOptions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -36,18 +36,22 @@ class RegionResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $canCreateBadanUsaha = auth()->user()?->can('create', \App\Models\BadanUsaha::class) ?? false;
+        $canCreateDivision = auth()->user()?->can('create', \App\Models\Division::class) ?? false;
+
         return $schema
             ->columns(1)
             ->components([
                 Select::make('badanusaha_id')
                     ->label('Badan Usaha')
-                    ->relationship('badanUsaha', 'name')
+                    ->relationship('badanUsaha', 'name', modifyQueryUsing: fn (Builder $query): Builder => OrganizationalHierarchyOptions::applyBadanUsahaScope($query))
                     ->searchable()
+                    ->preload()
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
                     ->createOptionForm(
-                        auth()->user()->can('create', \App\Models\BadanUsaha::class)
+                        $canCreateBadanUsaha
                         ? [
                             TextInput::make('name')
                                 ->required()
@@ -59,22 +63,10 @@ class RegionResource extends Resource
                         : null
                     )
                     ->helperText(
-                        auth()->user()->can('create', \App\Models\BadanUsaha::class)
+                        $canCreateBadanUsaha
                         ? 'Pilih Badan Usaha atau tambah baru.'
                         : 'Pilih Badan Usaha.'
                     )
-                    ->options(function (callable $get) {
-                        $user = auth()->user();
-                        $role = $user->role;
-
-                        // If role has 'all' scope, show all
-                        if ($role->organizational_scope_level === 'all') {
-                            return BadanUsaha::active()->orderBy('name', 'asc')->pluck('name', 'id');
-                        }
-
-                        // Use pivot table for current user's assignments
-                        return $user->badanUsahas()->active()->orderBy('name', 'asc')->pluck('name', 'badan_usahas.id');
-                    })
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('divisi_id', null);
                     }),
@@ -86,7 +78,7 @@ class RegionResource extends Resource
                     ->reactive()
                     ->placeholder('Pilih divisi')
                     ->createOptionForm(
-                        auth()->user()->can('create', \App\Models\Division::class)
+                        $canCreateDivision
                         ? [
                             TextInput::make('name')
                                 ->required()
@@ -111,29 +103,12 @@ class RegionResource extends Resource
                         return $division->id;
                     })
                     ->helperText(
-                        auth()->user()->can('create', \App\Models\Division::class)
+                        $canCreateDivision
                         ? 'Divisi akan muncul setelah Badan Usaha dipilih. Atau tambah baru jika belum ada.'
                         : 'Divisi akan muncul setelah Badan Usaha dipilih.'
                     )
-                    ->options(function (callable $get) {
-                        $badanusahaId = $get('badanusaha_id');
-                        if (! $badanusahaId) {
-                            return [];
-                        }
-
-                        $user = auth()->user();
-                        $query = Division::active()->where('badanusaha_id', $badanusahaId);
-
-                        // Apply user scope filtering
-                        if ($user && $user->role->organizational_scope_level !== 'all') {
-                            $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                            if (! empty($divisiIds)) {
-                                $query->whereIn('divisions.id', $divisiIds);
-                            }
-                        }
-
-                        return $query->orderBy('name', 'asc')->pluck('name', 'id');
-                    }),
+                    ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
+                    ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value)),
                 TextInput::make('name')
                     ->required()
                     ->unique(ignoreRecord: true)
@@ -222,8 +197,20 @@ class RegionResource extends Resource
         return parent::getEloquentQuery()
             ->where(function ($query) {
                 $user = auth()->user();
-                $role = $user->role;
-                $scopeLevel = $role->organizational_scope_level ?? 'region';
+
+                if (! $user || ! $user->role) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $scopeLevel = $user->role->organizational_scope_level;
+
+                if (! $scopeLevel) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
 
                 // If role has 'all' access, no filtering needed
                 if ($scopeLevel === 'all') {
@@ -234,6 +221,12 @@ class RegionResource extends Resource
                 $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
                 $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
                 $regionIds = $user->regions()->pluck('regions.id')->toArray();
+
+                if (empty($badanUsahaIds) && empty($divisiIds) && empty($regionIds)) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
 
                 // Apply filters based on assignments
                 if (! empty($badanUsahaIds)) {

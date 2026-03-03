@@ -49,14 +49,11 @@ class RoleResource extends Resource
                             Select::make('parent_role_id')
                                 ->label('Parent Role')
                                 ->helperText('Pilih role induk jika ada struktur atasan (mis. TM → ASM).')
-                                ->options(function (?Role $record) {
-                                    return Role::query()
-                                        ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
-                                        ->orderBy('name')
-                                        ->pluck('name', 'id');
-                                })
                                 ->searchable()
                                 ->preload()
+                                ->options(fn (): array => self::parentRoleOptions())
+                                ->getSearchResultsUsing(fn (string $search): array => self::parentRoleOptions($search))
+                                ->getOptionLabelUsing(fn ($value): ?string => $value ? Role::query()->whereKey($value)->value('name') : null)
                                 ->placeholder('Pilih parent role (opsional)'),
                         ])
                         ->columns(2),
@@ -154,6 +151,8 @@ class RoleResource extends Resource
                 $user = Auth::user();
 
                 if (! $user || ! $user->role) {
+                    $query->whereRaw('1 = 0');
+
                     return;
                 }
 
@@ -178,6 +177,24 @@ class RoleResource extends Resource
         }
 
         return $ids;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function parentRoleOptions(string $search = '', int $limit = 50): array
+    {
+        $keyword = trim($search);
+        $record = request()->route('record');
+        $recordId = is_object($record) ? $record->getKey() : $record;
+
+        return Role::query()
+            ->when($recordId, fn (Builder $query) => $query->where('id', '!=', $recordId))
+            ->when($keyword !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$keyword.'%'))
+            ->orderBy('name')
+            ->limit($limit)
+            ->pluck('name', 'id')
+            ->toArray();
     }
 
     public static function getRelations(): array

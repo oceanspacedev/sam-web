@@ -26,7 +26,25 @@ class Division extends Model
 
     protected static function booted(): void
     {
-        //
+        static::updated(function (Division $division): void {
+            if (! $division->wasChanged('badanusaha_id')) {
+                return;
+            }
+
+            Region::query()
+                ->where('divisi_id', $division->id)
+                ->update([
+                    'badanusaha_id' => $division->badanusaha_id,
+                    'updated_at' => now(),
+                ]);
+
+            Cluster::query()
+                ->where('divisi_id', $division->id)
+                ->update([
+                    'badanusaha_id' => $division->badanusaha_id,
+                    'updated_at' => now(),
+                ]);
+        });
     }
 
     public function scopeActive(Builder $query): Builder

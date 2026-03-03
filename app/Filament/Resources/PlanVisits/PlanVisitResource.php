@@ -10,6 +10,8 @@ use App\Models\PlanVisit;
 use App\Models\Register;
 use App\Models\User;
 use App\Services\SystemSettingResolver;
+use App\Support\ScopedUserSelectOptions;
+use App\Support\VisitTargetSelectOptions;
 use Carbon\Carbon;
 use Closure;
 use Filament\Actions\BulkActionGroup;
@@ -51,159 +53,91 @@ class PlanVisitResource extends Resource
                             ->reactive()
                             ->label('Pilih User')
                             ->placeholder('Cari User berdasarkan nama lengkap')
-                            ->getSearchResultsUsing(function (string $search) {
-                                $currentUser = Auth::user();
-
-                                // SECURITY FIX: Apply scope filtering to user search
-                                $query = User::query()
-                                    ->with(['badanUsahas:id,name', 'divisis:id,name'])
-                                    ->where('nama_lengkap', 'like', "%{$search}%");
-
-                                // Apply scope filtering based on current user's role
-                                if ($currentUser && $currentUser->role && $currentUser->role->organizational_scope_level !== 'all') {
-                                    $badanUsahaIds = $currentUser->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                                    $divisiIds = $currentUser->divisis()->pluck('divisions.id')->toArray();
-                                    $regionIds = $currentUser->regions()->pluck('regions.id')->toArray();
-                                    $clusterIds = $currentUser->clusters()->pluck('clusters.id')->toArray();
-
-                                    $query->where(function ($q) use ($badanUsahaIds, $divisiIds, $regionIds, $clusterIds) {
-                                        if (! empty($badanUsahaIds)) {
-                                            $q->whereHas('badanUsahas', fn ($sq) => $sq->whereIn('badan_usahas.id', $badanUsahaIds));
-                                        }
-                                        if (! empty($divisiIds)) {
-                                            $q->whereHas('divisis', fn ($sq) => $sq->whereIn('divisions.id', $divisiIds));
-                                        }
-                                        if (! empty($regionIds)) {
-                                            $q->whereHas('regions', fn ($sq) => $sq->whereIn('regions.id', $regionIds));
-                                        }
-                                        if (! empty($clusterIds)) {
-                                            $q->whereHas('clusters', fn ($sq) => $sq->whereIn('clusters.id', $clusterIds));
-                                        }
-                                    });
-                                }
-
-                                return $query
-                                    ->orderBy('nama_lengkap')
-                                    ->limit(50)
-                                    ->get()
-                                    ->mapWithKeys(function ($user) {
-                                        $badanusahaName = $user->badanUsahas->first()->name ?? 'Tidak ada badan usaha';
-                                        $divisiName = $user->divisis->first()->name ?? 'Tidak ada divisi';
-
-                                        return [$user->id => "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}"];
-                                    })
-                                    ->toArray();
-                            })
-                            ->getOptionLabelUsing(function ($value) {
-                                if (! $value) {
-                                    return null;
-                                }
-                                $user = User::with(['badanUsahas:id,name', 'divisis:id,name'])->find($value);
-                                if (! $user) {
-                                    return null;
-                                }
-                                $badanusahaName = $user->badanUsahas->first()->name ?? 'Tidak ada badan usaha';
-                                $divisiName = $user->divisis->first()->name ?? 'Tidak ada divisi';
-
-                                return "{$user->nama_lengkap} - {$badanusahaName} / {$divisiName}";
-                            }),
+                            ->options(fn (): array => ScopedUserSelectOptions::search(Auth::user(), ''))
+                            ->getSearchResultsUsing(fn (string $search): array => ScopedUserSelectOptions::search(Auth::user(), $search))
+                            ->getOptionLabelUsing(fn ($value): ?string => ScopedUserSelectOptions::label($value)),
                         // Polymorphic visit target selector
                         Select::make('visitable_type')
                             ->label('Tipe Target')
                             ->options(function () {
                                 $options = [
-                                    'App\\Models\\Outlet' => 'Outlet',
+                                    Outlet::class => 'Outlet',
                                 ];
 
                                 $allowsRegisterVisit = app(SystemSettingResolver::class)->hasAnyAllowRegisterVisit();
 
                                 if ($allowsRegisterVisit) {
-                                    $options['App\\Models\\Register'] = 'Register (LEAD/NOO)';
+                                    $options[Register::class] = 'Register (LEAD/NOO)';
                                 }
 
                                 return $options;
                             })
                             ->required()
                             ->live()
-                            ->default('App\\Models\\Outlet')
+                            ->default(Outlet::class)
                             ->afterStateUpdated(fn (callable $set) => $set('visitable_id', null)),
                         Select::make('visitable_id')
                             ->label('Target')
                             ->required()
                             ->searchable()
                             ->preload()
-                            ->placeholder('Cari target berdasarkan nama/kode')
+                            ->disabled(fn (callable $get): bool => ! $get('user_id'))
+                            ->placeholder(fn (callable $get) => ! $get('user_id')
+                                ? 'Pilih user terlebih dahulu'
+                                : 'Cari target berdasarkan nama/kode')
                             ->getSearchResultsUsing(function (string $search, callable $get) {
-                                $type = $get('visitable_type');
-                                $currentUser = Auth::user();
-
-                                if ($type === 'App\\Models\\Outlet') {
-                                    return Outlet::query()
-                                        ->with(['badanusaha:id,name', 'divisi:id,name'])
-                                        ->accessibleTo($currentUser)
-                                        ->where(function ($q) use ($search) {
-                                            $q->where('nama_outlet', 'like', "%{$search}%")
-                                                ->orWhere('kode_outlet', 'like', "%{$search}%");
-                                        })
-                                        ->orderBy('nama_outlet')
-                                        ->limit(50)
-                                        ->get()
-                                        ->mapWithKeys(function ($outlet) {
-                                            $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
-                                            $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
-
-                                            return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
-                                        })
-                                        ->toArray();
+                                $selectedUserId = $get('user_id');
+                                $selectedUser = $selectedUserId
+                                    ? User::query()->select(['id', 'role_id'])->with('role')->find($selectedUserId)
+                                    : null;
+                                if (! $selectedUser) {
+                                    return [];
                                 }
 
-                                return Register::query()
-                                    ->where(function ($q) use ($search) {
-                                        $q->where('nama_outlet', 'like', "%{$search}%")
-                                            ->orWhere('kode_outlet', 'like', "%{$search}%");
-                                    })
-                                    ->where(function ($q) {
-                                        $q->whereNull('status')->orWhere('status', '!=', 'APPROVED');
-                                    })
-                                    ->whereDoesntHave('outlet')
-                                    ->orderBy('nama_outlet')
-                                    ->limit(50)
-                                    ->get()
-                                    ->filter(fn (Register $register) => app(SystemSettingResolver::class)->allowsRegisterVisitForModel($register))
-                                    ->mapWithKeys(function ($register) {
-                                        return [$register->id => "[{$register->kode_outlet}] {$register->nama_outlet} - Register"];
-                                    })
-                                    ->toArray();
+                                $type = (string) $get('visitable_type');
+                                if ($type === Outlet::class) {
+                                    return VisitTargetSelectOptions::searchOutlets($search, $selectedUser);
+                                }
+
+                                if ($type !== Register::class) {
+                                    return [];
+                                }
+
+                                return VisitTargetSelectOptions::searchRegisters(
+                                    $search,
+                                    $selectedUser,
+                                    app(SystemSettingResolver::class),
+                                );
                             })
                             ->options(function (callable $get) {
+                                $type = (string) $get('visitable_type');
                                 $id = $get('visitable_id');
-                                $type = $get('visitable_type');
+                                $selectedUserId = $get('user_id');
+                                $selectedUser = $selectedUserId
+                                    ? User::query()->select(['id', 'role_id'])->with('role')->find($selectedUserId)
+                                    : null;
 
-                                if (! $id || ! $type) {
-                                    return [];
+                                $options = [];
+
+                                if ($selectedUser && $type === Outlet::class) {
+                                    $options = VisitTargetSelectOptions::searchOutlets('', $selectedUser);
+                                } elseif ($selectedUser && $type === Register::class) {
+                                    $options = VisitTargetSelectOptions::searchRegisters('', $selectedUser, app(SystemSettingResolver::class));
                                 }
 
-                                if ($type === 'App\\Models\\Outlet') {
-                                    $outlet = Outlet::with(['badanusaha:id,name', 'divisi:id,name'])->find($id);
-                                    if (! $outlet) {
-                                        return [];
+                                if ($id && $type !== '' && ! array_key_exists($id, $options)) {
+                                    $label = VisitTargetSelectOptions::label($type, $id);
+
+                                    if ($label) {
+                                        $options[$id] = $label;
                                     }
-                                    $badanusahaName = $outlet->badanusaha->name ?? 'Tidak ada badan usaha';
-                                    $divisiName = $outlet->divisi->name ?? 'Tidak ada divisi';
-
-                                    return [$outlet->id => "[{$outlet->kode_outlet}] {$outlet->nama_outlet} - {$badanusahaName} / {$divisiName}"];
                                 }
 
-                                $register = Register::find($id);
-                                if (! $register) {
-                                    return [];
-                                }
-
-                                return [$register->id => "[{$register->kode_outlet}] {$register->nama_outlet} - Register"];
+                                return $options;
                             })
                             ->afterStateUpdated(function ($state, callable $set, callable $get): void {
-                                $type = $get('visitable_type');
-                                if ($state && $type === 'App\\Models\\Outlet') {
+                                $type = (string) $get('visitable_type');
+                                if ($state && $type === Outlet::class) {
                                     $divisionId = Outlet::query()->whereKey($state)->value('divisi_id');
                                     $set('outlet_division_id', $divisionId);
                                 } else {
@@ -367,37 +301,11 @@ class PlanVisitResource extends Resource
                         Select::make('user_id')
                             ->label('User')
                             ->searchable()
+                            ->preload()
                             ->placeholder('Semua User')
-                            ->options(function (): array {
-                                $currentUser = Auth::user();
-
-                                // SECURITY FIX: Apply scope filtering to user filter options
-                                $query = User::query();
-
-                                if ($currentUser && $currentUser->role && $currentUser->role->organizational_scope_level !== 'all') {
-                                    $badanUsahaIds = $currentUser->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                                    $divisiIds = $currentUser->divisis()->pluck('divisions.id')->toArray();
-                                    $regionIds = $currentUser->regions()->pluck('regions.id')->toArray();
-                                    $clusterIds = $currentUser->clusters()->pluck('clusters.id')->toArray();
-
-                                    $query->where(function ($q) use ($badanUsahaIds, $divisiIds, $regionIds, $clusterIds) {
-                                        if (! empty($badanUsahaIds)) {
-                                            $q->whereHas('badanUsahas', fn ($sq) => $sq->whereIn('badan_usahas.id', $badanUsahaIds));
-                                        }
-                                        if (! empty($divisiIds)) {
-                                            $q->whereHas('divisis', fn ($sq) => $sq->whereIn('divisions.id', $divisiIds));
-                                        }
-                                        if (! empty($regionIds)) {
-                                            $q->whereHas('regions', fn ($sq) => $sq->whereIn('regions.id', $regionIds));
-                                        }
-                                        if (! empty($clusterIds)) {
-                                            $q->whereHas('clusters', fn ($sq) => $sq->whereIn('clusters.id', $clusterIds));
-                                        }
-                                    });
-                                }
-
-                                return $query->orderBy('nama_lengkap')->pluck('nama_lengkap', 'id')->toArray();
-                            }),
+                            ->options(fn (): array => ScopedUserSelectOptions::search(Auth::user(), ''))
+                            ->getSearchResultsUsing(fn (string $search): array => ScopedUserSelectOptions::search(Auth::user(), $search))
+                            ->getOptionLabelUsing(fn ($value): ?string => ScopedUserSelectOptions::label($value)),
                     ])
                     ->query(fn (Builder $query, array $data): Builder => $query->when($data['user_id'] ?? null, fn (Builder $builder, $userId): Builder => $builder->where('user_id', $userId))),
             ])

@@ -134,3 +134,46 @@ test('plan visit endpoint returns paginated response when per_page is provided',
         ->toBeArray()
         ->and(count($response->json('data')))->toBe(10);
 });
+
+test('plan visit endpoint with bulan and tahun includes weekly plans that overlap selected month', function () {
+    $hierarchy = createVisitPaginationHierarchy('plan-month-weekly');
+    $user = createVisitPaginationUser($hierarchy);
+
+    $monthStart = now()->startOfMonth();
+
+    $dailyOutlet = createVisitPaginationOutlet($hierarchy, 3001);
+    $weeklyOutlet = createVisitPaginationOutlet($hierarchy, 3002);
+
+    PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload($monthStart->copy()->addDays(4), 'daily'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $dailyOutlet->id,
+            'realized_at' => null,
+            'realized_visit_id' => null,
+        ]
+    ));
+
+    PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload($monthStart->copy()->addDays(7), 'weekly'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $weeklyOutlet->id,
+            'realized_at' => null,
+            'realized_visit_id' => null,
+        ]
+    ));
+
+    $response = $this->actingAs($user, 'sanctum')
+        ->getJson('/api/planvisit?compact=1&tahun='.$monthStart->year.'&bulan='.$monthStart->month);
+
+    $response->assertStatus(200);
+
+    $scopes = collect($response->json('data'))->pluck('schedule_scope')->all();
+
+    expect($scopes)
+        ->toContain('daily')
+        ->toContain('weekly');
+});

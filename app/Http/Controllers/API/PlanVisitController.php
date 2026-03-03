@@ -124,8 +124,18 @@ class PlanVisitController extends Controller
 
             return $this->respondWithPlanCollection(
                 $query
-                ->where('schedule_scope', 'daily')
-                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+                ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
+                    $builder
+                        ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
+                            $sub->where('schedule_scope', 'daily')
+                                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+                        })
+                        ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
+                            $sub->where('schedule_scope', 'weekly')
+                                ->whereDate('period_start', '<=', $rangeEnd->toDateString())
+                                ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                        });
+                })
                 ->orderBy('period_start'),
                 $request,
                 $compact,

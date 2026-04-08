@@ -2,13 +2,28 @@
 
 namespace App\Filament\Exports;
 
+use App\Models\Outlet;
+use App\Models\Register;
 use App\Models\Visit;
 use Filament\Actions\Exports\ExportColumn;
 use Filament\Actions\Exports\Models\Export;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class VisitExporter extends BaseExporter
 {
     protected static ?string $model = Visit::class;
+
+    public static function modifyQueryUsing(Builder $query): Builder
+    {
+        return $query->with([
+            'user.role',
+            'visitable' => fn (MorphTo $morphTo) => $morphTo->morphWith([
+                Outlet::class => ['badanusaha', 'divisi', 'region', 'cluster'],
+                Register::class => ['badanusaha', 'divisi', 'region', 'cluster'],
+            ]),
+        ]);
+    }
 
     public static function getColumns(): array
     {
@@ -25,29 +40,53 @@ class VisitExporter extends BaseExporter
                 ->label('Role')
                 ->default('-'),
 
-            ExportColumn::make('outlet.kode_outlet')
-                ->label('Kode Outlet')
-                ->default('-'),
+            ExportColumn::make('visitable_type')
+                ->label('Jenis Target')
+                ->formatStateUsing(function ($state, Visit $record): string {
+                    if ($record->isOutletVisit()) {
+                        return 'Outlet';
+                    }
 
-            ExportColumn::make('outlet.nama_outlet')
-                ->label('Outlet')
-                ->default('-'),
+                    if (! $record->isRegisterVisit()) {
+                        return '-';
+                    }
 
-            ExportColumn::make('outlet.divisi.name')
-                ->label('Divisi')
-                ->default('-'),
+                    $registerType = strtoupper((string) ($record->visitable?->type ?? ''));
 
-            ExportColumn::make('outlet.region.name')
-                ->label('Region')
-                ->default('-'),
+                    if ($registerType === '') {
+                        return 'Register';
+                    }
 
-            ExportColumn::make('outlet.cluster.name')
-                ->label('Cluster')
-                ->default('-'),
+                    return "Register ({$registerType})";
+                }),
 
             ExportColumn::make('tipe_visit')
                 ->label('Tipe')
                 ->default('-'),
+
+            ExportColumn::make('visitable_kode_outlet')
+                ->label('Kode Outlet')
+                ->formatStateUsing(fn ($state, Visit $record): string => $record->visitable?->kode_outlet ?: '-'),
+
+            ExportColumn::make('visitable_nama_outlet')
+                ->label('Nama Outlet')
+                ->formatStateUsing(fn ($state, Visit $record): string => $record->visitable?->nama_outlet ?: '-'),
+
+            ExportColumn::make('visitable_badan_usaha')
+                ->label('Badan Usaha')
+                ->formatStateUsing(fn ($state, Visit $record): string => $record->visitable?->badanusaha?->name ?: '-'),
+
+            ExportColumn::make('visitable_divisi')
+                ->label('Divisi')
+                ->formatStateUsing(fn ($state, Visit $record): string => $record->visitable?->divisi?->name ?: '-'),
+
+            ExportColumn::make('visitable_region')
+                ->label('Region')
+                ->formatStateUsing(fn ($state, Visit $record): string => $record->visitable?->region?->name ?: '-'),
+
+            ExportColumn::make('visitable_cluster')
+                ->label('Cluster')
+                ->formatStateUsing(fn ($state, Visit $record): string => $record->visitable?->cluster?->name ?: '-'),
 
             ExportColumn::make('picture_visit_in')
                 ->label('Foto CI')

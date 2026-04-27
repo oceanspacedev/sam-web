@@ -24,7 +24,7 @@ class UpgradeLeadRequest extends FormRequest
         return [
             'id' => ['required', 'integer', 'exists:registers,id'],
             'noktp' => ['required', 'string', 'max:20'],
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:10240'],
         ];
     }
 
@@ -38,7 +38,7 @@ class UpgradeLeadRequest extends FormRequest
             'photo.required' => 'Foto KTP wajib diupload',
             'photo.image' => 'File harus berupa gambar',
             'photo.mimes' => 'Format gambar harus jpg, jpeg, atau png',
-            'photo.max' => 'Ukuran gambar maksimal 3MB',
+            'photo.max' => 'Ukuran gambar maksimal 10MB',
         ];
     }
 }

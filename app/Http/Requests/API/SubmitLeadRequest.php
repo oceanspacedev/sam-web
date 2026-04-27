@@ -49,7 +49,7 @@ class SubmitLeadRequest extends FormRequest
         ];
 
         for ($i = 0; $i <= 3; $i++) {
-            $rules["photo{$i}"] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+            $rules["photo{$i}"] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:10240'];
         }
 
         $rules['video'] = [
@@ -95,7 +95,7 @@ class SubmitLeadRequest extends FormRequest
             'fl.max' => 'Jumlah FL maksimal 99',
             'photo*.image' => 'File harus berupa gambar',
             'photo*.mimes' => 'Format gambar harus jpg, jpeg, atau png',
-            'photo*.max' => 'Ukuran gambar maksimal 3MB',
+            'photo*.max' => 'Ukuran gambar maksimal 10MB',
             'video.mimetypes' => 'Format video harus mp4, quicktime, atau webm',
             'video.max' => 'Ukuran video maksimal 50MB',
         ];

@@ -115,7 +115,7 @@ class RegisterController extends Controller
             $rules = [];
             for ($i = 0; $i <= 3; $i++) {
                 if ($request->hasFile('photo'.$i)) {
-                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+                    $rules['photo'.$i] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:10240'];
                 }
             }
             if ($request->hasFile('video')) {

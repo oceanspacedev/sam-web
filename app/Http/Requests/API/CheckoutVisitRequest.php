@@ -16,7 +16,7 @@ class CheckoutVisitRequest extends FormRequest
         return [
             'latlong_out' => ['required', 'string', 'regex:/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/'],
             'laporan_visit' => ['required', 'string', 'max:3000'],
-            'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'],
+            'picture_visit' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:10240'],
             'transaksi' => ['required', 'string', 'in:YES,NO'],
         ];
     }
@@ -31,7 +31,7 @@ class CheckoutVisitRequest extends FormRequest
             'picture_visit.required' => 'Foto check-out wajib diupload',
             'picture_visit.image' => 'File harus berupa gambar',
             'picture_visit.mimes' => 'Format gambar harus jpg, jpeg, atau png',
-            'picture_visit.max' => 'Ukuran gambar maksimal 3MB',
+            'picture_visit.max' => 'Ukuran gambar maksimal 10MB',
             'transaksi.required' => 'Status transaksi wajib dipilih',
             'transaksi.in' => 'Status transaksi tidak valid',
         ];

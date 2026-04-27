@@ -206,7 +206,7 @@ class UserController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'profile_photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
+            'profile_photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ]);
 
         $oldPath = $user->profile_photo_path;

@@ -29,15 +29,15 @@ class UpdateOutletRequest extends FormRequest
             'poto_kiri',
             'poto_ktp',
         ] as $field) {
-            $rules[$field] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+            $rules[$field] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:10240'];
         }
 
         for ($i = 0; $i <= 4; $i++) {
-            $rules["photo{$i}"] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+            $rules["photo{$i}"] = ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:10240'];
         }
 
         $rules['photos'] = ['nullable', 'array', 'max:5'];
-        $rules['photos.*'] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:3072'];
+        $rules['photos.*'] = ['file', 'image', 'mimes:jpg,jpeg,png', 'max:10240'];
         $rules['video'] = ['nullable', 'file', new VideoMimeOrSignature, 'max:51200'];
 
         return $rules;
@@ -54,10 +54,10 @@ class UpdateOutletRequest extends FormRequest
             'latlong.regex' => 'Format lokasi tidak valid (gunakan format: latitude,longitude)',
             'photo*.image' => 'File harus berupa gambar',
             'photo*.mimes' => 'Format gambar harus jpg, jpeg, atau png',
-            'photo*.max' => 'Ukuran gambar maksimal 3MB',
+            'photo*.max' => 'Ukuran gambar maksimal 10MB',
             'photos.*.image' => 'File harus berupa gambar',
             'photos.*.mimes' => 'Format gambar harus jpg, jpeg, atau png',
-            'photos.*.max' => 'Ukuran gambar maksimal 3MB',
+            'photos.*.max' => 'Ukuran gambar maksimal 10MB',
             'video.mimetypes' => 'Format video harus mp4, quicktime, atau webm',
             'video.max' => 'Ukuran video maksimal 50MB',
         ];

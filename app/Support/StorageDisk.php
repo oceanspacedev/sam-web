@@ -35,6 +35,6 @@ class StorageDisk
     {
         $driver = config("filesystems.disks.{$disk}.driver");
 
-        return in_array($driver, ['s3'], true);
+        return in_array($driver, ['s3', 'local'], true);
     }
 }

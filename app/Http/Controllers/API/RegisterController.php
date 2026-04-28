@@ -17,6 +17,7 @@ use App\Http\Requests\API\UpgradeLeadRequest;
 use App\Http\Resources\Register\RegisterCompactResource;
 use App\Http\Resources\Register\RegisterResource;
 use App\Jobs\SendNotificationJob;
+use App\Jobs\SendRegisterCreatedNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
@@ -68,22 +69,8 @@ class RegisterController extends Controller
             Log::channel('lead')->info('Penyimpanan lead dimulai', [
                 'user_id' => $user->id,
                 'role_id' => $user->role_id,
-                'payload' => [
-                    'nama_outlet' => $request->nama_outlet,
-                    'nama_pemilik' => $request->nama_pemilik,
-                    'ktpnpwp' => $request->ktpnpwp ?? null,
-                    'alamat_outlet' => $request->alamat_outlet,
-                    'nomer_pemilik' => $request->nomer_pemilik,
-                    'nomer_perwakilan' => $request->nomer_perwakilan,
-                    'distric' => $request->distric,
-                    'oppo' => $request->oppo,
-                    'vivo' => $request->vivo,
-                    'samsung' => $request->samsung,
-                    'xiaomi' => $request->xiaomi,
-                    'realme' => $request->realme,
-                    'fl' => $request->fl,
-                    'latlong' => $request->latlong,
-                ],
+                'nama_outlet' => $request->nama_outlet,
+                'has_video' => $request->hasFile('video'),
             ]);
 
             $data = [
@@ -268,6 +255,10 @@ class RegisterController extends Controller
     {
         try {
             $user = Auth::user();
+            $request->validate([
+                'compact' => 'sometimes|boolean',
+                'per_page' => 'sometimes|integer|min:1|max:100',
+            ]);
             $compact = $request->boolean('compact', true);
 
             // Eager load relationships untuk menghindari N+1
@@ -310,10 +301,35 @@ class RegisterController extends Controller
                 ]);
             }
 
-            $registers = $query->visibleTo($user)->latest()->get();
+            $perPage = $request->filled('per_page')
+                ? min((int) $request->input('per_page'), 100)
+                : null;
+            $query->visibleTo($user)->latest();
 
             // Determine resource class based on compact mode
             $resourceClass = $compact ? RegisterCompactResource::class : RegisterResource::class;
+
+            if ($perPage) {
+                $registers = $query->paginate($perPage);
+
+                return $resourceClass::collection($registers)->additional([
+                    'meta' => [
+                        'code' => 200,
+                        'status' => 'success',
+                        'message' => 'fetch register success',
+                        'pagination' => [
+                            'current_page' => $registers->currentPage(),
+                            'per_page' => $registers->perPage(),
+                            'total' => $registers->total(),
+                            'last_page' => $registers->lastPage(),
+                            'has_more_pages' => $registers->hasMorePages(),
+                        ],
+                    ],
+                    'errors' => null,
+                ]);
+            }
+
+            $registers = $query->get();
 
             return $resourceClass::collection($registers)->additional([
                 'meta' => [
@@ -342,13 +358,22 @@ class RegisterController extends Controller
 
         $query = Register::visibleTo($user);
 
+        $countRow = $query
+            ->selectRaw("SUM(CASE WHEN type = 'LEAD' THEN 1 ELSE 0 END) as lead")
+            ->selectRaw("SUM(CASE WHEN type = 'NOO' AND status = 'PENDING' THEN 1 ELSE 0 END) as pending")
+            ->selectRaw("SUM(CASE WHEN status = 'CONFIRMED' THEN 1 ELSE 0 END) as confirmed")
+            ->selectRaw("SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved")
+            ->selectRaw("SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected")
+            ->selectRaw('COUNT(*) as total')
+            ->first();
+
         $counts = [
-            'lead' => (clone $query)->where('type', 'LEAD')->count(),
-            'pending' => (clone $query)->where('status', 'PENDING')->where('type', 'NOO')->count(),
-            'confirmed' => (clone $query)->where('status', 'CONFIRMED')->count(),
-            'approved' => (clone $query)->where('status', 'APPROVED')->count(),
-            'rejected' => (clone $query)->where('status', 'REJECTED')->count(),
-            'total' => $query->count(),
+            'lead' => (int) ($countRow->lead ?? 0),
+            'pending' => (int) ($countRow->pending ?? 0),
+            'confirmed' => (int) ($countRow->confirmed ?? 0),
+            'approved' => (int) ($countRow->approved ?? 0),
+            'rejected' => (int) ($countRow->rejected ?? 0),
+            'total' => (int) ($countRow->total ?? 0),
         ];
 
         return response()->json([
@@ -463,13 +488,15 @@ class RegisterController extends Controller
                 }
             }
 
-            $perPage = min((int) $request->input('per_page', 0), 100);
+            $perPage = $request->filled('per_page')
+                ? min((int) $request->input('per_page'), 100)
+                : null;
             $query = $query->latest();
 
             // Determine resource class based on compact mode
             $resourceClass = $compact ? RegisterCompactResource::class : RegisterResource::class;
 
-            if ($perPage > 0) {
+            if ($perPage) {
                 $registers = $query->paginate($perPage);
 
                 return $resourceClass::collection($registers)->additional([
@@ -482,6 +509,7 @@ class RegisterController extends Controller
                             'per_page' => $registers->perPage(),
                             'total' => $registers->total(),
                             'last_page' => $registers->lastPage(),
+                            'has_more_pages' => $registers->hasMorePages(),
                         ],
                     ],
                     'errors' => null,
@@ -531,22 +559,8 @@ class RegisterController extends Controller
             Log::channel('noo')->info('Penyimpanan NOO dimulai', [
                 'user_id' => $user->id,
                 'role_id' => $user->role_id,
-                'payload' => [
-                    'nama_outlet' => $request->nama_outlet,
-                    'nama_pemilik' => $request->nama_pemilik,
-                    'ktpnpwp' => $request->ktpnpwp,
-                    'alamat_outlet' => $request->alamat_outlet,
-                    'nomer_pemilik' => $request->nomer_pemilik,
-                    'nomer_perwakilan' => $request->nomer_perwakilan,
-                    'distric' => $request->distric,
-                    'oppo' => $request->oppo,
-                    'vivo' => $request->vivo,
-                    'samsung' => $request->samsung,
-                    'xiaomi' => $request->xiaomi,
-                    'realme' => $request->realme,
-                    'fl' => $request->fl,
-                    'latlong' => $request->latlong,
-                ],
+                'nama_outlet' => $request->nama_outlet,
+                'has_video' => $request->hasFile('video'),
             ]);
 
             $data = [
@@ -632,14 +646,10 @@ class RegisterController extends Controller
                 ]);
             }
 
-            $notifId = $this->buildNotificationRecipients($user, $hierarchy);
             $register = Register::create($data);
 
-            if ($register && $notifId !== []) {
-                $this->dispatchNotification(
-                    'Register baru '.$request->nama_outlet.' ditambahkan oleh '.Auth::user()->nama_lengkap,
-                    $notifId
-                );
+            if ($register) {
+                SendRegisterCreatedNotificationJob::dispatch($register->id, $user->id, $hierarchy);
             }
 
             // Process media files using unified trait
@@ -901,6 +911,10 @@ class RegisterController extends Controller
     {
         try {
             $user = Auth::user();
+            $request->validate([
+                'compact' => 'sometimes|boolean',
+                'per_page' => 'sometimes|integer|min:1|max:100',
+            ]);
             $compact = $request->boolean('compact', true);
             $relations = $compact ? [
                 'badanusaha:id,name',
@@ -931,15 +945,36 @@ class RegisterController extends Controller
                 'created_at',
             ] : ['*'];
 
-            $registers = Register::with($relations)
+            $query = Register::with($relations)
                 ->whereNull('approved_by_id')
                 ->when($compact, fn ($q) => $q->select($selectColumns))
                 ->visibleTo($user)
-                ->orderBy('nama_outlet')
-                ->get();
+                ->orderBy('nama_outlet');
 
             // Determine resource class based on compact mode
             $resourceClass = $compact ? RegisterCompactResource::class : RegisterResource::class;
+
+            if ($request->filled('per_page')) {
+                $registers = $query->paginate(min((int) $request->input('per_page'), 100));
+
+                return $resourceClass::collection($registers)->additional([
+                    'meta' => [
+                        'code' => 200,
+                        'status' => 'success',
+                        'message' => 'fetch register success',
+                        'pagination' => [
+                            'current_page' => $registers->currentPage(),
+                            'per_page' => $registers->perPage(),
+                            'total' => $registers->total(),
+                            'last_page' => $registers->lastPage(),
+                            'has_more_pages' => $registers->hasMorePages(),
+                        ],
+                    ],
+                    'errors' => null,
+                ]);
+            }
+
+            $registers = $query->get();
 
             return $resourceClass::collection($registers)->additional([
                 'meta' => [

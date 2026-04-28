@@ -62,35 +62,20 @@ class UserController extends Controller
             });
         }
 
-        $perPage = min((int) $request->input('per_page', 0), 100);
+        $perPage = min((int) $request->input('per_page', 25), 100);
 
-        if ($perPage > 0) {
-            $users = $query->paginate($perPage);
-
-            return response()->json([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'Daftar user berhasil diambil',
-                    'pagination' => [
-                        'current_page' => $users->currentPage(),
-                        'per_page' => $users->perPage(),
-                        'total' => $users->total(),
-                        'last_page' => $users->lastPage(),
-                    ],
-                ],
-                'data' => UserResource::collection($users),
-                'errors' => null,
-            ]);
-        }
-
-        $users = $query->get();
+        $users = $query->simplePaginate($perPage);
 
         return response()->json([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',
                 'message' => 'Daftar user berhasil diambil',
+                'pagination' => [
+                    'current_page' => $users->currentPage(),
+                    'per_page' => $users->perPage(),
+                    'has_more_pages' => $users->hasMorePages(),
+                ],
             ],
             'data' => UserResource::collection($users),
             'errors' => null,

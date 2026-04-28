@@ -36,14 +36,8 @@ class ProcessMediaJob implements ShouldQueue
         public string $modelType, // 'register', 'visit', 'outlet'
         public int $modelId,
         public array $mediaItems
-    ) {}
-
-    /**
-     * Get the queue the job should be sent to.
-     */
-    public function queue(): string
-    {
-        return 'media';
+    ) {
+        $this->onQueue('media');
     }
 
     public function handle(MediaProcessingService $mediaService): void
@@ -63,6 +57,8 @@ class ProcessMediaJob implements ShouldQueue
                 \Log::warning("{$this->modelType} media job has no valid media items", [
                     'model_id' => $this->modelId,
                 ]);
+
+                $this->cleanupAll();
 
                 return;
             }
@@ -84,17 +80,17 @@ class ProcessMediaJob implements ShouldQueue
                     'model_id' => $this->modelId,
                     'errors' => $result['errors'],
                 ]);
+
+                throw new \RuntimeException("Some {$this->modelType} media items failed to process");
             }
 
+            $this->cleanupAll();
         } catch (\Exception $e) {
             \Log::error("{$this->modelType} media processing failed", [
                 'model_id' => $this->modelId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            // Cleanup on failure
-            $this->cleanupAll();
 
             throw $e;
         }
@@ -129,8 +125,46 @@ class ProcessMediaJob implements ShouldQueue
             'error' => $exception->getMessage(),
         ]);
 
+        $this->restoreOriginalMediaPaths();
+
         // Ensure cleanup
         $this->cleanupAll();
+    }
+
+    protected function restoreOriginalMediaPaths(): void
+    {
+        $model = $this->getModel();
+        if (! $model) {
+            return;
+        }
+
+        $restored = [];
+        foreach ($this->mediaItems as $item) {
+            if (empty($item['field']) || ! array_key_exists('old_path', $item)) {
+                continue;
+            }
+
+            $field = $item['field'];
+            $tmpPath = $item['tmp_path'] ?? null;
+
+            if ($tmpPath && $model->{$field} !== $tmpPath) {
+                continue;
+            }
+
+            $model->{$field} = $item['old_path'];
+            $restored[] = $field;
+        }
+
+        if ($restored === []) {
+            return;
+        }
+
+        $model->save();
+
+        \Log::warning("{$this->modelType} media fields restored after permanent job failure", [
+            'model_id' => $this->modelId,
+            'restored_fields' => $restored,
+        ]);
     }
 
     protected function convertTemporaryFiles(MediaProcessingService $mediaService, $model): array
@@ -154,6 +188,14 @@ class ProcessMediaJob implements ShouldQueue
                     'user_id' => $model->user_id ?? null,
                 ]
             );
+
+            if (! empty($item['old_path'])) {
+                $processed[$item['field']]['old_path'] = $item['old_path'];
+            }
+
+            if (! empty($item['preserve_old_path'])) {
+                $processed[$item['field']]['preserve_old_path'] = true;
+            }
         }
 
         return $processed;

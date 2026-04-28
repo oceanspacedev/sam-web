@@ -159,9 +159,16 @@ class ListPlanVisits extends ListRecords
                     $userId = Auth::id();
 
                     try {
-                        $pendingDispatch = Excel::queueImport(new PlanVisitImport($userId, $scope), $relativePath, $disk);
+                        $pendingDispatch = Excel::queueImport(
+                            new PlanVisitImport($userId, $scope, $disk, $relativePath),
+                            $relativePath,
+                            $disk
+                        );
 
                         if ($pendingDispatch) {
+                            $pendingDispatch->onQueue('imports');
+                            $pendingDispatch->allOnQueue('imports');
+
                             $jobs = [
                                 new CleanupUploadedImportFile($disk, $relativePath),
                             ];

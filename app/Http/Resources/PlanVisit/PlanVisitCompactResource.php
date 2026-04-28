@@ -34,7 +34,12 @@ class PlanVisitCompactResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $systemSettings = app(\App\Services\SystemSettingResolver::class);
+        $systemSettings = $request->attributes->get('system_setting_resolver');
+        if (! $systemSettings instanceof \App\Services\SystemSettingResolver) {
+            $systemSettings = app(\App\Services\SystemSettingResolver::class);
+            $request->attributes->set('system_setting_resolver', $systemSettings);
+        }
+
         $periodStart = $this->period_start ? Carbon::parse($this->period_start) : null;
         $periodEnd = $this->period_end ? Carbon::parse($this->period_end) : null;
         $isRegisterVisit = $this->isRegisterVisit();

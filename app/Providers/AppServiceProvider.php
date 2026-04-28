@@ -19,6 +19,7 @@ use App\Observers\PlanVisitObserver;
 use App\Observers\RegisterObserver;
 use App\Observers\UserObserver;
 use App\Observers\VisitObserver;
+use App\Support\WhatsAppNumber;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -97,6 +98,28 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return $limits;
+        });
+
+        RateLimiter::for('whatsapp-otp', function (Request $request) {
+            $number = WhatsAppNumber::normalize((string) ($request->input('whatsapp_number') ?? $request->input('nomor_whatsapp') ?? ''));
+            $identifier = $number !== '' ? md5($number) : 'unknown';
+            $actor = $request->user()?->id ?: $request->ip();
+
+            return [
+                Limit::perMinutes(5, 3)->by('whatsapp-otp:5m:'.$identifier.':'.$actor),
+                Limit::perMinutes(60, 10)->by('whatsapp-otp:1h:'.$identifier.':'.$actor),
+                Limit::perMinute(20)->by('whatsapp-otp:ip:'.$request->ip()),
+            ];
+        });
+
+        RateLimiter::for('whatsapp-verify', function (Request $request) {
+            $number = WhatsAppNumber::normalize((string) ($request->input('whatsapp_number') ?? $request->input('nomor_whatsapp') ?? ''));
+            $identifier = $number !== '' ? md5($number) : 'unknown';
+
+            return [
+                Limit::perMinutes(5, 15)->by('whatsapp-verify:5m:'.$identifier.':'.$request->ip()),
+                Limit::perMinute(20)->by('whatsapp-verify:ip:'.$request->ip()),
+            ];
         });
 
         // Expensive operations limiter: exports, downloads, bulk imports, etc.

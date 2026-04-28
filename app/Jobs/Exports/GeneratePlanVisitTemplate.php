@@ -23,6 +23,8 @@ class GeneratePlanVisitTemplate implements ShouldQueue
         public int $userId,
         public string $scheduleScope = 'daily'
     ) {
+        $this->onQueue('exports');
+
         if (! in_array($this->scheduleScope, ['daily', 'weekly'], true)) {
             $this->scheduleScope = 'daily';
         }

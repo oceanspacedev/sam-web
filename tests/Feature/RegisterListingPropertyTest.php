@@ -113,6 +113,36 @@ function createRegisterInHierarchy(array $hierarchy, User $creator, array $overr
     ], $overrides));
 }
 
+test('register list endpoints keep full response unless per_page is requested', function (): void {
+    $hierarchy = createOrganizationalHierarchy('pagination-compat');
+    $user = createUserWithScope($hierarchy, 'cluster');
+
+    for ($i = 0; $i < 30; $i++) {
+        createRegisterInHierarchy($hierarchy, $user, [
+            'nama_outlet' => sprintf('Register Compat %02d', $i),
+        ]);
+    }
+
+    foreach (['/api/registers', '/api/registers/all', '/api/registers/pending'] as $endpoint) {
+        $response = $this->actingAs($user, 'sanctum')->getJson($endpoint);
+
+        $response->assertOk();
+        expect($response->json('data'))->toHaveCount(30)
+            ->and($response->json('meta.pagination'))->toBeNull();
+    }
+
+    $paginatedResponse = $this->actingAs($user, 'sanctum')
+        ->getJson('/api/registers/all?per_page=10');
+
+    $paginatedResponse->assertOk()
+        ->assertJsonPath('meta.pagination.current_page', 1)
+        ->assertJsonPath('meta.pagination.per_page', 10)
+        ->assertJsonPath('meta.pagination.total', 30)
+        ->assertJsonPath('meta.pagination.last_page', 3);
+
+    expect($paginatedResponse->json('data'))->toHaveCount(10);
+});
+
 /**
  * **Feature: register-workflow, Property 15: Created/TM Scope Filtering**
  *

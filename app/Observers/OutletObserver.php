@@ -70,24 +70,12 @@ class OutletObserver
     private function syncKodeOutletToRegisters(Outlet $outlet): void
     {
         try {
-            // Update registers that are related to this outlet
-            // Prioritas 1: Register dengan register_id = outlet.id (sudah approved)
-            // Prioritas 2: Register dengan kode_outlet lama
+            if (! $outlet->register_id) {
+                return;
+            }
 
-            $updated = Register::where(function ($query) use ($outlet) {
-                // 1. Register dengan ID yang sama dengan outlet.register_id
-                if ($outlet->register_id) {
-                    $query->where('id', $outlet->register_id)
-                        ->where('status', 'APPROVED');
-                }
-            })
-                ->orWhere(function ($query) use ($outlet) {
-                    // 2. Register dengan kode_outlet lama yang sama
-                    if ($outlet->getOriginal('kode_outlet')) {
-                        $query->where('kode_outlet', $outlet->getOriginal('kode_outlet'))
-                            ->where('status', 'APPROVED');
-                    }
-                })
+            $updated = Register::where('id', $outlet->register_id)
+                ->where('status', 'APPROVED')
                 ->whereNull('deleted_at') // Only active registers
                 ->update(['kode_outlet' => $outlet->kode_outlet]);
 

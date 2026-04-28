@@ -98,9 +98,8 @@ class PlanVisit extends Model
         $start->startOfDay();
 
         if ($scope === 'weekly') {
-            // Weekly is Monday to Saturday (6 days)
             $start->startOfWeek(Carbon::MONDAY);
-            $end = $start->copy()->addDays(5); // Monday + 5 days = Saturday
+            $end = $start->copy()->addDays(6);
         } else {
             $end = $endDate ? ($endDate instanceof Carbon ? $endDate->copy() : Carbon::parse($endDate)) : $start->copy();
             $end->startOfDay();

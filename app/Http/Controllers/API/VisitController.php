@@ -39,6 +39,12 @@ class VisitController extends Controller
 
     public function monitor(Request $request)
     {
+        $request->validate([
+            'compact' => 'sometimes|boolean',
+            'date' => 'sometimes|date',
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $user = Auth::user();
         $compact = $request->boolean('compact', true);
 
@@ -93,7 +99,8 @@ class VisitController extends Controller
         }
 
         // Build query with scope-based filtering
-        $visit = Visit::with($baseRelations)->whereDate('tanggal_visit', $date);
+        $visit = Visit::with($baseRelations);
+        $this->whereDayRange($visit, 'tanggal_visit', Carbon::parse($date));
 
         if ($compact) {
             $visit->select([
@@ -118,7 +125,7 @@ class VisitController extends Controller
         // Apply scope-level filtering
         if ($scopeLevel === 'all' || $user->role->hasFullAccess()) {
             // Full access - no filtering
-            $visit = $visit->latest()->get();
+            $visit->latest();
         } else {
             // Apply organizational filters based on scope level
             $visit->where(function ($query) use ($scopeLevel, $badanUsahaIds, $divisiIds, $regionIds, $clusterIds) {
@@ -170,17 +177,24 @@ class VisitController extends Controller
                 }
             });
 
-            $visit = $visit->latest()->get();
+            $visit->latest();
         }
 
         // Determine resource class based on compact mode
         $resourceClass = $compact ? VisitCompactResource::class : VisitResource::class;
+        $perPage = min((int) $request->input('per_page', 50), 100);
+        $visits = $visit->simplePaginate($perPage);
 
-        return $resourceClass::collection($visit)->additional([
+        return $resourceClass::collection($visits)->additional([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',
                 'message' => 'fetch monitoring visit success',
+                'pagination' => [
+                    'current_page' => $visits->currentPage(),
+                    'per_page' => $visits->perPage(),
+                    'has_more_pages' => $visits->hasMorePages(),
+                ],
             ],
             'errors' => null,
         ]);
@@ -190,9 +204,11 @@ class VisitController extends Controller
     {
         $request->validate([
             'compact' => 'sometimes|boolean',
-            'period' => 'sometimes|string|in:today,week,month',
+            'period' => 'sometimes|string|in:today,day,week,month',
+            'date' => 'sometimes|date',
             'year' => 'sometimes|integer|min:2000|max:2100',
             'month' => 'sometimes|integer|min:1|max:12',
+            'week' => 'sometimes|integer|min:1|max:53',
             'date_from' => 'sometimes|date',
             'date_to' => 'sometimes|date|after_or_equal:date_from',
             'per_page' => 'sometimes|integer|min:1|max:100',
@@ -252,61 +268,93 @@ class VisitController extends Controller
 
             switch ($period) {
                 case 'week':
-                    // Current week (Monday to Sunday)
-                    $query->whereBetween('tanggal_visit', [
-                        Carbon::now()->startOfWeek(),
-                        Carbon::now()->endOfWeek(),
-                    ]);
+                    [$rangeStart, $rangeEnd] = $this->resolveWeeklyRange($request);
+                    $this->whereDateRange($query, 'tanggal_visit', $rangeStart, $rangeEnd);
                     break;
 
                 case 'month':
-                    // Current month
+                    // Current month, or the month containing the provided anchor date.
+                    $monthAnchor = $request->filled('date') ? Carbon::parse($request->date) : now();
                     $query->whereBetween('tanggal_visit', [
-                        Carbon::now()->startOfMonth(),
-                        Carbon::now()->endOfMonth(),
+                        $monthAnchor->copy()->startOfMonth(),
+                        $monthAnchor->copy()->endOfMonth(),
                     ]);
                     break;
 
+                case 'day':
                 case 'today':
                 default:
-                    // Today only (default behavior)
-                    $query->whereDate('tanggal_visit', date('Y-m-d'));
+                    // Today by default, or the provided historical day.
+                    $this->whereDayRange(
+                        $query,
+                        'tanggal_visit',
+                        $request->filled('date') ? Carbon::parse($request->date) : now()
+                    );
                     break;
             }
         }
 
-        $perPage = min((int) $request->input('per_page', 0), 100);
+        $perPage = min((int) $request->input('per_page', 25), 100);
         $query = $query->latest();
 
         // Determine resource class based on compact mode
         $resourceClass = $compact ? VisitCompactResource::class : VisitResource::class;
 
-        if ($perPage > 0) {
-            $visit = $query->paginate($perPage);
-
-            return $resourceClass::collection($visit)->additional([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'fetch visit succes',
-                    'pagination' => [
-                        'current_page' => $visit->currentPage(),
-                        'per_page' => $visit->perPage(),
-                        'total' => $visit->total(),
-                        'last_page' => $visit->lastPage(),
-                    ],
-                ],
-                'errors' => null,
-            ]);
-        }
-
-        $visit = $query->get();
+        $visit = $query->paginate($perPage);
 
         return $resourceClass::collection($visit)->additional([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',
                 'message' => 'fetch visit succes',
+                'pagination' => [
+                    'current_page' => $visit->currentPage(),
+                    'per_page' => $visit->perPage(),
+                    'total' => $visit->total(),
+                    'last_page' => $visit->lastPage(),
+                    'has_more_pages' => $visit->hasMorePages(),
+                ],
+            ],
+            'errors' => null,
+        ]);
+    }
+
+    public function show(Request $request, int $id)
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            throw new UnauthorizedException;
+        }
+
+        $visitQuery = Visit::with([
+            'visitable.badanusaha',
+            'visitable.region',
+            'visitable.divisi',
+            'visitable.cluster',
+            'user.badanUsahas',
+            'user.regions',
+            'user.divisis',
+            'user.clusters',
+            'user.role',
+        ])
+            ->whereKey($id);
+
+        if (! $this->canMonitorVisitDetails($user)) {
+            $visitQuery->where('user_id', $user->id);
+        }
+
+        $visit = $visitQuery->first();
+
+        if (! $visit) {
+            throw new ResourceNotFoundException('Visit tidak ditemukan');
+        }
+
+        return (new VisitResource($visit))->additional([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'fetch visit detail success',
             ],
             'errors' => null,
         ]);
@@ -323,8 +371,8 @@ class VisitController extends Controller
 
             // Validate no active visit
             $activeVisit = Visit::where('user_id', $user->id)
-                ->whereDate('tanggal_visit', today())
                 ->whereNull('check_out_time')
+                ->tap(fn (Builder $query) => $this->whereDayRange($query, 'tanggal_visit', today()))
                 ->first();
 
             if ($activeVisit) {
@@ -380,7 +428,7 @@ class VisitController extends Controller
             }
 
             if ($request->tipe_visit === 'PLANNED') {
-                $today = now()->toDateString();
+                $today = now()->startOfDay();
 
                 $hasPlannedTarget = PlanVisit::query()
                     ->where('user_id', $user->id)
@@ -391,14 +439,14 @@ class VisitController extends Controller
                         $query
                             ->where(function (Builder $daily) use ($today): void {
                                 $daily
-                                    ->where('schedule_scope', 'daily')
-                                    ->whereDate('period_start', $today);
+                                    ->where('schedule_scope', 'daily');
+                                $this->whereDayRange($daily, 'period_start', $today);
                             })
                             ->orWhere(function (Builder $weekly) use ($today): void {
                                 $weekly
                                     ->where('schedule_scope', 'weekly')
-                                    ->whereDate('period_start', '<=', $today)
-                                    ->whereDate('period_end', '>=', $today);
+                                    ->where('period_start', '<=', $today->toDateString())
+                                    ->where('period_end', '>=', $today->toDateString());
                             });
                     })
                     ->exists();
@@ -415,7 +463,7 @@ class VisitController extends Controller
             $existingVisit = Visit::where('user_id', $user->id)
                 ->where('visitable_type', $visitableType)
                 ->where('visitable_id', $target->id)
-                ->whereDate('tanggal_visit', today())
+                ->tap(fn (Builder $query) => $this->whereDayRange($query, 'tanggal_visit', today()))
                 ->first();
 
             if ($existingVisit) {
@@ -581,6 +629,7 @@ class VisitController extends Controller
         $user = Auth::user();
         $search = trim((string) $request->get('search', ''));
         $context = (string) $request->input('context', 'extracall');
+        $hasLimit = $request->filled('limit');
         $limit = min((int) $request->input('limit', 10), 100);
         $nearbyRadiusKm = (float) $request->input('nearby_radius_km', 10);
         $hasCoordinates = $request->filled(['lat', 'lng']);
@@ -612,8 +661,9 @@ class VisitController extends Controller
         if ($useNearestTargets) {
             $lat = (float) $request->input('lat');
             $lng = (float) $request->input('lng');
+            $candidateLimit = $hasLimit ? min(max($limit * 3, 30), 300) : null;
 
-            $outlets = $outletsQuery
+            $outlets = $this->applyNearbyLocation($outletsQuery, $lat, $lng, $nearbyRadiusKm, $candidateLimit)
                 ->get()
                 ->map(function (Outlet $outlet) use ($lat, $lng): ?array {
                     $distance = $this->distanceFromLatlong($outlet->latlong, $lat, $lng);
@@ -629,7 +679,7 @@ class VisitController extends Controller
                 ->filter(fn (?array $target): bool => $target !== null)
                 ->values();
 
-            $registers = $registersQuery
+            $registers = $this->applyNearbyLocation($registersQuery, $lat, $lng, $nearbyRadiusKm)
                 ->get()
                 ->filter(fn (Register $register): bool => $this->systemSettings->allowsRegisterVisitForModel($register))
                 ->values()
@@ -664,7 +714,7 @@ class VisitController extends Controller
                 })
                 ->values();
 
-            if ($request->filled('limit')) {
+            if ($hasLimit) {
                 $targets = $targets->take($limit)->values();
             }
         } else {
@@ -797,6 +847,99 @@ class VisitController extends Controller
         return 6371 * $c;
     }
 
+    private function whereDayRange(Builder $query, string $column, Carbon $date): Builder
+    {
+        $start = $date->copy()->startOfDay()->toDateString();
+        $end = $date->copy()->addDay()->startOfDay()->toDateString();
+
+        return $query->where($column, '>=', $start)->where($column, '<', $end);
+    }
+
+    private function whereDateRange(Builder $query, string $column, Carbon $start, Carbon $end): Builder
+    {
+        $startDate = $start->copy()->startOfDay()->toDateString();
+        $endDate = $end->copy()->addDay()->startOfDay()->toDateString();
+
+        return $query->where($column, '>=', $startDate)->where($column, '<', $endDate);
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function resolveWeeklyRange(Request $request): array
+    {
+        if ($request->filled(['year', 'week'])) {
+            $start = Carbon::now()
+                ->setISODate($request->integer('year'), $request->integer('week'))
+                ->startOfDay();
+
+            return [$start, $start->copy()->addDays(6)];
+        }
+
+        $anchor = $request->filled('date') ? Carbon::parse($request->date) : now();
+        $start = $anchor->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+
+        return [$start, $start->copy()->addDays(6)];
+    }
+
+    private function canMonitorVisitDetails($user): bool
+    {
+        return $user
+            && $user->can('ViewAny:Visit');
+    }
+
+    private function applyNearbyLocation(
+        Builder $query,
+        float $latitude,
+        float $longitude,
+        float $radiusKm,
+        ?int $limit = null
+    ): Builder {
+        $query
+            ->whereNotNull('latlong')
+            ->where('latlong', '!=', '')
+            ->where('latlong', '!=', '-');
+
+        if (! $this->supportsSqlLatlongDistance($query)) {
+            return $query;
+        }
+
+        $distanceFormula = "
+            (
+                6371 * acos(
+                    cos(radians(?))
+                    * cos(radians(CAST(SUBSTRING_INDEX(latlong, ',', 1) AS DECIMAL(10, 8))))
+                    * cos(radians(CAST(SUBSTRING_INDEX(latlong, ',', -1) AS DECIMAL(11, 8))) - radians(?))
+                    + sin(radians(?))
+                    * sin(radians(CAST(SUBSTRING_INDEX(latlong, ',', 1) AS DECIMAL(10, 8))))
+                )
+            )
+        ";
+        $distanceBindings = [$latitude, $longitude, $latitude];
+        $existingColumns = $query->getQuery()->columns;
+
+        if (empty($existingColumns)) {
+            $query->selectRaw("*, {$distanceFormula} AS distance", $distanceBindings);
+        } else {
+            $query->selectRaw("{$distanceFormula} AS distance", $distanceBindings);
+        }
+
+        $query
+            ->whereRaw("{$distanceFormula} <= ?", [...$distanceBindings, $radiusKm])
+            ->orderBy('distance');
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        return $query;
+    }
+
+    private function supportsSqlLatlongDistance(Builder $query): bool
+    {
+        return in_array($query->getConnection()->getDriverName(), ['mysql', 'mariadb'], true);
+    }
+
     private function enforceLeadVisitLimit($user, Register $target): void
     {
         $windowStart = now()
@@ -807,7 +950,7 @@ class VisitController extends Controller
             ->where('user_id', $user->id)
             ->where('visitable_type', Register::class)
             ->where('visitable_id', $target->id)
-            ->whereDate('tanggal_visit', '>=', $windowStart->toDateString())
+            ->where('tanggal_visit', '>=', $windowStart->toDateString())
             ->count();
 
         if ($leadVisitCount < self::MAX_LEAD_VISITS_PER_WINDOW) {

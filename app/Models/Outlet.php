@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\CleansUpMedia;
 use App\Traits\HasOrganizationalScope;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -39,6 +40,131 @@ class Outlet extends Model
         'video',
     ];
 
+    public const CHANGE_ARCHIVE_FIELDS = [
+        'kode_outlet',
+        'nama_outlet',
+        'alamat_outlet',
+        'nama_pemilik_outlet',
+        'nomer_tlp_outlet',
+        'badanusaha_id',
+        'divisi_id',
+        'region_id',
+        'cluster_id',
+        'distric',
+        'poto_shop_sign',
+        'poto_depan',
+        'poto_kiri',
+        'poto_kanan',
+        'poto_ktp',
+        'video',
+        'limit',
+        'radius',
+        'latlong',
+        'status_outlet',
+        'register_id',
+        'last_reset_at',
+        'reset_count_yearly',
+    ];
+
+    private const NON_RESTORABLE_ARCHIVE_FIELDS = [
+        'last_reset_at',
+        'reset_count_yearly',
+    ];
+
+    public function changeArchives(): HasMany
+    {
+        return $this->hasMany(OutletChangeArchive::class);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function changeArchiveSnapshot(): array
+    {
+        $snapshot = [];
+
+        foreach (self::CHANGE_ARCHIVE_FIELDS as $field) {
+            $snapshot[$field] = $this->normalizeArchiveValue($this->getAttribute($field));
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     * @return array<int, string>
+     */
+    public static function changedArchiveFields(array $before, array $after): array
+    {
+        $changed = [];
+
+        foreach (self::CHANGE_ARCHIVE_FIELDS as $field) {
+            if (($before[$field] ?? null) !== ($after[$field] ?? null)) {
+                $changed[] = $field;
+            }
+        }
+
+        return $changed;
+    }
+
+    /**
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     */
+    public function recordChangeArchive(
+        string $action,
+        ?User $actor,
+        array $before,
+        array $after,
+        ?array $requestMeta = null,
+        ?OutletChangeArchive $restoredFrom = null
+    ): ?OutletChangeArchive {
+        $changedFields = self::changedArchiveFields($before, $after);
+
+        if ($changedFields === []) {
+            return null;
+        }
+
+        return OutletChangeArchive::query()->create([
+            'outlet_id' => $this->id,
+            'kode_outlet' => $before['kode_outlet'] ?? $this->kode_outlet,
+            'action' => $action,
+            'actor_user_id' => $actor?->id,
+            'actor_name' => $actor?->nama_lengkap,
+            'old_values' => $before,
+            'new_values' => $after,
+            'changed_fields' => $changedFields,
+            'request_meta' => $requestMeta,
+            'restored_from_id' => $restoredFrom?->id,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function restorableValues(array $values): array
+    {
+        $restorable = [];
+
+        foreach (array_diff(self::CHANGE_ARCHIVE_FIELDS, self::NON_RESTORABLE_ARCHIVE_FIELDS) as $field) {
+            if (array_key_exists($field, $values)) {
+                $restorable[$field] = $values[$field];
+            }
+        }
+
+        return $restorable;
+    }
+
+    protected function normalizeArchiveValue(mixed $value): mixed
+    {
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
+        }
+
+        return $value;
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereNull('deleted_at');
@@ -53,6 +179,7 @@ class Outlet extends Model
         return $query->where(function (Builder $q) use ($search) {
             $q->where('kode_outlet', 'like', "%{$search}%")
                 ->orWhere('nama_outlet', 'like', "%{$search}%")
+                ->orWhere('alamat_outlet', 'like', "%{$search}%")
                 ->orWhere('nama_pemilik_outlet', 'like', "%{$search}%");
         });
     }

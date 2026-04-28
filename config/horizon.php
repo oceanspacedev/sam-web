@@ -86,6 +86,8 @@ return [
     'waits' => [
         'redis:default' => 60,
         'redis:media' => 30,        // Media processing jobs
+        'redis:imports' => 120,     // Queued Excel imports
+        'redis:exports' => 120,     // Template/export generation jobs
         'redis:notifications' => 120, // Notification jobs can wait longer
     ],
 
@@ -214,6 +216,32 @@ return [
             'timeout' => 300,       // 5 minutes timeout
             'nice' => 0,
         ],
+        'supervisor-imports' => [
+            'connection' => 'redis',
+            'queue' => ['imports'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 600,
+            'maxJobs' => 25,
+            'memory' => 512,
+            'tries' => 1,
+            'timeout' => 600,
+            'nice' => 0,
+        ],
+        'supervisor-exports' => [
+            'connection' => 'redis',
+            'queue' => ['exports'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 300,
+            'maxJobs' => 50,
+            'memory' => 256,
+            'tries' => 2,
+            'timeout' => 300,
+            'nice' => 0,
+        ],
         'supervisor-notifications' => [
             'connection' => 'redis',
             'queue' => ['notifications'],
@@ -241,6 +269,16 @@ return [
                 'balanceMaxShift' => 2,
                 'balanceCooldown' => 1,
             ],
+            'supervisor-imports' => [
+                'maxProcesses' => 2,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+            'supervisor-exports' => [
+                'maxProcesses' => 2,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
             'supervisor-notifications' => [
                 'maxProcesses' => 4,    // More notification workers in production
                 'balanceMaxShift' => 1,
@@ -254,6 +292,12 @@ return [
             ],
             'supervisor-media' => [
                 'maxProcesses' => 2,    // 2 media workers for local development
+            ],
+            'supervisor-imports' => [
+                'maxProcesses' => 1,
+            ],
+            'supervisor-exports' => [
+                'maxProcesses' => 1,
             ],
             'supervisor-notifications' => [
                 'maxProcesses' => 1,    // 1 notification worker for local development

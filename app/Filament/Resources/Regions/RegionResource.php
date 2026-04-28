@@ -107,6 +107,7 @@ class RegionResource extends Resource
                         ? 'Divisi akan muncul setelah Badan Usaha dipilih. Atau tambah baru jika belum ada.'
                         : 'Divisi akan muncul setelah Badan Usaha dipilih.'
                     )
+                    ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id')))
                     ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
                     ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value)),
                 TextInput::make('name')

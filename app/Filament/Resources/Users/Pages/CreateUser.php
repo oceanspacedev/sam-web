@@ -3,12 +3,18 @@
 namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\UserResource;
+use App\Jobs\SendUserWhatsAppRegisteredNotificationJob;
 use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        return UserResource::mutateWhatsAppData($data);
+    }
 
     protected function afterCreate(): void
     {
@@ -27,6 +33,10 @@ class CreateUser extends CreateRecord
             'region' => $this->detachOrganizationalAssignments($user, detachCluster: true),
             default => null,
         };
+
+        if (filled($user->whatsapp_number) && $user->whatsapp_verified_at) {
+            SendUserWhatsAppRegisteredNotificationJob::dispatch((int) $user->id);
+        }
     }
 
     private function detachOrganizationalAssignments(

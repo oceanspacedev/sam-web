@@ -6,6 +6,7 @@ use App\Filament\Resources\Outlets\Pages\CreateOutlet;
 use App\Filament\Resources\Outlets\Pages\EditOutlet;
 use App\Filament\Resources\Outlets\Pages\ListOutlets;
 use App\Filament\Resources\Outlets\Pages\ViewOutlet;
+use App\Filament\Resources\Outlets\RelationManagers\ChangeArchivesRelationManager;
 use App\Models\Outlet;
 use App\Services\FilenameGeneratorService;
 use App\Support\OrganizationalHierarchyOptions;
@@ -41,7 +42,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
@@ -608,6 +608,7 @@ class OutletResource extends Resource
                                         $record->kode_outlet
                                     );
 
+                                    $beforeArchive = $record->changeArchiveSnapshot();
                                     $record->update([
                                         'latlong' => null,
                                         'alamat_outlet' => '-',
@@ -619,6 +620,13 @@ class OutletResource extends Resource
                                         'last_reset_at' => now(),
                                         'reset_count_yearly' => $normalizedCount + 1,
                                     ]);
+                                    $record->refresh();
+                                    $record->recordChangeArchive(
+                                        \App\Models\OutletChangeArchive::ACTION_RESET_LOCATION,
+                                        Auth::user(),
+                                        $beforeArchive,
+                                        $record->changeArchiveSnapshot()
+                                    );
                                     $successCount++;
                                 } catch (ValidationException $e) {
                                     // Get first error message from validation errors
@@ -666,22 +674,7 @@ class OutletResource extends Resource
                                         $record->kode_outlet
                                     );
 
-                                    if ($record->poto_shop_sign) {
-                                        Storage::disk(StorageDisk::default())->delete($record->poto_shop_sign);
-                                    }
-                                    if ($record->poto_depan) {
-                                        Storage::disk(StorageDisk::default())->delete($record->poto_depan);
-                                    }
-                                    if ($record->poto_kiri) {
-                                        Storage::disk(StorageDisk::default())->delete($record->poto_kiri);
-                                    }
-                                    if ($record->poto_kanan) {
-                                        Storage::disk(StorageDisk::default())->delete($record->poto_kanan);
-                                    }
-                                    if ($record->video) {
-                                        Storage::disk(StorageDisk::default())->delete($record->video);
-                                    }
-
+                                    $beforeArchive = $record->changeArchiveSnapshot();
                                     $record->update([
                                         'nama_pemilik_outlet' => null,
                                         'nomer_tlp_outlet' => null,
@@ -695,6 +688,13 @@ class OutletResource extends Resource
                                         'last_reset_at' => now(),
                                         'reset_count_yearly' => $normalizedCount + 1,
                                     ]);
+                                    $record->refresh();
+                                    $record->recordChangeArchive(
+                                        \App\Models\OutletChangeArchive::ACTION_RESET_DATA,
+                                        Auth::user(),
+                                        $beforeArchive,
+                                        $record->changeArchiveSnapshot()
+                                    );
                                     $successCount++;
                                 } catch (ValidationException $e) {
                                     // Get first error message from validation errors
@@ -834,7 +834,7 @@ class OutletResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            ChangeArchivesRelationManager::class,
         ];
     }
 

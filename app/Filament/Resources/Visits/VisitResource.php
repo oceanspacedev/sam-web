@@ -429,11 +429,7 @@ class VisitResource extends Resource
 
                         return str_contains($normalized, 'register') ? 'REGISTER' : 'OUTLET';
                     })
-                    ->color(function (?string $state): string {
-                        $normalized = strtolower((string) $state);
-
-                        return str_contains($normalized, 'register') ? 'warning' : 'primary';
-                    }),
+                    ->color(fn ($record): string => $record->isRegisterVisit() ? 'warning' : 'success'),
                 TextColumn::make('visitable.nama_outlet')
                     ->label('Target')
                     ->formatStateUsing(fn ($state) => $state ?? '-')

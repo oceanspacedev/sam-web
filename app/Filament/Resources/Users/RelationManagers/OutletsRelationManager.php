@@ -22,7 +22,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 
 class OutletsRelationManager extends RelationManager
@@ -205,22 +204,8 @@ class OutletsRelationManager extends RelationManager
                         ->action(function (Collection $records) {
                             /** @var Outlet $record */
                             foreach ($records as $record) {
-                                if ($record->poto_shop_sign) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_shop_sign);
-                                }
-                                if ($record->poto_depan) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_depan);
-                                }
-                                if ($record->poto_kiri) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_kiri);
-                                }
-                                if ($record->poto_kanan) {
-                                    Storage::disk(StorageDisk::default())->delete($record->poto_kanan);
-                                }
-                                if ($record->video) {
-                                    Storage::disk(StorageDisk::default())->delete($record->video);
-                                }
-
+                                $record->refresh();
+                                $beforeArchive = $record->changeArchiveSnapshot();
                                 $record->update([
                                     'nama_pemilik_outlet' => null,
                                     'nomer_tlp_outlet' => null,
@@ -232,6 +217,13 @@ class OutletsRelationManager extends RelationManager
                                     'poto_kanan' => null,
                                     'video' => null,
                                 ]);
+                                $record->refresh();
+                                $record->recordChangeArchive(
+                                    \App\Models\OutletChangeArchive::ACTION_RESET_DATA,
+                                    auth()->user(),
+                                    $beforeArchive,
+                                    $record->changeArchiveSnapshot()
+                                );
                             }
                         })
                         ->authorize(fn () => Gate::allows('Reset:Outlet')),

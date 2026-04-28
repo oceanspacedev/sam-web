@@ -30,7 +30,9 @@ class SendImportNotification implements ShouldQueue
         public bool $successful = true,
         public ?string $downloadPath = null,
         public ?array $downloads = null
-    ) {}
+    ) {
+        $this->onQueue('notifications');
+    }
 
     public function handle(): void
     {

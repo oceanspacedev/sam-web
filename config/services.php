@@ -34,4 +34,19 @@ return [
         'app_id' => env('ONESIGNAL_APP_ID', '787d6428-2b70-463d-a858-eec955e1a922'),
     ],
 
+    'fonnte' => [
+        'token' => env('FONNTE_TOKEN'),
+        'endpoint' => env('FONNTE_ENDPOINT', 'https://api.fonnte.com/send'),
+        'country_code' => env('FONNTE_COUNTRY_CODE', '0'),
+        'timeout' => env('FONNTE_TIMEOUT', 10),
+        'otp_expires_in' => env('FONNTE_OTP_EXPIRES_IN', 60),
+        'otp_message' => env('FONNTE_OTP_MESSAGE', 'Kode OTP SAM Anda: {otp}. Berlaku 1 menit. Jangan bagikan kode ini kepada siapa pun.'),
+        'account_registered_message' => env('FONNTE_ACCOUNT_REGISTERED_MESSAGE', "Halo {name}, nomor WhatsApp Anda sudah terdaftar di SAM dan bisa digunakan untuk login aplikasi.\n\n{download_links}"),
+    ],
+
+    'sam_app' => [
+        'android_url' => env('SAM_ANDROID_DOWNLOAD_URL'),
+        'ios_testflight_url' => env('SAM_IOS_TESTFLIGHT_URL'),
+    ],
+
 ];

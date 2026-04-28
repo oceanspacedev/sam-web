@@ -8,15 +8,16 @@ use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\Pages\ViewUser;
 use App\Filament\Resources\Users\RelationManagers\OutletsRelationManager;
 use App\Filament\Resources\Users\RelationManagers\PlanVisitsRelationManager;
+use App\Filament\Resources\Users\RelationManagers\RegistersRelationManager;
 use App\Filament\Resources\Users\RelationManagers\TeamMembersRelationManager;
 use App\Filament\Resources\Users\RelationManagers\VisitsRelationManager;
-use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\OrganizationalHierarchyOptions;
+use App\Support\WhatsAppNumber;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -73,6 +74,36 @@ class UserResource extends Resource
                                             ->placeholder('Masukkan username yang unik')
                                             ->regex('/^[\S]+$/')
                                             ->helperText('Username tidak boleh mengandung spasi'),
+                                        TextInput::make('whatsapp_number')
+                                            ->label('Nomor WhatsApp')
+                                            ->placeholder('Contoh: 081234567890')
+                                            ->tel()
+                                            ->maxLength(20)
+                                            ->dehydrateStateUsing(fn ($state): ?string => filled($state) ? WhatsAppNumber::normalize($state) : null)
+                                            ->rule(function (?User $record) {
+                                                return function (string $attribute, $value, \Closure $fail) use ($record): void {
+                                                    if (! filled($value)) {
+                                                        return;
+                                                    }
+
+                                                    $number = WhatsAppNumber::normalize((string) $value);
+
+                                                    if (! WhatsAppNumber::isValid($number)) {
+                                                        $fail('Nomor WhatsApp harus nomor Indonesia aktif, contoh 081234567890.');
+
+                                                        return;
+                                                    }
+
+                                                    $exists = User::query()
+                                                        ->where('whatsapp_number', $number)
+                                                        ->when($record?->id, fn (Builder $query, int $id): Builder => $query->whereKeyNot($id))
+                                                        ->exists();
+
+                                                    if ($exists) {
+                                                        $fail('Nomor WhatsApp sudah digunakan user lain.');
+                                                    }
+                                                };
+                                            }),
                                         TextInput::make('nama_lengkap')
                                             ->required()
                                             ->maxLength(255)
@@ -87,8 +118,7 @@ class UserResource extends Resource
                                             ->label('Password')
                                             ->placeholder('Masukkan password')
                                             ->required(fn (string $context): bool => $context === 'create')
-                                            ->revealable()
-                                            ->columnSpan(['default' => 1, 'md' => 2]),
+                                            ->revealable(),
                                     ]),
                                 ]),
                             Section::make('Peran & Relasi TM')
@@ -540,6 +570,9 @@ class UserResource extends Resource
                                     ->label('Nama Lengkap')
                                     ->columnSpan(2),
                                 TextEntry::make('username')->label('Username'),
+                                TextEntry::make('whatsapp_number')
+                                    ->label('Nomor WhatsApp')
+                                    ->placeholder('-'),
                                 TextEntry::make('role.name')
                                     ->label('Role')
                                     ->badge()
@@ -589,6 +622,29 @@ class UserResource extends Resource
                     ])
                     ->columnSpanFull(),
             ]);
+    }
+
+    public static function mutateWhatsAppData(array $data, ?User $record = null): array
+    {
+        if (! array_key_exists('whatsapp_number', $data)) {
+            return $data;
+        }
+
+        if (blank($data['whatsapp_number'])) {
+            $data['whatsapp_number'] = null;
+            $data['whatsapp_verified_at'] = null;
+
+            return $data;
+        }
+
+        $number = WhatsAppNumber::normalize((string) $data['whatsapp_number']);
+        $data['whatsapp_number'] = $number;
+
+        if (! $record || $record->whatsapp_number !== $number || ! $record->whatsapp_verified_at) {
+            $data['whatsapp_verified_at'] = now();
+        }
+
+        return $data;
     }
 
     public static function table(Table $table): Table
@@ -747,6 +803,7 @@ class UserResource extends Resource
     {
         return [
             OutletsRelationManager::class,
+            RegistersRelationManager::class,
             PlanVisitsRelationManager::class,
             VisitsRelationManager::class,
             TeamMembersRelationManager::class,

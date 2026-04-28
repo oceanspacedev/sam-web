@@ -23,7 +23,9 @@ class GenerateOutletTemplate implements ShouldQueue
     public function __construct(
         public int $userId,
         public ?string $mode = null
-    ) {}
+    ) {
+        $this->onQueue('exports');
+    }
 
     public function handle(): void
     {

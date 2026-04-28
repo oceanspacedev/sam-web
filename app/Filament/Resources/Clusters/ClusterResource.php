@@ -111,6 +111,7 @@ class ClusterResource extends Resource
                         ? 'Divisi akan muncul setelah Badan Usaha dipilih. Atau tambah baru jika belum ada.'
                         : 'Divisi akan muncul setelah Badan Usaha dipilih.'
                     )
+                    ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id')))
                     ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
                     ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                     ->afterStateUpdated(function ($state, callable $set) {
@@ -162,6 +163,7 @@ class ClusterResource extends Resource
                         ? 'Region akan muncul setelah Divisi dipilih. Atau tambah baru jika belum ada.'
                         : 'Region akan muncul setelah Divisi dipilih.'
                     )
+                    ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('divisi_id')))
                     ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('divisi_id')))
                     ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value)),
                 TextInput::make('name')

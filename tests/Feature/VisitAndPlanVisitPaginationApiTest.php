@@ -9,6 +9,7 @@ use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Visit;
+use Carbon\Carbon;
 
 function createVisitPaginationHierarchy(string $suffix = ''): array
 {
@@ -176,4 +177,105 @@ test('plan visit endpoint with bulan and tahun includes weekly plans that overla
     expect($scopes)
         ->toContain('daily')
         ->toContain('weekly');
+});
+
+test('visit endpoint supports historical day and plan-style week filters', function () {
+    $hierarchy = createVisitPaginationHierarchy('visit-history-filters');
+    $user = createVisitPaginationUser($hierarchy);
+    $anchor = Carbon::parse('2026-04-08'); // Wednesday.
+
+    foreach ([
+        $anchor->copy()->startOfWeek(Carbon::MONDAY),
+        $anchor->copy(),
+        $anchor->copy()->startOfWeek(Carbon::MONDAY)->addDays(5),
+        $anchor->copy()->startOfWeek(Carbon::MONDAY)->addDays(6),
+    ] as $index => $visitDate) {
+        $outlet = createVisitPaginationOutlet($hierarchy, 4000 + $index);
+
+        Visit::create([
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
+            'tanggal_visit' => $visitDate->toDateString(),
+            'tipe_visit' => 'EXTRACALL',
+            'check_in_time' => $visitDate->copy()->setTime(9, 0),
+            'check_out_time' => $visitDate->copy()->setTime(9, 30),
+            'transaksi' => 'NO',
+            'durasi_visit' => 30,
+        ]);
+    }
+
+    $dayResponse = $this->actingAs($user, 'sanctum')
+        ->getJson('/api/visit?compact=1&period=day&date='.$anchor->toDateString().'&per_page=10');
+
+    $dayResponse
+        ->assertOk()
+        ->assertJsonPath('meta.pagination.total', 1);
+
+    $weekResponse = $this->actingAs($user, 'sanctum')
+        ->getJson('/api/visit?compact=1&period=week&date='.$anchor->toDateString().'&per_page=10');
+
+    $weekResponse
+        ->assertOk()
+        ->assertJsonPath('meta.pagination.total', 4);
+});
+
+test('plan visit endpoint supports historical day and plan-style week filters', function () {
+    $hierarchy = createVisitPaginationHierarchy('plan-history-filters');
+    $user = createVisitPaginationUser($hierarchy);
+    $anchor = Carbon::parse('2026-04-08'); // Wednesday.
+
+    foreach ([
+        $anchor->copy(),
+        $anchor->copy()->startOfWeek(Carbon::MONDAY)->addDays(5),
+        $anchor->copy()->startOfWeek(Carbon::MONDAY)->addDays(6),
+    ] as $index => $planDate) {
+        $outlet = createVisitPaginationOutlet($hierarchy, 5000 + $index);
+
+        PlanVisit::create(array_merge(
+            PlanVisit::schedulePayload($planDate, 'daily'),
+            [
+                'user_id' => $user->id,
+                'visitable_type' => Outlet::class,
+                'visitable_id' => $outlet->id,
+                'realized_at' => null,
+                'realized_visit_id' => null,
+            ]
+        ));
+    }
+
+    $weeklyOutlet = createVisitPaginationOutlet($hierarchy, 5010);
+    PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload($anchor, 'weekly'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $weeklyOutlet->id,
+            'realized_at' => null,
+            'realized_visit_id' => null,
+        ]
+    ));
+
+    $dayResponse = $this->actingAs($user, 'sanctum')
+        ->getJson('/api/planvisit?compact=1&period=day&date='.$anchor->toDateString().'&per_page=10');
+
+    $dayResponse
+        ->assertOk()
+        ->assertJsonPath('meta.pagination.total', 2);
+
+    $sunday = $anchor->copy()->startOfWeek(Carbon::MONDAY)->addDays(6);
+
+    $sundayResponse = $this->actingAs($user, 'sanctum')
+        ->getJson('/api/planvisit?compact=1&period=day&date='.$sunday->toDateString().'&per_page=10');
+
+    $sundayResponse
+        ->assertOk()
+        ->assertJsonPath('meta.pagination.total', 2);
+
+    $weekResponse = $this->actingAs($user, 'sanctum')
+        ->getJson('/api/planvisit?compact=1&period=week&date='.$anchor->toDateString().'&per_page=10');
+
+    $weekResponse
+        ->assertOk()
+        ->assertJsonPath('meta.pagination.total', 4);
 });

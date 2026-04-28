@@ -158,9 +158,16 @@ class ListOutlets extends ListRecords
                     $userId = Auth::id();
 
                     try {
-                        $pendingDispatch = Excel::queueImport(new OutletImport($mode, $userId), $relativePath, $disk);
+                        $pendingDispatch = Excel::queueImport(
+                            new OutletImport($mode, $userId, $disk, $relativePath),
+                            $relativePath,
+                            $disk
+                        );
 
                         if ($pendingDispatch) {
+                            $pendingDispatch->onQueue('imports');
+                            $pendingDispatch->allOnQueue('imports');
+
                             $jobs = [
                                 new CleanupUploadedImportFile($disk, $relativePath),
                             ];

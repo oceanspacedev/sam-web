@@ -20,6 +20,7 @@ class ViewOutlet extends ViewRecord
                 ->icon('heroicon-o-map-pin')
                 ->requiresConfirmation()
                 ->color('warning')
+                ->authorize(fn (): bool => \Illuminate\Support\Facades\Gate::allows('resetLocation', $this->getRecord()))
                 ->action(function () {
                     $record = $this->getRecord();
                     try {
@@ -30,6 +31,7 @@ class ViewOutlet extends ViewRecord
                             $record->kode_outlet
                         );
 
+                        $beforeArchive = $record->changeArchiveSnapshot();
                         $record->update([
                             'latlong' => null,
                             'alamat_outlet' => '-',
@@ -41,6 +43,13 @@ class ViewOutlet extends ViewRecord
                             'last_reset_at' => now(),
                             'reset_count_yearly' => $normalizedCount + 1,
                         ]);
+                        $record->refresh();
+                        $record->recordChangeArchive(
+                            \App\Models\OutletChangeArchive::ACTION_RESET_LOCATION,
+                            \Illuminate\Support\Facades\Auth::user(),
+                            $beforeArchive,
+                            $record->changeArchiveSnapshot()
+                        );
 
                         \Filament\Notifications\Notification::make()
                             ->title('Berhasil')
@@ -60,6 +69,7 @@ class ViewOutlet extends ViewRecord
                 ->icon('heroicon-o-arrow-path')
                 ->requiresConfirmation()
                 ->color('danger')
+                ->authorize(fn (): bool => \Illuminate\Support\Facades\Gate::allows('reset', $this->getRecord()))
                 ->action(function () {
                     $record = $this->getRecord();
                     try {
@@ -70,22 +80,7 @@ class ViewOutlet extends ViewRecord
                             $record->kode_outlet
                         );
 
-                        if ($record->poto_shop_sign) {
-                            \Illuminate\Support\Facades\Storage::disk(\App\Support\StorageDisk::default())->delete($record->poto_shop_sign);
-                        }
-                        if ($record->poto_depan) {
-                            \Illuminate\Support\Facades\Storage::disk(\App\Support\StorageDisk::default())->delete($record->poto_depan);
-                        }
-                        if ($record->poto_kiri) {
-                            \Illuminate\Support\Facades\Storage::disk(\App\Support\StorageDisk::default())->delete($record->poto_kiri);
-                        }
-                        if ($record->poto_kanan) {
-                            \Illuminate\Support\Facades\Storage::disk(\App\Support\StorageDisk::default())->delete($record->poto_kanan);
-                        }
-                        if ($record->video) {
-                            \Illuminate\Support\Facades\Storage::disk(\App\Support\StorageDisk::default())->delete($record->video);
-                        }
-
+                        $beforeArchive = $record->changeArchiveSnapshot();
                         $record->update([
                             'nama_pemilik_outlet' => null,
                             'nomer_tlp_outlet' => null,
@@ -99,6 +94,13 @@ class ViewOutlet extends ViewRecord
                             'last_reset_at' => now(),
                             'reset_count_yearly' => $normalizedCount + 1,
                         ]);
+                        $record->refresh();
+                        $record->recordChangeArchive(
+                            \App\Models\OutletChangeArchive::ACTION_RESET_DATA,
+                            \Illuminate\Support\Facades\Auth::user(),
+                            $beforeArchive,
+                            $record->changeArchiveSnapshot()
+                        );
 
                         \Filament\Notifications\Notification::make()
                             ->title('Berhasil')

@@ -10,17 +10,20 @@ use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\Region;
+use App\Models\User;
 use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Events\AfterImport;
+use Maatwebsite\Excel\Events\ImportFailed;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Row;
 use Throwable;
@@ -96,11 +99,25 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
     private string $summaryKey;
 
-    public function __construct(string $mode = 'create', ?int $userId = null)
-    {
+    private ?string $uploadedDisk;
+
+    private ?string $uploadedPath;
+
+    private bool $importerResolved = false;
+
+    private ?User $importer = null;
+
+    public function __construct(
+        string $mode = 'create',
+        ?int $userId = null,
+        ?string $uploadedDisk = null,
+        ?string $uploadedPath = null
+    ) {
         $this->mode = $this->normalizeMode($mode);
         $this->userId = $userId;
         $this->summaryKey = 'outlet-import:'.Str::uuid()->toString();
+        $this->uploadedDisk = $uploadedDisk;
+        $this->uploadedPath = $uploadedPath ? ltrim($uploadedPath, '/') : null;
         $this->ensureSummaryInitialized();
     }
 
@@ -156,6 +173,18 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         // Cari outlet existing berdasarkan kode_outlet (lookup) dan divisi sumber
         $sourceDivisiId = $this->resolveDivisionIdFromSource($data, $targetBadanUsahaName, $targetDivisiName, $divisiId);
         $existing = $this->findExistingOutlet($lookupCode, $targetKodeOutlet, $divisiId, $sourceDivisiId);
+        $targetScope = Outlet::make([
+            'badanusaha_id' => $badanusahaId,
+            'divisi_id' => $divisiId,
+            'region_id' => $regionId,
+            'cluster_id' => $clusterId,
+        ]);
+
+        if ($existing) {
+            $this->assertImporterCanWriteOutlet($existing, $lookupCode, 'sumber');
+        }
+
+        $this->assertImporterCanWriteOutlet($targetScope, $targetKodeOutlet, 'target');
 
         // Validasi uniqueness kode_outlet dalam divisi
         if ($this->mode === 'update') {
@@ -395,7 +424,90 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
                 $this->flushSummary();
             },
+            ImportFailed::class => function (ImportFailed $event): void {
+                $this->handleImportFailed($this->exceptionFromImportFailed($event));
+            },
         ];
+    }
+
+    private function handleImportFailed(?Throwable $exception = null): void
+    {
+        $this->cleanupUploadedFile();
+        $this->flushSummary();
+
+        Log::error('Outlet import failed in queue', [
+            'user_id' => $this->userId,
+            'mode' => $this->mode,
+            'uploaded_disk' => $this->uploadedDisk,
+            'uploaded_path' => $this->uploadedPath,
+            'error' => $exception?->getMessage(),
+        ]);
+
+        if (! $this->userId) {
+            return;
+        }
+
+        SendImportNotification::dispatch(
+            $this->userId,
+            'Import Data Outlet Gagal',
+            'Import data outlet (mode: '.strtoupper($this->mode).') gagal diproses di worker. Silakan periksa file dan coba unggah ulang.',
+            false
+        );
+    }
+
+    private function exceptionFromImportFailed(ImportFailed $event): ?Throwable
+    {
+        if (method_exists($event, 'getException')) {
+            $exception = $event->getException();
+
+            return $exception instanceof Throwable ? $exception : null;
+        }
+
+        $exception = $event->exception ?? null;
+
+        return $exception instanceof Throwable ? $exception : null;
+    }
+
+    private function cleanupUploadedFile(): void
+    {
+        if (! $this->uploadedDisk || ! $this->uploadedPath) {
+            return;
+        }
+
+        try {
+            $storage = Storage::disk($this->uploadedDisk);
+
+            if ($storage->exists($this->uploadedPath)) {
+                $storage->delete($this->uploadedPath);
+            }
+        } catch (Throwable $exception) {
+            Log::warning('Failed to cleanup uploaded outlet import file', [
+                'disk' => $this->uploadedDisk,
+                'path' => $this->uploadedPath,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function assertImporterCanWriteOutlet(Outlet $outlet, string $kodeOutlet, string $scopeLabel): void
+    {
+        $importer = $this->importer();
+
+        if (! $importer || $outlet->isVisibleTo($importer)) {
+            return;
+        }
+
+        throw new Exception("User import tidak memiliki akses ke outlet {$scopeLabel} {$kodeOutlet}.");
+    }
+
+    private function importer(): ?User
+    {
+        if (! $this->importerResolved) {
+            $this->importer = $this->userId ? User::with('role')->find($this->userId) : null;
+            $this->importerResolved = true;
+        }
+
+        return $this->importer;
     }
 
     private function normalizeMode(string $mode): string

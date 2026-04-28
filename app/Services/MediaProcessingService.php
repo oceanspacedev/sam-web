@@ -93,14 +93,9 @@ class MediaProcessingService
                 'user_id' => $userId,
             ]));
 
-            // Clean up temporary file
-            $tempStorage->delete($temporaryPath);
-
             return $result;
 
         } catch (\Exception $e) {
-            // Cleanup on failure
-            Storage::disk($this->fileUpload->temporaryDisk())->delete($temporaryPath);
             throw new RuntimeException("Failed to process temporary file: {$e->getMessage()}");
         }
     }
@@ -113,8 +108,10 @@ class MediaProcessingService
     {
         try {
             // Delete old file if exists
-            if ($model->{$field}) {
-                $this->fileUpload->deleteFile($model->{$field});
+            $oldPath = $fileResult['old_path'] ?? $model->{$field};
+            $preserveOldPath = (bool) ($fileResult['preserve_old_path'] ?? false);
+            if (! $preserveOldPath && $oldPath && $oldPath !== $fileResult['path'] && ! $this->isTemporaryPath($oldPath)) {
+                $this->fileUpload->deleteFile($oldPath);
             }
 
             // Update with new file path
@@ -125,6 +122,11 @@ class MediaProcessingService
         } catch (\Exception $e) {
             throw new RuntimeException("Failed to update model: {$e->getMessage()}");
         }
+    }
+
+    protected function isTemporaryPath(string $path): bool
+    {
+        return str_starts_with($path, 'tmp/');
     }
 
     /**

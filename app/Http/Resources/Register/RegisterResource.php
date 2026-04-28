@@ -49,7 +49,12 @@ class RegisterResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $systemSettings = app(\App\Services\SystemSettingResolver::class);
+        $systemSettings = $request->attributes->get('system_setting_resolver');
+        if (! $systemSettings instanceof \App\Services\SystemSettingResolver) {
+            $systemSettings = app(\App\Services\SystemSettingResolver::class);
+            $request->attributes->set('system_setting_resolver', $systemSettings);
+        }
+
         return [
             'id' => $this->id,
             'kode_outlet' => $this->kode_outlet,

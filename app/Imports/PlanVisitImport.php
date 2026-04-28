@@ -14,12 +14,14 @@ use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Events\AfterImport;
+use Maatwebsite\Excel\Events\ImportFailed;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Row;
 use Throwable;
@@ -49,11 +51,25 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private string $summaryKey;
 
-    public function __construct(?int $userId = null, string $scheduleScope = 'daily')
-    {
+    private ?string $uploadedDisk;
+
+    private ?string $uploadedPath;
+
+    private bool $importerResolved = false;
+
+    private ?User $importer = null;
+
+    public function __construct(
+        ?int $userId = null,
+        string $scheduleScope = 'daily',
+        ?string $uploadedDisk = null,
+        ?string $uploadedPath = null
+    ) {
         $this->userId = $userId;
         $this->scheduleScope = in_array($scheduleScope, self::SUPPORTED_SCOPES, true) ? $scheduleScope : 'daily';
         $this->summaryKey = 'plan-visit-import:'.Str::uuid()->toString();
+        $this->uploadedDisk = $uploadedDisk;
+        $this->uploadedPath = $uploadedPath ? ltrim($uploadedPath, '/') : null;
         $this->ensureSummaryInitialized();
     }
 
@@ -95,10 +111,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
                 throw new Exception('Outlet '.$kodeOutlet.' di divisi '.$divisionName.' tidak ditemukan.');
             }
 
-            $userDivisionIds = $user->divisis()->pluck('divisions.id')->toArray();
-            if (! in_array((int) $outlet->divisi_id, $userDivisionIds, true)) {
-                throw new Exception('User dengan username '.$username.' tidak terdaftar pada divisi '.$divisionName.'.');
-            }
+            $this->assertTargetUserCanVisitOutlet($user, $outlet, $username, $kodeOutlet);
+            $this->assertImporterCanAssignPlanVisit($user, $outlet, $username, $kodeOutlet);
 
             $schedulePayload = PlanVisit::schedulePayload($tanggal, $this->scheduleScope);
 
@@ -213,7 +227,110 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
                 $this->flushSummary();
             },
+            ImportFailed::class => function (ImportFailed $event): void {
+                $this->handleImportFailed($this->exceptionFromImportFailed($event));
+            },
         ];
+    }
+
+    private function handleImportFailed(?Throwable $exception = null): void
+    {
+        $this->cleanupUploadedFile();
+        $this->flushSummary();
+
+        Log::error('Plan visit import failed in queue', [
+            'user_id' => $this->userId,
+            'schedule_scope' => $this->scheduleScope,
+            'uploaded_disk' => $this->uploadedDisk,
+            'uploaded_path' => $this->uploadedPath,
+            'error' => $exception?->getMessage(),
+        ]);
+
+        if (! $this->userId) {
+            return;
+        }
+
+        SendImportNotification::dispatch(
+            $this->userId,
+            'Import Plan Visit Gagal',
+            'Import plan visit (scope: '.strtoupper($this->scheduleScope).') gagal diproses di worker. Silakan periksa file dan coba unggah ulang.',
+            false
+        );
+    }
+
+    private function exceptionFromImportFailed(ImportFailed $event): ?Throwable
+    {
+        if (method_exists($event, 'getException')) {
+            $exception = $event->getException();
+
+            return $exception instanceof Throwable ? $exception : null;
+        }
+
+        $exception = $event->exception ?? null;
+
+        return $exception instanceof Throwable ? $exception : null;
+    }
+
+    private function cleanupUploadedFile(): void
+    {
+        if (! $this->uploadedDisk || ! $this->uploadedPath) {
+            return;
+        }
+
+        try {
+            $storage = Storage::disk($this->uploadedDisk);
+
+            if ($storage->exists($this->uploadedPath)) {
+                $storage->delete($this->uploadedPath);
+            }
+        } catch (Throwable $exception) {
+            Log::warning('Failed to cleanup uploaded plan visit import file', [
+                'disk' => $this->uploadedDisk,
+                'path' => $this->uploadedPath,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function assertTargetUserCanVisitOutlet(User $user, Outlet $outlet, string $username, string $kodeOutlet): void
+    {
+        if ($outlet->isVisibleTo($user)) {
+            return;
+        }
+
+        throw new Exception('User dengan username '.$username.' tidak memiliki coverage untuk outlet '.$kodeOutlet.'.');
+    }
+
+    private function assertImporterCanAssignPlanVisit(User $targetUser, Outlet $outlet, string $username, string $kodeOutlet): void
+    {
+        $importer = $this->importer();
+
+        if (! $importer) {
+            return;
+        }
+
+        $canAccessUser = User::query()
+            ->visibleTo($importer)
+            ->whereKey($targetUser->id)
+            ->exists();
+
+        if (! $canAccessUser) {
+            throw new Exception('User import tidak memiliki akses untuk membuat plan visit username '.$username.'.');
+        }
+
+        if (! $outlet->isVisibleTo($importer)) {
+            throw new Exception('User import tidak memiliki akses ke outlet '.$kodeOutlet.'.');
+        }
+    }
+
+    private function importer(): ?User
+    {
+        if (! $this->importerResolved) {
+            $this->importer = $this->userId ? User::with('role')->find($this->userId) : null;
+            $this->importerResolved = true;
+        }
+
+        return $this->importer;
     }
 
     private function resolveScheduleDate(array $row): Carbon

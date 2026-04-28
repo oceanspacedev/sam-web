@@ -29,11 +29,15 @@ class PlanVisitController extends Controller
     {
         $request->validate([
             'compact' => ['sometimes', 'boolean'],
-            'period' => ['sometimes', 'string', 'in:today,week,month'],
+            'period' => ['sometimes', 'string', 'in:today,day,week,month'],
+            'date' => ['sometimes', 'date'],
             'date_from' => ['sometimes', 'date'],
             'date_to' => ['sometimes', 'date', 'after_or_equal:date_from'],
             'bulan' => ['sometimes', 'integer', 'min:1', 'max:12'],
             'tahun' => ['sometimes', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['sometimes', 'integer', 'min:1', 'max:12'],
+            'year' => ['sometimes', 'integer', 'min:2000', 'max:2100'],
+            'week' => ['sometimes', 'integer', 'min:1', 'max:53'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
@@ -112,14 +116,12 @@ class PlanVisitController extends Controller
             ]);
         }
 
-        // Priority 1: Legacy bulan/tahun filter (backward compatibility)
-        if ($request->has(['bulan', 'tahun'])) {
-            $request->validate([
-                'bulan' => ['required', 'integer', 'min:1', 'max:12'],
-                'tahun' => ['required', 'integer', 'min:2000', 'max:2100'],
-            ]);
+        $month = $request->integer('bulan') ?: $request->integer('month');
+        $year = $request->integer('tahun') ?: $request->integer('year');
 
-            $rangeStart = Carbon::createFromDate((int) $request->tahun, (int) $request->bulan, 1)->startOfMonth();
+        // Priority 1: Legacy bulan/tahun filter and month/year aliases.
+        if ($month && $year && ! $request->filled('week')) {
+            $rangeStart = Carbon::createFromDate($year, $month, 1)->startOfMonth();
             $rangeEnd = $rangeStart->copy()->endOfMonth();
 
             return $this->respondWithPlanCollection(
@@ -127,13 +129,16 @@ class PlanVisitController extends Controller
                 ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
                     $builder
                         ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                            $sub->where('schedule_scope', 'daily')
-                                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+                            $this->wherePlanPeriodRange(
+                                $sub->where('schedule_scope', 'daily'),
+                                $rangeStart,
+                                $rangeEnd
+                            );
                         })
                         ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
                             $sub->where('schedule_scope', 'weekly')
-                                ->whereDate('period_start', '<=', $rangeEnd->toDateString())
-                                ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                                ->where('period_start', '<=', $rangeEnd->toDateString())
+                                ->where('period_end', '>=', $rangeStart->toDateString());
                         });
                 })
                 ->orderBy('period_start'),
@@ -152,13 +157,16 @@ class PlanVisitController extends Controller
                 $query->where(function (Builder $builder) use ($dateFrom, $dateTo): void {
                     $builder
                         ->where(function (Builder $sub) use ($dateFrom, $dateTo): void {
-                            $sub->where('schedule_scope', 'daily')
-                                ->whereBetween('period_start', [$dateFrom->toDateString(), $dateTo->toDateString()]);
+                            $this->wherePlanPeriodRange(
+                                $sub->where('schedule_scope', 'daily'),
+                                $dateFrom,
+                                $dateTo
+                            );
                         })
                         ->orWhere(function (Builder $sub) use ($dateFrom, $dateTo): void {
                             $sub->where('schedule_scope', 'weekly')
-                                ->whereDate('period_start', '<=', $dateTo->toDateString())
-                                ->whereDate('period_end', '>=', $dateFrom->toDateString());
+                                ->where('period_start', '<=', $dateTo->toDateString())
+                                ->where('period_end', '>=', $dateFrom->toDateString());
                         });
                 })->orderBy('period_start'),
                 $request,
@@ -172,58 +180,69 @@ class PlanVisitController extends Controller
 
         switch ($period) {
             case 'week':
-                // Current week (Monday to Sunday)
-                $rangeStart = Carbon::now()->startOfWeek();
-                $rangeEnd = Carbon::now()->endOfWeek();
+                [$rangeStart, $rangeEnd] = $this->resolveWeeklyRange($request);
 
                 $query->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
                     $builder
                         ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                            $sub->where('schedule_scope', 'daily')
-                                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+                            $this->wherePlanPeriodRange(
+                                $sub->where('schedule_scope', 'daily'),
+                                $rangeStart,
+                                $rangeEnd
+                            );
                         })
                         ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
                             $sub->where('schedule_scope', 'weekly')
-                                ->whereDate('period_start', '<=', $rangeEnd->toDateString())
-                                ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                                ->where('period_start', '<=', $rangeEnd->toDateString())
+                                ->where('period_end', '>=', $rangeStart->toDateString());
                         });
                 });
                 break;
 
             case 'month':
-                // Current month
-                $rangeStart = Carbon::now()->startOfMonth();
-                $rangeEnd = Carbon::now()->endOfMonth();
+                // Current month, or the month containing the provided anchor date.
+                $monthAnchor = $request->filled('date') ? Carbon::parse($request->date) : now();
+                $rangeStart = $monthAnchor->copy()->startOfMonth();
+                $rangeEnd = $monthAnchor->copy()->endOfMonth();
 
                 $query->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
                     $builder
                         ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                            $sub->where('schedule_scope', 'daily')
-                                ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
+                            $this->wherePlanPeriodRange(
+                                $sub->where('schedule_scope', 'daily'),
+                                $rangeStart,
+                                $rangeEnd
+                            );
                         })
                         ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
                             $sub->where('schedule_scope', 'weekly')
-                                ->whereDate('period_start', '<=', $rangeEnd->toDateString())
-                                ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                                ->where('period_start', '<=', $rangeEnd->toDateString())
+                                ->where('period_end', '>=', $rangeStart->toDateString());
                         });
                 });
                 break;
 
+            case 'day':
             case 'today':
             default:
-                // Today's plan visits (default)
-                $today = now()->toDateString();
+                // Today's plan visits by default, or the provided historical day.
+                $today = $request->filled('date')
+                    ? Carbon::parse($request->date)->startOfDay()
+                    : now()->startOfDay();
 
                 $query->where(function (Builder $builder) use ($today): void {
                     $builder
                         ->where(function (Builder $sub) use ($today): void {
-                            $sub->where('schedule_scope', 'daily')
-                                ->whereDate('period_start', $today);
+                            $this->wherePlanPeriodRange(
+                                $sub->where('schedule_scope', 'daily'),
+                                $today,
+                                $today
+                            );
                         })
                         ->orWhere(function (Builder $sub) use ($today): void {
                             $sub->where('schedule_scope', 'weekly')
-                                ->whereDate('period_start', '<=', $today)
-                                ->whereDate('period_end', '>=', $today);
+                                ->where('period_start', '<=', $today->toDateString())
+                                ->where('period_end', '>=', $today->toDateString());
                         });
                 });
                 break;
@@ -237,6 +256,32 @@ class PlanVisitController extends Controller
         );
     }
 
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function resolveWeeklyRange(Request $request): array
+    {
+        if ($request->filled(['year', 'week'])) {
+            $start = Carbon::now()
+                ->setISODate($request->integer('year'), $request->integer('week'))
+                ->startOfDay();
+
+            return [$start, $start->copy()->addDays(6)];
+        }
+
+        $anchor = $request->filled('date') ? Carbon::parse($request->date) : now();
+        $start = $anchor->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+
+        return [$start, $start->copy()->addDays(6)];
+    }
+
+    private function wherePlanPeriodRange(Builder $query, Carbon $start, Carbon $end): Builder
+    {
+        return $query
+            ->where('period_start', '>=', $start->copy()->startOfDay()->toDateString())
+            ->where('period_start', '<', $end->copy()->addDay()->startOfDay()->toDateString());
+    }
+
     private function respondWithPlanCollection(
         Builder $query,
         Request $request,
@@ -244,34 +289,22 @@ class PlanVisitController extends Controller
         string $message
     ): JsonResponse {
         $resourceClass = $compact ? PlanVisitCompactResource::class : PlanVisitResource::class;
-        $perPage = min((int) $request->input('per_page', 0), 100);
+        $perPage = min((int) $request->input('per_page', 25), 100);
 
-        if ($perPage > 0) {
-            $plan = $query->paginate($perPage);
-
-            return $resourceClass::collection($plan)->additional([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => $message,
-                    'pagination' => [
-                        'current_page' => $plan->currentPage(),
-                        'per_page' => $plan->perPage(),
-                        'total' => $plan->total(),
-                        'last_page' => $plan->lastPage(),
-                    ],
-                ],
-                'errors' => null,
-            ])->response();
-        }
-
-        $plan = $query->get();
+        $plan = $query->paginate($perPage);
 
         return $resourceClass::collection($plan)->additional([
             'meta' => [
                 'code' => 200,
                 'status' => 'success',
                 'message' => $message,
+                'pagination' => [
+                    'current_page' => $plan->currentPage(),
+                    'per_page' => $plan->perPage(),
+                    'total' => $plan->total(),
+                    'last_page' => $plan->lastPage(),
+                    'has_more_pages' => $plan->hasMorePages(),
+                ],
             ],
             'errors' => null,
         ])->response();
@@ -355,9 +388,9 @@ class PlanVisitController extends Controller
             ->where('user_id', $user->id)
             ->where('visitable_type', $visitableType)
             ->where('visitable_id', $target->id)
-            ->where('schedule_scope', 'daily')
-            ->whereDate('period_start', $schedulePayload['period_start'])
-            ->first();
+            ->where('schedule_scope', 'daily');
+        $this->wherePlanPeriodRange($existingPlan, $periodStart, $periodStart);
+        $existingPlan = $existingPlan->first();
 
         if ($existingPlan) {
             Log::channel('planvisit')->warning('Plan visit add failed: duplicate', [
@@ -451,8 +484,8 @@ class PlanVisitController extends Controller
                     })
                     ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
                         $sub->where('schedule_scope', 'weekly')
-                            ->whereDate('period_start', '<=', $rangeEnd->toDateString())
-                            ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                            ->where('period_start', '<=', $rangeEnd->toDateString())
+                            ->where('period_end', '>=', $rangeStart->toDateString());
                     });
             })
             ->first();
@@ -492,8 +525,8 @@ class PlanVisitController extends Controller
                     })
                     ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
                         $sub->where('schedule_scope', 'weekly')
-                            ->whereDate('period_start', '<=', $rangeEnd->toDateString())
-                            ->whereDate('period_end', '>=', $rangeStart->toDateString());
+                            ->where('period_start', '<=', $rangeEnd->toDateString())
+                            ->where('period_end', '>=', $rangeStart->toDateString());
                     });
             })
             ->delete();

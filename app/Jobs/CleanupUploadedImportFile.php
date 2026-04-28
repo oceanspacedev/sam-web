@@ -10,7 +10,10 @@ class CleanupUploadedImportFile implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public string $disk, public string $relativePath) {}
+    public function __construct(public string $disk, public string $relativePath)
+    {
+        $this->onQueue('imports');
+    }
 
     /**
      * Execute the job.

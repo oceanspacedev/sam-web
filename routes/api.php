@@ -6,6 +6,7 @@ use App\Http\Controllers\API\PlanVisitController;
 use App\Http\Controllers\API\RegisterController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\VisitController;
+use App\Http\Controllers\API\WhatsAppAuthController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,12 +21,16 @@ use Illuminate\Support\Facades\Route;
 |
 */
 Route::post('login', [UserController::class, 'login'])->middleware('throttle:login');
+Route::post('login/whatsapp/request-otp', [WhatsAppAuthController::class, 'requestLoginOtp'])->middleware('throttle:whatsapp-otp');
+Route::post('login/whatsapp/verify-otp', [WhatsAppAuthController::class, 'verifyLoginOtp'])->middleware('throttle:whatsapp-verify');
 
 Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // USER (single - current user)
     Route::get('user', [UserController::class, 'fetch']);
     Route::put('user', [UserController::class, 'updateProfile']);
     Route::post('user/photo', [UserController::class, 'updateProfilePhoto']);
+    Route::post('user/whatsapp/request-otp', [WhatsAppAuthController::class, 'requestProfileOtp'])->middleware('throttle:whatsapp-otp');
+    Route::post('user/whatsapp/verify-otp', [WhatsAppAuthController::class, 'verifyProfileOtp'])->middleware('throttle:whatsapp-verify');
     Route::delete('user', [UserController::class, 'deleteAccount']);
     Route::get('user/stats', [UserController::class, 'stats']);
     Route::post('logout', [UserController::class, 'logout']);
@@ -40,6 +45,8 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // OUTLET
     Route::get('outlet', [OutletController::class, 'fetch']);
     Route::get('outlet/{id}', [OutletController::class, 'show']);
+    Route::get('outlet/{id}/archives', [OutletController::class, 'archives']);
+    Route::patch('outlet/{id}/archives/{archiveId}/restore', [OutletController::class, 'restoreArchive']);
     Route::post('outlet/{id}', [OutletController::class, 'update']);
     Route::patch('outlet/{id}/reset', [OutletController::class, 'reset']);
     Route::patch('outlet/{id}/reset-location', [OutletController::class, 'resetLocation']);
@@ -51,6 +58,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::post('visit/checkin', [VisitController::class, 'checkin']);
     Route::post('visit/{id}/checkout', [VisitController::class, 'checkout']);
     Route::get('visit/monitor', [VisitController::class, 'monitor']);
+    Route::get('visit/{id}', [VisitController::class, 'show'])->whereNumber('id');
 
     // PLANVISIT
     Route::get('planvisit', [PlanVisitController::class, 'fetch']);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,6 +15,11 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $permissionUser = $request->user();
+        if (! $permissionUser && $this->resource instanceof User) {
+            $permissionUser = $this->resource;
+        }
+
         return [
             'id' => $this->id,
             'username' => $this->username,
@@ -23,6 +29,9 @@ class UserResource extends JsonResource
             'id_notif' => $this->id_notif,
             'profile_photo_path' => $this->profile_photo_path,
             'profile_photo_url' => $this->profile_photo_url,
+            'whatsapp_number' => $this->whatsapp_number,
+            'nomor_whatsapp' => $this->whatsapp_number,
+            'whatsapp_verified_at' => $this->whatsapp_verified_at,
 
             // Support multiple: return arrays
             'badan_usahas' => $this->whenLoaded('badanUsahas', function () {
@@ -57,8 +66,11 @@ class UserResource extends JsonResource
                 ] : null;
             }),
 
-            // SDUI: Menu permissions from Spatie Permission
-            'permissions' => $this->getPermissions(),
+            // SDUI menu permissions belong to the authenticated actor, not every listed user.
+            'permissions' => $this->when(
+                $permissionUser instanceof User && (int) $permissionUser->id === (int) $this->id,
+                fn () => $this->getPermissions($permissionUser)
+            ),
         ];
     }
 
@@ -68,10 +80,8 @@ class UserResource extends JsonResource
      *
      * @return array<string, bool>
      */
-    protected function getPermissions(): array
+    protected function getPermissions($user): array
     {
-        $user = $this->resource;
-
         return [
             // Menu visibility
             'can_monitor_visit' => $user->can('ViewAny:Visit'),

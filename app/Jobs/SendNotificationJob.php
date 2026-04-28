@@ -24,15 +24,8 @@ class SendNotificationJob implements ShouldQueue
 
     public function __construct(public string $message, array $recipientIds)
     {
+        $this->onQueue('notifications');
         $this->recipientIds = array_values(array_filter($recipientIds));
-    }
-
-    /**
-     * Get the queue the job should be sent to.
-     */
-    public function queue(): string
-    {
-        return 'notifications';
     }
 
     public function handle(): void

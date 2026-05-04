@@ -289,7 +289,7 @@ class PlanVisitController extends Controller
         string $message
     ): JsonResponse {
         $resourceClass = $compact ? PlanVisitCompactResource::class : PlanVisitResource::class;
-        $perPage = min((int) $request->input('per_page', 25), 100);
+        $perPage = min((int) $request->input('per_page', 100), 100);
 
         $plan = $query->paginate($perPage);
 

@@ -59,6 +59,48 @@ test('storage archive command skips locally required apk files by default', func
     Storage::disk('s3')->assertMissing('apk/SAM.apk');
 });
 
+test('storage archive command skips unreadable excluded local directories', function (): void {
+    Storage::fake('s3');
+
+    $root = storage_path('framework/testing/disks/archive-unreadable-source');
+    $filesystem = new Filesystem;
+    $filesystem->deleteDirectory($root);
+    $filesystem->ensureDirectoryExists($root);
+
+    config([
+        'filesystems.disks.archive_unreadable_source' => [
+            'driver' => 'local',
+            'root' => $root,
+            'throw' => false,
+            'visibility' => 'public',
+        ],
+    ]);
+
+    configureStorageArchive([
+        'filesystems.archive.source_disk' => 'archive_unreadable_source',
+        'filesystems.archive.target_disk' => 's3',
+        'filesystems.archive.exclude' => ['livewire-tmp/*'],
+    ]);
+
+    Storage::disk('archive_unreadable_source')->put('documents/old-report.jpg', 'old-content');
+    touch(Storage::disk('archive_unreadable_source')->path('documents/old-report.jpg'), now()->subDays(100)->timestamp);
+
+    $unreadableDirectory = $root.'/private/livewire-tmp';
+    $filesystem->ensureDirectoryExists($unreadableDirectory);
+    chmod($unreadableDirectory, 0000);
+
+    try {
+        $this->artisan('storage:archive-old-files')
+            ->assertSuccessful();
+
+        Storage::disk('s3')->assertExists('documents/old-report.jpg');
+        Storage::disk('archive_unreadable_source')->assertMissing('documents/old-report.jpg');
+    } finally {
+        chmod($unreadableDirectory, 0777);
+        $filesystem->deleteDirectory($root);
+    }
+});
+
 test('storage disk url stays consistent when archive disk has its own url', function (): void {
     Storage::fake('public');
 

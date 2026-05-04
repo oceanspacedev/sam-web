@@ -110,6 +110,7 @@ class RegisterResource extends Resource
                                         FileUpload::make('poto_shop_sign')
                                             ->image()
                                             ->disk(StorageDisk::default())
+                                            ->fetchFileInformation(false)
                                             ->label('Foto Tanda Toko')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
@@ -122,6 +123,7 @@ class RegisterResource extends Resource
                                         FileUpload::make('poto_depan')
                                             ->image()
                                             ->disk(StorageDisk::default())
+                                            ->fetchFileInformation(false)
                                             ->label('Foto Depan')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
@@ -133,6 +135,7 @@ class RegisterResource extends Resource
                                         FileUpload::make('poto_kiri')
                                             ->image()
                                             ->disk(StorageDisk::default())
+                                            ->fetchFileInformation(false)
                                             ->label('Foto Kiri')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
@@ -144,6 +147,7 @@ class RegisterResource extends Resource
                                         FileUpload::make('poto_kanan')
                                             ->image()
                                             ->disk(StorageDisk::default())
+                                            ->fetchFileInformation(false)
                                             ->label('Foto Kanan')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
                                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
@@ -155,6 +159,7 @@ class RegisterResource extends Resource
                                         FileUpload::make('poto_ktp')
                                             ->image()
                                             ->disk(StorageDisk::default())
+                                            ->fetchFileInformation(false)
                                             ->label('Foto KTP Pemilik')
                                             ->required(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
                                             ->visible(fn (Get $get): bool => ! RegisterResource::isLead($get('type')))
@@ -166,6 +171,7 @@ class RegisterResource extends Resource
                                             }),
                                         FileUpload::make('video')
                                             ->disk(StorageDisk::default())
+                                            ->fetchFileInformation(false)
                                             ->label('Video Toko')
                                             ->afterStateHydrated(function (Set $set, $state): void {
                                                 if ($state === '-') {
@@ -448,19 +454,24 @@ class RegisterResource extends Resource
                                     ])->schema([
                                         ImageEntry::make('poto_shop_sign')
                                             ->label('Foto Tanda Toko')
-                                            ->disk(StorageDisk::default()),
+                                            ->disk(StorageDisk::default())
+                                            ->checkFileExistence(false),
                                         ImageEntry::make('poto_depan')
                                             ->label('Foto Depan')
-                                            ->disk(StorageDisk::default()),
+                                            ->disk(StorageDisk::default())
+                                            ->checkFileExistence(false),
                                         ImageEntry::make('poto_kiri')
                                             ->label('Foto Kiri')
-                                            ->disk(StorageDisk::default()),
+                                            ->disk(StorageDisk::default())
+                                            ->checkFileExistence(false),
                                         ImageEntry::make('poto_kanan')
                                             ->label('Foto Kanan')
-                                            ->disk(StorageDisk::default()),
+                                            ->disk(StorageDisk::default())
+                                            ->checkFileExistence(false),
                                         ImageEntry::make('poto_ktp')
                                             ->label('Foto KTP Pemilik')
-                                            ->disk(StorageDisk::default()),
+                                            ->disk(StorageDisk::default())
+                                            ->checkFileExistence(false),
                                         TextEntry::make('video')
                                             ->label('Video Toko')
                                             ->formatStateUsing(fn ($state) => filled($state) && $state !== '-' ? new HtmlString('<a href="'.StorageDisk::url($state).'" target="_blank" class="text-primary-600 hover:underline">Lihat Video</a>') : '-')
@@ -776,6 +787,7 @@ class RegisterResource extends Resource
                             ->label('Foto KTP')
                             ->image()
                             ->disk(StorageDisk::default())
+                            ->fetchFileInformation(false)
                             ->required()
                             ->getUploadedFileNameForStorageUsing(function (UploadedFile $file) {
                                 $userId = Auth::id();

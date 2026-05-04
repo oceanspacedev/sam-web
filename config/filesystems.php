@@ -39,6 +39,8 @@ return [
         'schedule_time' => env('STORAGE_ARCHIVE_SCHEDULE_TIME', '02:30'),
         'visibility' => env('STORAGE_ARCHIVE_VISIBILITY', 'private'),
         'temporary_urls' => env('STORAGE_ARCHIVE_TEMPORARY_URLS', true),
+        'verify_attempts' => (int) env('STORAGE_ARCHIVE_VERIFY_ATTEMPTS', 5),
+        'verify_sleep_ms' => (int) env('STORAGE_ARCHIVE_VERIFY_SLEEP_MS', 500),
     ],
 
     /*

@@ -7,10 +7,16 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RecursiveCallbackFilterIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use SplFileInfo;
 use Throwable;
 
 class ArchiveOldStorageFiles extends Command
 {
+    protected ?string $lastTargetVerificationFailure = null;
+
     protected $signature = 'storage:archive-old-files
         {--source-disk= : Disk source yang akan dilegakan}
         {--target-disk= : Disk tujuan arsip/backup}
@@ -68,7 +74,7 @@ class ArchiveOldStorageFiles extends Command
             'bytes_released' => 0,
         ];
 
-        foreach ($this->candidateFiles($source, $directories, $excludePatterns) as $path) {
+        foreach ($this->candidateFiles($sourceDisk, $source, $directories, $excludePatterns) as $path) {
             $stats['scanned']++;
 
             try {
@@ -92,7 +98,13 @@ class ArchiveOldStorageFiles extends Command
                 } elseif (! $alreadyArchived) {
                     $this->copyToTarget($source, $target, $path);
                     $stats['uploaded']++;
-                    $readyToDelete = $this->targetHasSameSize($target, $path, $size);
+                    $readyToDelete = $this->targetHasSameSize(
+                        $target,
+                        $path,
+                        $size,
+                        $this->verificationAttempts(),
+                        $this->verificationSleepMs(),
+                    );
                 } else {
                     $stats['already_archived']++;
                 }
@@ -105,7 +117,10 @@ class ArchiveOldStorageFiles extends Command
                     $stats['deleted']++;
                     $stats['bytes_released'] += $size;
                 } elseif ($deleteSource) {
-                    throw new \RuntimeException('Target copy could not be verified, source file was kept.');
+                    throw new \RuntimeException(sprintf(
+                        'Target copy could not be verified%s, source file was kept.',
+                        $this->lastTargetVerificationFailure ? " ({$this->lastTargetVerificationFailure})" : ''
+                    ));
                 }
             } catch (Throwable $exception) {
                 $stats['failed']++;
@@ -155,23 +170,105 @@ class ArchiveOldStorageFiles extends Command
      * @param  array<int, string>  $excludePatterns
      * @return iterable<int, string>
      */
-    protected function candidateFiles(FilesystemAdapter $source, array $directories, array $excludePatterns): iterable
+    protected function candidateFiles(string $sourceDisk, FilesystemAdapter $source, array $directories, array $excludePatterns): iterable
     {
         $seen = [];
+        $files = $this->isLocalDisk($sourceDisk)
+            ? $this->localCandidateFiles($source, $directories, $excludePatterns)
+            : $this->flysystemCandidateFiles($source, $directories);
 
+        foreach ($files as $path) {
+            $path = ltrim((string) $path, '/');
+
+            if (isset($seen[$path]) || $this->shouldSkip($path, $excludePatterns)) {
+                continue;
+            }
+
+            $seen[$path] = true;
+
+            yield $path;
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $directories
+     * @return iterable<int, string>
+     */
+    protected function flysystemCandidateFiles(FilesystemAdapter $source, array $directories): iterable
+    {
         foreach ($directories as $directory) {
             foreach ($source->allFiles($directory) as $path) {
-                $path = ltrim((string) $path, '/');
-
-                if (isset($seen[$path]) || $this->shouldSkip($path, $excludePatterns)) {
-                    continue;
-                }
-
-                $seen[$path] = true;
-
-                yield $path;
+                yield (string) $path;
             }
         }
+    }
+
+    /**
+     * @param  array<int, string>  $directories
+     * @param  array<int, string>  $excludePatterns
+     * @return iterable<int, string>
+     */
+    protected function localCandidateFiles(FilesystemAdapter $source, array $directories, array $excludePatterns): iterable
+    {
+        $diskRoot = rtrim($source->path(''), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+
+        foreach ($directories as $directory) {
+            $scanRoot = $source->path($directory);
+
+            if (! is_dir($scanRoot) || ! is_readable($scanRoot)) {
+                $this->warn(sprintf('Lewati directory source yang tidak bisa dibaca: %s', $directory ?: '/'));
+
+                continue;
+            }
+
+            try {
+                $iterator = new RecursiveDirectoryIterator($scanRoot, RecursiveDirectoryIterator::SKIP_DOTS);
+            } catch (Throwable $exception) {
+                $this->warn(sprintf('Lewati directory source [%s]: %s', $directory ?: '/', $exception->getMessage()));
+
+                continue;
+            }
+
+            $filter = new RecursiveCallbackFilterIterator(
+                $iterator,
+                fn (SplFileInfo $current): bool => $this->shouldVisitLocalPath($current, $diskRoot, $excludePatterns),
+            );
+
+            try {
+                foreach (new RecursiveIteratorIterator($filter) as $file) {
+                    if ($file instanceof SplFileInfo && $file->isFile()) {
+                        yield $this->relativeLocalPath($file->getPathname(), $diskRoot);
+                    }
+                }
+            } catch (Throwable $exception) {
+                $this->warn(sprintf('Scan directory source [%s] berhenti: %s', $directory ?: '/', $exception->getMessage()));
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $excludePatterns
+     */
+    protected function shouldVisitLocalPath(SplFileInfo $current, string $diskRoot, array $excludePatterns): bool
+    {
+        $relativePath = $this->relativeLocalPath($current->getPathname(), $diskRoot);
+
+        if ($current->isDir()) {
+            return is_readable($current->getPathname())
+                && ! $this->shouldSkipDirectory($relativePath, $excludePatterns);
+        }
+
+        return $current->isFile();
+    }
+
+    protected function relativeLocalPath(string $path, string $diskRoot): string
+    {
+        return str_replace(DIRECTORY_SEPARATOR, '/', ltrim(Str::after($path, $diskRoot), DIRECTORY_SEPARATOR));
+    }
+
+    protected function isLocalDisk(string $disk): bool
+    {
+        return config("filesystems.disks.{$disk}.driver") === 'local';
     }
 
     /**
@@ -196,13 +293,111 @@ class ArchiveOldStorageFiles extends Command
         return false;
     }
 
-    protected function targetHasSameSize(FilesystemAdapter $target, string $path, int $sourceSize): bool
+    /**
+     * @param  array<int, string>  $excludePatterns
+     */
+    protected function shouldSkipDirectory(string $path, array $excludePatterns): bool
     {
-        try {
-            return $target->exists($path) && $target->size($path) === $sourceSize;
-        } catch (Throwable) {
+        $path = trim($path, '/');
+
+        if ($path === '') {
             return false;
         }
+
+        $basename = basename($path);
+
+        if (str_starts_with($basename, '.')) {
+            return true;
+        }
+
+        foreach ($excludePatterns as $pattern) {
+            $pattern = trim((string) $pattern);
+
+            if ($pattern === '') {
+                continue;
+            }
+
+            if (
+                Str::is($pattern, $path)
+                || Str::is($pattern, "{$path}/*")
+                || Str::is($pattern, $basename)
+                || Str::is($pattern, "{$basename}/*")
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function targetHasSameSize(
+        FilesystemAdapter $target,
+        string $path,
+        int $sourceSize,
+        int $attempts = 1,
+        int $sleepMs = 0,
+    ): bool {
+        $attempts = max(1, $attempts);
+        $sleepMs = max(0, $sleepMs);
+        $this->lastTargetVerificationFailure = null;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            if ($this->targetHasSameSizeOnce($target, $path, $sourceSize, $attempt, $attempts)) {
+                return true;
+            }
+
+            if ($attempt < $attempts && $sleepMs > 0) {
+                usleep($sleepMs * 1000);
+            }
+        }
+
+        return false;
+    }
+
+    protected function targetHasSameSizeOnce(
+        FilesystemAdapter $target,
+        string $path,
+        int $sourceSize,
+        int $attempt,
+        int $attempts,
+    ): bool {
+        try {
+            if (! $target->exists($path)) {
+                $this->lastTargetVerificationFailure = "target missing after attempt {$attempt}/{$attempts}";
+
+                return false;
+            }
+
+            $targetSize = (int) $target->size($path);
+
+            if ($targetSize !== $sourceSize) {
+                $this->lastTargetVerificationFailure = "size mismatch after attempt {$attempt}/{$attempts}: source={$sourceSize}, target={$targetSize}";
+
+                return false;
+            }
+
+            return true;
+        } catch (Throwable $exception) {
+            $this->lastTargetVerificationFailure = sprintf(
+                '%s after attempt %d/%d: %s',
+                $exception::class,
+                $attempt,
+                $attempts,
+                $exception->getMessage(),
+            );
+
+            return false;
+        }
+    }
+
+    protected function verificationAttempts(): int
+    {
+        return max(1, (int) config('filesystems.archive.verify_attempts', 5));
+    }
+
+    protected function verificationSleepMs(): int
+    {
+        return max(0, (int) config('filesystems.archive.verify_sleep_ms', 500));
     }
 
     protected function copyToTarget(FilesystemAdapter $source, FilesystemAdapter $target, string $path): void

@@ -273,6 +273,7 @@ class VisitResource extends Resource
                                     ->columnSpanFull()
                                     ->required()
                                     ->disk(StorageDisk::default())
+                                    ->fetchFileInformation(false)
                                     ->label('Picture at Start of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                         /** @var int|string|null $userId */
@@ -287,6 +288,7 @@ class VisitResource extends Resource
                                     ->columnSpanFull()
                                     // ->required()
                                     ->disk(StorageDisk::default())
+                                    ->fetchFileInformation(false)
                                     ->label('Picture at End of Visit')
                                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                                         /** @var int|string|null $userId */
@@ -384,10 +386,12 @@ class VisitResource extends Resource
                                     ImageEntry::make('picture_visit_in')
                                         ->label('Picture at Start of Visit')
                                         ->disk(StorageDisk::default())
+                                        ->checkFileExistence(false)
                                         ->columnSpanFull(),
                                     ImageEntry::make('picture_visit_out')
                                         ->label('Picture at End of Visit')
                                         ->disk(StorageDisk::default())
+                                        ->checkFileExistence(false)
                                         ->columnSpanFull(),
                                 ]),
                             Section::make('Transaction Information')

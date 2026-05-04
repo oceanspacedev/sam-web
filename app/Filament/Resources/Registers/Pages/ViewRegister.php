@@ -50,6 +50,7 @@ class ViewRegister extends ViewRecord
                         ->label('Foto KTP')
                         ->image()
                         ->disk(StorageDisk::default())
+                        ->fetchFileInformation(false)
                         ->required()
                         ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, $get) {
                             $userId = Auth::id();

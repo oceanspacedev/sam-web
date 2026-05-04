@@ -122,6 +122,16 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        RateLimiter::for('fonnte-whatsapp', function ($job = null) {
+            $delaySeconds = (int) config('services.fonnte.queue_delay_seconds', 10);
+
+            if ($delaySeconds <= 0) {
+                return Limit::none();
+            }
+
+            return Limit::perSecond(1, $delaySeconds)->by('fonnte-whatsapp:send');
+        });
+
         // Expensive operations limiter: exports, downloads, bulk imports, etc.
         RateLimiter::for('expensive', function (Request $request) {
             $ip = $request->ip();

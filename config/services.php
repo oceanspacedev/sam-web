@@ -40,6 +40,7 @@ return [
         'country_code' => env('FONNTE_COUNTRY_CODE', '0'),
         'timeout' => env('FONNTE_TIMEOUT', 10),
         'otp_expires_in' => env('FONNTE_OTP_EXPIRES_IN', 60),
+        'queue_delay_seconds' => env('FONNTE_QUEUE_DELAY_SECONDS', 10),
         'otp_message' => env('FONNTE_OTP_MESSAGE', 'Kode OTP SAM Anda: {otp}. Berlaku 1 menit. Jangan bagikan kode ini kepada siapa pun.'),
         'account_registered_message' => env('FONNTE_ACCOUNT_REGISTERED_MESSAGE', "Halo {name}, nomor WhatsApp Anda sudah terdaftar di SAM dan bisa digunakan untuk login aplikasi.\n\n{download_links}"),
     ],

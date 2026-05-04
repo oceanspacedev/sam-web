@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\StorageDisk;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
 use Filament\Panel;
@@ -279,7 +280,7 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function getProfilePhotoUrlAttribute(): string
     {
         if ($this->profile_photo_path) {
-            return asset('storage/'.$this->profile_photo_path);
+            return StorageDisk::url($this->profile_photo_path);
         }
 
         $name = $this->nama_lengkap ?? $this->username ?? 'User';

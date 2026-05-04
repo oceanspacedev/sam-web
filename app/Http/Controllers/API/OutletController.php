@@ -23,7 +23,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
@@ -758,7 +757,7 @@ class OutletController extends Controller
         $disk = StorageDisk::default();
 
         try {
-            Storage::disk($disk)->delete($path);
+            StorageDisk::delete($path, $disk);
         } catch (Throwable $e) {
             // Silent catch - log warning but don't fail the request
             Log::channel('outlet')->warning('Gagal menghapus media outlet', [

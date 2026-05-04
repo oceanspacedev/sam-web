@@ -287,7 +287,7 @@ class FileUploadService
             return false;
         }
 
-        return $this->storage()->delete($path);
+        return StorageDisk::delete($path, $this->disk);
     }
 
     /**
@@ -303,6 +303,10 @@ class FileUploadService
      */
     public function getUrl(string $path): string
     {
+        if ($this->disk === StorageDisk::default()) {
+            return StorageDisk::url($path);
+        }
+
         return $this->storage()->url($path);
     }
 

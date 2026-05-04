@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Users\Pages;
 use App\Filament\Resources\Users\UserResource;
 use App\Jobs\SendUserWhatsAppRegisteredNotificationJob;
 use App\Models\User;
+use App\Support\WhatsAppQueueDelay;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
@@ -38,7 +39,8 @@ class EditUser extends EditRecord
             return;
         }
 
-        SendUserWhatsAppRegisteredNotificationJob::dispatch((int) $user->id);
+        SendUserWhatsAppRegisteredNotificationJob::dispatch((int) $user->id)
+            ->delay(app(WhatsAppQueueDelay::class)->nextDelay());
     }
 
     protected function getHeaderActions(): array

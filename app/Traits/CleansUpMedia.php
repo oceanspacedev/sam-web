@@ -4,9 +4,7 @@ namespace App\Traits;
 
 use App\Support\StorageDisk;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 
 use function Illuminate\Events\queueable;
 
@@ -44,14 +42,9 @@ trait CleansUpMedia
 
     protected static function deleteFiles(Collection $files): void
     {
-        $disk = StorageDisk::default();
-        /** @var FilesystemAdapter $storage */
-        $storage = Storage::disk($disk);
-
         $files
-            ->filter(fn (string $path): bool => $storage->exists($path))
-            ->each(function (string $path) use ($storage): void {
-                $storage->delete($path);
+            ->each(function (string $path): void {
+                StorageDisk::delete($path);
             });
     }
 }

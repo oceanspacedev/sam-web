@@ -2,13 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Support\StorageDisk;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class DeleteStorageFilesJob implements ShouldQueue
 {
@@ -41,7 +41,9 @@ class DeleteStorageFilesJob implements ShouldQueue
         }
 
         try {
-            Storage::disk($this->disk)->delete($paths);
+            foreach ($paths as $path) {
+                StorageDisk::delete($path, $this->disk);
+            }
         } catch (\Throwable $e) {
             Log::warning('Gagal menghapus file storage lewat queue', [
                 'disk' => $this->disk,

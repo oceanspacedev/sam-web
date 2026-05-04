@@ -9,6 +9,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\RateLimitedWithRedis;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -20,13 +21,28 @@ class SendUserWhatsAppRegisteredNotificationJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 0;
 
     public int $timeout = 30;
+
+    public int $maxExceptions = 3;
 
     public function __construct(public int $userId)
     {
         $this->onQueue('notifications');
+    }
+
+    public function middleware(): array
+    {
+        $delaySeconds = (int) config('services.fonnte.queue_delay_seconds', 10);
+
+        if ($delaySeconds <= 0) {
+            return [];
+        }
+
+        return [
+            (new RateLimitedWithRedis('fonnte-whatsapp'))->releaseAfter($delaySeconds),
+        ];
     }
 
     public function handle(FonnteWhatsAppService $whatsApp): void

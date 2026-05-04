@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Users\Pages;
 use App\Filament\Resources\Users\UserResource;
 use App\Jobs\SendUserWhatsAppRegisteredNotificationJob;
 use App\Models\User;
+use App\Support\WhatsAppQueueDelay;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateUser extends CreateRecord
@@ -35,7 +36,8 @@ class CreateUser extends CreateRecord
         };
 
         if (filled($user->whatsapp_number) && $user->whatsapp_verified_at) {
-            SendUserWhatsAppRegisteredNotificationJob::dispatch((int) $user->id);
+            SendUserWhatsAppRegisteredNotificationJob::dispatch((int) $user->id)
+                ->delay(app(WhatsAppQueueDelay::class)->nextDelay());
         }
     }
 

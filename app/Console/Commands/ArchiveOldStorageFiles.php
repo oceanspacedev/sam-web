@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use Aws\S3\S3Client;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Carbon;
@@ -85,7 +86,7 @@ class ArchiveOldStorageFiles extends Command
                 $stats['eligible']++;
                 $stats['processed']++;
                 $size = $this->safeSize($source, $path);
-                $alreadyArchived = ! $force && $this->targetHasSameSize($target, $path, $size);
+                $alreadyArchived = ! $force && $this->targetHasSameSize($targetDisk, $target, $path, $size);
                 $readyToDelete = $alreadyArchived;
 
                 if ($dryRun) {
@@ -99,6 +100,7 @@ class ArchiveOldStorageFiles extends Command
                     $this->copyToTarget($source, $target, $path);
                     $stats['uploaded']++;
                     $readyToDelete = $this->targetHasSameSize(
+                        $targetDisk,
                         $target,
                         $path,
                         $size,
@@ -331,6 +333,7 @@ class ArchiveOldStorageFiles extends Command
     }
 
     protected function targetHasSameSize(
+        string $targetDisk,
         FilesystemAdapter $target,
         string $path,
         int $sourceSize,
@@ -342,7 +345,7 @@ class ArchiveOldStorageFiles extends Command
         $this->lastTargetVerificationFailure = null;
 
         for ($attempt = 1; $attempt <= $attempts; $attempt++) {
-            if ($this->targetHasSameSizeOnce($target, $path, $sourceSize, $attempt, $attempts)) {
+            if ($this->targetHasSameSizeOnce($targetDisk, $target, $path, $sourceSize, $attempt, $attempts)) {
                 return true;
             }
 
@@ -355,6 +358,7 @@ class ArchiveOldStorageFiles extends Command
     }
 
     protected function targetHasSameSizeOnce(
+        string $targetDisk,
         FilesystemAdapter $target,
         string $path,
         int $sourceSize,
@@ -378,6 +382,10 @@ class ArchiveOldStorageFiles extends Command
 
             return true;
         } catch (Throwable $exception) {
+            if ($this->s3TargetHasSameSize($targetDisk, $path, $sourceSize)) {
+                return true;
+            }
+
             $this->lastTargetVerificationFailure = sprintf(
                 '%s after attempt %d/%d: %s',
                 $exception::class,
@@ -388,6 +396,67 @@ class ArchiveOldStorageFiles extends Command
 
             return false;
         }
+    }
+
+    protected function s3TargetHasSameSize(string $targetDisk, string $path, int $sourceSize): bool
+    {
+        if (config("filesystems.disks.{$targetDisk}.driver") !== 's3') {
+            return false;
+        }
+
+        try {
+            $client = $this->s3ClientForDisk($targetDisk);
+            $bucket = (string) config("filesystems.disks.{$targetDisk}.bucket");
+            $prefix = ltrim($path, '/');
+
+            $result = $client->listObjectsV2([
+                'Bucket' => $bucket,
+                'Prefix' => $prefix,
+                'MaxKeys' => 5,
+            ]);
+
+            foreach (($result['Contents'] ?? []) as $object) {
+                if (($object['Key'] ?? null) === $prefix) {
+                    $targetSize = (int) ($object['Size'] ?? -1);
+
+                    if ($targetSize === $sourceSize) {
+                        return true;
+                    }
+
+                    $this->lastTargetVerificationFailure = "S3 list size mismatch: source={$sourceSize}, target={$targetSize}";
+
+                    return false;
+                }
+            }
+
+            $this->lastTargetVerificationFailure = 'S3 list fallback could not find exact key';
+
+            return false;
+        } catch (Throwable $exception) {
+            $this->lastTargetVerificationFailure = sprintf(
+                'S3 list fallback failed: %s: %s',
+                $exception::class,
+                $exception->getMessage(),
+            );
+
+            return false;
+        }
+    }
+
+    protected function s3ClientForDisk(string $disk): S3Client
+    {
+        $config = config("filesystems.disks.{$disk}");
+
+        return new S3Client([
+            'version' => 'latest',
+            'region' => $config['region'] ?: 'us-east-1',
+            'endpoint' => $config['endpoint'] ?? null,
+            'use_path_style_endpoint' => (bool) ($config['use_path_style_endpoint'] ?? false),
+            'credentials' => [
+                'key' => $config['key'],
+                'secret' => $config['secret'],
+            ],
+        ]);
     }
 
     protected function verificationAttempts(): int

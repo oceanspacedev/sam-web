@@ -2,19 +2,32 @@
 
 namespace App\Exports\Outlet;
 
+use App\Exports\Concerns\PreservesTextColumns;
 use App\Models\Outlet;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
-use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use App\Models\User;
+use App\Support\OrganizationalScope;
+use Illuminate\Database\Eloquent\Builder;
+use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class OutletUpdatedSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
+class OutletUpdatedSheet implements FromQuery, WithColumnFormatting, WithColumnWidths, WithCustomValueBinder, WithHeadings, WithMapping, WithStyles, WithTitle
 {
+    use PreservesTextColumns;
+
+    private bool $userResolved = false;
+
+    private ?User $user = null;
+
+    public function __construct(private ?int $userId = null) {}
+
     public function title(): string
     {
         return 'UpdatedCluster';
@@ -48,10 +61,9 @@ class OutletUpdatedSheet implements FromCollection, ShouldAutoSize, WithHeadings
         ];
     }
 
-    public function collection(): Collection
+    public function query(): Builder
     {
         $query = Outlet::query()
-            ->with(['badanusaha', 'divisi', 'region', 'cluster'])
             ->select([
                 'outlets.*',
                 'badan_usahas.name as badan_usaha_name',
@@ -64,60 +76,80 @@ class OutletUpdatedSheet implements FromCollection, ShouldAutoSize, WithHeadings
             ->leftJoin('regions', 'outlets.region_id', '=', 'regions.id')
             ->leftJoin('clusters', 'outlets.cluster_id', '=', 'clusters.id');
 
-        if (Auth::check()) {
-            $user = Auth::user();
-            $role = $user->role;
-            $scopeLevel = $role->organizational_scope_level ?? 'cluster';
+        OrganizationalScope::applyToQuery($query, $this->user(), 'outlets');
 
-            if ($scopeLevel !== 'all') {
-                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
+        return $query->orderBy('outlets.kode_outlet', 'asc');
+    }
 
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn('outlets.badanusaha_id', $badanUsahaIds);
-                }
-                if (! empty($divisiIds)) {
-                    $query->whereIn('outlets.divisi_id', $divisiIds);
-                }
-                if (! empty($regionIds)) {
-                    $query->whereIn('outlets.region_id', $regionIds);
-                }
-                if (! empty($clusterIds)) {
-                    $query->whereIn('outlets.cluster_id', $clusterIds);
-                }
-            }
+    public function map($outlet): array
+    {
+        return [
+            $outlet->badan_usaha_name ?? '',
+            $outlet->divisi_name ?? '',
+            $outlet->region_name ?? '',
+            $outlet->cluster_name ?? '',
+            $outlet->kode_outlet,
+            $outlet->nama_outlet,
+            $outlet->nama_pemilik_outlet ?? '',
+            $outlet->nomer_tlp_outlet ?? '',
+            $outlet->distric ?? '',
+            $outlet->limit ?? 0,
+            $outlet->status_outlet ?? 'MAINTAIN',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+        ];
+    }
+
+    public function columnWidths(): array
+    {
+        return [
+            'A' => 18,
+            'B' => 18,
+            'C' => 20,
+            'D' => 22,
+            'E' => 18,
+            'F' => 32,
+            'G' => 28,
+            'H' => 20,
+            'I' => 22,
+            'J' => 12,
+            'K' => 18,
+            'L' => 20,
+            'M' => 20,
+            'N' => 22,
+            'O' => 24,
+            'P' => 20,
+            'Q' => 34,
+            'R' => 30,
+            'S' => 22,
+            'T' => 24,
+            'U' => 14,
+            'V' => 20,
+        ];
+    }
+
+    protected function user(): ?User
+    {
+        if (! $this->userResolved) {
+            $this->user = $this->userId ? User::with('role')->find($this->userId) : null;
+            $this->userResolved = true;
         }
 
-        $outlets = $query->orderBy('outlets.kode_outlet', 'asc')->get();
+        return $this->user;
+    }
 
-        return $outlets->map(function ($outlet) {
-            return [
-                $outlet->badan_usaha_name ?? '',
-                $outlet->divisi_name ?? '',
-                $outlet->region_name ?? '',
-                $outlet->cluster_name ?? '',
-                $outlet->kode_outlet,
-                $outlet->nama_outlet,
-                $outlet->nama_pemilik_outlet ?? '',
-                $outlet->nomer_tlp_outlet ?? '',
-                $outlet->distric ?? '',
-                $outlet->limit ?? 0,
-                $outlet->status_outlet ?? 'MAINTAIN',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-            ];
-        });
+    protected function textColumns(): array
+    {
+        return ['E', 'P'];
     }
 
     public function styles(Worksheet $sheet)

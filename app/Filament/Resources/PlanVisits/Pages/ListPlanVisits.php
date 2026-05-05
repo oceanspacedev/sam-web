@@ -57,6 +57,7 @@ class ListPlanVisits extends ListRecords
                             'daily' => 'Daily',
                             'weekly' => 'Weekly',
                         ])
+                        ->helperText('Plan minggu berjalan dapat diupload maksimal '.PlanVisitImport::uploadCutoffLabel().'.')
                         ->required(),
                     FileUpload::make('file_daily')
                         ->label('File (.xlsx/.csv)')

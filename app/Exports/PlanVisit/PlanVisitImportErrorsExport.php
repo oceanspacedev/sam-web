@@ -10,7 +10,7 @@ class PlanVisitImportErrorsExport implements WithMultipleSheets
     use Exportable;
 
     /**
-     * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
+     * @param  array<int, array{row:int,message:string,columns:array<string,?string>}>  $rows
      */
     public function __construct(
         private array $rows,

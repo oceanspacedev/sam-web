@@ -2,15 +2,20 @@
 
 namespace App\Exports\Outlet;
 
+use App\Exports\Concerns\PreservesTextColumns;
 use App\Models\Outlet;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class AllOutletsSheet implements FromCollection, WithHeadings, WithTitle
+class AllOutletsSheet implements FromCollection, WithColumnFormatting, WithCustomValueBinder, WithHeadings, WithTitle
 {
+    use PreservesTextColumns;
+
     public function __construct(public User $user) {}
 
     public function collection(): Collection
@@ -43,5 +48,10 @@ class AllOutletsSheet implements FromCollection, WithHeadings, WithTitle
     public function title(): string
     {
         return 'All Outlets';
+    }
+
+    protected function textColumns(): array
+    {
+        return ['A'];
     }
 }

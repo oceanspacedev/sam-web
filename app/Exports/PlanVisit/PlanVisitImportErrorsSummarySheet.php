@@ -2,16 +2,21 @@
 
 namespace App\Exports\PlanVisit;
 
+use App\Exports\Concerns\PreservesTextColumns;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class PlanVisitImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
+class PlanVisitImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithCustomValueBinder, WithHeadings, WithTitle
 {
+    use PreservesTextColumns;
+
     /**
-     * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
+     * @param  array<int, array{row:int,message:string,columns:array<string,?string>}>  $rows
      */
     public function __construct(
         private array $rows,
@@ -34,7 +39,7 @@ class PlanVisitImportErrorsSummarySheet implements FromCollection, ShouldAutoSiz
             ];
 
             foreach ($headings as $column) {
-                $exportRow[$column] = $columns[$column] ?? '-';
+                $exportRow[$column] = $columns[$column] ?? null;
             }
 
             return $exportRow;
@@ -59,5 +64,10 @@ class PlanVisitImportErrorsSummarySheet implements FromCollection, ShouldAutoSiz
     private function columnHeadings(): array
     {
         return (new PlanVisitSheet($this->scheduleScope))->headings();
+    }
+
+    protected function textColumns(): array
+    {
+        return ['C'];
     }
 }

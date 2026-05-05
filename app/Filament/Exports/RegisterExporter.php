@@ -13,7 +13,7 @@ class RegisterExporter extends BaseExporter
     public static function getColumns(): array
     {
         return [
-            ExportColumn::make('kode_outlet')->label('Kode Outlet')->default('-'),
+            ExportColumn::make('kode_outlet')->label('Kode Outlet')->formatStateUsing(fn ($state): string => static::textValue($state))->default('-'),
             ExportColumn::make('nama_outlet')->label('Nama Outlet')->default('-'),
             ExportColumn::make('alamat_outlet')->label('Alamat')->default('-'),
             ExportColumn::make('distric')->label('Distrik')->default('-'),

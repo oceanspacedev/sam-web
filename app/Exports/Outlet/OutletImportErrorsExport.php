@@ -10,18 +10,19 @@ class OutletImportErrorsExport implements WithMultipleSheets
     use Exportable;
 
     /**
-     * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
+     * @param  array<int, array{row:int,message:string,columns:array<string,?string>}>  $rows
      */
     public function __construct(
         private array $rows,
-        private string $mode
+        private string $mode,
+        private ?int $userId = null,
     ) {}
 
     public function sheets(): array
     {
         return [
             new OutletImportErrorsSummarySheet($this->rows, $this->mode),
-            new OutletHierarchySheet,
+            new OutletHierarchySheet($this->userId),
         ];
     }
 }

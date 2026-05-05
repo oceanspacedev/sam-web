@@ -18,7 +18,9 @@ class OutletExporter extends BaseExporter
             ExportColumn::make('divisi.name')->label('Divisi'),
             ExportColumn::make('region.name')->label('Region'),
             ExportColumn::make('cluster.name')->label('Cluster'),
-            ExportColumn::make('kode_outlet')->label('Kode Outlet'),
+            ExportColumn::make('kode_outlet')
+                ->formatStateUsing(fn ($state): string => static::textValue($state))
+                ->label('Kode Outlet'),
             ExportColumn::make('nama_outlet')->label('Nama Outlet'),
             ExportColumn::make('alamat_outlet')->label('Alamat Outlet'),
             ExportColumn::make('distric')->label('Distrik'),

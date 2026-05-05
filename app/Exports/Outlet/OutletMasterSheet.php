@@ -2,19 +2,24 @@
 
 namespace App\Exports\Outlet;
 
+use App\Exports\Concerns\PreservesTextColumns;
 use App\Models\Outlet;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class OutletMasterSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
+class OutletMasterSheet implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithCustomValueBinder, WithHeadings, WithStyles, WithTitle
 {
+    use PreservesTextColumns;
+
     public function title(): string
     {
         return 'Outlet';
@@ -100,5 +105,10 @@ class OutletMasterSheet implements FromCollection, ShouldAutoSize, WithHeadings,
             ->getColor()->setRGB('FFFFFF');
 
         return $sheet;
+    }
+
+    protected function textColumns(): array
+    {
+        return ['A'];
     }
 }

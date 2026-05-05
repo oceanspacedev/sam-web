@@ -2,9 +2,12 @@
 
 namespace App\Exports\PlanVisit;
 
+use App\Exports\Concerns\PreservesTextColumns;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
@@ -12,8 +15,10 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class PlanVisitSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
+class PlanVisitSheet implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithCustomValueBinder, WithHeadings, WithStyles, WithTitle
 {
+    use PreservesTextColumns;
+
     public function __construct(private string $scheduleScope = 'daily')
     {
         if (! in_array($this->scheduleScope, ['daily', 'weekly'], true)) {
@@ -81,5 +86,10 @@ class PlanVisitSheet implements FromCollection, ShouldAutoSize, WithHeadings, Wi
             ->getColor()->setRGB('000000');
 
         return $sheet;
+    }
+
+    protected function textColumns(): array
+    {
+        return ['B'];
     }
 }

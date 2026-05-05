@@ -2,16 +2,21 @@
 
 namespace App\Exports\Outlet;
 
+use App\Exports\Concerns\PreservesTextColumns;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
+class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithCustomValueBinder, WithHeadings, WithTitle
 {
+    use PreservesTextColumns;
+
     /**
-     * @param  array<int, array{message:string,columns:array<string,?string>}>  $rows
+     * @param  array<int, array{row:int,message:string,columns:array<string,?string>}>  $rows
      */
     public function __construct(
         private array $rows,
@@ -30,7 +35,7 @@ class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, 
             ];
 
             foreach ($columnHeadings as $column) {
-                $exportRow[$column] = $columns[$column] ?? '-';
+                $exportRow[$column] = $columns[$column] ?? null;
             }
 
             return $exportRow;
@@ -71,5 +76,13 @@ class OutletImportErrorsSummarySheet implements FromCollection, ShouldAutoSize, 
     private function updatedTemplateHeadings(): array
     {
         return (new OutletUpdatedSheet)->headings();
+    }
+
+    protected function textColumns(): array
+    {
+        return match ($this->mode) {
+            'create' => ['F'],
+            default => ['F', 'Q'],
+        };
     }
 }

@@ -114,6 +114,15 @@ abstract class BaseExporter extends Exporter
         return $baseUrl.ltrim($path, '/');
     }
 
+    protected static function textValue(mixed $state, string $fallback = '-'): string
+    {
+        if ($state === null || $state === '') {
+            return $fallback;
+        }
+
+        return (string) $state;
+    }
+
     protected static function storageImageFormula(?string $path, string $fallback = '-'): string
     {
         // Try IMAGE() (Excel 365) and fall back to clickable hyperlink if unsupported.

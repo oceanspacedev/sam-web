@@ -653,6 +653,11 @@ class UserResource extends Resource
             ->columns([
                 TextColumn::make('nama_lengkap')
                     ->searchable(),
+                TextColumn::make('whatsapp_number')
+                    ->label('Nomor WhatsApp')
+                    ->searchable()
+                    ->placeholder('-')
+                    ->toggleable(),
                 // Tables\Columns\TextColumn::make('username')
                 //     ->searchable(),
                 TextColumn::make('role.name')

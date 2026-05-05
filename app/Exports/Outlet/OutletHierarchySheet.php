@@ -3,8 +3,9 @@
 namespace App\Exports\Outlet;
 
 use App\Models\Cluster;
+use App\Models\User;
+use App\Support\OrganizationalScope;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -22,6 +23,8 @@ class OutletHierarchySheet implements FromCollection, ShouldAutoSize, WithEvents
      * @var array<int, array{0: string, 1: int, 2: int}>
      */
     private array $mergeInstructions = [];
+
+    public function __construct(private ?int $userId = null) {}
 
     public function title(): string
     {
@@ -58,31 +61,9 @@ class OutletHierarchySheet implements FromCollection, ShouldAutoSize, WithEvents
             ->orderBy('region_name')
             ->orderBy('cluster_name');
 
-        if (Auth::check()) {
-            $user = Auth::user();
-            $role = $user->role;
-            $scopeLevel = $role->organizational_scope_level ?? 'cluster';
-
-            if ($scopeLevel !== 'all') {
-                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn('clusters.badanusaha_id', $badanUsahaIds);
-                }
-                if (! empty($divisiIds)) {
-                    $query->whereIn('clusters.divisi_id', $divisiIds);
-                }
-                if (! empty($regionIds)) {
-                    $query->whereIn('clusters.region_id', $regionIds);
-                }
-                if (! empty($clusterIds)) {
-                    $query->whereIn('clusters.id', $clusterIds);
-                }
-            }
-        }
+        OrganizationalScope::applyToQuery($query, $this->user(), 'clusters', [
+            'cluster' => 'id',
+        ]);
 
         $clusters = $query->get();
 
@@ -133,6 +114,11 @@ class OutletHierarchySheet implements FromCollection, ShouldAutoSize, WithEvents
         }
 
         return collect($rows);
+    }
+
+    protected function user(): ?User
+    {
+        return $this->userId ? User::with('role')->find($this->userId) : null;
     }
 
     public function styles(Worksheet $sheet)

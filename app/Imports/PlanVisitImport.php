@@ -17,22 +17,54 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\OnEachRow;
+use Maatwebsite\Excel\Concerns\RegistersEventListeners;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Events\AfterImport;
 use Maatwebsite\Excel\Events\ImportFailed;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Row;
 use Throwable;
 
-class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEvents, WithHeadingRow
+class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEvents, WithHeadingRow, WithMultipleSheets
 {
+    use RegistersEventListeners;
+
     private const SUMMARY_TTL_MINUTES = 120;
 
     private const ERROR_SAMPLE_LIMIT = 20;
 
     private const SUPPORTED_SCOPES = ['daily', 'weekly'];
+
+    private const CUTOFF_DAY_OFFSETS = [
+        'monday' => 0,
+        'senin' => 0,
+        'tuesday' => 1,
+        'selasa' => 1,
+        'wednesday' => 2,
+        'rabu' => 2,
+        'thursday' => 3,
+        'kamis' => 3,
+        'friday' => 4,
+        'jumat' => 4,
+        'jum\'at' => 4,
+        'saturday' => 5,
+        'sabtu' => 5,
+        'sunday' => 6,
+        'minggu' => 6,
+    ];
+
+    private const CUTOFF_DAY_LABELS = [
+        0 => 'Senin',
+        1 => 'Selasa',
+        2 => 'Rabu',
+        3 => 'Kamis',
+        4 => 'Jumat',
+        5 => 'Sabtu',
+        6 => 'Minggu',
+    ];
 
     private ?int $userId;
 
@@ -55,6 +87,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private ?string $uploadedPath;
 
+    private Carbon $submittedAt;
+
     private bool $importerResolved = false;
 
     private ?User $importer = null;
@@ -63,13 +97,15 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
         ?int $userId = null,
         string $scheduleScope = 'daily',
         ?string $uploadedDisk = null,
-        ?string $uploadedPath = null
+        ?string $uploadedPath = null,
+        ?Carbon $submittedAt = null
     ) {
         $this->userId = $userId;
         $this->scheduleScope = in_array($scheduleScope, self::SUPPORTED_SCOPES, true) ? $scheduleScope : 'daily';
         $this->summaryKey = 'plan-visit-import:'.Str::uuid()->toString();
         $this->uploadedDisk = $uploadedDisk;
         $this->uploadedPath = $uploadedPath ? ltrim($uploadedPath, '/') : null;
+        $this->submittedAt = ($submittedAt ?? now())->copy();
         $this->ensureSummaryInitialized();
     }
 
@@ -155,86 +191,100 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
         }
     }
 
-    public function registerEvents(): array
+    public function sheets(): array
     {
         return [
-            AfterImport::class => function (): void {
-                if (! $this->userId) {
-                    $this->flushSummary();
-
-                    return;
-                }
-
-                $summary = $this->getSummary();
-
-                // Gunakan nilai terbesar antara summary (dari chunk processing) dan instance vars
-                $processed = max($summary['processed'], $this->processed);
-                $created = max($summary['created'], $this->created);
-                $updated = max($summary['updated'], $this->updated);
-
-                // Untuk error, prioritaskan data dari instance saat ini jika ada
-                // Ini mencegah data error lama dari cache tercampur
-                $currentErrors = ! empty($this->errors) ? $this->errors : ($summary['errors_export'] ?? []);
-                $errorCount = count($currentErrors);
-
-                $isEmpty = $processed === 0 && $errorCount === 0;
-
-                $messageParts = [
-                    'Import plan visit selesai.',
-                    'Total '.number_format($processed).' baris diproses.',
-                    'Mode '.strtoupper($this->scheduleScope).'.',
-                ];
-
-                if ($created > 0) {
-                    $messageParts[] = number_format($created).' baris baru berhasil dibuat.';
-                }
-
-                if ($updated > 0) {
-                    $messageParts[] = number_format($updated).' baris diperbarui.';
-                }
-
-                if ($isEmpty) {
-                    $messageParts[] = 'Tidak ada baris yang berhasil diproses. Periksa kembali template sebelum mengunggah ulang.';
-                }
-
-                $downloadPath = null;
-
-                if ($errorCount > 0) {
-                    $messageParts[] = number_format($errorCount).' baris perlu diperbaiki.';
-                    $downloadPath = $this->storeErrorReport($currentErrors);
-
-                    if ($downloadPath) {
-                        $messageParts[] = 'Detail error tersedia pada file Excel terlampir.';
-                    }
-                }
-
-                $body = implode(' ', $messageParts);
-
-                $downloads = $downloadPath ? [[
-                    'name' => 'download_xlsx',
-                    'label' => 'Unduh .xlsx',
-                    'path' => $downloadPath,
-                ]] : null;
-
-                SendImportNotification::dispatch(
-                    $this->userId,
-                    'Import Plan Visit Selesai',
-                    $body,
-                    $errorCount === 0 && ! $isEmpty,
-                    $downloadPath,
-                    $downloads
-                );
-
-                $this->flushSummary();
-            },
-            ImportFailed::class => function (ImportFailed $event): void {
-                $this->handleImportFailed($this->exceptionFromImportFailed($event));
-            },
+            0 => $this,
         ];
+    }
+
+    public function afterImport(AfterImport $event): void
+    {
+        if (! $this->userId) {
+            $this->flushSummary();
+
+            return;
+        }
+
+        $summary = $this->getSummary();
+
+        // Gunakan nilai terbesar antara summary (dari chunk processing) dan instance vars
+        $processed = max($summary['processed'], $this->processed);
+        $created = max($summary['created'], $this->created);
+        $updated = max($summary['updated'], $this->updated);
+
+        $currentErrors = $this->currentErrorRows($summary);
+        $errorCount = count($currentErrors);
+
+        $isEmpty = $processed === 0 && $errorCount === 0;
+
+        $messageParts = [
+            'Import plan visit selesai.',
+            'Total '.number_format($processed).' baris diproses.',
+            'Mode '.strtoupper($this->scheduleScope).'.',
+        ];
+
+        if ($created > 0) {
+            $messageParts[] = number_format($created).' baris baru berhasil dibuat.';
+        }
+
+        if ($updated > 0) {
+            $messageParts[] = number_format($updated).' baris diperbarui.';
+        }
+
+        if ($isEmpty) {
+            $messageParts[] = 'Tidak ada baris yang berhasil diproses. Periksa kembali template sebelum mengunggah ulang.';
+        }
+
+        $downloadPath = null;
+
+        if ($errorCount > 0) {
+            $messageParts[] = number_format($errorCount).' baris perlu diperbaiki.';
+            $downloadPath = $this->storeErrorReport($currentErrors);
+
+            if ($downloadPath) {
+                $messageParts[] = 'Detail error tersedia pada file Excel terlampir.';
+            }
+        }
+
+        $body = implode(' ', $messageParts);
+
+        $downloads = $downloadPath ? [[
+            'name' => 'download_xlsx',
+            'label' => 'Unduh .xlsx',
+            'path' => $downloadPath,
+        ]] : null;
+
+        SendImportNotification::dispatch(
+            $this->userId,
+            'Import Plan Visit Selesai',
+            $body,
+            $errorCount === 0 && ! $isEmpty,
+            $downloadPath,
+            $downloads
+        );
+
+        $this->flushSummary();
+    }
+
+    public function importFailed(ImportFailed $event): void
+    {
+        $this->handleImportFailed($this->exceptionFromImportFailed($event));
+    }
+
+    public static function uploadCutoffLabel(): string
+    {
+        [$hour, $minute] = self::uploadCutoffClock();
+
+        return self::CUTOFF_DAY_LABELS[self::uploadCutoffDayOffset()].' '.sprintf('%02d.%02d', $hour, $minute);
     }
 
     private function handleImportFailed(?Throwable $exception = null): void
     {
+        $summary = $this->getSummary();
+        $currentErrors = $this->currentErrorRows($summary);
+        $downloadPath = $this->storeErrorReport($currentErrors);
+
         $this->cleanupUploadedFile();
         $this->flushSummary();
 
@@ -250,12 +300,40 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             return;
         }
 
+        $body = 'Import plan visit (scope: '.strtoupper($this->scheduleScope).') gagal diproses di worker. '.$this->failureReason($exception);
+        $downloads = $downloadPath ? [[
+            'name' => 'download_xlsx',
+            'label' => 'Unduh laporan error',
+            'path' => $downloadPath,
+        ]] : null;
+
+        if ($downloadPath) {
+            $body .= ' Error yang sempat terbaca tersedia pada file Excel terlampir.';
+        }
+
         SendImportNotification::dispatch(
             $this->userId,
             'Import Plan Visit Gagal',
-            'Import plan visit (scope: '.strtoupper($this->scheduleScope).') gagal diproses di worker. Silakan periksa file dan coba unggah ulang.',
-            false
+            $body,
+            false,
+            $downloadPath,
+            $downloads
         );
+    }
+
+    private function failureReason(?Throwable $exception): string
+    {
+        if (! $exception) {
+            return 'Silakan periksa file dan coba unggah ulang.';
+        }
+
+        $message = trim(preg_replace('/\s+/', ' ', $exception->getMessage()) ?: '');
+
+        if ($message === '') {
+            return 'Silakan periksa file dan coba unggah ulang.';
+        }
+
+        return 'Penyebab: '.Str::limit($message, 300);
     }
 
     private function exceptionFromImportFailed(ImportFailed $event): ?Throwable
@@ -409,14 +487,15 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private function assertScheduleDateIsAllowed(Carbon $tanggal): void
     {
-        $now = now();
+        $now = $this->submittedAt->copy();
         $today = $now->copy()->startOfDay();
 
-        $cutoffTime = $today->copy()->startOfWeek(Carbon::MONDAY)->addDay()->addHours(10);
+        $cutoffTime = self::uploadCutoffTimeFor($today);
+        $cutoffLabel = self::uploadCutoffLabel();
 
         if ($this->scheduleScope === 'weekly') {
             if ($tanggal->isoWeekYear === $now->isoWeekYear && $tanggal->weekOfYear === $now->weekOfYear && $now->gt($cutoffTime)) {
-                throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off Selasa 10.00.');
+                throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off '.$cutoffLabel.'.');
             }
 
             $minimumAllowedDate = $today->copy()->startOfWeek(Carbon::MONDAY);
@@ -439,8 +518,59 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
         }
 
         if ($tanggal->isoWeekYear === $now->isoWeekYear && $tanggal->weekOfYear <= $now->weekOfYear && $now->gt($cutoffTime)) {
-            throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off Selasa 10.00.');
+            throw new Exception('Plan minggu '.$tanggal->weekOfYear.' sudah melewati batas cut-off '.$cutoffLabel.'.');
         }
+    }
+
+    private static function uploadCutoffTimeFor(Carbon $referenceDate): Carbon
+    {
+        [$hour, $minute] = self::uploadCutoffClock();
+
+        return $referenceDate
+            ->copy()
+            ->startOfWeek(Carbon::MONDAY)
+            ->addDays(self::uploadCutoffDayOffset())
+            ->setTime($hour, $minute);
+    }
+
+    private static function uploadCutoffDayOffset(): int
+    {
+        $day = strtolower(trim((string) config('plan_visit.upload_cutoff.day', 'wednesday')));
+
+        if (array_key_exists($day, self::CUTOFF_DAY_OFFSETS)) {
+            return self::CUTOFF_DAY_OFFSETS[$day];
+        }
+
+        if (is_numeric($day)) {
+            $offset = (int) $day;
+
+            if ($offset >= 0 && $offset <= 6) {
+                return $offset;
+            }
+        }
+
+        return self::CUTOFF_DAY_OFFSETS['wednesday'];
+    }
+
+    /**
+     * @return array{0:int,1:int}
+     */
+    private static function uploadCutoffClock(): array
+    {
+        $time = trim((string) config('plan_visit.upload_cutoff.time', '17:00'));
+
+        if (! preg_match('/^(\d{1,2})(?::|\.)(\d{2})$/', $time, $matches)) {
+            return [17, 0];
+        }
+
+        $hour = (int) $matches[1];
+        $minute = (int) $matches[2];
+
+        if ($hour < 0 || $hour > 23 || $minute < 0 || $minute > 59) {
+            return [17, 0];
+        }
+
+        return [$hour, $minute];
     }
 
     private function requireValue(array $row, array $keys, string $label): string
@@ -481,14 +611,24 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
         $value = trim((string) $value);
 
-        return $value === '' ? null : $value;
+        return $value === '' || $value === '-' ? null : $value;
     }
 
     private function normalizeOutletCode(?string $value): ?string
     {
         $value = $this->sanitizeString($value);
 
-        return $value === null ? null : Str::upper(str_replace(' ', '', $value));
+        if ($value === null) {
+            return null;
+        }
+
+        $value = str_replace(' ', '', $value);
+
+        if (preg_match('/^\d+,\d+$/', $value)) {
+            $value = str_replace(',', '.', $value);
+        }
+
+        return Str::upper($value);
     }
 
     private function normalizeName(?string $value): string
@@ -593,6 +733,33 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
             'errors' => [],
             'errors_export' => [],
         ];
+    }
+
+    /**
+     * @return array<int, array{row:int,message:string,kode_outlet:?string,columns:array<string,?string>}>
+     */
+    private function currentErrorRows(array $summary): array
+    {
+        $merged = [];
+
+        foreach ([($summary['errors_export'] ?? []), $this->errors] as $errorRows) {
+            foreach ($errorRows as $error) {
+                if (! is_array($error)) {
+                    continue;
+                }
+
+                $key = implode('|', [
+                    (string) ($error['row'] ?? ''),
+                    (string) ($error['message'] ?? ''),
+                    (string) ($error['kode_outlet'] ?? ''),
+                    md5(json_encode($error['columns'] ?? []) ?: ''),
+                ]);
+
+                $merged[$key] = $error;
+            }
+        }
+
+        return array_values($merged);
     }
 
     /**

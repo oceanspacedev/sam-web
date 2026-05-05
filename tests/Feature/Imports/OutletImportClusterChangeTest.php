@@ -74,3 +74,119 @@ it('blocks outlet cluster changes on import when there are unrealized plan visit
 
     expect($outlet->refresh()->cluster_id)->toBe($clusterOld->id);
 });
+
+it('does not validate formula-looking existing values missing from update import rows', function () {
+    $badanUsaha = BadanUsaha::factory()->create(['name' => 'BU-TEST']);
+    $division = Division::factory()->create([
+        'name' => 'DIV-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+    ]);
+    $region = Region::factory()->create([
+        'name' => 'REG-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+        'divisi_id' => $division->id,
+    ]);
+    $cluster = Cluster::factory()->create([
+        'name' => 'CLUSTER-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+        'divisi_id' => $division->id,
+        'region_id' => $region->id,
+    ]);
+
+    $outlet = Outlet::factory()->create([
+        'kode_outlet' => 'OUT-001',
+        'alamat_outlet' => '=ALAMAT LAMA',
+        'badanusaha_id' => $badanUsaha->id,
+        'divisi_id' => $division->id,
+        'region_id' => $region->id,
+        'cluster_id' => $cluster->id,
+    ]);
+
+    $import = new OutletImport('update');
+
+    $import->model([
+        'badan_usaha' => 'BU-TEST',
+        'divisi' => 'DIV-TEST',
+        'region' => 'REG-TEST',
+        'cluster' => 'CLUSTER-TEST',
+        'kode_outlet' => 'OUT-001',
+    ], 2);
+
+    expect($outlet->refresh()->alamat_outlet)->toBe('=ALAMAT LAMA');
+});
+
+it('treats dash placeholders from old error reports as blank update values', function () {
+    $badanUsaha = BadanUsaha::factory()->create(['name' => 'BU-TEST']);
+    $division = Division::factory()->create([
+        'name' => 'DIV-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+    ]);
+    $region = Region::factory()->create([
+        'name' => 'REG-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+        'divisi_id' => $division->id,
+    ]);
+    $cluster = Cluster::factory()->create([
+        'name' => 'CLUSTER-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+        'divisi_id' => $division->id,
+        'region_id' => $region->id,
+    ]);
+
+    $outlet = Outlet::factory()->create([
+        'kode_outlet' => 'OUT-001',
+        'nama_outlet' => 'TOKO LAMA',
+        'badanusaha_id' => $badanUsaha->id,
+        'divisi_id' => $division->id,
+        'region_id' => $region->id,
+        'cluster_id' => $cluster->id,
+    ]);
+
+    $import = new OutletImport('update');
+
+    $import->model([
+        'badan_usaha' => 'BU-TEST',
+        'divisi' => 'DIV-TEST',
+        'region' => 'REG-TEST',
+        'cluster' => 'CLUSTER-TEST',
+        'kode_outlet' => 'OUT-001',
+        'badan_usaha_baru' => '-',
+        'divisi_baru' => '-',
+        'region_baru' => '-',
+        'cluster_baru' => '-',
+        'nama_outlet_baru' => '-',
+    ], 2);
+
+    expect($outlet->refresh()->nama_outlet)->toBe('TOKO LAMA');
+});
+
+it('rejects invalid numeric outlet import values instead of silently defaulting them', function () {
+    $badanUsaha = BadanUsaha::factory()->create(['name' => 'BU-TEST']);
+    $division = Division::factory()->create([
+        'name' => 'DIV-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+    ]);
+    $region = Region::factory()->create([
+        'name' => 'REG-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+        'divisi_id' => $division->id,
+    ]);
+    Cluster::factory()->create([
+        'name' => 'CLUSTER-TEST',
+        'badanusaha_id' => $badanUsaha->id,
+        'divisi_id' => $division->id,
+        'region_id' => $region->id,
+    ]);
+
+    $import = new OutletImport('create');
+
+    expect(fn () => $import->model([
+        'badan_usaha' => 'BU-TEST',
+        'divisi' => 'DIV-TEST',
+        'region' => 'REG-TEST',
+        'cluster' => 'CLUSTER-TEST',
+        'kode_outlet' => 'OUT-001',
+        'nama_outlet' => 'TOKO BARU',
+        'limit' => 'SALAH',
+    ], 2))->toThrow(Exception::class, 'Kolom limit harus berupa angka.');
+});

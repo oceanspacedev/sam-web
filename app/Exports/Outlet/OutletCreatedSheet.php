@@ -2,14 +2,19 @@
 
 namespace App\Exports\Outlet;
 
+use App\Exports\Concerns\PreservesTextColumns;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class OutletCreatedSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
+class OutletCreatedSheet implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithCustomValueBinder, WithHeadings, WithTitle
 {
+    use PreservesTextColumns;
+
     public function title(): string
     {
         return 'Created';
@@ -45,5 +50,10 @@ class OutletCreatedSheet implements FromCollection, ShouldAutoSize, WithHeadings
                 0,
             ],
         ]);
+    }
+
+    protected function textColumns(): array
+    {
+        return ['E'];
     }
 }

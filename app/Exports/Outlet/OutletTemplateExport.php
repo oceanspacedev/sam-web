@@ -10,23 +10,26 @@ class OutletTemplateExport implements ShouldAutoSize, WithMultipleSheets
 {
     use Exportable;
 
-    public function __construct(private ?string $mode = null) {}
+    public function __construct(
+        private ?string $mode = null,
+        private ?int $userId = null,
+    ) {}
 
     public function sheets(): array
     {
         return match ($this->mode) {
             'create' => [
                 new OutletCreatedSheet,
-                new OutletHierarchySheet,
+                new OutletHierarchySheet($this->userId),
             ],
             'update' => [
-                new OutletUpdatedSheet,
-                new OutletHierarchySheet,
+                new OutletUpdatedSheet($this->userId),
+                new OutletHierarchySheet($this->userId),
             ],
             default => [
-                new OutletUpdatedSheet,
+                new OutletUpdatedSheet($this->userId),
                 new OutletCreatedSheet,
-                new OutletHierarchySheet,
+                new OutletHierarchySheet($this->userId),
             ],
         };
     }

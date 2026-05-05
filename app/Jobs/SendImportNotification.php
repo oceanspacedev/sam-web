@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\User;
 use App\Support\StorageDisk;
 use Filament\Actions\Action;
+use Filament\Notifications\Events\DatabaseNotificationsSent;
 use Filament\Notifications\Notification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\Log;
 
 class SendImportNotification implements ShouldQueue
 {
@@ -39,6 +41,11 @@ class SendImportNotification implements ShouldQueue
         $user = User::find($this->userId);
 
         if (! $user) {
+            Log::warning('Import notification skipped because user was not found', [
+                'user_id' => $this->userId,
+                'title' => $this->title,
+            ]);
+
             return;
         }
 
@@ -62,7 +69,14 @@ class SendImportNotification implements ShouldQueue
             $notification->actions($this->buildDownloadActions($downloads));
         }
 
-        $notification->sendToDatabase($user, isEventDispatched: true);
+        $user->notifyNow($notification->toDatabase());
+        DatabaseNotificationsSent::dispatch($user);
+
+        Log::info('Import notification sent to database', [
+            'user_id' => $this->userId,
+            'title' => $this->title,
+            'download_path' => $this->downloadPath,
+        ]);
     }
 
     /**

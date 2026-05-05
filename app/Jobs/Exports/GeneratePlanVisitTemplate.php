@@ -10,7 +10,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 class GeneratePlanVisitTemplate implements ShouldQueue
 {
@@ -32,6 +34,8 @@ class GeneratePlanVisitTemplate implements ShouldQueue
 
     public function handle(): void
     {
+        $this->prepareRuntime();
+
         $disk = StorageDisk::default();
         $fileName = sprintf(
             'plan-visit-template-%s-%s.xlsx',
@@ -42,12 +46,39 @@ class GeneratePlanVisitTemplate implements ShouldQueue
 
         Excel::store(new PlanVisitTemplateExport($this->scheduleScope), $path, $disk);
 
-        SendImportNotification::dispatch(
+        SendImportNotification::dispatchSync(
             $this->userId,
             'Template Plan Visit '.strtoupper($this->scheduleScope).' Siap',
             'Template plan visit (scope: '.strtoupper($this->scheduleScope).') sudah siap diunduh.',
             true,
             $path
         );
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        SendImportNotification::dispatchSync(
+            $this->userId,
+            'Template Plan Visit '.strtoupper($this->scheduleScope).' Gagal',
+            'Template plan visit (scope: '.strtoupper($this->scheduleScope).') gagal dibuat. '.$this->failureReason($exception),
+            false
+        );
+    }
+
+    private function failureReason(?Throwable $exception): string
+    {
+        $message = trim((string) $exception?->getMessage());
+
+        if ($message === '') {
+            return 'Silakan coba lagi atau hubungi tim IT.';
+        }
+
+        return 'Penyebab: '.Str::limit(preg_replace('/\s+/', ' ', $message) ?: $message, 300);
+    }
+
+    private function prepareRuntime(): void
+    {
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(0);
     }
 }

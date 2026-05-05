@@ -66,7 +66,7 @@ class VisitExporter extends BaseExporter
 
             ExportColumn::make('visitable_kode_outlet')
                 ->label('Kode Outlet')
-                ->formatStateUsing(fn ($state, Visit $record): string => $record->visitable?->kode_outlet ?: '-'),
+                ->formatStateUsing(fn ($state, Visit $record): string => static::textValue($record->visitable?->kode_outlet)),
 
             ExportColumn::make('visitable_nama_outlet')
                 ->label('Nama Outlet')

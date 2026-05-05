@@ -19,17 +19,21 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\OnEachRow;
+use Maatwebsite\Excel\Concerns\RegistersEventListeners;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Events\AfterImport;
 use Maatwebsite\Excel\Events\ImportFailed;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Row;
 use Throwable;
 
-class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEvents, WithHeadingRow
+class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEvents, WithHeadingRow, WithMultipleSheets
 {
+    use RegistersEventListeners;
+
     private const SUMMARY_TTL_MINUTES = 120;
 
     private const ERROR_SAMPLE_LIMIT = 20;
@@ -137,6 +141,13 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
                 'message' => $e->getMessage(),
             ]);
         }
+    }
+
+    public function sheets(): array
+    {
+        return [
+            0 => $this,
+        ];
     }
 
     public function model(array $row, int $rowIndex = 1): ?Outlet
@@ -282,7 +293,8 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             ),
             'limit' => $this->resolveInteger(
                 $this->firstFilled($data, ['limit_baru', 'limit'], label: 'limit'),
-                $existing?->limit ?? 0
+                $existing?->limit ?? 0,
+                'limit'
             ),
             'status_outlet' => $this->uppercase(
                 $this->firstFilled(
@@ -316,7 +328,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             return null;
         }
 
-        $payload['radius'] = $this->resolveInteger($this->firstFilled($data, ['radius'], label: 'radius'), 100);
+        $payload['radius'] = $this->resolveInteger($this->firstFilled($data, ['radius'], label: 'radius'), 100, 'radius');
         $payload['latlong'] = $this->sanitizeString($this->firstFilled($data, ['latlong'], label: 'latlong'));
 
         $attributes = array_filter(
@@ -337,101 +349,83 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         return Outlet::make($attributes);
     }
 
-    public function registerEvents(): array
+    public function afterImport(AfterImport $event): void
     {
-        return [
-            AfterImport::class => function (): void {
-                if (! $this->userId) {
-                    $this->flushSummary();
+        if (! $this->userId) {
+            $this->flushSummary();
 
-                    return;
-                }
+            return;
+        }
 
-                $summary = $this->getSummary();
+        $summary = $this->getSummary();
 
-                // Gunakan nilai terbesar antara summary (dari chunk processing) dan instance vars
-                $processed = max($summary['processed'], $this->processed);
-                $created = max($summary['created'], $this->created);
-                $updated = max($summary['updated'], $this->updated);
-                $skipped = max($summary['skipped'], $this->skipped);
-                $mode = $summary['mode'] ?? $this->mode;
+        // Gunakan nilai terbesar antara summary (dari chunk processing) dan instance vars
+        $processed = max($summary['processed'], $this->processed);
+        $created = max($summary['created'], $this->created);
+        $updated = max($summary['updated'], $this->updated);
+        $skipped = max($summary['skipped'], $this->skipped);
+        $mode = $summary['mode'] ?? $this->mode;
 
-                // Untuk error, prioritaskan data dari instance saat ini jika ada
-                // Ini mencegah data error lama dari cache tercampur
-                $currentErrors = ! empty($this->errors) ? $this->errors : ($summary['errors_export'] ?? []);
-                $errorCount = count($currentErrors);
+        $currentErrors = $this->currentErrorRows($summary);
+        $errorCount = count($currentErrors);
 
-                $isEmpty = $processed === 0 && $errorCount === 0;
+        $isEmpty = $processed === 0 && $errorCount === 0;
 
-                $modeLabel = match ($mode) {
-                    'update' => 'Update',
-                    default => 'Create',
-                };
+        $modeLabel = match ($mode) {
+            'update' => 'Update',
+            default => 'Create',
+        };
 
-                $messageParts = [
-                    "Import {$modeLabel} data outlet selesai.",
-                    'Sebanyak '.number_format($processed).' '.str('baris')->plural($processed).' diproses.',
-                ];
+        $downloadPath = null;
 
-                if ($created > 0) {
-                    $messageParts[] = number_format($created).' '.str('baris')->plural($created).' berhasil dibuat.';
-                }
+        if ($errorCount > 0) {
+            $downloadPath = $this->storeErrorReport($currentErrors, $mode);
+        }
 
-                if ($updated > 0) {
-                    $messageParts[] = number_format($updated).' '.str('baris')->plural($updated).' berhasil diperbarui.';
-                }
+        $body = $this->buildResultBody(
+            $modeLabel,
+            $processed,
+            $created,
+            $updated,
+            $skipped,
+            $errorCount,
+            $downloadPath !== null,
+        );
 
-                if ($skipped > 0) {
-                    $messageParts[] = number_format($skipped).' '.str('baris')->plural($skipped).' dilewati.';
-                }
+        $downloads = $downloadPath
+            ? [
+                [
+                    'name' => 'download_xlsx',
+                    'label' => 'Unduh .xlsx',
+                    'path' => $downloadPath,
+                ],
+            ]
+            : null;
 
-                if ($errorCount === 0 && $created === 0 && $updated === 0) {
-                    $messageParts[] = 'Tidak ada baris data yang diproses. Periksa kembali template sebelum mengunggah ulang.';
-                }
+        SendImportNotification::dispatch(
+            $this->userId,
+            'Import Data Outlet Selesai',
+            $body,
+            $errorCount === 0 && ! $isEmpty,
+            $downloadPath,
+            $downloads
+        );
 
-                $downloadPath = null;
+        $this->flushSummary();
+    }
 
-                if ($errorCount > 0) {
-                    $downloadPath = $this->storeErrorReport($currentErrors, $mode);
-
-                    $messageParts[] = number_format($errorCount).' '.str('baris')->plural($errorCount).' gagal diproses dan perlu diperbaiki.';
-
-                    if ($downloadPath) {
-                        $messageParts[] = 'Detail kesalahan dapat dilihat pada file Excel terlampir.';
-                    }
-                }
-
-                $body = implode(' ', $messageParts);
-
-                $downloads = $downloadPath
-                    ? [
-                        [
-                            'name' => 'download_xlsx',
-                            'label' => 'Unduh .xlsx',
-                            'path' => $downloadPath,
-                        ],
-                    ]
-                    : null;
-
-                SendImportNotification::dispatch(
-                    $this->userId,
-                    'Import Data Outlet Selesai',
-                    $body,
-                    $errorCount === 0 && ! $isEmpty,
-                    $downloadPath,
-                    $downloads
-                );
-
-                $this->flushSummary();
-            },
-            ImportFailed::class => function (ImportFailed $event): void {
-                $this->handleImportFailed($this->exceptionFromImportFailed($event));
-            },
-        ];
+    public function importFailed(ImportFailed $event): void
+    {
+        $this->handleImportFailed($this->exceptionFromImportFailed($event));
     }
 
     private function handleImportFailed(?Throwable $exception = null): void
     {
+        $summary = $this->getSummary();
+        $mode = $summary['mode'] ?? $this->mode;
+        $currentErrors = $this->currentErrorRows($summary);
+        $downloadPath = $this->storeErrorReport($currentErrors, $mode);
+
         $this->cleanupUploadedFile();
         $this->flushSummary();
 
@@ -447,12 +441,81 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             return;
         }
 
+        $body = 'Import data outlet (mode: '.strtoupper($this->mode).') gagal diproses di worker. '.$this->failureReason($exception);
+        $downloads = $downloadPath ? [[
+            'name' => 'download_xlsx',
+            'label' => 'Unduh laporan error',
+            'path' => $downloadPath,
+        ]] : null;
+
+        if ($downloadPath) {
+            $body .= ' Error yang sempat terbaca tersedia pada file Excel terlampir.';
+        }
+
         SendImportNotification::dispatch(
             $this->userId,
             'Import Data Outlet Gagal',
-            'Import data outlet (mode: '.strtoupper($this->mode).') gagal diproses di worker. Silakan periksa file dan coba unggah ulang.',
-            false
+            $body,
+            false,
+            $downloadPath,
+            $downloads
         );
+    }
+
+    private function buildResultBody(
+        string $modeLabel,
+        int $processed,
+        int $created,
+        int $updated,
+        int $skipped,
+        int $errorCount,
+        bool $hasDownloadPath,
+    ): string {
+        $messageParts = [
+            "Import {$modeLabel} data outlet selesai.",
+            'Sebanyak '.number_format($processed).' '.str('baris')->plural($processed).' diproses.',
+        ];
+
+        if ($created > 0) {
+            $messageParts[] = number_format($created).' '.str('baris')->plural($created).' berhasil dibuat.';
+        }
+
+        if ($updated > 0) {
+            $messageParts[] = number_format($updated).' '.str('baris')->plural($updated).' berhasil diperbarui.';
+        }
+
+        if ($errorCount === 0 && $created === 0 && $updated === 0) {
+            $messageParts[] = 'Tidak ada baris data yang diproses. Periksa kembali template sebelum mengunggah ulang.';
+        }
+
+        if ($errorCount > 0) {
+            $messageParts[] = number_format($errorCount).' '.str('baris')->plural($errorCount).' gagal atau dilewati dan perlu diperbaiki.';
+
+            if ($skipped > 0) {
+                $messageParts[] = number_format($skipped).' '.str('baris')->plural($skipped).' di antaranya dilewati oleh aturan validasi.';
+            }
+
+            if ($hasDownloadPath) {
+                $messageParts[] = 'Detail kesalahan dapat dilihat pada file Excel terlampir.';
+            }
+        }
+
+        return implode(' ', $messageParts);
+    }
+
+    private function failureReason(?Throwable $exception): string
+    {
+        if (! $exception) {
+            return 'Silakan periksa file dan coba unggah ulang.';
+        }
+
+        $message = trim(preg_replace('/\s+/', ' ', $exception->getMessage()) ?: '');
+
+        if ($message === '') {
+            return 'Silakan periksa file dan coba unggah ulang.';
+        }
+
+        return 'Penyebab: '.Str::limit($message, 300);
     }
 
     private function exceptionFromImportFailed(ImportFailed $event): ?Throwable
@@ -547,13 +610,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             }
         }
 
-        $value = $default !== null ? $this->sanitizeString($default) : null;
-
-        if ($value !== null && $value !== '') {
-            $this->rejectFormulaString($value, $label);
-        }
-
-        return $value;
+        return $default !== null ? $this->sanitizeString($default) : null;
     }
 
     private function sanitizeString($value): ?string
@@ -564,7 +621,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
         $value = trim((string) $value);
 
-        return $value === '' ? null : $value;
+        return $value === '' || $value === '-' ? null : $value;
     }
 
     private function rejectFormulaString(string $value, string $label): void
@@ -613,7 +670,17 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     {
         $value = $this->sanitizeString($value);
 
-        return $value === null ? null : mb_strtoupper(str_replace(' ', '', $value));
+        if ($value === null) {
+            return null;
+        }
+
+        $value = str_replace(' ', '', $value);
+
+        if (preg_match('/^\d+,\d+$/', $value)) {
+            $value = str_replace(',', '.', $value);
+        }
+
+        return mb_strtoupper($value);
     }
 
     private function normalizeName(string $value): string
@@ -621,14 +688,14 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         return Str::upper(str_replace(' ', '', $value));
     }
 
-    private function resolveInteger(?string $value, int $default): int
+    private function resolveInteger(?string $value, int $default, string $label = 'nilai'): int
     {
         if ($value === null) {
             return $default;
         }
 
         if (! is_numeric($value)) {
-            return $default;
+            throw new Exception("Kolom {$label} harus berupa angka.");
         }
 
         return (int) $value;
@@ -856,6 +923,33 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     }
 
     /**
+     * @return array<int, array{row:int,message:string,kode_outlet:?string,columns:array<string,?string>}>
+     */
+    private function currentErrorRows(array $summary): array
+    {
+        $merged = [];
+
+        foreach ([($summary['errors_export'] ?? []), $this->errors] as $errorRows) {
+            foreach ($errorRows as $error) {
+                if (! is_array($error)) {
+                    continue;
+                }
+
+                $key = implode('|', [
+                    (string) ($error['row'] ?? ''),
+                    (string) ($error['message'] ?? ''),
+                    (string) ($error['kode_outlet'] ?? ''),
+                    md5(json_encode($error['columns'] ?? []) ?: ''),
+                ]);
+
+                $merged[$key] = $error;
+            }
+        }
+
+        return array_values($merged);
+    }
+
+    /**
      * @param  array<int, array{row:int,message:string,kode_outlet:?string,columns:array<string,?string>}>  $errors
      */
     private function storeErrorReport(array $errors, string $mode): ?string
@@ -871,7 +965,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         );
 
         try {
-            Excel::store(new OutletImportErrorsExport($errors, $mode), $path, StorageDisk::default());
+            Excel::store(new OutletImportErrorsExport($errors, $mode, $this->userId), $path, StorageDisk::default());
 
             return $path;
         } catch (Throwable $exception) {

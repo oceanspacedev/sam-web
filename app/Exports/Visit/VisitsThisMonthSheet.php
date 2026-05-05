@@ -2,17 +2,22 @@
 
 namespace App\Exports\Visit;
 
+use App\Exports\Concerns\PreservesTextColumns;
 use App\Models\Outlet;
 use App\Models\User;
 use App\Models\Visit;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class VisitsThisMonthSheet implements FromCollection, WithHeadings, WithTitle
+class VisitsThisMonthSheet implements FromCollection, WithColumnFormatting, WithCustomValueBinder, WithHeadings, WithTitle
 {
+    use PreservesTextColumns;
+
     public function __construct(public User $user) {}
 
     public function collection(): Collection
@@ -54,5 +59,10 @@ class VisitsThisMonthSheet implements FromCollection, WithHeadings, WithTitle
     public function title(): string
     {
         return 'Visits (This Month)';
+    }
+
+    protected function textColumns(): array
+    {
+        return ['B'];
     }
 }

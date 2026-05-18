@@ -280,7 +280,7 @@ test('visit checkin blocks lead register after max 4 visits in 30 day window', f
         ]);
 
     $response->assertStatus(400);
-    $response->assertJsonPath('meta.message', 'Lead ini sudah di-visit 4x dalam 30 hari terakhir. Upgrade ke NOO atau update status lead terlebih dahulu.');
+    $response->assertJsonPath('meta.message', 'Lead ini sudah di-visit 4x dalam bulan ini. Upgrade ke NOO atau update status lead terlebih dahulu.');
     $response->assertJsonPath('data.max_lead_visits_in_window', 4);
     $response->assertJsonPath('data.lead_visit_count_in_window', 4);
     $response->assertJsonPath('data.lead_visit_window_days', 30);

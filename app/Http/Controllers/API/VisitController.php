@@ -30,8 +30,6 @@ class VisitController extends Controller
 
     private const MAX_LEAD_VISITS_PER_WINDOW = 4;
 
-    private const LEAD_VISIT_LIMIT_WINDOW_DAYS = 30;
-
     public function __construct(
         protected FileUploadService $fileUpload,
         protected SystemSettingResolver $systemSettings,
@@ -942,9 +940,7 @@ class VisitController extends Controller
 
     private function enforceLeadVisitLimit($user, Register $target): void
     {
-        $windowStart = now()
-            ->subDays(self::LEAD_VISIT_LIMIT_WINDOW_DAYS - 1)
-            ->startOfDay();
+        $windowStart = now()->startOfMonth();
 
         $leadVisitCount = Visit::query()
             ->where('user_id', $user->id)
@@ -958,11 +954,10 @@ class VisitController extends Controller
         }
 
         throw (new BadRequestException(
-            'Lead ini sudah di-visit '.self::MAX_LEAD_VISITS_PER_WINDOW.'x dalam '.self::LEAD_VISIT_LIMIT_WINDOW_DAYS.' hari terakhir. Upgrade ke NOO atau update status lead terlebih dahulu.'
+            'Lead ini sudah di-visit '.self::MAX_LEAD_VISITS_PER_WINDOW.'x dalam bulan ini. Upgrade ke NOO atau update status lead terlebih dahulu.'
         ))->withData([
             'lead_visit_count_in_window' => $leadVisitCount,
             'max_lead_visits_in_window' => self::MAX_LEAD_VISITS_PER_WINDOW,
-            'lead_visit_window_days' => self::LEAD_VISIT_LIMIT_WINDOW_DAYS,
             'lead_visit_window_start' => $windowStart->toDateString(),
         ]);
     }

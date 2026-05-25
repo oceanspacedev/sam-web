@@ -87,8 +87,8 @@ class FonnteWhatsAppService
     protected function downloadLinksText(): string
     {
         return implode("\n", [
-            'Android (Google Play Store): '.$this->androidDownloadText(),
-            'iOS (TestFlight): '.$this->iosDownloadText(),
+            'Android: '.$this->androidDownloadText().'.',
+            'iOS: '.$this->iosDownloadText().'.',
         ]);
     }
 

@@ -33,7 +33,7 @@ class ArchiveOldStorageFiles extends Command
     public function handle(): int
     {
         $sourceDisk = (string) ($this->option('source-disk') ?: config('filesystems.archive.source_disk', 'public'));
-        $targetDisk = (string) ($this->option('target-disk') ?: config('filesystems.archive.target_disk', 's3'));
+        $targetDisk = (string) ($this->option('target-disk') ?: config('filesystems.archive.target_disk', 'nas_sftp'));
         $days = (int) ($this->option('days') ?: config('filesystems.archive.older_than_days', 90));
         $batchSize = (int) ($this->option('batch') ?: config('filesystems.archive.batch_size', 500));
         $deleteSource = ! $this->option('keep-source') && (bool) config('filesystems.archive.delete_source', true);

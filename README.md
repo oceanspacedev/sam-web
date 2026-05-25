@@ -1,6 +1,6 @@
 # SAM (Sales Assistant Mobile)
 
- SAM adalah backend API + admin panel untuk tim sales lapangan dalam mengelola outlet, kunjungan, dan proses konversi LEAD/NOO menjadi outlet resmi. Pengguna utama: sales lapangan (mobile), team leader/area manager (monitoring), dan admin HO (Filament admin). Teknologi utama: Laravel 12 (PHP 8.2), Sanctum untuk auth token, MySQL sebagai database utama, Redis untuk antrean & rate-limit (cache opsional – default driver saat ini `file`), Octane untuk runtime server, Filament 4 untuk admin panel, media storage via Filesystem (S3 siap pakai), Excel export, dan push notification eksternal via OneSignal (HTTP API).
+ SAM adalah backend API + admin panel untuk tim sales lapangan dalam mengelola outlet, kunjungan, dan proses konversi LEAD/NOO menjadi outlet resmi. Pengguna utama: sales lapangan (mobile), team leader/area manager (monitoring), dan admin HO (Filament admin). Teknologi utama: Laravel 12 (PHP 8.2), Sanctum untuk auth token, MySQL sebagai database utama, Redis untuk antrean & rate-limit (cache opsional – default driver saat ini `file`), Octane untuk runtime server, Filament 4 untuk admin panel, media storage via Filesystem (NAS/SFTP untuk archive fallback), Excel export, dan push notification eksternal via OneSignal (HTTP API).
 
 ## Arsitektur high-level
 
@@ -23,7 +23,7 @@ flowchart LR
   L -->|Push Jobs| H[Horizon + Workers]
   H -->|async media/notif| R
 
-  L -->|Media Storage| S3[(S3/Bucket)]
+  L -->|Media Storage| NAS[(NAS/SFTP)]
   L -->|Push Notification| OS[OneSignal API]
 ```
 
@@ -32,8 +32,44 @@ flowchart LR
 - **Laravel**: Menyediakan API publik (auth, register outlet, visit) dan admin panel. Menangani validasi, bisnis logic, dan akses data.
 - **MySQL**: Sumber data utama untuk user, register/NOO, outlet, plan/visit, RBAC.
 - **Redis + Horizon**: Rate-limit dan antrean (media processing, push notif OneSignal); cache hanya jika `CACHE_DRIVER=redis`.
-- **S3/Bucket**: Penyimpanan file foto/video register/visit (driver sudah tersedia).
+- **NAS/SFTP**: Penyimpanan archive fallback untuk file foto/video register/visit ketika file sudah tidak ada di local storage.
 - **OneSignal**: Pengiriman push notification eksternal melalui helper `SendNotif`/`SendNotificationJob`.
+
+## Storage archive NAS
+
+Default archive target adalah disk `nas_sftp`. Untuk cek koneksi NAS tanpa memindahkan data, jalankan:
+
+```bash
+php artisan storage:check-disk nas_sftp
+```
+
+Untuk validasi write/delete probe kecil:
+
+```bash
+php artisan storage:check-disk nas_sftp --write
+```
+
+URL `/storage/...` selalu dicek ke local storage dulu. Jika file tidak ada di local, aplikasi akan cek fallback read yang aktif: `nas_sftp` jika `STORAGE_ARCHIVE_READ_FALLBACK_NAS_ENABLED=true`, dan `s3` jika `STORAGE_ARCHIVE_READ_FALLBACK_S3_ENABLED=true`. Aktifkan NAS fallback hanya setelah konfigurasi `NAS_SFTP_*` lengkap. Kalau dua-duanya aktif, urutannya NAS lalu S3. Read fallback ini tetap berlaku walaupun scheduled archive job dimatikan.
+
+Untuk clone semua file dari S3 lama ke NAS tanpa menghapus file S3:
+
+```bash
+php artisan storage:clone-disk --source-disk=s3 --target-disk=nas_sftp
+```
+
+Gunakan dry-run untuk cek daftar file sebelum copy:
+
+```bash
+php artisan storage:clone-disk --source-disk=s3 --target-disk=nas_sftp --dry-run
+```
+
+Untuk migrasi besar, jalankan bertahap. File yang sudah ada di NAS dengan ukuran sama akan dilewati, jadi command aman diulang:
+
+```bash
+php artisan storage:clone-disk --source-disk=s3 --target-disk=nas_sftp --batch=5000 --progress=500 --verify-attempts=5 --verify-sleep-ms=500
+```
+
+Jika koneksi NAS sering putus, gunakan `--stop-on-failure`, perbaiki koneksi, lalu jalankan command yang sama lagi.
 
 ## Request lifecycle (HTTP)
 

@@ -36,14 +36,14 @@ class StorageDisk
 
     protected static function archiveFallbackDisk(string $disk, string $relativePath): ?string
     {
-        if ($relativePath === '' || ! (bool) config('filesystems.archive.enabled', false)) {
+        if ($relativePath === '') {
             return null;
         }
 
         $sourceDisk = (string) config('filesystems.archive.source_disk', 'public');
-        $targetDisk = (string) config('filesystems.archive.target_disk', 's3');
+        $fallbackDisks = self::archiveFallbackDisksForSource($disk);
 
-        if ($disk !== $sourceDisk || $targetDisk === '' || $targetDisk === $sourceDisk) {
+        if ($disk !== $sourceDisk || $fallbackDisks === []) {
             return null;
         }
 
@@ -52,14 +52,20 @@ class StorageDisk
                 return null;
             }
         } catch (Throwable) {
-            // If the source disk cannot be checked, still try the archive disk.
+            // If the source disk cannot be checked, still try the fallback disks.
         }
 
-        try {
-            return Storage::disk($targetDisk)->exists($relativePath) ? $targetDisk : null;
-        } catch (Throwable) {
-            return null;
+        foreach ($fallbackDisks as $fallbackDisk) {
+            try {
+                if (Storage::disk($fallbackDisk)->exists($relativePath)) {
+                    return $fallbackDisk;
+                }
+            } catch (Throwable) {
+                //
+            }
         }
+
+        return null;
     }
 
     protected static function urlFromDisk(string $disk, string $relativePath, ?bool $useTemporaryUrl = null): string
@@ -110,10 +116,12 @@ class StorageDisk
             return false;
         }
 
-        $disks = array_values(array_unique(array_filter([
-            $sourceDisk ?: self::default(),
-            self::archiveDiskForSource($sourceDisk ?: self::default()),
-        ])));
+        $sourceDisk ??= self::default();
+
+        $disks = array_values(array_unique(array_filter(array_merge(
+            [$sourceDisk],
+            self::archiveFallbackDisksForSource($sourceDisk),
+        ))));
 
         $deleted = false;
 
@@ -128,19 +136,31 @@ class StorageDisk
         return $deleted;
     }
 
-    protected static function archiveDiskForSource(string $sourceDisk): ?string
+    public static function archiveFallbackDisksForSource(string $sourceDisk): array
     {
-        if (! (bool) config('filesystems.archive.enabled', false)) {
-            return null;
-        }
-
         $archiveSourceDisk = (string) config('filesystems.archive.source_disk', 'public');
-        $archiveTargetDisk = (string) config('filesystems.archive.target_disk', 's3');
 
-        if ($sourceDisk !== $archiveSourceDisk || $archiveTargetDisk === '' || $archiveTargetDisk === $archiveSourceDisk) {
-            return null;
+        if ($sourceDisk !== $archiveSourceDisk) {
+            return [];
         }
 
-        return $archiveTargetDisk;
+        $fallbacks = config('filesystems.archive.read_fallback', []);
+        $fallbackDisks = [];
+
+        if (is_array($fallbacks)) {
+            foreach ($fallbacks as $fallback) {
+                if (! is_array($fallback) || ! (bool) ($fallback['enabled'] ?? false)) {
+                    continue;
+                }
+
+                $fallbackDisk = trim((string) ($fallback['disk'] ?? ''));
+
+                if ($fallbackDisk !== '' && $fallbackDisk !== $archiveSourceDisk) {
+                    $fallbackDisks[] = $fallbackDisk;
+                }
+            }
+        }
+
+        return array_values(array_unique($fallbackDisks));
     }
 }

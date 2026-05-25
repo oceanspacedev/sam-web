@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\StorageDisk;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -12,16 +13,13 @@ class ArchivedStorageController extends Controller
 {
     public function __invoke(Request $request, string $path)
     {
-        $archiveEnabled = (bool) config('filesystems.archive.enabled', false);
         $signedRoute = $request->routeIs('storage.archive.show');
-
-        abort_unless($archiveEnabled || $signedRoute, 404);
 
         $relativePath = ltrim($path, '/');
 
         abort_if($relativePath === '' || str_contains($relativePath, '..'), 404);
 
-        $disk = $this->diskFor($request, $relativePath, $archiveEnabled, $signedRoute);
+        $disk = $this->diskFor($request, $relativePath, $signedRoute);
         $storage = Storage::disk($disk);
 
         abort_unless($storage->exists($relativePath), 404);
@@ -171,7 +169,7 @@ class ArchivedStorageController extends Controller
         }
     }
 
-    protected function diskFor(Request $request, string $path, bool $archiveEnabled, bool $signedRoute): string
+    protected function diskFor(Request $request, string $path, bool $signedRoute): string
     {
         $signedDisk = $request->query('disk');
 
@@ -180,8 +178,6 @@ class ArchivedStorageController extends Controller
         }
 
         $sourceDisk = (string) config('filesystems.archive.source_disk', 'public');
-        $targetDisk = (string) config('filesystems.archive.target_disk', 's3');
-
         try {
             if ($sourceDisk !== '' && Storage::disk($sourceDisk)->exists($path)) {
                 return $sourceDisk;
@@ -190,7 +186,17 @@ class ArchivedStorageController extends Controller
             //
         }
 
-        return $archiveEnabled ? $targetDisk : $sourceDisk;
+        foreach (StorageDisk::archiveFallbackDisksForSource($sourceDisk) as $fallbackDisk) {
+            try {
+                if (Storage::disk($fallbackDisk)->exists($path)) {
+                    return $fallbackDisk;
+                }
+            } catch (Throwable) {
+                //
+            }
+        }
+
+        return $sourceDisk;
     }
 
     protected function mimeType(string $disk, string $path): string

@@ -20,17 +20,29 @@ return [
     | Storage Archive
     |--------------------------------------------------------------------------
     |
-    | Old local files can be moved to another disk, such as MinIO or any
-    | S3-compatible object storage, while keeping the database path unchanged.
-    | URLs resolved through App\Support\StorageDisk will fall back to this
-    | target disk when the source file no longer exists locally.
+    | Old local files can be moved to another disk, such as a NAS/SFTP storage
+    | target, while keeping the database path unchanged.
+    | URLs resolved through App\Support\StorageDisk and /storage/* requests will
+    | fall back to enabled read fallback disks when the source file no longer
+    | exists locally. Fallback order follows the array below.
+    | The enabled flag controls the scheduled archive job, not read fallback.
     |
     */
 
     'archive' => [
         'enabled' => env('STORAGE_ARCHIVE_ENABLED', false),
         'source_disk' => env('STORAGE_ARCHIVE_SOURCE_DISK', 'public'),
-        'target_disk' => env('STORAGE_ARCHIVE_TARGET_DISK', 's3'),
+        'target_disk' => env('STORAGE_ARCHIVE_TARGET_DISK', 'nas_sftp'),
+        'read_fallback' => [
+            'nas' => [
+                'enabled' => env('STORAGE_ARCHIVE_READ_FALLBACK_NAS_ENABLED', false),
+                'disk' => env('STORAGE_ARCHIVE_READ_FALLBACK_NAS_DISK', 'nas_sftp'),
+            ],
+            's3' => [
+                'enabled' => env('STORAGE_ARCHIVE_READ_FALLBACK_S3_ENABLED', false),
+                'disk' => env('STORAGE_ARCHIVE_READ_FALLBACK_S3_DISK', 's3'),
+            ],
+        ],
         'older_than_days' => (int) env('STORAGE_ARCHIVE_OLDER_THAN_DAYS', 90),
         'delete_source' => env('STORAGE_ARCHIVE_DELETE_SOURCE', true),
         'directories' => array_values(array_filter(array_map('trim', explode(',', env('STORAGE_ARCHIVE_DIRECTORIES', ''))))),
@@ -52,7 +64,7 @@ return [
     | may even configure multiple disks of the same driver. Defaults have
     | been setup for each driver as an example of the required options.
     |
-    | Supported Drivers: "local", "ftp", "sftp", "s3"
+    | Supported Drivers: "local", "sftp", "s3"
     |
     */
 
@@ -86,17 +98,17 @@ return [
             'throw' => false,
         ],
 
-        'nas_ftp' => [
-            'driver' => 'ftp',
-            'host' => env('NAS_FTP_HOST'),
-            'username' => env('NAS_FTP_USERNAME'),
-            'password' => env('NAS_FTP_PASSWORD'),
-            'port' => (int) env('NAS_FTP_PORT', 21),
-            'root' => env('NAS_FTP_ROOT', '/'),
-            'passive' => env('NAS_FTP_PASSIVE', true),
-            'ssl' => env('NAS_FTP_SSL', false),
-            'timeout' => (int) env('NAS_FTP_TIMEOUT', 30),
-            'url' => env('NAS_FTP_URL'),
+        'nas_sftp' => [
+            'driver' => 'sftp',
+            'host' => env('NAS_SFTP_HOST'),
+            'username' => env('NAS_SFTP_USERNAME'),
+            'password' => env('NAS_SFTP_PASSWORD'),
+            'privateKey' => env('NAS_SFTP_PRIVATE_KEY'),
+            'passphrase' => env('NAS_SFTP_PASSPHRASE'),
+            'port' => (int) env('NAS_SFTP_PORT', 22),
+            'root' => env('NAS_SFTP_ROOT') ?: '/STORAGE-FORM',
+            'timeout' => (int) env('NAS_SFTP_TIMEOUT', 30),
+            'url' => env('NAS_SFTP_URL'),
             'throw' => false,
         ],
 

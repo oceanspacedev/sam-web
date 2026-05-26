@@ -18,6 +18,8 @@ class OutletChangeArchive extends Model
 
     public const ACTION_RESTORE = 'restore';
 
+    public const ACTION_APPROVAL_OVERRIDE = 'approval_override';
+
     protected $guarded = [
         'id',
     ];

@@ -21,13 +21,12 @@ use App\Jobs\SendRegisterCreatedNotificationJob;
 use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
-use App\Models\Outlet;
 use App\Models\Region;
 use App\Models\Register;
 use App\Models\User;
 use App\Rules\VideoMimeOrSignature;
 use App\Services\FileUploadService;
-use App\Services\SystemSettingResolver;
+use App\Services\RegisterApprovalService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,7 +42,7 @@ class RegisterController extends Controller
 
     public function __construct(
         protected FileUploadService $fileUpload,
-        protected SystemSettingResolver $systemSettings,
+        protected RegisterApprovalService $registerApproval,
     ) {}
 
     public function submitLead(SubmitLeadRequest $request)
@@ -758,6 +757,19 @@ class RegisterController extends Controller
         }
     }
 
+    /**
+     * @return array<string, string|null>
+     */
+    protected function archiveRequestMeta(Request $request): array
+    {
+        return [
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'path' => $request->path(),
+            'method' => $request->method(),
+        ];
+    }
+
     public function approveNoo(ApproveNooRequest $request)
     {
         try {
@@ -773,69 +785,22 @@ class RegisterController extends Controller
                 throw new BadRequestException('Register belum dikonfirmasi');
             }
 
-            $register->status = $request->status;
-            $register->approved_by_id = Auth::id();
-            $register->approved_at = now();
-            $register->update();
-
             $notif = [];
             $creatorNotifId = $register->createdBy?->id_notif;
             if ($creatorNotifId) {
                 array_push($notif, $creatorNotifId);
             }
 
-            $radius = $this->systemSettings->defaultRegisterRadiusForIds(
-                $register->badanusaha_id ? (int) $register->badanusaha_id : null,
-                $register->divisi_id ? (int) $register->divisi_id : null,
-                $register->region_id ? (int) $register->region_id : null,
-                $register->cluster_id ? (int) $register->cluster_id : null,
-                100
+            $result = $this->registerApproval->approve(
+                $register,
+                Auth::user(),
+                $request->input('duplicate_resolution', RegisterApprovalService::DUPLICATE_BRANCH),
+                $this->archiveRequestMeta($request)
             );
 
-            $data = [
-                'register_id' => $register->id,
-                'kode_outlet' => $register->kode_outlet,
-                'badanusaha_id' => $register->badanusaha_id,
-                'nama_outlet' => $register->nama_outlet,
-                'divisi_id' => $register->divisi_id,
-                'alamat_outlet' => $register->alamat_outlet,
-                'nama_pemilik_outlet' => $register->nama_pemilik_outlet,
-                'nomer_tlp_outlet' => $register->nomer_tlp_outlet,
-                'distric' => $register->distric,
-                'region_id' => $register->region_id,
-                'cluster_id' => $register->cluster_id,
-                'poto_shop_sign' => $register->poto_shop_sign,
-                'poto_depan' => $register->poto_depan,
-                'poto_kanan' => $register->poto_kanan,
-                'poto_kiri' => $register->poto_kiri,
-                'poto_ktp' => $register->poto_ktp,
-                'video' => $register->video,
-                'radius' => $radius,
-                'latlong' => $register->latlong,
-                'status_outlet' => 'MAINTAIN',
-                'limit' => $register->limit,
-            ];
-
-            $outletExisting = Outlet::query()
-                ->where('register_id', $register->id)
-                ->orWhere(function ($query) use ($register) {
-                    $query->where('badanusaha_id', $register->badanusaha_id)
-                        ->where('divisi_id', $register->divisi_id)
-                        ->where('region_id', $register->region_id)
-                        ->where('cluster_id', $register->cluster_id)
-                        ->where('kode_outlet', $register->kode_outlet);
-                })
-                ->first();
-
-            if ($outletExisting) {
-                $outletExisting->forceFill($data)->save();
-                $insert = $outletExisting;
-            } else {
-                $insert = Outlet::create($data);
-            }
-            if ($insert && $notif !== []) {
+            if ($notif !== []) {
                 $this->dispatchNotification(
-                    'Register '.$register->nama_outlet.' sudah disetujui oleh '.
+                    'Register '.$result['register']->nama_outlet.' sudah disetujui oleh '.
                     Auth::user()->nama_lengkap,
                     $notif
                 );
@@ -846,8 +811,12 @@ class RegisterController extends Controller
                     'code' => 200,
                     'status' => 'success',
                     'message' => 'berhasil update',
+                    'outlet_id' => $result['outlet']->id,
+                    'duplicate_resolution' => $result['duplicate_resolution'],
+                    'final_kode_outlet' => $result['final_kode_outlet'],
+                    'archive_id' => $result['archive']?->id,
                 ],
-                'data' => $register,
+                'data' => $result['register'],
                 'errors' => null,
             ]);
         } catch (Exception $e) {

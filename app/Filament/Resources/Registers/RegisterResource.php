@@ -2,13 +2,16 @@
 
 namespace App\Filament\Resources\Registers;
 
+use App\Exceptions\Api\BadRequestException;
 use App\Filament\Resources\Registers\Pages\CreateRegister;
 use App\Filament\Resources\Registers\Pages\EditRegister;
 use App\Filament\Resources\Registers\Pages\ListRegisters;
 use App\Filament\Resources\Registers\Pages\ViewRegister;
+use App\Models\Outlet;
 use App\Models\Register;
 use App\Models\User;
 use App\Services\FilenameGeneratorService;
+use App\Services\RegisterApprovalService;
 use App\Support\OrganizationalHierarchyOptions;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
@@ -20,17 +23,18 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
-use Filament\Forms;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
-use Filament\Infolists\Components\BadgeEntry;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Actions as SchemaActions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -48,6 +52,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 
 class RegisterResource extends Resource
 {
@@ -351,6 +356,289 @@ class RegisterResource extends Resource
         return strtoupper((string) $type) === 'LEAD';
     }
 
+    public static function hasDuplicateOutletCode(?Register $record, ?string $kodeOutlet): bool
+    {
+        return self::duplicateOutletForCode($record, $kodeOutlet) !== null;
+    }
+
+    public static function duplicateOutletForCode(?Register $record, ?string $kodeOutlet): ?Outlet
+    {
+        if (! $record || ! filled($kodeOutlet)) {
+            return null;
+        }
+
+        return Outlet::query()
+            ->where('divisi_id', $record->divisi_id)
+            ->where('kode_outlet', trim((string) $kodeOutlet))
+            ->where(function (Builder $query) use ($record): void {
+                $query->whereNull('register_id')
+                    ->orWhere('register_id', '!=', $record->id);
+            })
+            ->first();
+    }
+
+    /**
+     * @return array{
+     *     checked_kode_outlet:string,
+     *     has_duplicate:bool,
+     *     duplicate_outlet_summary:string|null,
+     *     duplicate_suggestion_title:string|null,
+     *     duplicate_suggestion_body:string|null,
+     *     next_branch_code:string|null
+     * }
+     */
+    public static function duplicateOutletCodeCheckResult(?Register $record, ?string $kodeOutlet): array
+    {
+        $checkedKodeOutlet = trim((string) $kodeOutlet);
+        $duplicateOutlet = self::duplicateOutletForCode($record, $checkedKodeOutlet);
+
+        if (! $record || ! $duplicateOutlet) {
+            return [
+                'checked_kode_outlet' => $checkedKodeOutlet,
+                'has_duplicate' => false,
+                'duplicate_outlet_summary' => null,
+                'duplicate_suggestion_title' => null,
+                'duplicate_suggestion_body' => null,
+                'next_branch_code' => null,
+            ];
+        }
+
+        $nextBranchCode = app(RegisterApprovalService::class)
+            ->previewNextBranchCode($checkedKodeOutlet, (int) $record->divisi_id);
+        $suggestion = self::duplicateOutletSuggestion($record, $duplicateOutlet, $nextBranchCode);
+
+        return [
+            'checked_kode_outlet' => $checkedKodeOutlet,
+            'has_duplicate' => true,
+            'duplicate_outlet_summary' => self::duplicateOutletSummary($duplicateOutlet),
+            'duplicate_suggestion_title' => $suggestion['title'],
+            'duplicate_suggestion_body' => $suggestion['body'],
+            'next_branch_code' => $nextBranchCode,
+        ];
+    }
+
+    public static function checkOutletCodeForApproval(Get $get, Set $set, ?Register $record): void
+    {
+        $kodeOutlet = trim((string) $get('kode_outlet'));
+
+        if (blank($kodeOutlet)) {
+            self::resetOutletCodeCheck($set);
+
+            throw ValidationException::withMessages([
+                'kode_outlet' => 'Kode outlet wajib diisi sebelum dicek.',
+            ]);
+        }
+
+        $result = self::duplicateOutletCodeCheckResult($record, $kodeOutlet);
+
+        $set('outlet_code_checked', true);
+        $set('checked_kode_outlet', $result['checked_kode_outlet']);
+        $set('has_duplicate_outlet_code', $result['has_duplicate']);
+        $set('duplicate_outlet_summary', $result['duplicate_outlet_summary']);
+        $set('duplicate_suggestion_title', $result['duplicate_suggestion_title']);
+        $set('duplicate_suggestion_body', $result['duplicate_suggestion_body']);
+        $set('next_branch_code', $result['next_branch_code']);
+
+        if (! $result['has_duplicate']) {
+            $set('duplicate_resolution', RegisterApprovalService::DUPLICATE_BRANCH);
+
+            Notification::make()
+                ->title('Kode outlet tersedia')
+                ->success()
+                ->send();
+
+            return;
+        }
+
+        $set('duplicate_resolution', null);
+
+        Notification::make()
+            ->title('Kode outlet sudah dipakai')
+            ->body($result['duplicate_suggestion_title'] ?? 'Pilih tindakan sebelum approval.')
+            ->warning()
+            ->send();
+    }
+
+    public static function resetOutletCodeCheck(Set $set): void
+    {
+        $set('outlet_code_checked', false);
+        $set('checked_kode_outlet', null);
+        $set('has_duplicate_outlet_code', false);
+        $set('duplicate_resolution', null);
+        $set('duplicate_outlet_summary', null);
+        $set('duplicate_suggestion_title', null);
+        $set('duplicate_suggestion_body', null);
+        $set('next_branch_code', null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public static function validateOutletCodeCheckBeforeApproval(?Register $record, array $data): void
+    {
+        $kodeOutlet = trim((string) ($data['kode_outlet'] ?? ''));
+        $checkedKodeOutlet = trim((string) ($data['checked_kode_outlet'] ?? ''));
+
+        if (! array_key_exists('limit', $data) || blank($data['limit'])) {
+            throw ValidationException::withMessages([
+                'kode_outlet' => 'Cek kode outlet dulu sebelum approval.',
+            ]);
+        }
+
+        if (blank($checkedKodeOutlet) || $checkedKodeOutlet !== $kodeOutlet) {
+            throw ValidationException::withMessages([
+                'kode_outlet' => 'Cek kode outlet lagi setelah mengubah kode.',
+            ]);
+        }
+
+        if (self::hasDuplicateOutletCode($record, $kodeOutlet) && blank($data['duplicate_resolution'] ?? null)) {
+            throw ValidationException::withMessages([
+                'duplicate_resolution' => 'Pilih Buat Cabang atau Override Outlet Lama sebelum approval.',
+            ]);
+        }
+    }
+
+    public static function duplicateOutletSuggestionPreview(Get $get): HtmlString
+    {
+        $title = trim((string) $get('duplicate_suggestion_title'));
+        $body = trim((string) $get('duplicate_suggestion_body'));
+        $summary = trim((string) $get('duplicate_outlet_summary'));
+        $nextBranchCode = trim((string) $get('next_branch_code'));
+
+        if (blank($title) && blank($body)) {
+            return new HtmlString('');
+        }
+
+        $html = '<div class="rounded-xl border border-warning-200 bg-warning-50 p-4 shadow-sm dark:border-warning-800 dark:bg-warning-900/30">';
+        $html .= '<div class="flex gap-3">';
+        
+        $html .= '<div class="flex-shrink-0 text-warning-500 mt-0.5">
+            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+            </svg>
+        </div>';
+
+        $html .= '<div class="space-y-2 text-sm text-warning-800 dark:text-warning-200 w-full">';
+        
+        $html .= '<div>';
+        $html .= '<div class="font-semibold text-base">'.e($title).'</div>';
+        if (filled($body)) {
+            $html .= '<div class="mt-1 opacity-90 leading-relaxed">'.e($body).'</div>';
+        }
+        $html .= '</div>';
+
+        if (filled($summary) || filled($nextBranchCode)) {
+            $html .= '<div class="mt-3 pt-3 border-t border-warning-200/60 dark:border-warning-700/60 space-y-1.5">';
+            if (filled($summary)) {
+                $html .= '<div><span class="font-medium">Outlet Lama:</span> <span class="opacity-80">'.e($summary).'</span></div>';
+            }
+            if (filled($nextBranchCode)) {
+                $html .= '<div><span class="font-medium">Kode Berikutnya:</span> <span class="font-mono font-medium bg-warning-200/50 px-1.5 py-0.5 rounded dark:bg-warning-900/50">'.e($nextBranchCode).'</span></div>';
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '</div></div></div>';
+
+        return new HtmlString($html);
+    }
+
+    /**
+     * @return array{title:string,body:string}
+     */
+    protected static function duplicateOutletSuggestion(Register $register, Outlet $outlet, string $nextBranchCode): array
+    {
+        $nameSimilarity = self::textSimilarity($register->nama_outlet, $outlet->nama_outlet);
+        $addressSimilarity = self::textSimilarity($register->alamat_outlet, $outlet->alamat_outlet);
+        $sameOwner = self::sameComparableText($register->nama_pemilik_outlet, $outlet->nama_pemilik_outlet);
+        $samePhone = self::sameComparableText($register->nomer_tlp_outlet, $outlet->nomer_tlp_outlet);
+        $differentArea = self::differentFilledValue($register->region_id, $outlet->region_id)
+            || self::differentFilledValue($register->cluster_id, $outlet->cluster_id);
+
+        if (($samePhone || $sameOwner || $addressSimilarity >= 82.0) && $nameSimilarity >= 55.0) {
+            return [
+                'title' => 'Saran: kemungkinan update data outlet lama',
+                'body' => 'Data baru sangat dekat dengan outlet lama. Pakai Override kalau ini memang koreksi atau pembaruan data outlet lama; histori perubahan akan tersimpan.',
+            ];
+        }
+
+        if ($nameSimilarity >= 70.0 && ($addressSimilarity < 65.0 || $differentArea)) {
+            return [
+                'title' => 'Saran: kemungkinan cabang',
+                'body' => "Nama outlet mirip, tetapi alamat atau wilayah berbeda. Pakai Buat Cabang untuk membuat {$nextBranchCode} tanpa mengubah kode utama.",
+            ];
+        }
+
+        if ($nameSimilarity < 45.0 && $addressSimilarity < 45.0) {
+            return [
+                'title' => 'Saran: kemungkinan outlet baru dengan kode bentrok',
+                'body' => "Nama dan alamat berbeda jauh dari outlet lama. Kalau tetap satu grup outlet, pilih Buat Cabang ({$nextBranchCode}); kalau bukan cabang, revisi kode outlet dulu.",
+            ];
+        }
+
+        return [
+            'title' => 'Saran: cek data lama sebelum memilih',
+            'body' => 'Datanya mirip sebagian. Pilih Buat Cabang kalau ini lokasi/outlet berbeda, atau Override kalau ini pembaruan outlet lama.',
+        ];
+    }
+
+    protected static function duplicateOutletSummary(Outlet $outlet): string
+    {
+        $parts = array_filter([
+            $outlet->kode_outlet,
+            self::shortText($outlet->nama_outlet),
+            self::shortText($outlet->alamat_outlet, 90),
+        ], fn ($value): bool => filled($value));
+
+        return implode(' - ', $parts);
+    }
+
+    protected static function textSimilarity(?string $left, ?string $right): float
+    {
+        $left = self::normalizeComparableText($left);
+        $right = self::normalizeComparableText($right);
+
+        if ($left === '' || $right === '') {
+            return 0.0;
+        }
+
+        similar_text($left, $right, $percent);
+
+        return (float) $percent;
+    }
+
+    protected static function sameComparableText(?string $left, ?string $right): bool
+    {
+        $left = self::normalizeComparableText($left);
+        $right = self::normalizeComparableText($right);
+
+        return $left !== '' && $left === $right;
+    }
+
+    protected static function normalizeComparableText(?string $value): string
+    {
+        $value = strtoupper(trim((string) $value));
+        $value = preg_replace('/[^A-Z0-9]+/', ' ', $value) ?? '';
+
+        return trim(preg_replace('/\s+/', ' ', $value) ?? '');
+    }
+
+    protected static function differentFilledValue(mixed $left, mixed $right): bool
+    {
+        return filled($left) && filled($right) && (string) $left !== (string) $right;
+    }
+
+    protected static function shortText(?string $value, int $limit = 70): string
+    {
+        $value = trim(preg_replace('/\s+/', ' ', (string) $value) ?? '');
+
+        if (strlen($value) <= $limit) {
+            return $value;
+        }
+
+        return rtrim(substr($value, 0, max(0, $limit - 3))).'...';
+    }
+
     protected static function registerTypeColor(?string $type): string
     {
         return match (strtoupper((string) $type)) {
@@ -530,7 +818,7 @@ class RegisterResource extends Resource
                                         ->label('Divisi'),
                                     TextEntry::make('divisionSetting.default_register_radius')
                                         ->label('Radius Default')
-                                        ->formatStateUsing(fn ($state) => $state ? $state . ' m' : '-')
+                                        ->formatStateUsing(fn ($state) => $state ? $state.' m' : '-')
                                         ->badge()
                                         ->color('primary'),
                                     TextEntry::make('region.name')
@@ -812,47 +1100,97 @@ class RegisterResource extends Resource
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
+                    ->slideOver()
                     ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && strtoupper((string) $record->type) !== 'LEAD')
                     ->form([
+                        Hidden::make('outlet_code_checked')
+                            ->default(false)
+                            ->dehydrated(false),
+                        Hidden::make('checked_kode_outlet'),
+                        Hidden::make('has_duplicate_outlet_code')
+                            ->default(false)
+                            ->dehydrated(false),
+                        Hidden::make('duplicate_outlet_summary')
+                            ->dehydrated(false),
+                        Hidden::make('duplicate_suggestion_title')
+                            ->dehydrated(false),
+                        Hidden::make('duplicate_suggestion_body')
+                            ->dehydrated(false),
+                        Hidden::make('next_branch_code')
+                            ->dehydrated(false),
                         TextInput::make('kode_outlet')
                             ->regex('/^\S+$/')
-                            ->helperText('Kode outlet tidak boleh mengandung spasi')
+                            ->helperText('Isi kode outlet, lalu tekan tombol cek sebelum melanjutkan.')
                             ->default(fn ($record) => $record->kode_outlet)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Set $set): void {
+                                self::resetOutletCodeCheck($set);
+                            })
                             ->required()
-                            ->rules(function ($record) {
-                                return [
-                                    function (string $attribute, $value, \Closure $fail) use ($record) {
-                                        $exists = \App\Models\Outlet::where('kode_outlet', $value)
-                                            ->where('divisi_id', $record->divisi_id)
-                                            ->exists();
-
-                                        if ($exists) {
-                                            $fail("Kode outlet {$value} sudah digunakan.");
-                                        }
-                                    },
-                                ];
-                            }),
+                            ->suffixAction(
+                                Action::make('check_outlet_code')
+                                    ->label('Cek')
+                                    ->icon('heroicon-o-magnifying-glass')
+                                    ->color('primary')
+                                    ->action(function (Get $get, Set $set, ?Register $record): void {
+                                        self::checkOutletCodeForApproval($get, $set, $record);
+                                    })
+                            ),
+                        Placeholder::make('duplicate_outlet_suggestion_preview')
+                            ->label('Saran hasil cek')
+                            ->content(fn (Get $get): HtmlString => self::duplicateOutletSuggestionPreview($get))
+                            ->visible(fn (Get $get): bool => (bool) $get('outlet_code_checked') && (bool) $get('has_duplicate_outlet_code')),
                         TextInput::make('limit')
                             ->numeric()
                             ->default(fn ($record) => $record->limit)
+                            ->visible(fn (Get $get): bool => (bool) $get('outlet_code_checked'))
+                            ->required(),
+                        ToggleButtons::make('duplicate_resolution')
+                            ->label('Kode outlet sudah dipakai')
+                            ->options([
+                                RegisterApprovalService::DUPLICATE_BRANCH => 'Buat Cabang',
+                                RegisterApprovalService::DUPLICATE_OVERRIDE => 'Override Outlet Lama',
+                            ])
+                            ->helperText('Buat Cabang membuat kode -CB1, -CB2, dan seterusnya. Override mengganti outlet lama dan menyimpan histori perubahan.')
+                            ->inline()
+                            ->visible(fn (Get $get): bool => (bool) $get('outlet_code_checked') && (bool) $get('has_duplicate_outlet_code'))
                             ->required(),
                     ])
                     ->action(function ($record, $data): void {
                         /** @var User|null $authUser */
                         $authUser = Auth::user();
 
-                        $record->update([
+                        self::validateOutletCodeCheckBeforeApproval($record, $data);
+
+                        $record->forceFill([
                             'kode_outlet' => $data['kode_outlet'],
                             'limit' => $data['limit'],
                             'confirmed_at' => $record->confirmed_at ?? Carbon::now(),
                             'confirmed_by_id' => $record->confirmed_by_id ?? $authUser?->id,
-                            'approved_at' => Carbon::now(),
-                            'approved_by_id' => $authUser?->id,
-                            'status' => 'APPROVED',
-                        ]);
+                            'status' => 'CONFIRMED',
+                        ])->save();
+
+                        try {
+                            $result = app(RegisterApprovalService::class)->approve(
+                                $record,
+                                $authUser,
+                                $data['duplicate_resolution'] ?? RegisterApprovalService::DUPLICATE_BRANCH
+                            );
+                        } catch (BadRequestException $exception) {
+                            Notification::make()
+                                ->title('Approval gagal')
+                                ->body($exception->getMessage())
+                                ->danger()
+                                ->send();
+
+                            throw ValidationException::withMessages([
+                                'kode_outlet' => $exception->getMessage(),
+                            ]);
+                        }
 
                         Notification::make()
-                            ->title($record->nama_outlet.' Approved')
+                            ->title($result['register']->nama_outlet.' Approved')
+                            ->body('Kode outlet: '.$result['final_kode_outlet'])
                             ->success()
                             ->send();
                     }),
@@ -910,11 +1248,18 @@ class RegisterResource extends Resource
                                     return;
                                 }
 
-                                $record->update([
-                                    'approved_at' => Carbon::now(),
-                                    'approved_by_id' => $authUser?->id,
-                                    'status' => 'APPROVED',
-                                ]);
+                                try {
+                                    app(RegisterApprovalService::class)->approve(
+                                        $record,
+                                        $authUser,
+                                        RegisterApprovalService::DUPLICATE_BRANCH
+                                    );
+                                } catch (BadRequestException) {
+                                    $skipped++;
+                                    $skippedNames[] = $record->nama_outlet ?? 'ID '.$record->id;
+
+                                    return;
+                                }
 
                                 $approved++;
                             });

@@ -36,6 +36,7 @@ class ChangeArchivesRelationManager extends RelationManager
                         OutletChangeArchive::ACTION_RESET_LOCATION => 'Reset Lokasi',
                         OutletChangeArchive::ACTION_UPDATE => 'Edit Manual',
                         OutletChangeArchive::ACTION_RESTORE => 'Restore',
+                        OutletChangeArchive::ACTION_APPROVAL_OVERRIDE => 'Override Approval',
                         default => (string) $state,
                     }),
                 TextColumn::make('actor_name')

@@ -10,6 +10,7 @@
  * that invariants hold across all valid executions.
  */
 
+use App\Models\Outlet;
 use App\Models\Register;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
@@ -219,4 +220,32 @@ test('Property 9: Confirmation Authorization - user without confirm permission c
             ->and($register->kode_outlet)->toBeNull('kode_outlet should not be set')
             ->and($register->limit)->toBeNull('limit should not be set');
     }
+});
+
+test('confirmation allows an existing outlet code so approval can resolve it later', function () {
+    $setup = createConfirmUserWithHierarchy(withConfirmPermission: true);
+    $user = $setup['user'];
+    $hierarchy = $setup['hierarchy'];
+
+    Outlet::factory()->create([
+        'kode_outlet' => 'COMPLETE',
+        'badanusaha_id' => $hierarchy['bu']->id,
+        'divisi_id' => $hierarchy['div']->id,
+        'region_id' => $hierarchy['reg']->id,
+        'cluster_id' => $hierarchy['clus']->id,
+    ]);
+
+    $register = createPendingNooRegister($hierarchy, $user->id);
+
+    $this->actingAs($user, 'sanctum')
+        ->patchJson('/api/registers/'.$register->id.'/confirm', [
+            'id' => $register->id,
+            'status' => 'CONFIRMED',
+            'kode_outlet' => 'COMPLETE',
+            'limit' => 1000000,
+        ])
+        ->assertOk();
+
+    expect($register->refresh()->status)->toBe('CONFIRMED')
+        ->and($register->kode_outlet)->toBe('COMPLETE');
 });

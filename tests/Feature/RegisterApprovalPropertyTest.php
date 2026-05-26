@@ -10,10 +10,13 @@
  * that invariants hold across all valid executions.
  */
 
+use App\Filament\Resources\Registers\RegisterResource;
 use App\Models\Outlet;
+use App\Models\OutletChangeArchive;
 use App\Models\Register;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\Concerns\SeedsMasterData;
 
 uses(SeedsMasterData::class);
@@ -351,4 +354,151 @@ test('Property 12: Approval Idempotency - re-approving updates existing Outlet i
         expect($outlet->id)->toBe($originalOutletId, 'Outlet ID should remain the same')
             ->and($outlet->nama_outlet)->toBe($newNamaOutlet, 'Outlet nama_outlet should be updated');
     }
+});
+
+test('approval can turn duplicate outlet code into sequential branch code', function () {
+    $setup = createApproveUserWithHierarchy(withApprovePermission: true);
+    $user = $setup['user'];
+    $hierarchy = $setup['hierarchy'];
+
+    foreach (['COMPLETE', 'COMPLETE-CB1', 'COMPLETE-CB2'] as $kodeOutlet) {
+        Outlet::factory()->create([
+            'kode_outlet' => $kodeOutlet,
+            'badanusaha_id' => $hierarchy['bu']->id,
+            'divisi_id' => $hierarchy['div']->id,
+            'region_id' => $hierarchy['reg']->id,
+            'cluster_id' => $hierarchy['clus']->id,
+        ]);
+    }
+
+    $firstRegister = createConfirmedRegister($hierarchy, $user->id, $user->id);
+    $firstRegister->forceFill(['kode_outlet' => 'COMPLETE'])->save();
+
+    $this->actingAs($user, 'sanctum')
+        ->patchJson('/api/registers/'.$firstRegister->id.'/approve', [
+            'id' => $firstRegister->id,
+            'status' => 'APPROVED',
+            'duplicate_resolution' => 'branch',
+        ])
+        ->assertOk()
+        ->assertJsonPath('meta.final_kode_outlet', 'COMPLETE-CB3');
+
+    $secondRegister = createConfirmedRegister($hierarchy, $user->id, $user->id);
+    $secondRegister->forceFill(['kode_outlet' => 'COMPLETE'])->save();
+
+    $this->actingAs($user, 'sanctum')
+        ->patchJson('/api/registers/'.$secondRegister->id.'/approve', [
+            'id' => $secondRegister->id,
+            'status' => 'APPROVED',
+            'duplicate_resolution' => 'branch',
+        ])
+        ->assertOk()
+        ->assertJsonPath('meta.final_kode_outlet', 'COMPLETE-CB4');
+
+    expect($firstRegister->refresh()->kode_outlet)->toBe('COMPLETE-CB3')
+        ->and($secondRegister->refresh()->kode_outlet)->toBe('COMPLETE-CB4')
+        ->and(Outlet::where('divisi_id', $hierarchy['div']->id)->where('kode_outlet', 'COMPLETE-CB3')->exists())->toBeTrue()
+        ->and(Outlet::where('divisi_id', $hierarchy['div']->id)->where('kode_outlet', 'COMPLETE-CB4')->exists())->toBeTrue();
+});
+
+test('duplicate outlet code check suggests branch when same outlet name has different address', function () {
+    $setup = createApproveUserWithHierarchy(withApprovePermission: true);
+    $user = $setup['user'];
+    $hierarchy = $setup['hierarchy'];
+
+    Outlet::factory()->create([
+        'kode_outlet' => 'COMPLETE',
+        'nama_outlet' => 'TOKO COMPLETE',
+        'alamat_outlet' => 'Jalan Lama Nomor 1',
+        'badanusaha_id' => $hierarchy['bu']->id,
+        'divisi_id' => $hierarchy['div']->id,
+        'region_id' => $hierarchy['reg']->id,
+        'cluster_id' => $hierarchy['clus']->id,
+    ]);
+
+    $otherRegion = \App\Models\Region::create([
+        'name' => 'REG-CABANG-'.uniqid(),
+        'badanusaha_id' => $hierarchy['bu']->id,
+        'divisi_id' => $hierarchy['div']->id,
+    ]);
+    $otherCluster = \App\Models\Cluster::create([
+        'name' => 'CLUS-CABANG-'.uniqid(),
+        'badanusaha_id' => $hierarchy['bu']->id,
+        'divisi_id' => $hierarchy['div']->id,
+        'region_id' => $otherRegion->id,
+    ]);
+
+    $register = createConfirmedRegister($hierarchy, $user->id, $user->id);
+    $register->forceFill([
+        'kode_outlet' => 'COMPLETE',
+        'nama_outlet' => 'TOKO COMPLETE',
+        'alamat_outlet' => 'Jalan Baru Nomor 99',
+        'region_id' => $otherRegion->id,
+        'cluster_id' => $otherCluster->id,
+    ])->save();
+
+    $result = RegisterResource::duplicateOutletCodeCheckResult($register, 'COMPLETE');
+
+    expect($result['has_duplicate'])->toBeTrue()
+        ->and($result['duplicate_suggestion_title'])->toContain('cabang')
+        ->and($result['next_branch_code'])->toBe('COMPLETE-CB1');
+});
+
+test('approval form requires outlet code to be checked again after code changes', function () {
+    $setup = createApproveUserWithHierarchy(withApprovePermission: true);
+    $user = $setup['user'];
+    $hierarchy = $setup['hierarchy'];
+    $register = createConfirmedRegister($hierarchy, $user->id, $user->id);
+
+    RegisterResource::validateOutletCodeCheckBeforeApproval($register, [
+        'kode_outlet' => 'COMPLETE-BARU',
+        'checked_kode_outlet' => 'COMPLETE-LAMA',
+        'limit' => 1000000,
+    ]);
+})->throws(ValidationException::class, 'Cek kode outlet lagi setelah mengubah kode.');
+
+test('approval can override existing outlet and archives previous values', function () {
+    $setup = createApproveUserWithHierarchy(withApprovePermission: true);
+    $user = $setup['user'];
+    $hierarchy = $setup['hierarchy'];
+
+    $existingOutlet = Outlet::factory()->create([
+        'kode_outlet' => 'COMPLETE',
+        'nama_outlet' => 'Outlet Lama',
+        'alamat_outlet' => 'Alamat Lama',
+        'nama_pemilik_outlet' => 'Pemilik Lama',
+        'badanusaha_id' => $hierarchy['bu']->id,
+        'divisi_id' => $hierarchy['div']->id,
+        'region_id' => $hierarchy['reg']->id,
+        'cluster_id' => $hierarchy['clus']->id,
+    ]);
+
+    $register = createConfirmedRegister($hierarchy, $user->id, $user->id);
+    $register->forceFill([
+        'kode_outlet' => 'COMPLETE',
+        'nama_outlet' => 'Outlet Baru',
+        'alamat_outlet' => 'Alamat Baru',
+        'nama_pemilik_outlet' => 'Pemilik Baru',
+    ])->save();
+
+    $this->actingAs($user, 'sanctum')
+        ->patchJson('/api/registers/'.$register->id.'/approve', [
+            'id' => $register->id,
+            'status' => 'APPROVED',
+            'duplicate_resolution' => 'override',
+        ])
+        ->assertOk()
+        ->assertJsonPath('meta.outlet_id', $existingOutlet->id)
+        ->assertJsonPath('meta.duplicate_resolution', 'override')
+        ->assertJsonPath('meta.final_kode_outlet', 'COMPLETE');
+
+    $archive = OutletChangeArchive::query()->firstOrFail();
+    $existingOutlet->refresh();
+
+    expect($existingOutlet->register_id)->toBe($register->id)
+        ->and($existingOutlet->nama_outlet)->toBe('Outlet Baru')
+        ->and($archive->action)->toBe(OutletChangeArchive::ACTION_APPROVAL_OVERRIDE)
+        ->and($archive->old_values['nama_outlet'])->toBe('Outlet Lama')
+        ->and($archive->new_values['nama_outlet'])->toBe('Outlet Baru')
+        ->and($archive->changed_fields)->toContain('nama_outlet', 'alamat_outlet', 'register_id');
 });

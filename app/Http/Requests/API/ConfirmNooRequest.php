@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\API;
 
-use App\Models\Outlet;
 use App\Models\Register;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -30,21 +29,6 @@ class ConfirmNooRequest extends FormRequest
                 'string',
                 'max:50',
                 'regex:/^\S+$/',
-                function ($attribute, $value, $fail) {
-                    $register = Register::find($this->id);
-
-                    if (! $register) {
-                        return;
-                    }
-
-                    $exists = Outlet::where('kode_outlet', $value)
-                        ->where('divisi_id', $register->divisi_id)
-                        ->exists();
-
-                    if ($exists) {
-                        $fail("Kode outlet {$value} sudah digunakan di divisi ini.");
-                    }
-                },
             ],
         ];
     }

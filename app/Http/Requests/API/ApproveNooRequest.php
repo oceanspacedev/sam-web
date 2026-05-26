@@ -3,6 +3,7 @@
 namespace App\Http\Requests\API;
 
 use App\Models\Register;
+use App\Services\RegisterApprovalService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ApproveNooRequest extends FormRequest
@@ -22,7 +23,16 @@ class ApproveNooRequest extends FormRequest
     {
         return [
             'id' => ['required', 'integer', 'exists:registers,id'],
-            'status' => ['required', 'string', 'in:APPROVED,REJECTED'],
+            'status' => ['required', 'string', 'in:APPROVED'],
+            'duplicate_resolution' => [
+                'sometimes',
+                'string',
+                'in:'.implode(',', [
+                    RegisterApprovalService::DUPLICATE_BRANCH,
+                    RegisterApprovalService::DUPLICATE_OVERRIDE,
+                    RegisterApprovalService::DUPLICATE_REJECT,
+                ]),
+            ],
         ];
     }
 
@@ -32,7 +42,8 @@ class ApproveNooRequest extends FormRequest
             'id.required' => 'ID register wajib diisi',
             'id.exists' => 'Data register tidak ditemukan',
             'status.required' => 'Status wajib diisi',
-            'status.in' => 'Status tidak valid (harus APPROVED atau REJECTED)',
+            'status.in' => 'Status tidak valid (harus APPROVED)',
+            'duplicate_resolution.in' => 'Pilihan kode outlet duplikat tidak valid',
         ];
     }
 }

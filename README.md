@@ -69,7 +69,7 @@ Untuk migrasi besar, jalankan bertahap. File yang sudah ada di NAS dengan ukuran
 php artisan storage:clone-disk --source-disk=s3 --target-disk=nas_sftp --batch=5000 --progress=500 --verify-attempts=5 --verify-sleep-ms=500
 ```
 
-Jika koneksi NAS sering putus, gunakan `--stop-on-failure`, perbaiki koneksi, lalu jalankan command yang sama lagi.
+Command manual akan return gagal jika ada file yang gagal dicopy. Untuk migrasi yang harus terus berjalan, gunakan `tools/clone_s3_to_nas_loop.sh`; wrapper ini akan retry batch yang masih punya kegagalan dan baru selesai saat satu full pass source selesai tanpa copy baru, tanpa file gagal, dan jumlah file target sudah minimal sama dengan jumlah file source yang discan.
 
 ## Request lifecycle (HTTP)
 

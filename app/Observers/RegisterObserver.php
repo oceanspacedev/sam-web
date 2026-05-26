@@ -4,7 +4,6 @@ namespace App\Observers;
 
 use App\Models\Outlet;
 use App\Models\Register;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 
 class RegisterObserver
@@ -18,21 +17,32 @@ class RegisterObserver
             return;
         }
 
-        $outletQuery = Outlet::query()
-            ->select(['id'])
-            ->where('divisi_id', $model->divisi_id)
-            ->where(function (Builder $query) use ($model): void {
-                $query->where('register_id', $model->id)
-                    ->orWhere('kode_outlet', $model->kode_outlet)
-                    ->orWhere('kode_outlet', 'LEAD'.$model->id);
-            })
-            ->orderByRaw('case when register_id = ? then 1 when kode_outlet = ? then 2 when kode_outlet = ? then 3 else 4 end', [
-                $model->id,
-                $model->kode_outlet,
-                'LEAD'.$model->id,
-            ]);
+        if (! $model->kode_outlet) {
+            return;
+        }
 
-        $outlet = $model->outlet()->first() ?? $outletQuery->first();
+        $outlet = $model->outlet()->first()
+            ?? Outlet::query()
+                ->where('divisi_id', $model->divisi_id)
+                ->where('kode_outlet', 'LEAD'.$model->id)
+                ->first();
+
+        if (! $outlet) {
+            $duplicateOutlet = Outlet::query()
+                ->where('divisi_id', $model->divisi_id)
+                ->where('kode_outlet', $model->kode_outlet)
+                ->first();
+
+            if ($duplicateOutlet) {
+                Log::channel('outlet')->warning('Register approved without duplicate resolution; outlet sync skipped', [
+                    'register_id' => $model->id,
+                    'kode_outlet' => $model->kode_outlet,
+                    'duplicate_outlet_id' => $duplicateOutlet->id,
+                ]);
+
+                return;
+            }
+        }
 
         $payload = [
             'register_id' => $model->id,

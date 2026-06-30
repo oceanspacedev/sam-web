@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\RelationManagers;
 
 use App\Models\Register;
 use App\Models\User;
+use App\Support\FilamentTableEagerLoad;
 use App\Support\StorageDisk;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -32,14 +33,8 @@ class RegistersRelationManager extends RelationManager
         $owner = $this->getOwnerRecord();
 
         return Register::query()
-            ->with([
-                'createdBy:id,nama_lengkap',
-                'tm:id,nama_lengkap',
-                'badanusaha:id,name',
-                'divisi:id,name',
-                'region:id,name',
-                'cluster:id,name',
-            ])
+            ->with(FilamentTableEagerLoad::registerHierarchy())
+            ->with('tm:id,nama_lengkap')
             ->where(function (Builder $query) use ($owner): void {
                 $query->where('created_by_id', $owner->id)
                     ->orWhere('tm_id', $owner->id);

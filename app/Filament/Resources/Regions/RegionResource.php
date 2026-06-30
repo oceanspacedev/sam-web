@@ -3,8 +3,13 @@
 namespace App\Filament\Resources\Regions;
 
 use App\Filament\Resources\Regions\Pages\ManageRegions;
+use App\Models\BadanUsaha;
 use App\Models\Division;
 use App\Models\Region;
+use App\Support\FilamentOrganizationalScope;
+use App\Support\FilamentTableEagerLoad;
+use App\Support\OrganizationalDeleteGuard;
+use App\Support\OrganizationalFormFields;
 use App\Support\OrganizationalHierarchyOptions;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -13,7 +18,6 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\BadgeColumn;
@@ -44,24 +48,27 @@ class RegionResource extends Resource
             ->components([
                 Select::make('badanusaha_id')
                     ->label('Badan Usaha')
-                    ->relationship('badanUsaha', 'name', modifyQueryUsing: fn (Builder $query): Builder => OrganizationalHierarchyOptions::applyBadanUsahaScope($query))
                     ->searchable()
-                    ->preload()
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih badan usaha')
                     ->createOptionForm(
                         $canCreateBadanUsaha
                         ? [
-                            TextInput::make('name')
-                                ->required()
-                                ->unique()
-                                ->maxLength(255)
-                                ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                                ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                            OrganizationalFormFields::code(BadanUsaha::class),
+                            OrganizationalFormFields::name(BadanUsaha::class),
                         ]
                         : null
                     )
+                    ->createOptionUsing(function (array $data): int {
+                        return BadanUsaha::create([
+                            'code' => $data['code'],
+                            'name' => $data['name'],
+                        ])->id;
+                    })
+                    ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha())
+                    ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search))
+                    ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value))
                     ->helperText(
                         $canCreateBadanUsaha
                         ? 'Pilih Badan Usaha atau tambah baru.'
@@ -73,19 +80,14 @@ class RegionResource extends Resource
                 Select::make('divisi_id')
                     ->label('Divisi')
                     ->searchable()
-                    ->preload()
                     ->required()
                     ->reactive()
                     ->placeholder('Pilih divisi')
                     ->createOptionForm(
                         $canCreateDivision
                         ? [
-                            TextInput::make('name')
-                                ->required()
-                                ->unique()
-                                ->maxLength(255)
-                                ->helperText('Auto-format ke UPPERCASE tanpa spasi')
-                                ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state)))),
+                            OrganizationalFormFields::code(Division::class, 'badanusaha_id', 'badanusaha_id'),
+                            OrganizationalFormFields::name(Division::class, 'badanusaha_id', 'badanusaha_id'),
                         ]
                         : null
                     )
@@ -95,7 +97,16 @@ class RegionResource extends Resource
                             throw new \Exception('Pilih Badan Usaha terlebih dahulu.');
                         }
 
+                        if (! OrganizationalFormFields::ensureUnique(Division::class, 'code', $data['code'], 'badanusaha_id', $badanusahaId)) {
+                            throw new \Exception('Kode divisi sudah digunakan pada Badan Usaha yang sama.');
+                        }
+
+                        if (! OrganizationalFormFields::ensureUnique(Division::class, 'name', $data['name'], 'badanusaha_id', $badanusahaId)) {
+                            throw new \Exception('Nama divisi sudah digunakan pada Badan Usaha yang sama.');
+                        }
+
                         $division = \App\Models\Division::create([
+                            'code' => $data['code'],
                             'name' => $data['name'],
                             'badanusaha_id' => $badanusahaId,
                         ]);
@@ -110,13 +121,8 @@ class RegionResource extends Resource
                     ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id')))
                     ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
                     ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value)),
-                TextInput::make('name')
-                    ->required()
-                    ->unique(ignoreRecord: true)
-                    ->maxLength(255)
-                    ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: region jakarta → REGION_JAKARTA')
-                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state))))
-                    ->columnSpanFull(),
+                OrganizationalFormFields::code(Region::class, 'divisi_id', 'divisi_id'),
+                OrganizationalFormFields::name(Region::class, 'divisi_id', 'divisi_id'),
             ]);
     }
 
@@ -124,10 +130,15 @@ class RegionResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('name')
+                TextColumn::make('code')
+                    ->label('Kode')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
+                TextColumn::make('name')
+                    ->label('Nama')
+                    ->searchable()
+                    ->sortable(),
                 BadgeColumn::make('badanusaha.name')
                     ->label('Badan Usaha')
                     ->color('primary')
@@ -148,9 +159,10 @@ class RegionResource extends Resource
                     ->date('d M Y')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->defaultSort('name', 'asc')
+            ->defaultSort('code', 'asc')
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
+            ->deferLoading()
             ->groups([
                 Group::make('divisi.name')
                     ->label('Divisi')
@@ -160,12 +172,10 @@ class RegionResource extends Resource
                 SelectFilter::make('badanusaha')
                     ->relationship('badanusaha', 'name', fn (Builder $query) => $query->active())
                     ->searchable()
-                    ->preload()
                     ->label('Badan Usaha'),
                 SelectFilter::make('divisi')
                     ->relationship('divisi', 'name', fn (Builder $query) => $query->active())
                     ->searchable()
-                    ->preload()
                     ->label('Divisi'),
                 Filter::make('has_clusters')
                     ->label('Has Clusters')
@@ -179,14 +189,19 @@ class RegionResource extends Resource
                     ->slideOver()
                     ->modalWidth('md'),
                 DeleteAction::make()
-                    ->requiresConfirmation(),
+                    ->requiresConfirmation()
+                    ->modalHeading('Hapus Region')
+                    ->modalDescription('Penghapusan struktur organisasi dapat berdampak pada data relasi. Pastikan tidak ada data terkait sebelum melanjutkan.')
+                    ->action(fn (Region $record) => OrganizationalDeleteGuard::deleteRecord($record)),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
-                        ->authorize('deleteAny'),
+                        ->authorize('deleteAny')
+                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => OrganizationalDeleteGuard::deleteRecords($records)),
                     ForceDeleteBulkAction::make()
-                        ->authorize('forceDeleteAny'),
+                        ->authorize('forceDeleteAny')
+                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => OrganizationalDeleteGuard::forceDeleteRecords($records)),
                     RestoreBulkAction::make()
                         ->authorize('restoreAny'),
                 ]),
@@ -195,53 +210,18 @@ class RegionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        $user = auth()->user();
+
+        if (! $user) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0');
+        }
+
         return parent::getEloquentQuery()
-            ->where(function ($query) {
-                $user = auth()->user();
-
-                if (! $user || ! $user->role) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                $scopeLevel = $user->role->organizational_scope_level;
-
-                if (! $scopeLevel) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                // If role has 'all' access, no filtering needed
-                if ($scopeLevel === 'all') {
-                    return;
-                }
-
-                // Get user's organizational assignments from pivot tables
-                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                $regionIds = $user->regions()->pluck('regions.id')->toArray();
-
-                if (empty($badanUsahaIds) && empty($divisiIds) && empty($regionIds)) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                // Apply filters based on assignments
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn('regions.badanusaha_id', $badanUsahaIds);
-                }
-
-                if (! empty($divisiIds)) {
-                    $query->whereIn('regions.divisi_id', $divisiIds);
-                }
-
-                if (! empty($regionIds)) {
-                    $query->whereIn('regions.id', $regionIds);
-                }
-            });
+            ->where(function (Builder $query) use ($user): void {
+                FilamentOrganizationalScope::applyRegionScope($query, $user);
+            })
+            ->withCount('clusters')
+            ->with(FilamentTableEagerLoad::hierarchy('badanusaha', 'divisi'));
     }
 
     public static function getPages(): array

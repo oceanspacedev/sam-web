@@ -4,15 +4,17 @@ namespace App\Imports;
 
 use App\Exports\PlanVisit\PlanVisitImportErrorsExport;
 use App\Jobs\SendImportNotification;
-use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\User;
+use App\Support\ImportOrganizationalResolver;
+use App\Support\ImportSpreadsheetValidator;
+use App\Support\ImportSummaryStore;
+use App\Support\OrganizationalName;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -31,8 +33,6 @@ use Throwable;
 class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEvents, WithHeadingRow, WithMultipleSheets
 {
     use RegistersEventListeners;
-
-    private const SUMMARY_TTL_MINUTES = 120;
 
     private const ERROR_SAMPLE_LIMIT = 20;
 
@@ -81,7 +81,7 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
      */
     private array $errors = [];
 
-    private string $summaryKey;
+    private ImportSummaryStore $summaryStore;
 
     private ?string $uploadedDisk;
 
@@ -93,6 +93,8 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private ?User $importer = null;
 
+    private ?ImportOrganizationalResolver $organizationalResolver = null;
+
     public function __construct(
         ?int $userId = null,
         string $scheduleScope = 'daily',
@@ -102,18 +104,26 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
     ) {
         $this->userId = $userId;
         $this->scheduleScope = in_array($scheduleScope, self::SUPPORTED_SCOPES, true) ? $scheduleScope : 'daily';
-        $this->summaryKey = 'plan-visit-import:'.Str::uuid()->toString();
+        $this->summaryStore = new ImportSummaryStore(
+            'plan-visit-import:'.Str::uuid()->toString(),
+            $this->freshSummary(),
+        );
+        $this->summaryStore->initialize();
         $this->uploadedDisk = $uploadedDisk;
         $this->uploadedPath = $uploadedPath ? ltrim($uploadedPath, '/') : null;
         $this->submittedAt = ($submittedAt ?? now())->copy();
-        $this->ensureSummaryInitialized();
     }
 
     public function onRow(Row $row): void
     {
-        $this->incrementProcessed();
         $rowIndex = $row->getIndex();
         $data = $row->toArray();
+
+        if ($this->isBlankImportRow($data)) {
+            return;
+        }
+
+        $this->incrementProcessed();
 
         try {
             $username = $this->requireValue($data, ['username'], 'username');
@@ -132,11 +142,11 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
                 throw new Exception('User dengan username '.$username.' tidak ditemukan.');
             }
 
-            $division = Division::whereRaw('REPLACE(UPPER(name), " ", "") = ?', [$this->normalizeName($divisionName)])->first();
-
-            if (! $division) {
-                throw new Exception('Divisi '.$divisionName.' tidak ditemukan.');
-            }
+            $division = $this->organizationalResolver()->resolveDivisionModelForImport(
+                $divisionName,
+                $this->sanitizeString($data['badan_usaha'] ?? null),
+                $this->importer(),
+            );
 
             $outlet = Outlet::query()
                 ->where('divisi_id', $division->id)
@@ -631,15 +641,38 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
         return Str::upper($value);
     }
 
+    private function organizationalResolver(): ImportOrganizationalResolver
+    {
+        return $this->organizationalResolver ??= new ImportOrganizationalResolver;
+    }
+
+    private function isBlankImportRow(array $data): bool
+    {
+        $keys = $this->scheduleScope === 'weekly'
+            ? ['username', 'badan_usaha', 'kode_outlet', 'divisi', 'nama_outlet', 'schedule_week', 'schedule_year']
+            : ['username', 'badan_usaha', 'kode_outlet', 'divisi', 'nama_outlet', 'tanggal_visit'];
+
+        $values = [];
+
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $data)) {
+                $values[] = $data[$key];
+            }
+        }
+
+        return ! ImportSpreadsheetValidator::rowHasMeaningfulValue($values);
+    }
+
     private function normalizeName(?string $value): string
     {
-        return Str::upper(str_replace(' ', '', (string) $value));
+        return OrganizationalName::normalizeLookup($value);
     }
 
     private function rememberError(int $rowIndex, array $row, string $message): void
     {
         $columns = [
             'username' => $this->sanitizeString($row['username'] ?? null),
+            'badan_usaha' => $this->sanitizeString($row['badan_usaha'] ?? null),
             'kode_outlet' => $this->sanitizeString($row['kode_outlet'] ?? null),
             'divisi' => $this->sanitizeString($row['divisi'] ?? null),
             'nama_outlet' => $this->sanitizeString($row['nama_outlet'] ?? null),
@@ -698,29 +731,17 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     private function mutateSummary(callable $callback): void
     {
-        $this->ensureSummaryInitialized();
-
-        $summary = Cache::get($this->summaryKey, $this->freshSummary());
-        $callback($summary);
-
-        Cache::put($this->summaryKey, $summary, now()->addMinutes(self::SUMMARY_TTL_MINUTES));
-    }
-
-    private function ensureSummaryInitialized(): void
-    {
-        Cache::add($this->summaryKey, $this->freshSummary(), now()->addMinutes(self::SUMMARY_TTL_MINUTES));
+        $this->summaryStore->mutate($callback);
     }
 
     private function getSummary(): array
     {
-        $this->ensureSummaryInitialized();
-
-        return Cache::get($this->summaryKey, $this->freshSummary());
+        return $this->summaryStore->get();
     }
 
     private function flushSummary(): void
     {
-        Cache::forget($this->summaryKey);
+        $this->summaryStore->forget();
     }
 
     private function freshSummary(): array
@@ -799,6 +820,6 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
     public function getSummaryKey(): string
     {
-        return $this->summaryKey;
+        return $this->summaryStore->key();
     }
 }

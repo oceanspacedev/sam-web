@@ -14,6 +14,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SendImportNotification implements ShouldQueue
 {
@@ -21,6 +22,8 @@ class SendImportNotification implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+
+    public int $tries = 3;
 
     /**
      * @param  array<int, array{name?:string,label?:string,path:string}>|null  $downloads
@@ -141,5 +144,14 @@ class SendImportNotification implements ShouldQueue
         }
 
         return false;
+    }
+
+    public function failed(?Throwable $exception = null): void
+    {
+        Log::error('Import notification job failed', [
+            'user_id' => $this->userId,
+            'title' => $this->title,
+            'error' => $exception?->getMessage(),
+        ]);
     }
 }

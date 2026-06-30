@@ -1,6 +1,10 @@
 <?php
 
 use App\Helpers\SendNotif;
+use App\Http\Controllers\API\Management\BadanUsahaController as ManagementBadanUsahaController;
+use App\Http\Controllers\API\Management\ClusterController as ManagementClusterController;
+use App\Http\Controllers\API\Management\DivisionController as ManagementDivisionController;
+use App\Http\Controllers\API\Management\RegionController as ManagementRegionController;
 use App\Http\Controllers\API\OutletController;
 use App\Http\Controllers\API\PlanVisitController;
 use App\Http\Controllers\API\RegisterController;
@@ -63,7 +67,7 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     // PLANVISIT
     Route::get('planvisit', [PlanVisitController::class, 'fetch']);
     Route::post('planvisit', [PlanVisitController::class, 'store']);
-    Route::delete('planvisit', [PlanVisitController::class, 'delete']);
+    Route::delete('planvisit/{id}', [PlanVisitController::class, 'destroy'])->whereNumber('id');
 
     // REGISTERS Resource (NOO & LEAD workflow)
     Route::prefix('registers')->group(function () {
@@ -92,54 +96,135 @@ Route::middleware(['auth:sanctum', 'logku'])->group(function () {
     Route::get('form-options', [SettingController::class, 'getFormOptions']);
     Route::get('roles', [SettingController::class, 'getRoleOptions']);
 
+    // ORGANIZATION MANAGEMENT - Mobile CRUD (permission + scope gated)
+    Route::prefix('management')->group(function () {
+        Route::get('badanusaha', [ManagementBadanUsahaController::class, 'index']);
+        Route::get('badanusaha/{id}', [ManagementBadanUsahaController::class, 'show'])->whereNumber('id');
+        Route::post('badanusaha', [ManagementBadanUsahaController::class, 'store']);
+        Route::put('badanusaha/{id}', [ManagementBadanUsahaController::class, 'update'])->whereNumber('id');
+        Route::delete('badanusaha/{id}', [ManagementBadanUsahaController::class, 'destroy'])->whereNumber('id');
+
+        Route::get('divisi', [ManagementDivisionController::class, 'index']);
+        Route::get('divisi/{id}', [ManagementDivisionController::class, 'show'])->whereNumber('id');
+        Route::post('divisi', [ManagementDivisionController::class, 'store']);
+        Route::put('divisi/{id}', [ManagementDivisionController::class, 'update'])->whereNumber('id');
+        Route::delete('divisi/{id}', [ManagementDivisionController::class, 'destroy'])->whereNumber('id');
+
+        Route::get('region', [ManagementRegionController::class, 'index']);
+        Route::get('region/{id}', [ManagementRegionController::class, 'show'])->whereNumber('id');
+        Route::post('region', [ManagementRegionController::class, 'store']);
+        Route::put('region/{id}', [ManagementRegionController::class, 'update'])->whereNumber('id');
+        Route::delete('region/{id}', [ManagementRegionController::class, 'destroy'])->whereNumber('id');
+
+        Route::get('cluster', [ManagementClusterController::class, 'index']);
+        Route::get('cluster/{id}', [ManagementClusterController::class, 'show'])->whereNumber('id');
+        Route::post('cluster', [ManagementClusterController::class, 'store']);
+        Route::put('cluster/{id}', [ManagementClusterController::class, 'update'])->whereNumber('id');
+        Route::delete('cluster/{id}', [ManagementClusterController::class, 'destroy'])->whereNumber('id');
+    });
+
     // Custom Register Fields
     Route::get('divisions/{id}/register-fields', [RegisterController::class, 'getRegisterFields']);
 });
 
 Route::post('notif', [SendNotif::class, 'sendMessage']);
 
-Route::post('test-upload', function (Illuminate\Http\Request $request, App\Services\FileUploadService $fileUpload) {
-    $key = sprintf('test-upload:%s', $request->user()?->id ?? $request->ip());
+if (app()->environment(['local', 'testing'])) {
+    Route::post('test-upload', function (Illuminate\Http\Request $request, App\Services\FileUploadService $fileUpload) {
+        $incrementCounter = function (string $key, int $ttlSeconds): int {
+            try {
+                $count = (int) Illuminate\Support\Facades\Redis::incr($key);
 
-    $allowed = Illuminate\Support\Facades\RateLimiter::attempt(
-        $key,
-        25,
-        function () use ($request, $fileUpload) {
-            if ($request->hasFile('file')) {
-                $fileUpload->uploadImageOptimized(
-                    $request->file('file'),
-                    $request->input('type', 'photo')
-                );
+                if ($count === 1) {
+                    Illuminate\Support\Facades\Redis::expire($key, $ttlSeconds);
+                }
+
+                return $count;
+            } catch (Throwable) {
+                if (! Illuminate\Support\Facades\Cache::has($key)) {
+                    Illuminate\Support\Facades\Cache::put($key, 1, now()->addSeconds($ttlSeconds));
+
+                    return 1;
+                }
+
+                $count = ((int) Illuminate\Support\Facades\Cache::get($key, 0)) + 1;
+                Illuminate\Support\Facades\Cache::put($key, $count, now()->addSeconds($ttlSeconds));
+
+                return $count;
             }
+        };
 
-            return true;
-        },
-        60
-    );
+        $counterTtl = function (string $key, int $fallbackSeconds): int {
+            try {
+                $ttl = (int) Illuminate\Support\Facades\Redis::ttl($key);
 
-    if (! $allowed) {
-        $retryAfter = Illuminate\Support\Facades\RateLimiter::availableIn($key);
+                return $ttl > 0 ? $ttl : $fallbackSeconds;
+            } catch (Throwable) {
+                return $fallbackSeconds;
+            }
+        };
 
-        return response()->json([
+        $ipAddress = $request->ip();
+        $userId = auth('sanctum')->id() ?? auth()->id() ?? $request->user()?->id;
+        $limitPerMinute = $userId ? 60 : 40;
+        $limitPerHour = $userId ? 300 : 120;
+
+        $minuteKey = 'upload:minute:'.$ipAddress.':'.($userId ?? 'guest');
+        $minuteCount = $incrementCounter($minuteKey, 60);
+
+        if ($minuteCount > $limitPerMinute) {
+            return response()->json([
+                'meta' => [
+                    'code' => 429,
+                    'status' => 'error',
+                    'message' => 'Too many upload attempts. Please try again later.',
+                ],
+                'data' => [
+                    'retry_after' => 60,
+                    'limit' => $limitPerMinute,
+                ],
+                'errors' => null,
+            ], 429);
+        }
+
+        $hourKey = 'upload:hour:'.$ipAddress.':'.($userId ?? 'guest');
+        $hourCount = $incrementCounter($hourKey, 3600);
+
+        if ($hourCount > $limitPerHour) {
+            return response()->json([
+                'meta' => [
+                    'code' => 429,
+                    'status' => 'error',
+                    'message' => 'Hourly upload limit exceeded. Please try again later.',
+                ],
+                'data' => [
+                    'retry_after' => 3600,
+                    'limit' => $limitPerHour,
+                ],
+                'errors' => null,
+            ], 429);
+        }
+
+        if ($request->hasFile('file')) {
+            $fileUpload->uploadImageOptimized(
+                $request->file('file'),
+                $request->input('type', 'photo')
+            );
+        }
+
+        $response = response()->json([
             'meta' => [
-                'code' => 429,
-                'status' => 'error',
-                'message' => 'Rate limit exceeded',
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Upload accepted',
             ],
-            'data' => [
-                'retry_after' => $retryAfter,
-            ],
+            'data' => null,
             'errors' => null,
-        ], 429);
-    }
+        ]);
 
-    return response()->json([
-        'meta' => [
-            'code' => 200,
-            'status' => 'success',
-            'message' => 'Upload accepted',
-        ],
-        'data' => null,
-        'errors' => null,
-    ]);
-});
+        $response->headers->set('X-Upload-Limit-Remaining', max(0, $limitPerMinute - $minuteCount));
+        $response->headers->set('X-Upload-Limit-Reset', $counterTtl($minuteKey, 60));
+
+        return $response;
+    });
+}

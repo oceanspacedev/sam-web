@@ -91,6 +91,32 @@ class UserResource extends JsonResource
             'can_create_user' => $user->can('Create:User'),
             'can_update_user' => $user->can('Update:User'),
             'can_delete_user' => $user->can('Delete:User'),
+
+            // Organizational management visibility
+            'can_manage_badan_usaha' => $user->can('ViewAny:BadanUsaha'),
+            'can_manage_division' => $user->can('ViewAny:Division'),
+            'can_manage_region' => $user->can('ViewAny:Region'),
+            'can_manage_cluster' => $user->can('ViewAny:Cluster'),
+
+            // Badan usaha actions
+            'can_create_badan_usaha' => $user->can('Create:BadanUsaha'),
+            'can_update_badan_usaha' => $user->can('Update:BadanUsaha'),
+            'can_delete_badan_usaha' => $user->can('Delete:BadanUsaha'),
+
+            // Division actions
+            'can_create_division' => $user->can('Create:Division'),
+            'can_update_division' => $user->can('Update:Division'),
+            'can_delete_division' => $user->can('Delete:Division'),
+
+            // Region actions
+            'can_create_region' => $user->can('Create:Region'),
+            'can_update_region' => $user->can('Update:Region'),
+            'can_delete_region' => $user->can('Delete:Region'),
+
+            // Cluster actions
+            'can_create_cluster' => $user->can('Create:Cluster'),
+            'can_update_cluster' => $user->can('Update:Cluster'),
+            'can_delete_cluster' => $user->can('Delete:Cluster'),
         ];
     }
 }

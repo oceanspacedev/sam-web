@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Outlet;
 
+use App\Support\OrganizationalName;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -32,10 +33,10 @@ class OutletCompactResource extends JsonResource
             'status_outlet' => $this->status_outlet,
             'latlong' => $this->latlong,
             'radius' => $this->radius,
-            'badanusaha' => $this->whenLoaded('badanusaha', fn () => $this->badanusaha?->only(['id', 'name'])),
-            'divisi' => $this->whenLoaded('divisi', fn () => $this->divisi?->only(['id', 'name'])),
-            'region' => $this->whenLoaded('region', fn () => $this->region?->only(['id', 'name'])),
-            'cluster' => $this->whenLoaded('cluster', fn () => $this->cluster?->only(['id', 'name'])),
+            'badanusaha' => $this->whenLoaded('badanusaha', fn () => OrganizationalName::resource($this->badanusaha)),
+            'divisi' => $this->whenLoaded('divisi', fn () => OrganizationalName::resource($this->divisi)),
+            'region' => $this->whenLoaded('region', fn () => OrganizationalName::resource($this->region)),
+            'cluster' => $this->whenLoaded('cluster', fn () => OrganizationalName::resource($this->cluster)),
         ];
     }
 }

@@ -8,13 +8,20 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Role;
 use App\Services\OrganizationalCacheService;
+use App\Support\OrganizationalPivotSync;
 use Illuminate\Database\Eloquent\Model;
 
 class OrganizationalObserver
 {
     public function __construct(
-        protected OrganizationalCacheService $cacheService
+        protected OrganizationalCacheService $cacheService,
+        protected OrganizationalPivotSync $pivotSync
     ) {}
+
+    public function created(Model $model): void
+    {
+        $this->pivotSync->attachCreatedRecordToCreator($model);
+    }
 
     public function saved(Model $model): void
     {
@@ -23,7 +30,13 @@ class OrganizationalObserver
 
     public function deleted(Model $model): void
     {
+        $this->pivotSync->detachDeletedRecordFromUsers($model);
         $this->clearRelevantCache($model);
+    }
+
+    public function forceDeleted(Model $model): void
+    {
+        $this->pivotSync->detachDeletedRecordFromUsers($model);
     }
 
     public function restored(Model $model): void

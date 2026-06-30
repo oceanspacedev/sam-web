@@ -157,3 +157,89 @@ test('create user API tetap menolak role berscope tanpa assignment fallback', fu
         'cluster_ids',
     ]);
 });
+
+test('update user API menolak target yang sudah punya assignment di luar scope actor', function (): void {
+    Gate::define('Update:User', fn (User $user): bool => true);
+
+    $actorHierarchy = createOrgHierarchy();
+    $outsideHierarchy = createOrgHierarchy();
+
+    $actorRole = Role::factory()->create([
+        'organizational_scope_level' => 'cluster',
+    ]);
+    $targetRole = Role::factory()->create([
+        'organizational_scope_level' => 'cluster',
+    ]);
+
+    $actor = User::factory()->create([
+        'role_id' => $actorRole->id,
+    ]);
+    $actor->badanUsahas()->attach($actorHierarchy['bu']->id);
+    $actor->divisis()->attach($actorHierarchy['div']->id);
+    $actor->regions()->attach($actorHierarchy['reg']->id);
+    $actor->clusters()->attach($actorHierarchy['clus']->id);
+
+    $targetUser = User::factory()->create([
+        'role_id' => $targetRole->id,
+        'username' => 'outside_user',
+        'nama_lengkap' => 'OUTSIDE USER',
+    ]);
+    $targetUser->badanUsahas()->attach($outsideHierarchy['bu']->id);
+    $targetUser->divisis()->attach($outsideHierarchy['div']->id);
+    $targetUser->regions()->attach($outsideHierarchy['reg']->id);
+    $targetUser->clusters()->attach($outsideHierarchy['clus']->id);
+
+    $response = $this->actingAs($actor, 'sanctum')
+        ->putJson("/api/users/{$targetUser->id}", [
+            'nama_lengkap' => 'Should Not Update',
+        ]);
+
+    $response
+        ->assertStatus(404)
+        ->assertJsonPath('meta.status', 'error')
+        ->assertJsonPath('meta.message', 'User tidak ditemukan');
+
+    $targetUser->refresh();
+
+    expect($targetUser->nama_lengkap)->toBe('OUTSIDE USER');
+});
+
+test('delete user API menolak target yang sudah punya assignment di luar scope actor', function (): void {
+    Gate::define('Delete:User', fn (User $user): bool => true);
+
+    $actorHierarchy = createOrgHierarchy();
+    $outsideHierarchy = createOrgHierarchy();
+
+    $actorRole = Role::factory()->create([
+        'organizational_scope_level' => 'cluster',
+    ]);
+    $targetRole = Role::factory()->create([
+        'organizational_scope_level' => 'cluster',
+    ]);
+
+    $actor = User::factory()->create([
+        'role_id' => $actorRole->id,
+    ]);
+    $actor->badanUsahas()->attach($actorHierarchy['bu']->id);
+    $actor->divisis()->attach($actorHierarchy['div']->id);
+    $actor->regions()->attach($actorHierarchy['reg']->id);
+    $actor->clusters()->attach($actorHierarchy['clus']->id);
+
+    $targetUser = User::factory()->create([
+        'role_id' => $targetRole->id,
+    ]);
+    $targetUser->badanUsahas()->attach($outsideHierarchy['bu']->id);
+    $targetUser->divisis()->attach($outsideHierarchy['div']->id);
+    $targetUser->regions()->attach($outsideHierarchy['reg']->id);
+    $targetUser->clusters()->attach($outsideHierarchy['clus']->id);
+
+    $response = $this->actingAs($actor, 'sanctum')
+        ->deleteJson("/api/users/{$targetUser->id}");
+
+    $response
+        ->assertStatus(404)
+        ->assertJsonPath('meta.status', 'error')
+        ->assertJsonPath('meta.message', 'User tidak ditemukan');
+
+    expect($targetUser->fresh())->not->toBeNull();
+});

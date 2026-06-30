@@ -12,8 +12,11 @@ class DivisionFactory extends Factory
 
     public function definition(): array
     {
+        $suffix = $this->faker->unique()->numerify('###');
+
         return [
-            'name' => 'DIV-'.$this->faker->unique()->word(),
+            'code' => 'DIV_'.$suffix,
+            'name' => 'Divisi '.$suffix,
             'badanusaha_id' => BadanUsaha::factory(),
         ];
     }

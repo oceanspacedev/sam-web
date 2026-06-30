@@ -104,6 +104,7 @@ class AuditResource extends Resource
                         false: fn (Builder $query) => $query->whereNull('subject_id'),
                     ),
             ])
+            ->deferLoading()
             ->recordActions([
                 ViewAction::make(),
             ]);
@@ -163,7 +164,8 @@ class AuditResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->where('log_name', 'filament-admin');
+            ->where('log_name', 'filament-admin')
+            ->with('causer:id,nama_lengkap,email');
     }
 
     public static function canCreate(): bool

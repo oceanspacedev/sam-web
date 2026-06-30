@@ -84,7 +84,7 @@ return [
     |
     */
 
-    'livewire_loading_delay' => 'default',
+    'livewire_loading_delay' => env('FILAMENT_LIVEWIRE_LOADING_DELAY', 'default'),
 
     /*
     |--------------------------------------------------------------------------
@@ -116,5 +116,18 @@ return [
     */
 
     'system_route_prefix' => 'filament',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard metrics cache
+    |--------------------------------------------------------------------------
+    |
+    | Seconds to cache DataOverview widget aggregates per user and filter.
+    | Set to 0 to disable (default). Use 60 in production if dashboard load
+    | is still heavy after query batching.
+    |
+    */
+
+    'dashboard_metrics_cache_seconds' => (int) env('DASHBOARD_METRICS_CACHE_SECONDS', 0),
 
 ];

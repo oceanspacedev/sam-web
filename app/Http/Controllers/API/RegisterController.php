@@ -27,7 +27,9 @@ use App\Models\User;
 use App\Rules\VideoMimeOrSignature;
 use App\Services\FileUploadService;
 use App\Services\RegisterApprovalService;
+use App\Support\OrganizationalName;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -201,7 +203,7 @@ class RegisterController extends Controller
     public function upgradeLead(UpgradeLeadRequest $request)
     {
         try {
-            $lead = Register::findOrFail($request->id);
+            $lead = Register::visibleTo(Auth::user())->findOrFail($request->id);
 
             // Validate that register is a LEAD before allowing upgrade
             if (strtoupper((string) $lead->type) !== 'LEAD') {
@@ -691,7 +693,7 @@ class RegisterController extends Controller
     public function confirmNoo(ConfirmNooRequest $request)
     {
         try {
-            $register = Register::findOrFail($request->id);
+            $register = Register::visibleTo(Auth::user())->findOrFail($request->id);
 
             // Only NOO can be confirmed.
             if (strtoupper((string) $register->type) !== 'NOO') {
@@ -773,7 +775,7 @@ class RegisterController extends Controller
     public function approveNoo(ApproveNooRequest $request)
     {
         try {
-            $register = Register::findOrFail($request->id);
+            $register = Register::visibleTo(Auth::user())->findOrFail($request->id);
 
             // Only NOO can be approved.
             if (strtoupper((string) $register->type) !== 'NOO') {
@@ -832,7 +834,7 @@ class RegisterController extends Controller
     public function rejectNoo(RejectNooRequest $request)
     {
         try {
-            $register = Register::findOrFail($request->id);
+            $register = Register::visibleTo(Auth::user())->findOrFail($request->id);
 
             // Only NOO can be rejected.
             if (strtoupper((string) $register->type) !== 'NOO') {
@@ -1010,7 +1012,7 @@ class RegisterController extends Controller
 
         $clusterId = $request->integer('cluster_id') ?: ($ids['cluster'][0] ?? null);
         if (! $clusterId && $request->filled('clus')) {
-            $cluster = Cluster::where('name', $request->clus)->first();
+            $cluster = $this->resolveOrgByCodeOrName(Cluster::query(), $request->clus);
             $clusterId = $cluster?->id;
         } elseif ($clusterId) {
             $cluster = Cluster::find($clusterId);
@@ -1018,17 +1020,17 @@ class RegisterController extends Controller
 
         $regionId = $request->integer('region_id') ?: ($ids['region'][0] ?? $cluster?->region_id);
         if (! $regionId && $request->filled('reg')) {
-            $regionId = Region::where('name', $request->reg)->value('id');
+            $regionId = $this->resolveOrgByCodeOrName(Region::query(), $request->reg)?->id;
         }
 
         $divisiId = $request->integer('divisi_id') ?: ($ids['divisi'][0] ?? $cluster?->divisi_id);
         if (! $divisiId && $request->filled('div')) {
-            $divisiId = Division::where('name', $request->div)->value('id');
+            $divisiId = $this->resolveOrgByCodeOrName(Division::query(), $request->div)?->id;
         }
 
         $badanusahaId = $request->integer('badanusaha_id') ?: ($ids['badanusaha'][0] ?? $cluster?->badanusaha_id);
         if (! $badanusahaId && $request->filled('bu')) {
-            $badanusahaId = BadanUsaha::where('name', $request->bu)->value('id');
+            $badanusahaId = $this->resolveOrgByCodeOrName(BadanUsaha::query(), $request->bu)?->id;
         }
 
         return [
@@ -1038,6 +1040,23 @@ class RegisterController extends Controller
             'cluster_id' => $clusterId,
             'tm_id' => $user->tm?->id ?? $user->id,
         ];
+    }
+
+    protected function resolveOrgByCodeOrName(Builder $query, mixed $value)
+    {
+        if (is_numeric($value)) {
+            return $query->whereKey($value)->first();
+        }
+
+        $code = OrganizationalName::formatCode((string) $value);
+
+        return $query
+            ->where(function (Builder $query) use ($code, $value): void {
+                $query
+                    ->where('code', $code)
+                    ->orWhere('name', (string) $value);
+            })
+            ->first();
     }
 
     protected function isHierarchyIncomplete(array $hierarchy): bool

@@ -4,14 +4,15 @@ namespace App\Filament\Resources\BadanUsahas;
 
 use App\Filament\Resources\BadanUsahas\Pages\ManageBadanUsahas;
 use App\Models\BadanUsaha;
+use App\Support\FilamentOrganizationalScope;
+use App\Support\OrganizationalDeleteGuard;
+use App\Support\OrganizationalFormFields;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
-use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -32,14 +33,10 @@ class BadanUsahaResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
-                TextInput::make('name')
-                    ->required()
-                    ->maxLength(255)
-                    ->unique(ignoreRecord: true)
-                    ->helperText('Akan otomatis diformat ke UPPERCASE tanpa spasi. Contoh: badan usaha a → BADAN_USAHA_A')
-                    ->dehydrateStateUsing(fn ($state) => strtoupper(str_replace(' ', '_', trim($state))))
-                    ->columnSpanFull(),
+                OrganizationalFormFields::code(BadanUsaha::class),
+                OrganizationalFormFields::name(BadanUsaha::class),
             ]);
     }
 
@@ -47,10 +44,15 @@ class BadanUsahaResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('name')
+                TextColumn::make('code')
+                    ->label('Kode')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
+                TextColumn::make('name')
+                    ->label('Nama')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('divisions_count')
                     ->label('Divisions')
                     ->counts('divisions')
@@ -75,9 +77,10 @@ class BadanUsahaResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->defaultSort('name', 'asc')
+            ->defaultSort('code', 'asc')
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
+            ->deferLoading()
             ->filters([
                 Filter::make('has_divisions')
                     ->label('Has Divisions')
@@ -92,25 +95,18 @@ class BadanUsahaResource extends Resource
                     ->modalWidth('md'),
                 DeleteAction::make()
                     ->requiresConfirmation()
-                    ->action(function (BadanUsaha $record) {
-                        if ($record->divisions()->exists()) {
-                            Notification::make()
-                                ->title('Cannot delete')
-                                ->body('This Badan Usaha has divisions. Please delete divisions first.')
-                                ->danger()
-                                ->send();
-
-                            return;
-                        }
-                        $record->delete();
-                    }),
+                    ->modalHeading('Hapus Badan Usaha')
+                    ->modalDescription('Penghapusan struktur organisasi dapat berdampak pada data relasi. Pastikan tidak ada data terkait sebelum melanjutkan.')
+                    ->action(fn (BadanUsaha $record) => OrganizationalDeleteGuard::deleteRecord($record)),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
-                        ->authorize('deleteAny'),
+                        ->authorize('deleteAny')
+                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => OrganizationalDeleteGuard::deleteRecords($records)),
                     ForceDeleteBulkAction::make()
-                        ->authorize('forceDeleteAny'),
+                        ->authorize('forceDeleteAny')
+                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => OrganizationalDeleteGuard::forceDeleteRecords($records)),
                     RestoreBulkAction::make()
                         ->authorize('restoreAny'),
                 ]),
@@ -119,41 +115,17 @@ class BadanUsahaResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        $user = auth()->user();
+
+        if (! $user) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0');
+        }
+
         return parent::getEloquentQuery()
-            ->where(function ($query) {
-                $user = auth()->user();
-
-                if (! $user || ! $user->role) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                $scopeLevel = $user->role->organizational_scope_level;
-
-                if (! $scopeLevel) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                // If role has 'all' access, no filtering needed
-                if ($scopeLevel === 'all') {
-                    return;
-                }
-
-                // Get user's organizational assignments from pivot tables
-                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-
-                if (empty($badanUsahaIds)) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                // Apply filters based on assignments
-                $query->whereIn('badan_usahas.id', $badanUsahaIds);
-            });
+            ->where(function (Builder $query) use ($user): void {
+                FilamentOrganizationalScope::applyBadanUsahaIds($query, $user);
+            })
+            ->withCount(['divisions', 'regions', 'clusters']);
     }
 
     public static function getPages(): array

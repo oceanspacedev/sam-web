@@ -18,8 +18,10 @@ class OrganizationalHierarchyOptions
             return null;
         }
 
-        return self::badanUsahaQuery($user, $activeOnly)->whereKey($id)->value('name')
-            ?? BadanUsaha::query()->whereKey($id)->value('name');
+        return OrganizationalName::label(
+            self::badanUsahaQuery($user, $activeOnly)->whereKey($id)->first(['id', 'code', 'name'])
+                ?? BadanUsaha::query()->whereKey($id)->first(['id', 'code', 'name'])
+        );
     }
 
     public static function divisionLabel(int|string|null $id, bool $activeOnly = false): ?string
@@ -28,10 +30,12 @@ class OrganizationalHierarchyOptions
             return null;
         }
 
-        return Division::query()
+        $division = Division::query()
             ->when($activeOnly, fn (Builder $query) => $query->active())
             ->whereKey($id)
-            ->value('name');
+            ->first(['id', 'code', 'name']);
+
+        return OrganizationalName::label($division);
     }
 
     public static function regionLabel(int|string|null $id, bool $activeOnly = false): ?string
@@ -40,10 +44,12 @@ class OrganizationalHierarchyOptions
             return null;
         }
 
-        return Region::query()
+        $region = Region::query()
             ->when($activeOnly, fn (Builder $query) => $query->active())
             ->whereKey($id)
-            ->value('name');
+            ->first(['id', 'code', 'name']);
+
+        return OrganizationalName::label($region);
     }
 
     public static function clusterLabel(int|string|null $id, bool $activeOnly = false): ?string
@@ -52,21 +58,23 @@ class OrganizationalHierarchyOptions
             return null;
         }
 
-        return Cluster::query()
+        $cluster = Cluster::query()
             ->when($activeOnly, fn (Builder $query) => $query->active())
             ->whereKey($id)
-            ->value('name');
+            ->first(['id', 'code', 'name']);
+
+        return OrganizationalName::label($cluster);
     }
 
     public static function searchBadanUsaha(string $search, ?User $user = null, bool $activeOnly = true, int $limit = 50): array
     {
         $keyword = trim($search);
 
-        return self::badanUsahaQuery($user, $activeOnly)
-            ->when($keyword !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$keyword.'%'))
-            ->limit($limit)
-            ->pluck('name', 'id')
-            ->toArray();
+        $query = self::badanUsahaQuery($user, $activeOnly)
+            ->when($keyword !== '', fn (Builder $query) => OrganizationalName::applySearch($query, $keyword))
+            ->limit($limit);
+
+        return self::options($query);
     }
 
     public static function searchDivision(
@@ -82,11 +90,11 @@ class OrganizationalHierarchyOptions
 
         $keyword = trim($search);
 
-        return self::divisionQuery($badanUsahaId, $user, $activeOnly)
-            ->when($keyword !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$keyword.'%'))
-            ->limit($limit)
-            ->pluck('name', 'id')
-            ->toArray();
+        $query = self::divisionQuery($badanUsahaId, $user, $activeOnly)
+            ->when($keyword !== '', fn (Builder $query) => OrganizationalName::applySearch($query, $keyword))
+            ->limit($limit);
+
+        return self::options($query);
     }
 
     public static function searchRegion(
@@ -102,11 +110,11 @@ class OrganizationalHierarchyOptions
 
         $keyword = trim($search);
 
-        return self::regionQuery($divisionId, $user, $activeOnly)
-            ->when($keyword !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$keyword.'%'))
-            ->limit($limit)
-            ->pluck('name', 'id')
-            ->toArray();
+        $query = self::regionQuery($divisionId, $user, $activeOnly)
+            ->when($keyword !== '', fn (Builder $query) => OrganizationalName::applySearch($query, $keyword))
+            ->limit($limit);
+
+        return self::options($query);
     }
 
     public static function searchCluster(
@@ -122,78 +130,70 @@ class OrganizationalHierarchyOptions
 
         $keyword = trim($search);
 
-        return self::clusterQuery($regionId, $user, $activeOnly)
-            ->when($keyword !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$keyword.'%'))
-            ->limit($limit)
-            ->pluck('name', 'id')
-            ->toArray();
+        $query = self::clusterQuery($regionId, $user, $activeOnly)
+            ->when($keyword !== '', fn (Builder $query) => OrganizationalName::applySearch($query, $keyword))
+            ->limit($limit);
+
+        return self::options($query);
     }
 
     public static function activeBadanUsaha(): array
     {
-        return BadanUsaha::query()
+        $query = BadanUsaha::query()
             ->active()
-            ->orderBy('name', 'asc')
-            ->pluck('name', 'id')
-            ->toArray();
+            ->orderBy('code', 'asc');
+
+        return self::options($query);
     }
 
     public static function activeDivision(?int $badanUsahaId = null): array
     {
-        return Division::query()
+        $query = Division::query()
             ->active()
             ->when($badanUsahaId, fn (Builder $query) => $query->where('badanusaha_id', $badanUsahaId))
-            ->orderBy('name', 'asc')
-            ->pluck('name', 'id')
-            ->toArray();
+            ->orderBy('code', 'asc');
+
+        return self::options($query);
     }
 
     public static function activeRegion(?int $divisionId = null): array
     {
-        return Region::query()
+        $query = Region::query()
             ->active()
             ->when($divisionId, fn (Builder $query) => $query->where('divisi_id', $divisionId))
-            ->orderBy('name', 'asc')
-            ->pluck('name', 'id')
-            ->toArray();
+            ->orderBy('code', 'asc');
+
+        return self::options($query);
     }
 
     public static function activeCluster(?int $regionId = null): array
     {
-        return Cluster::query()
+        $query = Cluster::query()
             ->active()
             ->when($regionId, fn (Builder $query) => $query->where('region_id', $regionId))
-            ->orderBy('name', 'asc')
-            ->pluck('name', 'id')
-            ->toArray();
+            ->orderBy('code', 'asc');
+
+        return self::options($query);
     }
 
     public static function badanUsaha(?User $user = null, bool $activeOnly = true): array
     {
-        return self::badanUsahaQuery($user, $activeOnly)
-            ->pluck('name', 'id')
-            ->toArray();
+        return self::options(self::badanUsahaQuery($user, $activeOnly));
     }
 
     public static function division(?int $badanUsahaId, ?User $user = null, bool $activeOnly = true): array
     {
-        return self::divisionQuery($badanUsahaId, $user, $activeOnly)
-            ->pluck('name', 'id')
-            ->toArray();
+        return self::options(self::divisionQuery($badanUsahaId, $user, $activeOnly));
     }
 
     public static function region(?int $divisionId, ?User $user = null, bool $activeOnly = true): array
     {
-        return self::regionQuery($divisionId, $user, $activeOnly)
-            ->pluck('name', 'id')
-            ->toArray();
+        return self::options(self::regionQuery($divisionId, $user, $activeOnly));
     }
 
     public static function cluster(?int $regionId, ?User $user = null, bool $activeOnly = true): array
     {
-        return self::clusterQuery($regionId, $user, $activeOnly)
-            ->pluck('name', 'id')
-            ->toArray();
+        return self::options(self::clusterQuery($regionId, $user, $activeOnly));
     }
 
     public static function badanUsahaQuery(?User $user = null, bool $activeOnly = true): Builder
@@ -216,7 +216,7 @@ class OrganizationalHierarchyOptions
         }
 
         if (self::scopeLevel($user) === 'all') {
-            return $query->orderBy('name', 'asc');
+            return $query->orderBy('code', 'asc');
         }
 
         $badanUsahaIds = self::organizationalIds($user, 'badanusaha');
@@ -227,7 +227,7 @@ class OrganizationalHierarchyOptions
 
         return $query
             ->whereIn('badan_usahas.id', $badanUsahaIds)
-            ->orderBy('name', 'asc');
+            ->orderBy('code', 'asc');
     }
 
     public static function divisionQuery(?int $badanUsahaId, ?User $user = null, bool $activeOnly = true): Builder
@@ -251,7 +251,7 @@ class OrganizationalHierarchyOptions
         }
 
         if (self::scopeLevel($user) === 'all') {
-            return $query->orderBy('name', 'asc');
+            return $query->orderBy('code', 'asc');
         }
 
         $divisionIds = self::organizationalIds($user, 'divisi');
@@ -260,7 +260,7 @@ class OrganizationalHierarchyOptions
             $query->whereIn('divisions.id', $divisionIds);
         }
 
-        return $query->orderBy('name', 'asc');
+        return $query->orderBy('code', 'asc');
     }
 
     public static function regionQuery(?int $divisionId, ?User $user = null, bool $activeOnly = true): Builder
@@ -286,7 +286,7 @@ class OrganizationalHierarchyOptions
         $scopeLevel = self::scopeLevel($user);
 
         if ($scopeLevel === 'all') {
-            return $query->orderBy('name', 'asc');
+            return $query->orderBy('code', 'asc');
         }
 
         if (in_array($scopeLevel, ['region', 'cluster'], true)) {
@@ -297,7 +297,7 @@ class OrganizationalHierarchyOptions
             }
         }
 
-        return $query->orderBy('name', 'asc');
+        return $query->orderBy('code', 'asc');
     }
 
     public static function clusterQuery(?int $regionId, ?User $user = null, bool $activeOnly = true): Builder
@@ -323,7 +323,7 @@ class OrganizationalHierarchyOptions
         $scopeLevel = self::scopeLevel($user);
 
         if ($scopeLevel === 'all') {
-            return $query->orderBy('name', 'asc');
+            return $query->orderBy('code', 'asc');
         }
 
         if ($scopeLevel === 'cluster') {
@@ -334,7 +334,7 @@ class OrganizationalHierarchyOptions
             }
         }
 
-        return $query->orderBy('name', 'asc');
+        return $query->orderBy('code', 'asc');
     }
 
     protected static function resolveUser(?User $user = null): ?User
@@ -350,5 +350,10 @@ class OrganizationalHierarchyOptions
     protected static function organizationalIds(User $user, string $key): array
     {
         return $user->getOrganizationalIds()[$key] ?? [];
+    }
+
+    private static function options(Builder $query): array
+    {
+        return OrganizationalName::optionList($query);
     }
 }

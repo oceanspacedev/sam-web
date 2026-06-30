@@ -13,8 +13,11 @@ class RegionFactory extends Factory
 
     public function definition(): array
     {
+        $suffix = $this->faker->unique()->numerify('###');
+
         return [
-            'name' => 'REG-'.$this->faker->unique()->word(),
+            'code' => 'REG_'.$suffix,
+            'name' => 'Region '.$suffix,
             'badanusaha_id' => BadanUsaha::factory(),
             'divisi_id' => Division::factory(),
         ];

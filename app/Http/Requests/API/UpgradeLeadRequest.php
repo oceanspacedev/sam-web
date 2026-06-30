@@ -2,18 +2,26 @@
 
 namespace App\Http\Requests\API;
 
+use App\Models\Register;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpgradeLeadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        return Register::visibleTo($user)
+            ->whereKey($this->input('id'))
+            ->exists();
     }
 
     protected function prepareForValidation(): void
     {
-        // Merge route parameter into request for validation
         $this->merge([
             'id' => $this->route('id'),
         ]);

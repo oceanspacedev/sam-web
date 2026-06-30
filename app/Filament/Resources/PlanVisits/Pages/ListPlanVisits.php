@@ -5,10 +5,11 @@ namespace App\Filament\Resources\PlanVisits\Pages;
 use App\Filament\Exports\PlanVisitExporter;
 use App\Filament\Resources\PlanVisits\PlanVisitResource;
 use App\Imports\PlanVisitImport;
-use App\Jobs\CleanupUploadedImportFile;
 use App\Jobs\Exports\GeneratePlanVisitTemplate;
 use App\Jobs\SendImportNotification;
 use App\Models\PlanVisit;
+use App\Support\ImportJobDispatcher;
+use App\Support\ImportSpreadsheetValidator;
 use App\Support\StorageDisk;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -19,7 +20,6 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
 class ListPlanVisits extends ListRecords
@@ -157,29 +157,44 @@ class ListPlanVisits extends ListRecords
                         return;
                     }
 
+                    $requiredHeadings = $scope === 'weekly'
+                        ? ['username', 'kode_outlet', 'divisi', 'schedule_week', 'schedule_year']
+                        : ['username', 'kode_outlet', 'divisi', 'tanggal_visit'];
+
+                    try {
+                        ImportSpreadsheetValidator::assertReady($disk, $relativePath, $requiredHeadings);
+                    } catch (Throwable $validationException) {
+                        Notification::make()
+                            ->title('Import gagal')
+                            ->body($validationException->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
                     $userId = Auth::id();
 
                     try {
-                        $pendingDispatch = Excel::queueImport(
-                            new PlanVisitImport($userId, $scope, $disk, $relativePath),
-                            $relativePath,
-                            $disk
-                        );
+                        if (! ImportJobDispatcher::queueBackendAvailable() && ! (bool) config('imports.sync_fallback', true)) {
+                            Notification::make()
+                                ->title('Import gagal')
+                                ->body(ImportJobDispatcher::unavailableBlockingMessage())
+                                ->danger()
+                                ->send();
 
-                        if ($pendingDispatch) {
-                            $pendingDispatch->onQueue('imports');
-                            $pendingDispatch->allOnQueue('imports');
-
-                            $jobs = [
-                                new CleanupUploadedImportFile($disk, $relativePath),
-                            ];
-
-                            $pendingDispatch->chain($jobs);
+                            return;
                         }
 
+                        $dispatch = ImportJobDispatcher::queueSpreadsheetImport(
+                            new PlanVisitImport($userId, $scope, $disk, $relativePath),
+                            $relativePath,
+                            $disk,
+                        );
+
                         Notification::make()
-                            ->title('Import sedang diproses')
-                            ->body('Mulai mengimport data plan visit ('.strtoupper($scope).'), proses akan berjalan di belakang layar.')
+                            ->title($dispatch->isSync() ? 'Import selesai' : 'Import sedang diproses')
+                            ->body(ImportJobDispatcher::statusMessage($dispatch))
                             ->success()
                             ->send();
                     } catch (Throwable $e) {

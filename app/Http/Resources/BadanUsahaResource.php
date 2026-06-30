@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\OrganizationalName;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class BadanUsahaResource extends JsonResource
@@ -15,7 +16,9 @@ class BadanUsahaResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'code' => $this->code,
             'name' => $this->name,
+            'display_name' => OrganizationalName::label($this->resource),
         ];
     }
 }

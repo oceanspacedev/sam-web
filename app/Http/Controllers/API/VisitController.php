@@ -30,6 +30,8 @@ class VisitController extends Controller
 
     private const MAX_LEAD_VISITS_PER_WINDOW = 4;
 
+    private const LEAD_VISIT_WINDOW_DAYS = 30;
+
     public function __construct(
         protected FileUploadService $fileUpload,
         protected SystemSettingResolver $systemSettings,
@@ -958,6 +960,7 @@ class VisitController extends Controller
         ))->withData([
             'lead_visit_count_in_window' => $leadVisitCount,
             'max_lead_visits_in_window' => self::MAX_LEAD_VISITS_PER_WINDOW,
+            'lead_visit_window_days' => self::LEAD_VISIT_WINDOW_DAYS,
             'lead_visit_window_start' => $windowStart->toDateString(),
         ]);
     }

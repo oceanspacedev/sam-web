@@ -21,8 +21,11 @@ class BadanUsahaFactory extends Factory
      */
     public function definition()
     {
+        $suffix = $this->faker->unique()->numerify('###');
+
         return [
-            'name' => 'BU-'.implode(' ', $this->faker->unique()->words(2)),
+            'code' => 'BU_'.$suffix,
+            'name' => 'Badan Usaha '.$suffix,
         ];
     }
 }

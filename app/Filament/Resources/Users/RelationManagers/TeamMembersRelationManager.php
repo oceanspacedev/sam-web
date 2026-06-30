@@ -2,15 +2,22 @@
 
 namespace App\Filament\Resources\Users\RelationManagers;
 
+use App\Support\FilamentTableEagerLoad;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TeamMembersRelationManager extends RelationManager
 {
     protected static ?string $title = 'Team Member';
 
     protected static string $relationship = 'teamMembers';
+
+    protected function getTableQuery(): Builder
+    {
+        return parent::getTableQuery()->with(FilamentTableEagerLoad::userAssignments());
+    }
 
     public function table(Table $table): Table
     {
@@ -56,6 +63,7 @@ class TeamMembersRelationManager extends RelationManager
             ->defaultSort('nama_lengkap')
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
+            ->deferLoading()
             ->headerActions([])
             ->recordActions([])
             ->bulkActions([]);

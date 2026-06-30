@@ -32,10 +32,10 @@ function createRejectUserWithHierarchy(bool $withRejectPermission = true): array
 {
     $suffix = uniqid();
 
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+    $bu = \App\Models\BadanUsaha::create(['code' => 'BU_'.$suffix, 'name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['code' => 'DIV_'.$suffix, 'name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['code' => 'REG_'.$suffix, 'name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['code' => 'CLUS_'.$suffix, 'name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
 
     // Create role with 'web' guard (default for Spatie Permission)
     $role = \App\Models\Role::create([

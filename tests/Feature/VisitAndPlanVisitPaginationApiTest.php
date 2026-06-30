@@ -279,3 +279,89 @@ test('plan visit endpoint supports historical day and plan-style week filters', 
         ->assertOk()
         ->assertJsonPath('meta.pagination.total', 4);
 });
+
+test('plan visit can be deleted by id when it belongs to authenticated user', function () {
+    $hierarchy = createVisitPaginationHierarchy('plan-delete-by-id');
+    $user = createVisitPaginationUser($hierarchy);
+    $outlet = createVisitPaginationOutlet($hierarchy, 7001);
+
+    $planVisit = PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload(now()->addDays(5), 'daily'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
+            'realized_at' => null,
+            'realized_visit_id' => null,
+        ]
+    ));
+
+    $response = $this->actingAs($user, 'sanctum')
+        ->deleteJson('/api/planvisit/'.$planVisit->id);
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('meta.message', 'berhasil')
+        ->assertJsonPath('data', 1);
+
+    $this->assertSoftDeleted('plan_visits', ['id' => $planVisit->id]);
+});
+
+test('plan visit delete by id cannot delete another users plan visit', function () {
+    $hierarchy = createVisitPaginationHierarchy('plan-delete-other-user');
+    $owner = createVisitPaginationUser($hierarchy);
+    $actor = createVisitPaginationUser($hierarchy);
+    $outlet = createVisitPaginationOutlet($hierarchy, 7002);
+
+    $planVisit = PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload(now()->addDays(5), 'daily'),
+        [
+            'user_id' => $owner->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
+            'realized_at' => null,
+            'realized_visit_id' => null,
+        ]
+    ));
+
+    $response = $this->actingAs($actor, 'sanctum')
+        ->deleteJson('/api/planvisit/'.$planVisit->id);
+
+    $response
+        ->assertNotFound()
+        ->assertJsonPath('meta.message', 'Plan visit tidak ditemukan');
+
+    $this->assertDatabaseHas('plan_visits', [
+        'id' => $planVisit->id,
+        'deleted_at' => null,
+    ]);
+});
+
+test('plan visit delete by id still rejects weekly plan visits', function () {
+    $hierarchy = createVisitPaginationHierarchy('plan-delete-weekly');
+    $user = createVisitPaginationUser($hierarchy);
+    $outlet = createVisitPaginationOutlet($hierarchy, 7003);
+
+    $planVisit = PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload(now()->addDays(5), 'weekly'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
+            'realized_at' => null,
+            'realized_visit_id' => null,
+        ]
+    ));
+
+    $response = $this->actingAs($user, 'sanctum')
+        ->deleteJson('/api/planvisit/'.$planVisit->id);
+
+    $response
+        ->assertStatus(400)
+        ->assertJsonPath('meta.message', 'Plan visit mingguan tidak dapat dihapus');
+
+    $this->assertDatabaseHas('plan_visits', [
+        'id' => $planVisit->id,
+        'deleted_at' => null,
+    ]);
+});

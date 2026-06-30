@@ -14,8 +14,11 @@ class ClusterFactory extends Factory
 
     public function definition(): array
     {
+        $suffix = $this->faker->unique()->numerify('###');
+
         return [
-            'name' => 'CLUS-'.$this->faker->unique()->word(),
+            'code' => 'CLUS_'.$suffix,
+            'name' => 'Cluster '.$suffix,
             'badanusaha_id' => BadanUsaha::factory(),
             'divisi_id' => Division::factory(),
             'region_id' => Region::factory(),

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\API;
 use App\Exceptions\Api\BadRequestException;
 use App\Exceptions\Api\ResourceNotFoundException;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\API\DeletePlanVisitRequest;
 use App\Http\Requests\API\StorePlanVisitRequest;
 use App\Http\Resources\PlanVisit\PlanVisitCompactResource;
 use App\Http\Resources\PlanVisit\PlanVisitResource;
@@ -429,74 +428,24 @@ class PlanVisitController extends Controller
         ])->response();
     }
 
-    public function delete(DeletePlanVisitRequest $request): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
         $user = Auth::user();
 
         Log::channel('planvisit')->info('Penghapusan plan visit dimulai', [
             'user_id' => $user->id,
-            'payload' => [
-                'bulan' => $request->bulan,
-                'tahun' => $request->tahun,
-                'outlet_id' => $request->outlet_id,
-                'register_id' => $request->register_id,
-            ],
+            'plan_visit_id' => $id,
         ]);
 
-        // Resolve visitable target
-        if ($request->filled('outlet_id')) {
-            $target = Outlet::visibleTo($user)->find($request->outlet_id);
-
-            if (! $target) {
-                Log::channel('planvisit')->warning('Penghapusan plan visit gagal: outlet tidak ditemukan', [
-                    'user_id' => $user->id,
-                    'outlet_id' => $request->outlet_id,
-                ]);
-
-                throw new ResourceNotFoundException('Outlet tidak ditemukan');
-            }
-            $visitableType = Outlet::class;
-        } else {
-            $target = Register::visibleTo($user)->find($request->register_id);
-
-            if (! $target) {
-                Log::channel('planvisit')->warning('Penghapusan plan visit gagal: register tidak ditemukan', [
-                    'user_id' => $user->id,
-                    'register_id' => $request->register_id,
-                ]);
-
-                throw new ResourceNotFoundException('Register tidak ditemukan');
-            }
-            $visitableType = Register::class;
-        }
-
-        $rangeStart = Carbon::createFromDate((int) $request->tahun, (int) $request->bulan, 1)->startOfMonth();
-        $rangeEnd = $rangeStart->copy()->endOfMonth();
-
-        $planVisit = PlanVisit::where('visitable_type', $visitableType)
-            ->where('visitable_id', $target->id)
+        $planVisit = PlanVisit::query()
+            ->whereKey($id)
             ->where('user_id', $user->id)
-            ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
-                $builder
-                    ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                        $sub->where('schedule_scope', 'daily')
-                            ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
-                    })
-                    ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                        $sub->where('schedule_scope', 'weekly')
-                            ->where('period_start', '<=', $rangeEnd->toDateString())
-                            ->where('period_end', '>=', $rangeStart->toDateString());
-                    });
-            })
             ->first();
 
         if (! $planVisit) {
             Log::channel('planvisit')->warning('Penghapusan plan visit gagal: plan tidak ditemukan', [
                 'user_id' => $user->id,
-                'visitable_type' => $visitableType,
-                'visitable_id' => $target->id,
-                'bulan' => $request->bulan,
-                'tahun' => $request->tahun,
+                'plan_visit_id' => $id,
             ]);
 
             throw new ResourceNotFoundException('Plan visit tidak ditemukan');
@@ -505,8 +454,6 @@ class PlanVisitController extends Controller
         if ($planVisit->schedule_scope === 'weekly') {
             Log::channel('planvisit')->warning('Penghapusan plan visit gagal: jadwal mingguan tidak dapat dihapus', [
                 'user_id' => $user->id,
-                'visitable_type' => $visitableType,
-                'visitable_id' => $target->id,
                 'plan_visit_id' => $planVisit->id,
                 'schedule_scope' => $planVisit->schedule_scope,
             ]);
@@ -514,30 +461,12 @@ class PlanVisitController extends Controller
             throw new BadRequestException('Plan visit mingguan tidak dapat dihapus');
         }
 
-        $delete = PlanVisit::where('visitable_type', $visitableType)
-            ->where('visitable_id', $target->id)
-            ->where('user_id', $user->id)
-            ->where(function (Builder $builder) use ($rangeStart, $rangeEnd): void {
-                $builder
-                    ->where(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                        $sub->where('schedule_scope', 'daily')
-                            ->whereBetween('period_start', [$rangeStart->toDateString(), $rangeEnd->toDateString()]);
-                    })
-                    ->orWhere(function (Builder $sub) use ($rangeStart, $rangeEnd): void {
-                        $sub->where('schedule_scope', 'weekly')
-                            ->where('period_start', '<=', $rangeEnd->toDateString())
-                            ->where('period_end', '>=', $rangeStart->toDateString());
-                    });
-            })
-            ->delete();
+        $deleted = $planVisit->delete();
 
-        if (! $delete) {
+        if (! $deleted) {
             Log::channel('planvisit')->warning('Penghapusan plan visit gagal: tidak ada data yang dihapus', [
                 'user_id' => $user->id,
-                'visitable_type' => $visitableType,
-                'visitable_id' => $target->id,
-                'bulan' => $request->bulan,
-                'tahun' => $request->tahun,
+                'plan_visit_id' => $id,
             ]);
 
             throw new BadRequestException('Gagal menghapus plan visit');
@@ -545,11 +474,8 @@ class PlanVisitController extends Controller
 
         Log::channel('planvisit')->info('Penghapusan plan visit berhasil', [
             'user_id' => $user->id,
-            'visitable_type' => $visitableType,
-            'visitable_id' => $target->id,
-            'deleted_count' => $delete,
-            'bulan' => $request->bulan,
-            'tahun' => $request->tahun,
+            'plan_visit_id' => $planVisit->id,
+            'deleted_count' => 1,
         ]);
 
         return response()->json([
@@ -558,7 +484,7 @@ class PlanVisitController extends Controller
                 'status' => 'success',
                 'message' => 'berhasil',
             ],
-            'data' => $delete,
+            'data' => 1,
             'errors' => null,
         ]);
     }

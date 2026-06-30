@@ -4,8 +4,10 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Throwable;
 
 class RateLimitUploads
 {
@@ -14,7 +16,6 @@ class RateLimitUploads
      */
     public function handle(Request $request, Closure $next)
     {
-        // Only apply to routes with file uploads
         if (! $this->hasFileUpload($request)) {
             return $next($request);
         }
@@ -22,17 +23,11 @@ class RateLimitUploads
         $ipAddress = $request->ip();
         $userId = auth()->id();
 
-        // Different limits for authenticated vs anonymous users
         $limitPerMinute = $userId ? 60 : 40;
         $limitPerHour = $userId ? 300 : 120;
 
-        // Check per-minute rate limit
         $minuteKey = "upload:minute:{$ipAddress}:".($userId ?? 'guest');
-        $minuteCount = Redis::incr($minuteKey);
-
-        if ($minuteCount === 1) {
-            Redis::expire($minuteKey, 60); // Expire after 1 minute
-        }
+        $minuteCount = $this->incrementCounter($minuteKey, 60);
 
         if ($minuteCount > $limitPerMinute) {
             Log::warning('Rate limit exceeded (per minute)', [
@@ -56,13 +51,8 @@ class RateLimitUploads
             ], 429);
         }
 
-        // Check per-hour rate limit
         $hourKey = "upload:hour:{$ipAddress}:".($userId ?? 'guest');
-        $hourCount = Redis::incr($hourKey);
-
-        if ($hourCount === 1) {
-            Redis::expire($hourKey, 3600); // Expire after 1 hour
-        }
+        $hourCount = $this->incrementCounter($hourKey, 3600);
 
         if ($hourCount > $limitPerHour) {
             Log::warning('Rate limit exceeded (per hour)', [
@@ -86,30 +76,83 @@ class RateLimitUploads
             ], 429);
         }
 
-        // Add security headers
         $response = $next($request);
 
         $response->headers->set('X-Upload-Limit-Remaining', max(0, $limitPerMinute - $minuteCount));
-        $response->headers->set('X-Upload-Limit-Reset', Redis::ttl($minuteKey));
+        $response->headers->set('X-Upload-Limit-Reset', $this->counterTtl($minuteKey, 60));
 
         return $response;
     }
 
-    /**
-     * Check if request contains file uploads
-     */
+    protected function incrementCounter(string $key, int $ttlSeconds): int
+    {
+        try {
+            $count = (int) Redis::incr($key);
+
+            if ($count === 1) {
+                Redis::expire($key, $ttlSeconds);
+            }
+
+            return $count;
+        } catch (Throwable $exception) {
+            Log::warning('Upload rate limiter falling back to cache store', [
+                'key' => $key,
+                'message' => $exception->getMessage(),
+            ]);
+        }
+
+        if (! Cache::has($key)) {
+            Cache::put($key, 1, now()->addSeconds($ttlSeconds));
+
+            return 1;
+        }
+
+        $count = ((int) Cache::get($key, 0)) + 1;
+        Cache::put($key, $count, now()->addSeconds($ttlSeconds));
+
+        return $count;
+    }
+
+    protected function counterTtl(string $key, int $fallbackSeconds): int
+    {
+        try {
+            $ttl = (int) Redis::ttl($key);
+
+            return $ttl > 0 ? $ttl : $fallbackSeconds;
+        } catch (Throwable) {
+            return $fallbackSeconds;
+        }
+    }
+
     protected function hasFileUpload(Request $request): bool
     {
-        return $request->hasFile('file') ||
-            $request->hasFile('video') ||
-            $request->hasFile('photo') ||
-            $request->hasFile('picture') ||
-            $request->hasFile('poto_shop_sign') ||
-            $request->hasFile('poto_depan') ||
-            $request->hasFile('poto_kiri') ||
-            $request->hasFile('poto_kanan') ||
-            $request->hasFile('poto_ktp') ||
-            $request->hasFile('picture_visit_in') ||
-            $request->hasFile('picture_visit_out');
+        $fields = [
+            'file',
+            'video',
+            'photo',
+            'picture',
+            'profile_photo',
+            'poto_shop_sign',
+            'poto_depan',
+            'poto_kiri',
+            'poto_kanan',
+            'poto_ktp',
+            'picture_visit',
+            'picture_visit_in',
+            'picture_visit_out',
+            'photo0',
+            'photo1',
+            'photo2',
+            'photo3',
+            'photo4',
+        ];
+
+        foreach ($fields as $field) {
+            if ($request->hasFile($field)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

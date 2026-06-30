@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Users\Pages;
 use App\Filament\Resources\Users\UserResource;
 use App\Jobs\SendUserWhatsAppRegisteredNotificationJob;
 use App\Models\User;
+use App\Support\UserOrganizationalScopeCleanup;
 use App\Support\WhatsAppQueueDelay;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -14,6 +15,11 @@ class EditUser extends EditRecord
     protected static string $resource = UserResource::class;
 
     protected bool $shouldSendWhatsAppRegisteredNotification = false;
+
+    protected function beforeSave(): void
+    {
+        UserResource::validateActorOrganizationalAssignments(array_merge($this->data, $this->form->getState()));
+    }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -34,6 +40,13 @@ class EditUser extends EditRecord
     protected function afterSave(): void
     {
         $user = $this->getRecord();
+
+        if ($user instanceof User) {
+            UserResource::syncOrganizationalAssignmentsFromState($user, $this->data);
+            UserOrganizationalScopeCleanup::pruneAssignments($user);
+            UserResource::pruneInconsistentOrganizationalHierarchy($user);
+            UserResource::revokeUnauthorizedOrganizationalAssignments($user);
+        }
 
         if (! $this->shouldSendWhatsAppRegisteredNotification || ! $user instanceof User) {
             return;

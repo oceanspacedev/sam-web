@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\OrganizationalName;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ClusterResource extends JsonResource
@@ -15,20 +16,22 @@ class ClusterResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'code' => $this->code,
             'name' => $this->name,
+            'display_name' => OrganizationalName::label($this->resource),
             'badanusaha_id' => $this->badanusaha_id,
             'divisi_id' => $this->divisi_id,
             'region_id' => $this->region_id,
 
             // Relationships
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
-                return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;
+                return OrganizationalName::resource($this->badanusaha);
             }),
             'divisi' => $this->whenLoaded('divisi', function () {
-                return $this->divisi ? $this->divisi->only(['id', 'name']) : null;
+                return OrganizationalName::resource($this->divisi);
             }),
             'region' => $this->whenLoaded('region', function () {
-                return $this->region ? $this->region->only(['id', 'name']) : null;
+                return OrganizationalName::resource($this->region);
             }),
         ];
     }

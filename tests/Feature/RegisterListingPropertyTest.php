@@ -16,7 +16,6 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Register;
 use App\Models\Role;
-use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\SeedsSystemSettings;
@@ -41,10 +40,10 @@ function createOrganizationalHierarchy(string $suffix = ''): array
 {
     $suffix = $suffix ?: uniqid();
 
-    $bu = BadanUsaha::create(['name' => 'BU-'.$suffix]);
-    $div = Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
-    $reg = Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+    $bu = BadanUsaha::create(['code' => 'BU_'.$suffix, 'name' => 'BU-'.$suffix]);
+    $div = Division::create(['code' => 'DIV_'.$suffix, 'name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = Region::create(['code' => 'REG_'.$suffix, 'name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = Cluster::create(['code' => 'CLUS_'.$suffix, 'name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
 
     return ['bu' => $bu, 'div' => $div, 'reg' => $reg, 'clus' => $clus];
 }

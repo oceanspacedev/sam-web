@@ -64,17 +64,17 @@ class RegisterPolicy
 
     public function approve(AuthUser $authUser, Register $register): bool
     {
-        return $authUser->can('Approve:Register');
+        return $authUser->can('Approve:Register') && $register->isVisibleTo($authUser);
     }
 
     public function confirm(AuthUser $authUser, Register $register): bool
     {
-        return $authUser->can('Confirm:Register');
+        return $authUser->can('Confirm:Register') && $register->isVisibleTo($authUser);
     }
 
     public function reject(AuthUser $authUser, Register $register): bool
     {
-        return $authUser->can('Reject:Register');
+        return $authUser->can('Reject:Register') && $register->isVisibleTo($authUser);
     }
 
     public function export(AuthUser $authUser): bool
@@ -84,6 +84,6 @@ class RegisterPolicy
 
     public function upgrade(AuthUser $authUser, Register $register): bool
     {
-        return $authUser->can('Upgrade:Register');
+        return $authUser->can('Upgrade:Register') && $register->isVisibleTo($authUser);
     }
 }

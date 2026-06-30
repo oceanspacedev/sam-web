@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Visits\Pages;
 use App\Filament\Exports\VisitExporter;
 use App\Filament\Resources\Visits\VisitResource;
 use App\Models\Visit;
+use App\Support\FilamentTabBadgeCounts;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Resources\Pages\ListRecords;
@@ -22,7 +23,6 @@ class ListVisits extends ListRecords
             CreateAction::make(),
         ];
 
-        // // Check if the user is authorized to export
         if (Gate::allows('export', Visit::class)) {
             $actions[] = ExportAction::make()
                 ->exporter(VisitExporter::class)
@@ -36,32 +36,21 @@ class ListVisits extends ListRecords
 
     public function getTabs(): array
     {
-        // Ambil query yang sudah difilter berdasarkan role
-        $query = VisitResource::getEloquentQuery(); // Panggil getEloquentQuery() dari Resource
+        $query = VisitResource::getEloquentQuery();
+        $counts = FilamentTabBadgeCounts::visitTypeCounts($query);
 
         return [
             'all' => Tab::make(),
 
             'PLANNED' => Tab::make('PLANNED')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'PLANNED'))
-                ->badge($this->getStatusBadgeCount($query, 'PLANNED'))
+                ->badge($counts['planned'])
                 ->badgeColor('primary'),
 
             'EXTRACALL' => Tab::make('EXTRACALL')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('tipe_visit', 'EXTRACALL'))
-                ->badge($this->getStatusBadgeCount($query, 'EXTRACALL'))
+                ->badge($counts['extracall'])
                 ->badgeColor('info'),
         ];
-    }
-
-    // Fungsi untuk menghitung jumlah berdasarkan status dengan filter yang sudah diterapkan
-    private function getStatusBadgeCount(Builder $query, ?string $status): int
-    {
-        // Jika status tidak diberikan (null), hitung semua data
-        if ($status === null) {
-            return $query->clone()->count(); // Hitung semua data
-        }
-
-        return $query->clone()->where('tipe_visit', $status)->count(); // Hitung berdasarkan status
     }
 }

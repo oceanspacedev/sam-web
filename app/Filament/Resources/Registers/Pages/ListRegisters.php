@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Registers\Pages;
 use App\Filament\Exports\RegisterExporter;
 use App\Filament\Resources\Registers\RegisterResource;
 use App\Models\Register;
+use App\Support\FilamentTabBadgeCounts;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ExportAction;
 use Filament\Resources\Pages\ListRecords;
@@ -36,47 +37,35 @@ class ListRegisters extends ListRecords
 
     public function getTabs(): array
     {
-        // Ambil query yang sudah difilter berdasarkan role
-        $query = RegisterResource::getEloquentQuery(); // Panggil getEloquentQuery() dari Resource
+        $query = RegisterResource::getEloquentQuery();
+        $counts = FilamentTabBadgeCounts::registerStatusCounts($query);
 
         return [
             'pending' => Tab::make()
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'PENDING')->where('type', 'NOO'))
-                ->badge($this->getStatusBadgeCount($query, 'PENDING', true))
+                ->badge($counts['pending_noo'])
                 ->badgeColor('warning'),
 
             'confirmed' => Tab::make()
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'CONFIRMED')->where('type', 'NOO'))
-                ->badge($this->getStatusBadgeCount($query, 'CONFIRMED', true))
+                ->badge($counts['confirmed_noo'])
                 ->badgeColor('info'),
 
             'approved' => Tab::make()
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'APPROVED')->where('type', 'NOO'))
-                ->badge($this->getStatusBadgeCount($query, 'APPROVED', true))
+                ->badge($counts['approved_noo'])
                 ->badgeColor('success'),
 
             'rejected' => Tab::make()
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'REJECTED')->where('type', 'NOO'))
-                ->badge($this->getStatusBadgeCount($query, 'REJECTED', true))
+                ->badge($counts['rejected_noo'])
                 ->badgeColor('danger'),
 
             'lead' => Tab::make()
                 ->label('LEAD')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'PENDING')->where('type', 'LEAD'))
-                ->badge($query->clone()->where('status', 'PENDING')->where('type', 'LEAD')->count())
+                ->badge($counts['pending_lead'])
                 ->badgeColor('primary'),
         ];
-    }
-
-    // Fungsi untuk menghitung jumlah berdasarkan status dengan filter yang sudah diterapkan
-    private function getStatusBadgeCount(Builder $query, string $status, bool $excludeLead = false): int
-    {
-        $q = $query->clone()->where('status', $status);
-
-        if ($excludeLead) {
-            $q->where('type', 'NOO');
-        }
-
-        return $q->count();
     }
 }

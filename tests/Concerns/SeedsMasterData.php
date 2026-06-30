@@ -18,10 +18,10 @@ trait SeedsMasterData
      */
     protected function seedMasterData(?int $forceRoleId = null): array
     {
-        $bu = BadanUsaha::create(['name' => 'BU']);
-        $div = Division::create(['name' => 'DIV', 'badanusaha_id' => $bu->id]);
-        $reg = Region::create(['name' => 'REG', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-        $clus = Cluster::create(['name' => 'CLUS', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+        $bu = BadanUsaha::create(['code' => 'BU', 'name' => 'BU']);
+        $div = Division::create(['code' => 'DIV', 'name' => 'DIV', 'badanusaha_id' => $bu->id]);
+        $reg = Region::create(['code' => 'REG', 'name' => 'REG', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+        $clus = Cluster::create(['code' => 'CLUS', 'name' => 'CLUS', 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
 
         $role = new Role(['name' => 'DM', 'can_access_web' => 1]);
         if ($forceRoleId !== null) {

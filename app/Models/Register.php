@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -82,6 +81,20 @@ class Register extends Model
             $q->where('created_by_id', $user->id)
                 ->orWhere('tm_id', $user->id);
         });
+    }
+
+    public function isVisibleTo(User $user): bool
+    {
+        if (! $user->role) {
+            return false;
+        }
+
+        if ($user->role->hasFullAccess()) {
+            return true;
+        }
+
+        return (int) $this->created_by_id === (int) $user->id
+            || (int) $this->tm_id === (int) $user->id;
     }
 
     public function cluster(): BelongsTo

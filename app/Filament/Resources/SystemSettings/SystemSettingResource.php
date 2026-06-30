@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\SystemSettings;
 
-use App\Filament\Resources\SystemSettings\Pages;
 use App\Models\SystemSetting;
 use App\Support\OrganizationalHierarchyOptions;
 use Filament\Actions\CreateAction;
@@ -97,7 +96,6 @@ class SystemSettingResource extends Resource
                 Forms\Components\Select::make('badanusaha_id')
                     ->label('Badan Usaha')
                     ->searchable()
-                    ->preload()
                     ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha())
                     ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search))
                     ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value))
@@ -123,7 +121,6 @@ class SystemSettingResource extends Resource
                 Forms\Components\Select::make('division_id')
                     ->label('Division')
                     ->searchable()
-                    ->preload()
                     ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id')))
                     ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
                     ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
@@ -146,7 +143,6 @@ class SystemSettingResource extends Resource
                 Forms\Components\Select::make('region_id')
                     ->label('Region')
                     ->searchable()
-                    ->preload()
                     ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division_id')))
                     ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division_id')))
                     ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
@@ -166,7 +162,6 @@ class SystemSettingResource extends Resource
                 Forms\Components\Select::make('cluster_id')
                     ->label('Cluster')
                     ->searchable()
-                    ->preload()
                     ->options(fn (callable $get): array => OrganizationalHierarchyOptions::cluster($get('region_id')))
                     ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchCluster($search, $get('region_id')))
                     ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::clusterLabel($value))
@@ -241,6 +236,7 @@ class SystemSettingResource extends Resource
                     ->color('primary'),
             ])
             ->defaultSort('updated_at', 'desc')
+            ->deferLoading()
             ->filters([
                 Tables\Filters\SelectFilter::make('scope_level')
                     ->label('Level')

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\OrganizationalName;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class DivisionResource extends JsonResource
@@ -10,12 +11,14 @@ class DivisionResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'code' => $this->code,
             'name' => $this->name,
+            'display_name' => OrganizationalName::label($this->resource),
             'badanusaha_id' => $this->badanusaha_id,
 
             // Relationships
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
-                return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;
+                return OrganizationalName::resource($this->badanusaha);
             }),
         ];
     }

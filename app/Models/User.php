@@ -158,6 +158,11 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->cachedOrganizationalIds;
     }
 
+    public function forgetOrganizationalIdsCache(): void
+    {
+        $this->cachedOrganizationalIds = null;
+    }
+
     public function outlets(): HasMany
     {
         $query = (new Outlet)->newQuery()->visibleTo($this);

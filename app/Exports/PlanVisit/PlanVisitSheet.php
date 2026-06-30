@@ -36,6 +36,7 @@ class PlanVisitSheet implements FromCollection, ShouldAutoSize, WithColumnFormat
         if ($this->scheduleScope === 'weekly') {
             return [
                 'username',
+                'badan_usaha',
                 'kode_outlet',
                 'divisi',
                 'nama_outlet',
@@ -46,6 +47,7 @@ class PlanVisitSheet implements FromCollection, ShouldAutoSize, WithColumnFormat
 
         return [
             'username',
+            'badan_usaha',
             'kode_outlet',
             'divisi',
             'nama_outlet',
@@ -57,6 +59,7 @@ class PlanVisitSheet implements FromCollection, ShouldAutoSize, WithColumnFormat
     {
         $row = [
             'sales01 (username tanpa spasi)',
+            'MSI (wajib jika nama divisi sama di beberapa BU)',
             'OTL-001 (kode outlet sesuai master)',
             'GROSIR (nama divisi sesuai master)',
             'TOKO MAKMUR (opsional, referensi saja)',

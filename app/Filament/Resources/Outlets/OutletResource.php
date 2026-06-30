@@ -9,6 +9,8 @@ use App\Filament\Resources\Outlets\Pages\ViewOutlet;
 use App\Filament\Resources\Outlets\RelationManagers\ChangeArchivesRelationManager;
 use App\Models\Outlet;
 use App\Services\FilenameGeneratorService;
+use App\Support\FilamentOrganizationalScope;
+use App\Support\FilamentTableEagerLoad;
 use App\Support\OrganizationalHierarchyOptions;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
@@ -211,7 +213,6 @@ class OutletResource extends Resource
                                             Select::make('badanusaha_id')
                                                 ->label('Badan Usaha')
                                                 ->searchable()
-                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->placeholder('Pilih badan usaha')
@@ -226,7 +227,6 @@ class OutletResource extends Resource
                                             Select::make('divisi_id')
                                                 ->label('Divisi')
                                                 ->searchable()
-                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id')))
@@ -239,7 +239,6 @@ class OutletResource extends Resource
                                             Select::make('region_id')
                                                 ->label('Region')
                                                 ->searchable()
-                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('divisi_id')))
@@ -251,7 +250,6 @@ class OutletResource extends Resource
                                             Select::make('cluster_id')
                                                 ->label('Cluster')
                                                 ->searchable()
-                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::cluster($get('region_id')))
@@ -539,7 +537,6 @@ class OutletResource extends Resource
                             ->label('Badan Usaha')
                             ->reactive()
                             ->searchable()
-                            ->preload()
                             ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha())
                             ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value))
@@ -552,7 +549,6 @@ class OutletResource extends Resource
                             ->label('Divisi')
                             ->reactive()
                             ->searchable()
-                            ->preload()
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('businessEntity')))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity')))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
@@ -563,7 +559,6 @@ class OutletResource extends Resource
                         Select::make('region')
                             ->label('Region')
                             ->searchable()
-                            ->preload()
                             ->placeholder('Pilih Region')
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division')))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division')))
@@ -782,64 +777,18 @@ class OutletResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (! $user) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0');
+        }
+
         return parent::getEloquentQuery()
-            ->where(function ($query) {
-                /** @var \App\Models\User|null $user */
-                $user = Auth::user();
-
-                // CRITICAL: Block access if user or role is null
-                if (! $user || ! $user->role) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                $role = $user->role;
-                $scopeLevel = $role->organizational_scope_level;
-
-                // CRITICAL: Block access if scope level is null
-                if (! $scopeLevel) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                // If role has 'all' access, no filtering needed
-                if ($scopeLevel === 'all') {
-                    return;
-                }
-
-                // Get user's organizational assignments from pivot tables
-                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-
-                // CRITICAL: If user has no assignments at all, block access
-                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
-                if (! $hasAnyAssignment) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                // Apply filters based on assignments
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn('outlets.badanusaha_id', $badanUsahaIds);
-                }
-
-                if (! empty($divisiIds)) {
-                    $query->whereIn('outlets.divisi_id', $divisiIds);
-                }
-
-                if (! empty($regionIds)) {
-                    $query->whereIn('outlets.region_id', $regionIds);
-                }
-
-                if (! empty($clusterIds)) {
-                    $query->whereIn('outlets.cluster_id', $clusterIds);
-                }
-            });
+            ->where(function (Builder $query) use ($user): void {
+                FilamentOrganizationalScope::applyDirectColumns($query, $user, 'outlets');
+            })
+            ->with(FilamentTableEagerLoad::fullHierarchy());
     }
 
     public static function getRelations(): array

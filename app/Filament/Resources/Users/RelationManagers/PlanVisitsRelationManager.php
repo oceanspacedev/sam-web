@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\RelationManagers;
 
 use App\Models\PlanVisit;
+use App\Support\FilamentTableEagerLoad;
 use Carbon\Carbon;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -17,6 +18,11 @@ class PlanVisitsRelationManager extends RelationManager
 
     protected static string $relationship = 'planvisit';
 
+    protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getTableQuery()->with(FilamentTableEagerLoad::visitableTarget());
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -26,10 +32,10 @@ class PlanVisitsRelationManager extends RelationManager
                     ->label('Nama')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('outlet.nama_outlet')
+                TextColumn::make('visitable.nama_outlet')
                     ->label('Outlet')
                     ->searchable(),
-                TextColumn::make('outlet.kode_outlet')
+                TextColumn::make('visitable.kode_outlet')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('period_start')
                     ->label('Tanggal Visit')

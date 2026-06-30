@@ -51,6 +51,15 @@
             "@php artisan package:discover --ansi",
             "@php artisan filament:upgrade"
         ],
+        "optimize:filament": [
+            "@php artisan filament:optimize"
+        ],
+        "optimize:production": [
+            "@php artisan config:cache",
+            "@php artisan route:cache",
+            "@php artisan view:cache",
+            "@php artisan filament:optimize"
+        ],
         "pint": [
             "@php vendor/bin/pint"
         ],

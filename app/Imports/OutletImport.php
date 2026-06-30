@@ -4,17 +4,16 @@ namespace App\Imports;
 
 use App\Exports\Outlet\OutletImportErrorsExport;
 use App\Jobs\SendImportNotification;
-use App\Models\BadanUsaha;
-use App\Models\Cluster;
-use App\Models\Division;
 use App\Models\Outlet;
 use App\Models\PlanVisit;
-use App\Models\Region;
 use App\Models\User;
+use App\Support\ImportOrganizationalResolver;
+use App\Support\ImportSpreadsheetValidator;
+use App\Support\ImportSummaryStore;
+use App\Support\OrganizationalName;
 use App\Support\StorageDisk;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -33,8 +32,6 @@ use Throwable;
 class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEvents, WithHeadingRow, WithMultipleSheets
 {
     use RegistersEventListeners;
-
-    private const SUMMARY_TTL_MINUTES = 120;
 
     private const ERROR_SAMPLE_LIMIT = 20;
 
@@ -101,7 +98,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
      */
     private array $errors = [];
 
-    private string $summaryKey;
+    private ImportSummaryStore $summaryStore;
 
     private ?string $uploadedDisk;
 
@@ -111,6 +108,8 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
     private ?User $importer = null;
 
+    private ?ImportOrganizationalResolver $organizationalResolver = null;
+
     public function __construct(
         string $mode = 'create',
         ?int $userId = null,
@@ -119,17 +118,25 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
     ) {
         $this->mode = $this->normalizeMode($mode);
         $this->userId = $userId;
-        $this->summaryKey = 'outlet-import:'.Str::uuid()->toString();
+        $this->summaryStore = new ImportSummaryStore(
+            'outlet-import:'.Str::uuid()->toString(),
+            $this->freshSummary(),
+        );
+        $this->summaryStore->initialize();
         $this->uploadedDisk = $uploadedDisk;
         $this->uploadedPath = $uploadedPath ? ltrim($uploadedPath, '/') : null;
-        $this->ensureSummaryInitialized();
     }
 
     public function onRow(Row $row): void
     {
-        $this->incrementProcessed();
         $rowIndex = $row->getIndex();
         $data = $row->toArray();
+
+        if ($this->isBlankImportRow($data)) {
+            return;
+        }
+
+        $this->incrementProcessed();
 
         try {
             $this->processRowData($data, $rowIndex, persistNew: true, trackSummary: true);
@@ -168,10 +175,10 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         $targetRegionName = $this->requireValue($data, ['region_baru', 'region'], 'region');
         $targetClusterName = $this->requireValue($data, ['cluster_baru', 'cluster'], 'cluster');
 
-        $badanusahaId = $this->getBadanUsahaId($targetBadanUsahaName);
-        $divisiId = $this->getDivisionId($targetDivisiName, $badanusahaId);
-        $regionId = $this->getRegionId($targetRegionName, $divisiId, $badanusahaId);
-        $clusterId = $this->getClusterId($targetClusterName, $badanusahaId, $divisiId, $regionId);
+        $badanusahaId = $this->organizationalResolver()->resolveBadanUsahaId($targetBadanUsahaName);
+        $divisiId = $this->organizationalResolver()->resolveDivisionId($targetDivisiName, $badanusahaId);
+        $regionId = $this->organizationalResolver()->resolveRegionId($targetRegionName, $divisiId, $badanusahaId);
+        $clusterId = $this->organizationalResolver()->resolveClusterId($targetClusterName, $badanusahaId, $divisiId, $regionId);
 
         $targetKodeOutlet = $this->normalizeOutletCode(
             $this->requireValue($data, ['kode_outlet_baru', 'kode_outlet'], 'kode_outlet')
@@ -183,7 +190,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
         // Cari outlet existing berdasarkan kode_outlet (lookup) dan divisi sumber
         $sourceDivisiId = $this->resolveDivisionIdFromSource($data, $targetBadanUsahaName, $targetDivisiName, $divisiId);
-        $existing = $this->findExistingOutlet($lookupCode, $targetKodeOutlet, $divisiId, $sourceDivisiId);
+        $existing = $this->findExistingOutlet($lookupCode, $targetKodeOutlet, $divisiId, $sourceDivisiId, $badanusahaId);
         $targetScope = Outlet::make([
             'badanusaha_id' => $badanusahaId,
             'divisi_id' => $divisiId,
@@ -683,9 +690,42 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         return mb_strtoupper($value);
     }
 
+    private function organizationalResolver(): ImportOrganizationalResolver
+    {
+        return $this->organizationalResolver ??= new ImportOrganizationalResolver;
+    }
+
+    private function isBlankImportRow(array $data): bool
+    {
+        $keys = [
+            'kode_outlet',
+            'kode_outlet_baru',
+            'badan_usaha',
+            'badan_usaha_baru',
+            'divisi',
+            'divisi_baru',
+            'region',
+            'region_baru',
+            'cluster',
+            'cluster_baru',
+            'nama_outlet',
+            'nama_outlet_baru',
+        ];
+
+        $values = [];
+
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $data)) {
+                $values[] = $data[$key];
+            }
+        }
+
+        return ! ImportSpreadsheetValidator::rowHasMeaningfulValue($values);
+    }
+
     private function normalizeName(string $value): string
     {
-        return Str::upper(str_replace(' ', '', $value));
+        return OrganizationalName::normalizeLookup($value);
     }
 
     private function resolveInteger(?string $value, int $default, string $label = 'nilai'): int
@@ -699,82 +739,6 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
         }
 
         return (int) $value;
-    }
-
-    private function getBadanUsahaId(string $name): int
-    {
-        $normalized = $this->normalizeName($name);
-
-        $badanUsaha = BadanUsaha::query()
-            ->select(['id', 'name'])
-            ->get()
-            ->first(fn ($item) => $this->normalizeName((string) $item->name) === $normalized);
-
-        if (! $badanUsaha) {
-            throw new Exception("Badan usaha '{$name}' tidak ditemukan.");
-        }
-
-        return $badanUsaha->id;
-    }
-
-    private function getDivisionId(string $name, int $badanusahaId): int
-    {
-        $normalized = $this->normalizeName($name);
-
-        $badanUsaha = BadanUsaha::find($badanusahaId);
-
-        $division = Division::query()
-            ->where('badanusaha_id', $badanusahaId)
-            ->select(['id', 'name'])
-            ->get()
-            ->first(fn ($item) => $this->normalizeName((string) $item->name) === $normalized);
-
-        if (! $division) {
-            throw new Exception("Divisi '{$name}' tidak ditemukan di badan usaha '{$badanUsaha?->name}'.");
-        }
-
-        return $division->id;
-    }
-
-    private function getRegionId(string $name, int $divisiId, int $badanusahaId): int
-    {
-        $normalized = $this->normalizeName($name);
-
-        $division = Division::find($divisiId);
-
-        $region = Region::query()
-            ->where('divisi_id', $divisiId)
-            ->where('badanusaha_id', $badanusahaId)
-            ->select(['id', 'name'])
-            ->get()
-            ->first(fn ($item) => $this->normalizeName((string) $item->name) === $normalized);
-
-        if (! $region) {
-            throw new Exception("Region '{$name}' tidak ditemukan di divisi '{$division?->name}'.");
-        }
-
-        return $region->id;
-    }
-
-    private function getClusterId(string $name, int $badanusahaId, int $divisiId, int $regionId): int
-    {
-        $normalized = $this->normalizeName($name);
-
-        $region = Region::find($regionId);
-
-        $cluster = Cluster::query()
-            ->where('badanusaha_id', $badanusahaId)
-            ->where('divisi_id', $divisiId)
-            ->where('region_id', $regionId)
-            ->select(['id', 'name'])
-            ->get()
-            ->first(fn ($item) => $this->normalizeName((string) $item->name) === $normalized);
-
-        if (! $cluster) {
-            throw new Exception("Cluster '{$name}' tidak ditemukan di region '{$region?->name}'.");
-        }
-
-        return $cluster->id;
     }
 
     private function rememberError(int $rowIndex, array $row, string $message): void
@@ -841,7 +805,7 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
     public function getSummaryKey(): string
     {
-        return $this->summaryKey;
+        return $this->summaryStore->key();
     }
 
     public function chunkSize(): int
@@ -883,29 +847,17 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
     private function mutateSummary(callable $callback): void
     {
-        $this->ensureSummaryInitialized();
-
-        $summary = Cache::get($this->summaryKey, $this->freshSummary());
-        $callback($summary);
-
-        Cache::put($this->summaryKey, $summary, now()->addMinutes(self::SUMMARY_TTL_MINUTES));
-    }
-
-    private function ensureSummaryInitialized(): void
-    {
-        Cache::add($this->summaryKey, $this->freshSummary(), now()->addMinutes(self::SUMMARY_TTL_MINUTES));
+        $this->summaryStore->mutate($callback);
     }
 
     private function getSummary(): array
     {
-        $this->ensureSummaryInitialized();
-
-        return Cache::get($this->summaryKey, $this->freshSummary());
+        return $this->summaryStore->get();
     }
 
     private function flushSummary(): void
     {
-        Cache::forget($this->summaryKey);
+        $this->summaryStore->forget();
     }
 
     private function freshSummary(): array
@@ -985,14 +937,19 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
      * 2. Cari di divisi target - untuk kasus update biasa
      * 3. Fallback: Cari tanpa filter divisi (hanya mode update) - untuk backward compatibility
      */
-    private function findExistingOutlet(string $lookupCode, string $targetKodeOutlet, int $targetDivisiId, ?int $sourceDivisiId): ?Outlet
-    {
+    private function findExistingOutlet(
+        string $lookupCode,
+        string $targetKodeOutlet,
+        int $targetDivisiId,
+        ?int $sourceDivisiId,
+        int $badanusahaId,
+    ): ?Outlet {
         $codeForMatch = $this->mode === 'create' ? $targetKodeOutlet : $lookupCode;
 
-        // Prioritas 1: Cari di divisi sumber (jika berbeda dari target)
         if ($sourceDivisiId !== null && $sourceDivisiId !== $targetDivisiId) {
             $existing = Outlet::where('kode_outlet', $codeForMatch)
                 ->where('divisi_id', $sourceDivisiId)
+                ->where('badanusaha_id', $badanusahaId)
                 ->first();
 
             if ($existing) {
@@ -1000,22 +957,31 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             }
         }
 
-        // Prioritas 2: Cari di divisi target
         $existing = Outlet::where('kode_outlet', $codeForMatch)
             ->where('divisi_id', $targetDivisiId)
+            ->where('badanusaha_id', $badanusahaId)
             ->first();
 
         if ($existing) {
             return $existing;
         }
 
-        // Mode create tidak perlu fallback
         if ($this->mode === 'create') {
             return null;
         }
 
-        // Fallback untuk mode update: cari tanpa filter divisi (backward compatibility)
-        return Outlet::where('kode_outlet', $lookupCode)->first();
+        $matches = Outlet::query()
+            ->where('kode_outlet', $lookupCode)
+            ->where('badanusaha_id', $badanusahaId)
+            ->get();
+
+        if ($matches->count() > 1) {
+            throw new Exception(
+                "Kode outlet {$lookupCode} ditemukan di beberapa divisi dalam badan usaha yang sama. Pastikan kolom divisi diisi dengan benar."
+            );
+        }
+
+        return $matches->first();
     }
 
     /**
@@ -1042,9 +1008,9 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
 
         // Cari divisi sumber dari database
         try {
-            $badanusahaId = $this->getBadanUsahaId($sourceBadanUsaha);
+            $badanusahaId = $this->organizationalResolver()->resolveBadanUsahaId($sourceBadanUsaha);
 
-            return $this->getDivisionId($sourceDivisi, $badanusahaId);
+            return $this->organizationalResolver()->resolveDivisionId($sourceDivisi, $badanusahaId);
         } catch (Exception) {
             return null;
         }

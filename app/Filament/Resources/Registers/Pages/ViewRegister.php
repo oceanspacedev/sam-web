@@ -20,7 +20,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
-use Filament\Schemas\Components\Actions as SchemaActions;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Http\UploadedFile;
@@ -85,6 +84,7 @@ class ViewRegister extends ViewRecord
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
                 ->slideOver()
+                ->modalWidth('md')
                 ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && strtoupper((string) $record->type) !== 'LEAD')
                 ->form([
                     Hidden::make('outlet_code_checked')
@@ -104,7 +104,7 @@ class ViewRegister extends ViewRecord
                         ->dehydrated(false),
                     TextInput::make('kode_outlet')
                         ->regex('/^\S+$/')
-                        ->helperText('Isi kode outlet, lalu tekan tombol cek sebelum melanjutkan.')
+                        ->helperText('Isi kode outlet, lalu klik ikon kaca pembesar untuk mengecek.')
                         ->default(fn ($record) => $record->kode_outlet)
                         ->live(onBlur: true)
                         ->afterStateUpdated(function (Set $set): void {
@@ -182,6 +182,8 @@ class ViewRegister extends ViewRecord
                 ->label('Reject')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
+                ->slideOver()
+                ->modalWidth('md')
                 ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('Reject:Register', $record) && strtoupper((string) $record->type) !== 'LEAD')
                 ->form([
                     Textarea::make('alasan')

@@ -10,6 +10,8 @@ use App\Models\PlanVisit;
 use App\Models\Register;
 use App\Models\User;
 use App\Services\SystemSettingResolver;
+use App\Support\FilamentOrganizationalScope;
+use App\Support\FilamentTableEagerLoad;
 use App\Support\ScopedUserSelectOptions;
 use App\Support\VisitTargetSelectOptions;
 use Carbon\Carbon;
@@ -48,7 +50,6 @@ class PlanVisitResource extends Resource
                     ->schema([
                         Select::make('user_id')
                             ->searchable()
-                            ->preload()
                             ->required()
                             ->reactive()
                             ->label('Pilih User')
@@ -80,7 +81,6 @@ class PlanVisitResource extends Resource
                             ->label('Target')
                             ->required()
                             ->searchable()
-                            ->preload()
                             ->disabled(fn (callable $get): bool => ! $get('user_id'))
                             ->placeholder(fn (callable $get) => ! $get('user_id')
                                 ? 'Pilih user terlebih dahulu'
@@ -301,7 +301,6 @@ class PlanVisitResource extends Resource
                         Select::make('user_id')
                             ->label('User')
                             ->searchable()
-                            ->preload()
                             ->placeholder('Semua User')
                             ->options(fn (): array => ScopedUserSelectOptions::search(Auth::user(), ''))
                             ->getSearchResultsUsing(fn (string $search): array => ScopedUserSelectOptions::search(Auth::user(), $search))
@@ -355,63 +354,13 @@ class PlanVisitResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        // CRITICAL: Block access if user or role is null
-        if (! $user || ! $user->role) {
+        if (! $user) {
             return parent::getEloquentQuery()->whereRaw('1 = 0');
         }
 
-        $role = $user->role;
-        $scopeLevel = $role->organizational_scope_level;
-
-        // CRITICAL: Block access if scope level is null
-        if (! $scopeLevel) {
-            return parent::getEloquentQuery()->whereRaw('1 = 0');
-        }
-
-        if ($scopeLevel === 'all') {
-            return parent::getEloquentQuery();
-        }
-
-        // Get user's organizational assignments from pivot tables
-        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-        $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-        $regionIds = $user->regions()->pluck('regions.id')->toArray();
-        $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-
-        // CRITICAL: If user has no assignments at all, block access
-        $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
-        if (! $hasAnyAssignment) {
-            return parent::getEloquentQuery()->whereRaw('1 = 0');
-        }
-
-        $query = parent::getEloquentQuery();
-
-        // Apply filters based on user pivot assignments
-        if (! empty($badanUsahaIds)) {
-            $query->whereHas('user.badanUsahas', function ($q) use ($badanUsahaIds) {
-                $q->whereIn('badan_usahas.id', $badanUsahaIds);
-            });
-        }
-
-        if (! empty($divisiIds)) {
-            $query->whereHas('user.divisis', function ($q) use ($divisiIds) {
-                $q->whereIn('divisions.id', $divisiIds);
-            });
-        }
-
-        if (! empty($regionIds)) {
-            $query->whereHas('user.regions', function ($q) use ($regionIds) {
-                $q->whereIn('regions.id', $regionIds);
-            });
-        }
-
-        if (! empty($clusterIds)) {
-            $query->whereHas('user.clusters', function ($q) use ($clusterIds) {
-                $q->whereIn('clusters.id', $clusterIds);
-            });
-        }
-
-        return $query;
+        return parent::getEloquentQuery()
+            ->tap(fn (Builder $query) => FilamentOrganizationalScope::applyViaUserForeignKey($query, $user))
+            ->with(FilamentTableEagerLoad::visitableTarget());
     }
 
     public static function getRecordId(): ?string

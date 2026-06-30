@@ -2,7 +2,9 @@
 
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Redis;
 
 beforeEach(function () {
     // Disable the rate limiting middleware that requires Redis
@@ -113,8 +115,12 @@ test('hourly limit is enforced for authenticated users', function () {
     $hourKey = "upload:hour:{$ipAddress}:{$user->id}";
 
     // Set counter to 300
-    Redis::set($hourKey, 300);
-    Redis::expire($hourKey, 3600);
+    try {
+        Redis::set($hourKey, 300);
+        Redis::expire($hourKey, 3600);
+    } catch (Throwable) {
+        Cache::put($hourKey, 300, now()->addSeconds(3600));
+    }
 
     $response = $this->actingAs($user, 'sanctum')
         ->post('/api/test-upload', [
@@ -130,8 +136,12 @@ test('hourly limit is enforced for guests', function () {
     $hourKey = "upload:hour:{$ipAddress}:guest";
 
     // Set counter to 120 (guest hourly limit)
-    Redis::set($hourKey, 120);
-    Redis::expire($hourKey, 3600);
+    try {
+        Redis::set($hourKey, 120);
+        Redis::expire($hourKey, 3600);
+    } catch (Throwable) {
+        Cache::put($hourKey, 120, now()->addSeconds(3600));
+    }
 
     $response = $this->post('/api/test-upload', [
         'file' => UploadedFile::fake()->image('test.jpg'),

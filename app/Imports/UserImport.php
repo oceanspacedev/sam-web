@@ -8,6 +8,7 @@ use App\Models\Division;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\OrganizationalName;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -61,7 +62,8 @@ class UserImport implements ToModel, WithHeadingRow
         $region_id = strtoupper($row['role']) === 'TM' ? null : $this->getRegionId($row['region'], $divisi_id, $badanusaha_id);
         if (! $region_id) {
             $region_id = Region::create([
-                'name' => strtoupper($row['region']),
+                'code' => OrganizationalName::formatCode($row['region']),
+                'name' => trim((string) $row['region']),
                 'divisi_id' => $divisi_id,
                 'badanusaha_id' => $badanusaha_id,
             ])->id;
@@ -69,10 +71,11 @@ class UserImport implements ToModel, WithHeadingRow
         }
 
         // Ensure cluster exists, otherwise create it
-        $cluster_id = $this->getClusterId($row['cluster']);
+        $cluster_id = $this->getClusterId($row['cluster'], $badanusaha_id, $divisi_id, $region_id);
         if (! $cluster_id) {
             $cluster_id = Cluster::create([
-                'name' => strtoupper($row['cluster']),
+                'code' => OrganizationalName::formatCode($row['cluster']),
+                'name' => trim((string) $row['cluster']),
                 'badanusaha_id' => $badanusaha_id,
                 'divisi_id' => $divisi_id,
                 'region_id' => $region_id,
@@ -120,7 +123,8 @@ class UserImport implements ToModel, WithHeadingRow
         $region_id = strtoupper($row['role']) === 'TM' ? null : $this->getRegionId($row['region'], $divisi_id, $badanusaha_id);
         if (! $region_id) {
             $region_id = Region::create([
-                'name' => strtoupper($row['region']),
+                'code' => OrganizationalName::formatCode($row['region']),
+                'name' => trim((string) $row['region']),
                 'divisi_id' => $divisi_id,
                 'badanusaha_id' => $badanusaha_id,
             ])->id;
@@ -128,10 +132,11 @@ class UserImport implements ToModel, WithHeadingRow
         }
 
         // Ensure cluster exists, otherwise create it
-        $cluster_id = $this->getClusterId($row['cluster']);
+        $cluster_id = $this->getClusterId($row['cluster'], $badanusaha_id, $divisi_id, $region_id);
         if (! $cluster_id) {
             $cluster_id = Cluster::create([
-                'name' => strtoupper($row['cluster']),
+                'code' => OrganizationalName::formatCode($row['cluster']),
+                'name' => trim((string) $row['cluster']),
                 'badanusaha_id' => $badanusaha_id,
                 'divisi_id' => $divisi_id,
                 'region_id' => $region_id,
@@ -170,35 +175,31 @@ class UserImport implements ToModel, WithHeadingRow
 
     private function getBadanUsahaId($name)
     {
-        $badanusaha = BadanUsaha::where('name', preg_replace('/\s+/', '', $name))->first();
-
-        return $badanusaha ? $badanusaha->id : null;
+        return $this->findOrganizationalId(BadanUsaha::class, $name);
     }
 
     private function getDivisionId($name, $badanusaha_id)
     {
-        $division = Division::where('name', preg_replace('/\s+/', '', $name))
-            ->where('badanusaha_id', $badanusaha_id)
-            ->first();
-
-        return $division ? $division->id : null;
+        return $this->findOrganizationalId(Division::class, $name, [
+            'badanusaha_id' => $badanusaha_id,
+        ]);
     }
 
     private function getRegionId($name, $divisi_id, $badanusaha_id)
     {
-        $region = Region::where('name', preg_replace('/\s+/', '', $name))
-            ->where('divisi_id', $divisi_id)
-            ->where('badanusaha_id', $badanusaha_id)
-            ->first();
-
-        return $region ? $region->id : null;
+        return $this->findOrganizationalId(Region::class, $name, [
+            'divisi_id' => $divisi_id,
+            'badanusaha_id' => $badanusaha_id,
+        ]);
     }
 
-    private function getClusterId($name)
+    private function getClusterId($name, $badanusaha_id, $divisi_id, $region_id)
     {
-        $cluster = Cluster::where('name', preg_replace('/\s+/', '', $name))->first();
-
-        return $cluster ? $cluster->id : null;
+        return $this->findOrganizationalId(Cluster::class, $name, [
+            'badanusaha_id' => $badanusaha_id,
+            'divisi_id' => $divisi_id,
+            'region_id' => $region_id,
+        ]);
     }
 
     private function getRoleId($name)
@@ -213,5 +214,25 @@ class UserImport implements ToModel, WithHeadingRow
         $tm = User::where('nama_lengkap', $name)->first();
 
         return $tm ? $tm->id : null;
+    }
+
+    private function findOrganizationalId(string $modelClass, mixed $name, array $scope = []): ?int
+    {
+        $normalized = OrganizationalName::normalizeLookup((string) $name);
+        $query = $modelClass::query();
+
+        foreach ($scope as $column => $value) {
+            $query->where($column, $value);
+        }
+
+        $record = $query
+            ->select(['id', 'code', 'name'])
+            ->get()
+            ->first(function ($item) use ($normalized): bool {
+                return OrganizationalName::normalizeLookup((string) $item->code) === $normalized
+                    || OrganizationalName::normalizeLookup((string) $item->name) === $normalized;
+            });
+
+        return $record?->id;
     }
 }

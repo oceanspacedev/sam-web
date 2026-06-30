@@ -7,6 +7,8 @@ use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\OrganizationalHierarchyOptions;
+use App\Support\OrganizationalName;
+use Illuminate\Database\QueryException;
 
 it('returns scoped hierarchy options for non-all scope user', function (): void {
     $role = Role::factory()->create([
@@ -60,9 +62,9 @@ it('returns scoped hierarchy options for non-all scope user', function (): void 
 
     expect($badanUsahaOptions)->toHaveKey($buA->id)
         ->and($badanUsahaOptions)->not->toHaveKey($buB->id)
-        ->and($divisionOptions)->toEqual([$divisionA->id => $divisionA->name])
-        ->and($regionOptions)->toEqual([$regionA->id => $regionA->name])
-        ->and($clusterOptions)->toEqual([$clusterA->id => $clusterA->name]);
+        ->and($divisionOptions)->toEqual([$divisionA->id => OrganizationalName::label($divisionA)])
+        ->and($regionOptions)->toEqual([$regionA->id => OrganizationalName::label($regionA)])
+        ->and($clusterOptions)->toEqual([$clusterA->id => OrganizationalName::label($clusterA)]);
 });
 
 it('returns all active options for all scope user and unrestricted helpers', function (): void {
@@ -101,11 +103,74 @@ it('returns all active options for all scope user and unrestricted helpers', fun
         ->not->toHaveKey($deletedBu->id);
 
     expect(OrganizationalHierarchyOptions::activeDivision($activeBu->id))
-        ->toEqual([$activeDivision->id => $activeDivision->name]);
+        ->toEqual([$activeDivision->id => OrganizationalName::label($activeDivision)]);
 
     expect(OrganizationalHierarchyOptions::activeRegion($activeDivision->id))
-        ->toEqual([$activeRegion->id => $activeRegion->name]);
+        ->toEqual([$activeRegion->id => OrganizationalName::label($activeRegion)]);
 
     expect(OrganizationalHierarchyOptions::activeCluster($activeRegion->id))
-        ->toEqual([$activeCluster->id => $activeCluster->name]);
+        ->toEqual([$activeCluster->id => OrganizationalName::label($activeCluster)]);
+});
+
+it('allows duplicate division names and codes in different parents', function (): void {
+    $firstBadanUsaha = BadanUsaha::factory()->create();
+    $secondBadanUsaha = BadanUsaha::factory()->create();
+
+    $firstDivision = Division::factory()->create([
+        'badanusaha_id' => $firstBadanUsaha->id,
+        'code' => 'SALES',
+        'name' => 'Sales',
+    ]);
+
+    $secondDivision = Division::factory()->create([
+        'badanusaha_id' => $secondBadanUsaha->id,
+        'code' => 'SALES',
+        'name' => 'Sales',
+    ]);
+
+    expect($firstDivision->id)->not->toBe($secondDivision->id);
+});
+
+it('rejects duplicate division names or codes in the same parent', function (): void {
+    $badanUsaha = BadanUsaha::factory()->create();
+
+    Division::factory()->create([
+        'badanusaha_id' => $badanUsaha->id,
+        'code' => 'SALES',
+        'name' => 'Sales',
+    ]);
+
+    expect(fn () => Division::factory()->create([
+        'badanusaha_id' => $badanUsaha->id,
+        'code' => 'SALES',
+        'name' => 'Sales Barat',
+    ]))->toThrow(QueryException::class);
+
+    expect(fn () => Division::factory()->create([
+        'badanusaha_id' => $badanUsaha->id,
+        'code' => 'SALES_TIMUR',
+        'name' => 'Sales',
+    ]))->toThrow(QueryException::class);
+});
+
+it('searches and labels options by code or descriptive name', function (): void {
+    $role = Role::factory()->create([
+        'organizational_scope_level' => 'all',
+        'can_access_web' => true,
+    ]);
+
+    $user = User::factory()->create([
+        'role_id' => $role->id,
+    ]);
+
+    $badanUsaha = BadanUsaha::factory()->create([
+        'code' => 'PT_MAJU',
+        'name' => 'PT Maju Bersama',
+    ]);
+
+    expect(OrganizationalHierarchyOptions::searchBadanUsaha('PT_MAJU', $user))
+        ->toEqual([$badanUsaha->id => 'PT_MAJU - PT Maju Bersama']);
+
+    expect(OrganizationalHierarchyOptions::searchBadanUsaha('Maju Bersama', $user))
+        ->toEqual([$badanUsaha->id => 'PT_MAJU - PT Maju Bersama']);
 });

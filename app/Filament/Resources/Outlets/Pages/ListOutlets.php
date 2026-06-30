@@ -5,10 +5,11 @@ namespace App\Filament\Resources\Outlets\Pages;
 use App\Filament\Exports\OutletExporter;
 use App\Filament\Resources\Outlets\OutletResource;
 use App\Imports\OutletImport;
-use App\Jobs\CleanupUploadedImportFile;
 use App\Jobs\Exports\GenerateOutletTemplate;
 use App\Jobs\SendImportNotification;
 use App\Models\Outlet;
+use App\Support\ImportJobDispatcher;
+use App\Support\ImportSpreadsheetValidator;
 use App\Support\StorageDisk;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -19,7 +20,6 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
 class ListOutlets extends ListRecords
@@ -155,29 +155,57 @@ class ListOutlets extends ListRecords
                         return;
                     }
 
+                    $requiredHeadings = $mode === 'update'
+                        ? [
+                            'badan_usaha',
+                            'divisi',
+                            'region',
+                            'cluster',
+                            'kode_outlet',
+                        ]
+                        : [
+                            'badan_usaha',
+                            'divisi',
+                            'region',
+                            'cluster',
+                            'kode_outlet',
+                            'nama_outlet',
+                        ];
+
+                    try {
+                        ImportSpreadsheetValidator::assertReady($disk, $relativePath, $requiredHeadings);
+                    } catch (Throwable $validationException) {
+                        Notification::make()
+                            ->title('Import gagal')
+                            ->body($validationException->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
                     $userId = Auth::id();
 
                     try {
-                        $pendingDispatch = Excel::queueImport(
-                            new OutletImport($mode, $userId, $disk, $relativePath),
-                            $relativePath,
-                            $disk
-                        );
+                        if (! ImportJobDispatcher::queueBackendAvailable() && ! (bool) config('imports.sync_fallback', true)) {
+                            Notification::make()
+                                ->title('Import gagal')
+                                ->body(ImportJobDispatcher::unavailableBlockingMessage())
+                                ->danger()
+                                ->send();
 
-                        if ($pendingDispatch) {
-                            $pendingDispatch->onQueue('imports');
-                            $pendingDispatch->allOnQueue('imports');
-
-                            $jobs = [
-                                new CleanupUploadedImportFile($disk, $relativePath),
-                            ];
-
-                            $pendingDispatch->chain($jobs);
+                            return;
                         }
 
+                        $dispatch = ImportJobDispatcher::queueSpreadsheetImport(
+                            new OutletImport($mode, $userId, $disk, $relativePath),
+                            $relativePath,
+                            $disk,
+                        );
+
                         Notification::make()
-                            ->title('Import sedang diproses')
-                            ->body('Mulai mengimport data outlet, proses akan berjalan di belakang layar.')
+                            ->title($dispatch->isSync() ? 'Import selesai' : 'Import sedang diproses')
+                            ->body(ImportJobDispatcher::statusMessage($dispatch))
                             ->success()
                             ->send();
                     } catch (Throwable $e) {

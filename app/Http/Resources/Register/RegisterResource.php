@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Register;
 
+use App\Support\OrganizationalName;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -104,16 +105,16 @@ class RegisterResource extends JsonResource
 
             // Relationships
             'region' => $this->whenLoaded('region', function () {
-                return $this->region ? $this->region->only(['id', 'name']) : null;
+                return OrganizationalName::resource($this->region);
             }),
             'cluster' => $this->whenLoaded('cluster', function () {
-                return $this->cluster ? $this->cluster->only(['id', 'name']) : null;
+                return OrganizationalName::resource($this->cluster);
             }),
             'badanusaha' => $this->whenLoaded('badanusaha', function () {
-                return $this->badanusaha ? $this->badanusaha->only(['id', 'name']) : null;
+                return OrganizationalName::resource($this->badanusaha);
             }),
             'divisi' => $this->whenLoaded('divisi', function () {
-                return $this->divisi ? $this->divisi->only(['id', 'name']) : null;
+                return OrganizationalName::resource($this->divisi);
             }),
 
             // SDUI: Actions based on user permissions

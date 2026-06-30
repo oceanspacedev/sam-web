@@ -12,6 +12,8 @@ use App\Models\Register;
 use App\Models\User;
 use App\Services\FilenameGeneratorService;
 use App\Services\RegisterApprovalService;
+use App\Support\FilamentOrganizationalScope;
+use App\Support\FilamentTableEagerLoad;
 use App\Support\OrganizationalHierarchyOptions;
 use App\Support\StorageDisk;
 use Carbon\Carbon;
@@ -34,7 +36,6 @@ use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Actions as SchemaActions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -254,7 +255,6 @@ class RegisterResource extends Resource
                                     Select::make('created_by_id')
                                         ->label('Dibuat Oleh')
                                         ->searchable()
-                                        ->preload()
                                         ->required()
                                         ->relationship('createdBy', 'nama_lengkap')
                                         ->live()
@@ -284,7 +284,6 @@ class RegisterResource extends Resource
                                             Select::make('badanusaha_id')
                                                 ->label('Badan Usaha')
                                                 ->searchable()
-                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->placeholder('Pilih badan usaha')
@@ -299,7 +298,6 @@ class RegisterResource extends Resource
                                             Select::make('divisi_id')
                                                 ->label('Divisi')
                                                 ->searchable()
-                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id'), activeOnly: false))
@@ -312,7 +310,6 @@ class RegisterResource extends Resource
                                             Select::make('region_id')
                                                 ->label('Region')
                                                 ->searchable()
-                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('divisi_id'), activeOnly: false))
@@ -324,7 +321,6 @@ class RegisterResource extends Resource
                                             Select::make('cluster_id')
                                                 ->label('Cluster')
                                                 ->searchable()
-                                                ->preload()
                                                 ->required()
                                                 ->reactive()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::cluster($get('region_id'), activeOnly: false))
@@ -338,7 +334,6 @@ class RegisterResource extends Resource
                                         ->label('Nama TM')
                                         ->required()
                                         ->searchable()
-                                        ->preload()
                                         ->options(fn (Get $get): array => self::getTmOptions('', $get('created_by_id'), $get('tm_id')))
                                         ->getSearchResultsUsing(fn (string $search, Get $get): array => self::getTmOptions($search, $get('created_by_id'), $get('tm_id')))
                                         ->getOptionLabelUsing(fn ($value): ?string => self::tmLabel($value))
@@ -511,7 +506,7 @@ class RegisterResource extends Resource
 
         $html = '<div class="rounded-xl border border-warning-200 bg-warning-50 p-4 shadow-sm dark:border-warning-800 dark:bg-warning-900/30">';
         $html .= '<div class="flex gap-3">';
-        
+
         $html .= '<div class="flex-shrink-0 text-warning-500 mt-0.5">
             <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
@@ -519,7 +514,7 @@ class RegisterResource extends Resource
         </div>';
 
         $html .= '<div class="space-y-2 text-sm text-warning-800 dark:text-warning-200 w-full">';
-        
+
         $html .= '<div>';
         $html .= '<div class="font-semibold text-base">'.e($title).'</div>';
         if (filled($body)) {
@@ -1011,7 +1006,6 @@ class RegisterResource extends Resource
                             ->label('Badan Usaha')
                             ->reactive()
                             ->searchable()
-                            ->preload()
                             ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha(activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value, activeOnly: false))
@@ -1024,7 +1018,6 @@ class RegisterResource extends Resource
                             ->label('Divisi')
                             ->reactive()
                             ->searchable()
-                            ->preload()
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('businessEntity'), activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity'), activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
@@ -1035,7 +1028,6 @@ class RegisterResource extends Resource
                         Select::make('region')
                             ->label('Region')
                             ->searchable()
-                            ->preload()
                             ->placeholder('Pilih Region')
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division'), activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division'), activeOnly: false))
@@ -1101,6 +1093,7 @@ class RegisterResource extends Resource
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->slideOver()
+                    ->modalWidth('md')
                     ->visible(fn ($record) => ($record->status === 'PENDING' || $record->status === 'CONFIRMED') && Gate::allows('Approve:Register', $record) && strtoupper((string) $record->type) !== 'LEAD')
                     ->form([
                         Hidden::make('outlet_code_checked')
@@ -1120,7 +1113,7 @@ class RegisterResource extends Resource
                             ->dehydrated(false),
                         TextInput::make('kode_outlet')
                             ->regex('/^\S+$/')
-                            ->helperText('Isi kode outlet, lalu tekan tombol cek sebelum melanjutkan.')
+                            ->helperText('Isi kode outlet, lalu klik ikon kaca pembesar untuk mengecek.')
                             ->default(fn ($record) => $record->kode_outlet)
                             ->live(onBlur: true)
                             ->afterStateUpdated(function (Set $set): void {
@@ -1198,6 +1191,8 @@ class RegisterResource extends Resource
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
+                    ->slideOver()
+                    ->modalWidth('md')
                     ->visible(fn ($record) => $record->status !== 'REJECTED' && $record->status !== 'APPROVED' && Gate::allows('Reject:Register', $record) && strtoupper((string) $record->type) !== 'LEAD')
                     ->schema([
                         Textarea::make('alasan')
@@ -1360,64 +1355,18 @@ class RegisterResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (! $user) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0');
+        }
+
         return parent::getEloquentQuery()
-            ->where(function ($query) {
-                /** @var User|null $user */
-                $user = Auth::user();
-
-                // CRITICAL: Block access if user or role is null
-                if (! $user || ! $user->role) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                $role = $user->role;
-                $scopeLevel = $role->organizational_scope_level;
-
-                // CRITICAL: Block access if scope level is null
-                if (! $scopeLevel) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                // If role has 'all' access, no filtering needed
-                if ($scopeLevel === 'all') {
-                    return;
-                }
-
-                // Get user's organizational assignments from pivot tables
-                $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
-                $divisiIds = $user->divisis()->pluck('divisions.id')->toArray();
-                $regionIds = $user->regions()->pluck('regions.id')->toArray();
-                $clusterIds = $user->clusters()->pluck('clusters.id')->toArray();
-
-                // CRITICAL: If user has no assignments at all, block access
-                $hasAnyAssignment = ! empty($badanUsahaIds) || ! empty($divisiIds) || ! empty($regionIds) || ! empty($clusterIds);
-                if (! $hasAnyAssignment) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                // Apply filters based on assignments
-                if (! empty($badanUsahaIds)) {
-                    $query->whereIn('registers.badanusaha_id', $badanUsahaIds);
-                }
-
-                if (! empty($divisiIds)) {
-                    $query->whereIn('registers.divisi_id', $divisiIds);
-                }
-
-                if (! empty($regionIds)) {
-                    $query->whereIn('registers.region_id', $regionIds);
-                }
-
-                if (! empty($clusterIds)) {
-                    $query->whereIn('registers.cluster_id', $clusterIds);
-                }
-            });
+            ->where(function (Builder $query) use ($user): void {
+                FilamentOrganizationalScope::applyDirectColumns($query, $user, 'registers');
+            })
+            ->with(FilamentTableEagerLoad::registerHierarchy());
     }
 
     public static function getPages(): array

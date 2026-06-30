@@ -7,6 +7,7 @@ use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\FilamentTableEagerLoad;
 use BezhanSalleh\FilamentShield\Traits\HasShieldFormComponents;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -50,7 +51,6 @@ class RoleResource extends Resource
                                 ->label('Parent Role')
                                 ->helperText('Pilih role induk jika ada struktur atasan (mis. TM → ASM).')
                                 ->searchable()
-                                ->preload()
                                 ->options(fn (): array => self::parentRoleOptions())
                                 ->getSearchResultsUsing(fn (string $search): array => self::parentRoleOptions($search))
                                 ->getOptionLabelUsing(fn ($value): ?string => $value ? Role::query()->whereKey($value)->value('name') : null)
@@ -129,6 +129,7 @@ class RoleResource extends Resource
             ])
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
+            ->deferLoading()
             ->filters([])
             ->recordActions([
                 EditAction::make(),
@@ -165,7 +166,9 @@ class RoleResource extends Resource
                 $descendantIds = self::getAllDescendantIds($user->role);
 
                 $query->whereIn('roles.id', $descendantIds);
-            });
+            })
+            ->with(['parent:id,name'])
+            ->withCount(['permissions', 'user']);
     }
 
     public static function getAllDescendantIds(Role $role): array

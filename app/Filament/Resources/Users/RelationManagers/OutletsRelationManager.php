@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\RelationManagers;
 
 use App\Models\Outlet;
+use App\Support\FilamentTableEagerLoad;
 use App\Support\OrganizationalHierarchyOptions;
 use App\Support\StorageDisk;
 use Filament\Actions\BulkAction;
@@ -34,7 +35,9 @@ class OutletsRelationManager extends RelationManager
     {
         $owner = $this->getOwnerRecord();
 
-        return Outlet::visibleTo($owner)->active();
+        return Outlet::visibleTo($owner)
+            ->active()
+            ->with(FilamentTableEagerLoad::fullHierarchy());
     }
 
     public function table(Table $table): Table
@@ -140,7 +143,6 @@ class OutletsRelationManager extends RelationManager
                             ->label('Badan Usaha')
                             ->reactive()
                             ->searchable()
-                            ->preload()
                             ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value, activeOnly: false))
                             ->placeholder('Pilih Business Entity')
@@ -152,7 +154,6 @@ class OutletsRelationManager extends RelationManager
                             ->label('Divisi')
                             ->reactive()
                             ->searchable()
-                            ->preload()
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity'), activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
                             ->placeholder('Pilih Division')
@@ -162,7 +163,6 @@ class OutletsRelationManager extends RelationManager
                         Select::make('region')
                             ->label('Region')
                             ->searchable()
-                            ->preload()
                             ->placeholder('Pilih Region')
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division'), activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))

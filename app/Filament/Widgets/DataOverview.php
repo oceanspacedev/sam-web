@@ -2,12 +2,9 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\Outlet;
-use App\Models\Register;
 use App\Models\User;
-use App\Models\Visit;
+use App\Support\DashboardMetricsCalculator;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
@@ -15,14 +12,16 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Url;
 
 class DataOverview extends StatsOverviewWidget implements HasActions
 {
     use InteractsWithActions;
+
+    protected static bool $isLazy = true;
 
     protected ?string $heading = 'Statistik Data';
 
@@ -94,67 +93,115 @@ class DataOverview extends StatsOverviewWidget implements HasActions
 
     protected function getCards(): array
     {
-        $range = $this->resolveRange();
+        /** @var User|null $viewer */
+        $viewer = Auth::user();
 
-        $metrics = [
+        if (! $viewer) {
+            return [];
+        }
+
+        $filter = $this->filter ?? $this->getDefaultFilter();
+        $range = $this->resolveRange();
+        $metrics = $this->resolveMetrics($viewer, $filter, $range);
+
+        $definitions = [
             [
                 'label' => 'User',
-                'model' => User::class,
-                'dateColumn' => 'created_at',
+                'key' => 'users',
                 'permission' => 'ViewAny:User',
             ],
             [
                 'label' => 'Outlet',
-                'model' => Outlet::class,
-                'dateColumn' => 'created_at',
+                'key' => 'outlets',
                 'permission' => 'ViewAny:Outlet',
             ],
             [
                 'label' => 'Register NOO',
-                'model' => Register::class,
-                'dateColumn' => 'updated_at', // capture upgrades from lead → NOO
-                'constraint' => fn (Builder $query) => $query->where('type', 'NOO'),
+                'key' => 'register_noo',
                 'permission' => 'ViewAny:Register',
             ],
             [
                 'label' => 'Register Lead',
-                'model' => Register::class,
-                'dateColumn' => 'created_at',
-                'constraint' => fn (Builder $query) => $query->where('type', 'LEAD'),
+                'key' => 'register_lead',
                 'permission' => 'ViewAny:Register',
             ],
             [
                 'label' => 'Visit',
-                'model' => Visit::class,
-                'dateColumn' => 'tanggal_visit',
+                'key' => 'visits',
                 'permission' => 'ViewAny:Visit',
             ],
         ];
 
-        return collect($metrics)
-            ->filter(function (array $metric): bool {
-                if (! isset($metric['permission'])) {
-                    return true;
-                }
-
-                return Gate::allows($metric['permission']);
-            })
-            ->map(function (array $metric) use ($range): Stat {
-                [$current, $previous, $trend] = $this->calculateMetric(
-                    $metric['model'],
-                    $metric['dateColumn'],
-                    $range,
-                    $metric['constraint'] ?? null,
-                );
+        return collect($definitions)
+            ->filter(fn (array $definition): bool => Gate::allows($definition['permission']))
+            ->map(function (array $definition) use ($metrics): Stat {
+                $metric = $metrics[$definition['key']];
 
                 return $this->makeCard(
-                    $metric['label'],
-                    $current,
-                    $previous,
-                    $trend,
+                    $definition['label'],
+                    $metric['current'],
+                    $metric['previous'],
+                    $metric['trend'],
                 );
             })
             ->toArray();
+    }
+
+    /**
+     * @param  array{
+     *     currentStart: Carbon,
+     *     currentEnd: Carbon,
+     *     previousStart: Carbon,
+     *     previousEnd: Carbon,
+     *     trendStart: Carbon,
+     *     trendEnd: Carbon
+     * }  $range
+     * @return array<string, array{current: int, previous: int, trend: array<int>}>
+     */
+    protected function resolveMetrics(User $viewer, string $filter, array $range): array
+    {
+        $cacheSeconds = (int) config('filament.dashboard_metrics_cache_seconds', 0);
+
+        if ($cacheSeconds <= 0) {
+            return $this->computeMetrics($viewer, $range);
+        }
+
+        $cacheKey = sprintf(
+            'dashboard_metrics:%d:%s',
+            $viewer->id,
+            $filter,
+        );
+
+        return Cache::remember(
+            $cacheKey,
+            $cacheSeconds,
+            fn (): array => $this->computeMetrics($viewer, $range),
+        );
+    }
+
+    /**
+     * @param  array{
+     *     currentStart: Carbon,
+     *     currentEnd: Carbon,
+     *     previousStart: Carbon,
+     *     previousEnd: Carbon,
+     *     trendStart: Carbon,
+     *     trendEnd: Carbon
+     * }  $range
+     * @return array<string, array{current: int, previous: int, trend: array<int>}>
+     */
+    protected function computeMetrics(User $viewer, array $range): array
+    {
+        $calculator = new DashboardMetricsCalculator($viewer, $range);
+        $registers = $calculator->registers();
+
+        return [
+            'users' => $calculator->users(),
+            'outlets' => $calculator->outlets(),
+            'register_noo' => $registers['noo'],
+            'register_lead' => $registers['lead'],
+            'visits' => $calculator->visits(),
+        ];
     }
 
     protected function getFilters(): ?array
@@ -169,153 +216,6 @@ class DataOverview extends StatsOverviewWidget implements HasActions
     protected function getDefaultFilter(): ?string
     {
         return 'week';
-    }
-
-    /**
-     * @param  class-string  $modelClass
-     */
-    protected function calculateMetric(string $modelClass, string $dateColumn, array $range, ?callable $constraint = null): array
-    {
-        $query = $modelClass::query();
-
-        $query = $this->applyVisibility($query, $modelClass);
-
-        if ($constraint) {
-            $constraint($query);
-        }
-
-        $currentCount = (clone $query)
-            ->whereBetween($dateColumn, [$range['currentStart'], $range['currentEnd']])
-            ->count();
-
-        $previousCount = (clone $query)
-            ->whereBetween($dateColumn, [$range['previousStart'], $range['previousEnd']])
-            ->count();
-
-        $trend = $this->buildTrend(
-            clone $query,
-            $dateColumn,
-            $range['trendStart'],
-            $range['trendEnd'],
-        );
-
-        return [$currentCount, $previousCount, $trend];
-    }
-
-    protected function applyVisibility(Builder $query, string $modelClass): Builder
-    {
-        /** @var User|null $viewer */
-        $viewer = Auth::user();
-
-        if (! $viewer) {
-            return $query;
-        }
-
-        if (in_array($modelClass, [Outlet::class, Register::class], true)) {
-            return $query->visibleTo($viewer);
-        }
-
-        if ($modelClass === Visit::class) {
-            return $this->scopeVisits($query, $viewer);
-        }
-
-        if ($modelClass === User::class) {
-            return $this->scopeUsers($query, $viewer);
-        }
-
-        return $query;
-    }
-
-    protected function scopeVisits(Builder $query, User $viewer): Builder
-    {
-        $role = $viewer->role;
-        $scopeLevel = $role->organizational_scope_level ?? 'cluster';
-
-        if ($scopeLevel === 'all') {
-            return $query;
-        }
-
-        $badanUsahaIds = $viewer->badanUsahas()->pluck('badan_usahas.id')->toArray();
-        $divisiIds = $viewer->divisis()->pluck('divisions.id')->toArray();
-        $regionIds = $viewer->regions()->pluck('regions.id')->toArray();
-        $clusterIds = $viewer->clusters()->pluck('clusters.id')->toArray();
-
-        if (! empty($badanUsahaIds)) {
-            $query->whereHas('user.badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
-        }
-
-        if (! empty($divisiIds)) {
-            $query->whereHas('user.divisis', fn ($q) => $q->whereIn('divisions.id', $divisiIds));
-        }
-
-        if (! empty($regionIds)) {
-            $query->whereHas('user.regions', fn ($q) => $q->whereIn('regions.id', $regionIds));
-        }
-
-        if (! empty($clusterIds)) {
-            $query->whereHas('user.clusters', fn ($q) => $q->whereIn('clusters.id', $clusterIds));
-        }
-
-        return $query;
-    }
-
-    protected function scopeUsers(Builder $query, User $viewer): Builder
-    {
-        $role = $viewer->role;
-
-        if (! $role) {
-            return $query;
-        }
-
-        $scopeLevel = $role->organizational_scope_level ?? 'cluster';
-
-        if ($scopeLevel === 'all') {
-            return $query;
-        }
-
-        $badanUsahaIds = $viewer->badanUsahas()->pluck('badan_usahas.id')->toArray();
-        $divisiIds = $viewer->divisis()->pluck('divisions.id')->toArray();
-        $regionIds = $viewer->regions()->pluck('regions.id')->toArray();
-        $clusterIds = $viewer->clusters()->pluck('clusters.id')->toArray();
-
-        if (! empty($badanUsahaIds)) {
-            $query->whereHas('badanUsahas', fn ($q) => $q->whereIn('badan_usahas.id', $badanUsahaIds));
-        }
-
-        if (! empty($divisiIds)) {
-            $query->whereHas('divisis', fn ($q) => $q->whereIn('divisions.id', $divisiIds));
-        }
-
-        if ($scopeLevel === 'cluster') {
-            if (! empty($regionIds)) {
-                $query->whereHas('regions', fn ($q) => $q->whereIn('regions.id', $regionIds));
-            }
-
-            if (! empty($clusterIds)) {
-                $query->whereHas('clusters', fn ($q) => $q->whereIn('clusters.id', $clusterIds));
-            }
-        }
-
-        return $query;
-    }
-
-    protected function buildTrend(Builder $query, string $dateColumn, Carbon $start, Carbon $end): array
-    {
-        $table = $query->getModel()->getTable();
-
-        $results = (clone $query)
-            ->whereBetween($dateColumn, [$start, $end])
-            ->selectRaw("DATE({$table}.{$dateColumn}) as day")
-            ->selectRaw('COUNT(*) as aggregate')
-            ->groupBy('day')
-            ->orderBy('day')
-            ->pluck('aggregate', 'day');
-
-        $period = CarbonPeriod::create($start->copy()->startOfDay(), '1 day', $end->copy()->endOfDay());
-
-        return collect($period)->map(
-            fn (Carbon $date) => (int) ($results[$date->format('Y-m-d')] ?? 0)
-        )->all();
     }
 
     protected function makeCard(string $label, int $current, int $previous, array $trend): Stat

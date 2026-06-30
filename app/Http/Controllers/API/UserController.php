@@ -420,10 +420,7 @@ class UserController extends Controller
             throw new ForbiddenException('Anda tidak memiliki akses untuk mengubah user');
         }
 
-        $user = User::find($id);
-        if (! $user) {
-            throw new ResourceNotFoundException('User tidak ditemukan');
-        }
+        $user = $this->findMutableUserInActorScope($authUser, (int) $id);
 
         // Update basic fields
         $updateData = [];
@@ -504,10 +501,7 @@ class UserController extends Controller
             throw new ForbiddenException('Anda tidak memiliki akses untuk menghapus user');
         }
 
-        $user = User::find($id);
-        if (! $user) {
-            throw new ResourceNotFoundException('User tidak ditemukan');
-        }
+        $user = $this->findMutableUserInActorScope($authUser, (int) $id);
 
         // Prevent deleting self
         if ($user->id === $authUser->id) {
@@ -550,11 +544,13 @@ class UserController extends Controller
         foreach (['badanusaha_ids', 'divisi_ids', 'region_ids', 'cluster_ids'] as $field) {
             if ($request->has($field)) {
                 $resolved[$field] = $this->normalizeAssignmentIds($request->input($field, []));
+
                 continue;
             }
 
             if (! empty($targetAssignments[$field])) {
                 $resolved[$field] = $targetAssignments[$field];
+
                 continue;
             }
 
@@ -649,5 +645,46 @@ class UserController extends Controller
         }
 
         return $hasLegacyColumns;
+    }
+
+    protected function findMutableUserInActorScope(User $actor, int $id): User
+    {
+        $target = User::query()->whereKey($id)->first();
+
+        if (! $target || ! $this->canMutateUserInActorScope($actor, $target)) {
+            throw new ResourceNotFoundException('User tidak ditemukan');
+        }
+
+        return $target;
+    }
+
+    protected function canMutateUserInActorScope(User $actor, User $target): bool
+    {
+        if (! $actor->role) {
+            return false;
+        }
+
+        if ($actor->role->hasFullAccess()) {
+            return true;
+        }
+
+        // Preserve compatibility for legacy/unassigned mobile-created users:
+        // update can attach the actor's fallback assignments safely.
+        if (! $this->hasOrganizationalAssignments($target)) {
+            return true;
+        }
+
+        return User::query()
+            ->visibleTo($actor)
+            ->whereKey($target->id)
+            ->exists();
+    }
+
+    protected function hasOrganizationalAssignments(User $user): bool
+    {
+        return $user->badanUsahas()->exists()
+            || $user->divisis()->exists()
+            || $user->regions()->exists()
+            || $user->clusters()->exists();
     }
 }

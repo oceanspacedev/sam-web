@@ -12,7 +12,9 @@ use App\Models\BadanUsaha;
 use App\Models\Cluster;
 use App\Models\Division;
 use App\Models\Region;
+use App\Support\OrganizationalName;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -145,9 +147,7 @@ class SettingController extends Controller
             // Then apply optional filter by business unit parameter
             $query->when($request->filled('bu'), function ($q) use ($request) {
                 $bu = $request->input('bu');
-                $badanUsaha = is_numeric($bu)
-                    ? BadanUsaha::findOrFail($bu)
-                    : BadanUsaha::where('name', $bu)->firstOrFail();
+                $badanUsaha = $this->resolveByCodeOrName(BadanUsaha::query(), $bu);
 
                 $q->where('badanusaha_id', $badanUsaha->id);
             });
@@ -225,9 +225,7 @@ class SettingController extends Controller
             // Optional BU filter
             if ($request->filled('bu')) {
                 $bu = $request->input('bu');
-                $selectedBadanUsaha = is_numeric($bu)
-                    ? BadanUsaha::findOrFail($bu)
-                    : BadanUsaha::where('name', $bu)->firstOrFail();
+                $selectedBadanUsaha = $this->resolveByCodeOrName(BadanUsaha::query(), $bu);
 
                 $query->where('badanusaha_id', $selectedBadanUsaha->id);
             }
@@ -241,9 +239,7 @@ class SettingController extends Controller
                     $divisionQuery->where('badanusaha_id', $selectedBadanUsaha->id);
                 }
 
-                $division = is_numeric($div)
-                    ? $divisionQuery->where('id', $div)->firstOrFail()
-                    : $divisionQuery->where('name', $div)->firstOrFail();
+                $division = $this->resolveByCodeOrName($divisionQuery, $div);
 
                 $query->where('divisi_id', $division->id);
 
@@ -360,9 +356,7 @@ class SettingController extends Controller
 
             if ($request->filled('bu')) {
                 $bu = $request->input('bu');
-                $badanUsaha = is_numeric($bu)
-                    ? BadanUsaha::findOrFail($bu)
-                    : BadanUsaha::where('name', $bu)->firstOrFail();
+                $badanUsaha = $this->resolveByCodeOrName(BadanUsaha::query(), $bu);
 
                 $query->where('badanusaha_id', $badanUsaha->id);
             }
@@ -375,9 +369,7 @@ class SettingController extends Controller
                     $divisionQuery->where('badanusaha_id', $badanUsaha->id);
                 }
 
-                $division = is_numeric($div)
-                    ? $divisionQuery->where('id', $div)->firstOrFail()
-                    : $divisionQuery->where('name', $div)->firstOrFail();
+                $division = $this->resolveByCodeOrName($divisionQuery, $div);
 
                 $query->where('divisi_id', $division->id);
             }
@@ -394,9 +386,7 @@ class SettingController extends Controller
                     $regionQuery->where('divisi_id', $division->id);
                 }
 
-                $region = is_numeric($reg)
-                    ? $regionQuery->where('id', $reg)->firstOrFail()
-                    : $regionQuery->where('name', $reg)->firstOrFail();
+                $region = $this->resolveByCodeOrName($regionQuery, $reg);
 
                 $query->where('region_id', $region->id);
             }
@@ -500,9 +490,12 @@ class SettingController extends Controller
                 // BadanUsaha options
                 if ($fields['badanusaha']['visible']) {
                     if ($userScopeLevel === 'all') {
-                        $fields['badanusaha']['options'] = BadanUsaha::active()->orderBy('name')->get(['id', 'name']);
+                        $fields['badanusaha']['options'] = $this->organizationalOptions(BadanUsaha::active());
                     } else {
-                        $fields['badanusaha']['options'] = $user->badanUsahas()->active()->orderBy('name')->get(['badan_usahas.id as id', 'name']);
+                        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->toArray();
+                        $fields['badanusaha']['options'] = $this->organizationalOptions(
+                            BadanUsaha::active()->whereIn('id', $badanUsahaIds)
+                        );
                     }
                 }
 
@@ -520,7 +513,7 @@ class SettingController extends Controller
                             $query->whereIn('id', $divisiIds);
                         }
                     }
-                    $fields['divisi']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id']);
+                    $fields['divisi']['options'] = $this->organizationalOptions($query, ['badanusaha_id']);
                 }
 
                 // Region options - use same logic as getregion endpoint
@@ -541,7 +534,7 @@ class SettingController extends Controller
                             $query->whereIn('id', $regionIds);
                         }
                     }
-                    $fields['region']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id']);
+                    $fields['region']['options'] = $this->organizationalOptions($query, ['badanusaha_id', 'divisi_id']);
                 }
 
                 // Cluster options - use same logic as getcluster endpoint
@@ -566,7 +559,7 @@ class SettingController extends Controller
                             $query->whereIn('id', $clusterIds);
                         }
                     }
-                    $fields['cluster']['options'] = $query->orderBy('name')->get(['id', 'name', 'badanusaha_id', 'divisi_id', 'region_id']);
+                    $fields['cluster']['options'] = $this->organizationalOptions($query, ['badanusaha_id', 'divisi_id', 'region_id']);
                 }
             }
 
@@ -649,5 +642,40 @@ class SettingController extends Controller
         }
 
         return $ids;
+    }
+
+    private function resolveByCodeOrName(Builder $query, mixed $value)
+    {
+        if (is_numeric($value)) {
+            return $query->whereKey($value)->firstOrFail();
+        }
+
+        $code = OrganizationalName::formatCode((string) $value);
+
+        return $query
+            ->where(function (Builder $query) use ($code, $value): void {
+                $query
+                    ->where('code', $code)
+                    ->orWhere('name', (string) $value);
+            })
+            ->firstOrFail();
+    }
+
+    private function organizationalOptions(Builder $query, array $parentColumns = [])
+    {
+        $columns = array_merge(['id', 'code', 'name'], $parentColumns);
+
+        return $query
+            ->orderBy('code')
+            ->get($columns)
+            ->map(function ($record) use ($parentColumns): array {
+                $option = OrganizationalName::resource($record);
+
+                foreach ($parentColumns as $column) {
+                    $option[$column] = $record->{$column};
+                }
+
+                return $option;
+            });
     }
 }

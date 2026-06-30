@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\RelationManagers;
 
 use App\Models\Visit;
+use App\Support\FilamentTableEagerLoad;
 use App\Support\StorageDisk;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -23,6 +24,11 @@ class VisitsRelationManager extends RelationManager
 {
     protected static string $relationship = 'visit';
 
+    protected function getTableQuery(): Builder
+    {
+        return parent::getTableQuery()->with(FilamentTableEagerLoad::visitableTarget());
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -35,8 +41,9 @@ class VisitsRelationManager extends RelationManager
                     ->label('Nama')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('outlet.nama_outlet')
-                    ->label('Nama Outlet')
+                TextColumn::make('visitable.nama_outlet')
+                    ->label('Target')
+                    ->formatStateUsing(fn ($state) => $state ?? '-')
                     ->searchable(),
                 TextColumn::make('tipe_visit')
                     ->label('Tipe Visit'),

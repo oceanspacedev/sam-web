@@ -4,9 +4,16 @@ namespace App\Filament\Resources\Outlets\RelationManagers;
 
 use App\Models\Outlet;
 use App\Models\OutletChangeArchive;
+use App\Support\OutletChangeArchivePresenter;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
@@ -31,35 +38,44 @@ class ChangeArchivesRelationManager extends RelationManager
                 TextColumn::make('action')
                     ->label('Aksi')
                     ->badge()
-                    ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        OutletChangeArchive::ACTION_RESET_DATA => 'Reset Data',
-                        OutletChangeArchive::ACTION_RESET_LOCATION => 'Reset Lokasi',
-                        OutletChangeArchive::ACTION_UPDATE => 'Edit Manual',
-                        OutletChangeArchive::ACTION_RESTORE => 'Restore',
-                        OutletChangeArchive::ACTION_APPROVAL_OVERRIDE => 'Override Approval',
-                        default => (string) $state,
-                    }),
+                    ->color(fn (?string $state): string => OutletChangeArchivePresenter::actionColor($state))
+                    ->formatStateUsing(fn (?string $state): string => OutletChangeArchivePresenter::actionLabel($state)),
                 TextColumn::make('actor_name')
                     ->label('Oleh')
                     ->placeholder('-')
                     ->searchable(),
                 TextColumn::make('changed_fields')
-                    ->label('Field Berubah')
-                    ->formatStateUsing(fn ($state): string => is_array($state) ? implode(', ', $state) : (string) $state)
+                    ->label('Perubahan')
+                    ->formatStateUsing(fn ($state): string => OutletChangeArchivePresenter::summary(is_array($state) ? $state : null))
+                    ->limit(80)
                     ->wrap(),
                 TextColumn::make('restored_at')
-                    ->label('Direstore')
-                    ->dateTime('d M Y H:i')
-                    ->placeholder('-'),
-                TextColumn::make('restoredBy.nama_lengkap')
-                    ->label('Restore Oleh')
-                    ->placeholder('-'),
+                    ->label('Status')
+                    ->badge()
+                    ->color(fn (?OutletChangeArchive $record): string => filled($record?->restored_at) ? 'gray' : 'success')
+                    ->formatStateUsing(fn (?OutletChangeArchive $record): string => filled($record?->restored_at)
+                        ? 'Direstore · '.$record->restored_at->format('d M Y H:i')
+                        : 'Aktif'),
             ])
             ->defaultSort('created_at', 'desc')
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->deferLoading()
             ->recordActions([
+                Action::make('detail')
+                    ->label('Lihat Detail')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->slideOver()
+                    ->modalHeading('Detail Perubahan')
+                    ->modalWidth(Width::Medium)
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup')
+                    ->fillForm(fn (OutletChangeArchive $record): array => [
+                        'changes' => OutletChangeArchivePresenter::diffRows($record),
+                    ])
+                    ->disabledForm()
+                    ->schema(self::detailSchema()),
                 Action::make('restore')
                     ->label('Restore')
                     ->icon('heroicon-o-arrow-uturn-left')
@@ -67,7 +83,8 @@ class ChangeArchivesRelationManager extends RelationManager
                     ->requiresConfirmation()
                     ->modalHeading('Restore data outlet dari arsip?')
                     ->modalDescription('Data outlet akan dikembalikan ke nilai lama yang tersimpan di arsip ini.')
-                    ->visible(fn (): bool => Gate::allows('Reset:Outlet') || Gate::allows('Update:Outlet'))
+                    ->visible(fn (OutletChangeArchive $record): bool => blank($record->restored_at)
+                        && (Gate::allows('Reset:Outlet') || Gate::allows('Update:Outlet')))
                     ->action(function (OutletChangeArchive $record): void {
                         $owner = $this->getOwnerRecord();
 
@@ -110,5 +127,54 @@ class ChangeArchivesRelationManager extends RelationManager
                             ->send();
                     }),
             ]);
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    protected static function detailSchema(): array
+    {
+        return [
+            TextEntry::make('created_at')
+                ->label('Waktu')
+                ->dateTime('d M Y H:i')
+                ->columnSpanFull(),
+            TextEntry::make('action')
+                ->label('Aksi')
+                ->badge()
+                ->color(fn (?string $state): string => OutletChangeArchivePresenter::actionColor($state))
+                ->formatStateUsing(fn (?string $state): string => OutletChangeArchivePresenter::actionLabel($state))
+                ->columnSpanFull(),
+            TextEntry::make('actor_name')
+                ->label('Oleh')
+                ->placeholder('-')
+                ->columnSpanFull(),
+            TextEntry::make('status_summary')
+                ->label('Status')
+                ->getStateUsing(fn (OutletChangeArchive $record): string => OutletChangeArchivePresenter::statusLabel($record))
+                ->columnSpanFull(),
+            Repeater::make('changes')
+                ->label('Perubahan')
+                ->table([
+                    TableColumn::make('Field')
+                        ->width('30%'),
+                    TableColumn::make('Nilai Lama')
+                        ->width('35%'),
+                    TableColumn::make('Nilai Baru')
+                        ->width('35%'),
+                ])
+                ->compact()
+                ->schema([
+                    TextInput::make('label'),
+                    Textarea::make('old')
+                        ->rows(2),
+                    Textarea::make('new')
+                        ->rows(2),
+                ])
+                ->addable(false)
+                ->deletable(false)
+                ->reorderable(false)
+                ->columnSpanFull(),
+        ];
     }
 }

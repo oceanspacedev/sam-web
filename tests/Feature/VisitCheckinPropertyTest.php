@@ -34,10 +34,10 @@ function createUserWithHierarchy(): array
 {
     $suffix = uniqid();
 
-    $bu = \App\Models\BadanUsaha::create(['name' => 'BU-'.$suffix]);
-    $div = \App\Models\Division::create(['name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
-    $reg = \App\Models\Region::create(['name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
-    $clus = \App\Models\Cluster::create(['name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
+    $bu = \App\Models\BadanUsaha::create(['code' => 'BU_'.$suffix, 'name' => 'BU-'.$suffix]);
+    $div = \App\Models\Division::create(['code' => 'DIV_'.$suffix, 'name' => 'DIV-'.$suffix, 'badanusaha_id' => $bu->id]);
+    $reg = \App\Models\Region::create(['code' => 'REG_'.$suffix, 'name' => 'REG-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id]);
+    $clus = \App\Models\Cluster::create(['code' => 'CLUS_'.$suffix, 'name' => 'CLUS-'.$suffix, 'badanusaha_id' => $bu->id, 'divisi_id' => $div->id, 'region_id' => $reg->id]);
 
     $role = \App\Models\Role::create([
         'name' => 'DM-'.$suffix,
@@ -193,10 +193,10 @@ test('Property 18b: Checkin Outlet Validation - checkin at outlet outside scope 
 
         // Create a different organizational hierarchy (outside user's scope)
         $otherSuffix = uniqid('other');
-        $otherBu = \App\Models\BadanUsaha::create(['name' => 'OTHER-BU-'.$otherSuffix]);
-        $otherDiv = \App\Models\Division::create(['name' => 'OTHER-DIV-'.$otherSuffix, 'badanusaha_id' => $otherBu->id]);
-        $otherReg = \App\Models\Region::create(['name' => 'OTHER-REG-'.$otherSuffix, 'badanusaha_id' => $otherBu->id, 'divisi_id' => $otherDiv->id]);
-        $otherClus = \App\Models\Cluster::create(['name' => 'OTHER-CLUS-'.$otherSuffix, 'badanusaha_id' => $otherBu->id, 'divisi_id' => $otherDiv->id, 'region_id' => $otherReg->id]);
+        $otherBu = \App\Models\BadanUsaha::create(['code' => 'OTHER_BU_'.$otherSuffix, 'name' => 'OTHER-BU-'.$otherSuffix]);
+        $otherDiv = \App\Models\Division::create(['code' => 'OTHER_DIV_'.$otherSuffix, 'name' => 'OTHER-DIV-'.$otherSuffix, 'badanusaha_id' => $otherBu->id]);
+        $otherReg = \App\Models\Region::create(['code' => 'OTHER_REG_'.$otherSuffix, 'name' => 'OTHER-REG-'.$otherSuffix, 'badanusaha_id' => $otherBu->id, 'divisi_id' => $otherDiv->id]);
+        $otherClus = \App\Models\Cluster::create(['code' => 'OTHER_CLUS_'.$otherSuffix, 'name' => 'OTHER-CLUS-'.$otherSuffix, 'badanusaha_id' => $otherBu->id, 'divisi_id' => $otherDiv->id, 'region_id' => $otherReg->id]);
 
         // Create outlet in different scope
         $outletOutsideScope = Outlet::create([

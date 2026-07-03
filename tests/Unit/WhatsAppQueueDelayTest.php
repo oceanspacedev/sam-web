@@ -9,7 +9,7 @@ afterEach(function (): void {
 });
 
 it('staggered whatsapp queue dispatches by the configured delay', function (): void {
-    config(['services.fonnte.queue_delay_seconds' => 12]);
+    config(['services.whatsapp.queue_delay_seconds' => 12]);
 
     Cache::forget(WhatsAppQueueDelay::LOCK_KEY);
     Cache::forget(WhatsAppQueueDelay::NEXT_AVAILABLE_AT_KEY);
@@ -23,7 +23,7 @@ it('staggered whatsapp queue dispatches by the configured delay', function (): v
 });
 
 it('can disable whatsapp queue delay', function (): void {
-    config(['services.fonnte.queue_delay_seconds' => 0]);
+    config(['services.whatsapp.queue_delay_seconds' => 0]);
 
     expect(app(WhatsAppQueueDelay::class)->nextDelay())->toBe(0);
 });

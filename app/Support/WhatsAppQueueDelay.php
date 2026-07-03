@@ -7,9 +7,9 @@ use Throwable;
 
 class WhatsAppQueueDelay
 {
-    public const LOCK_KEY = 'fonnte_whatsapp_queue_delay_lock';
+    public const LOCK_KEY = 'whatsapp_queue_delay_lock';
 
-    public const NEXT_AVAILABLE_AT_KEY = 'fonnte_whatsapp_next_available_at';
+    public const NEXT_AVAILABLE_AT_KEY = 'whatsapp_next_available_at';
 
     public function nextDelay(): int
     {
@@ -39,6 +39,6 @@ class WhatsAppQueueDelay
 
     public function delaySeconds(): int
     {
-        return max(0, (int) config('services.fonnte.queue_delay_seconds', 10));
+        return max(0, (int) config('services.whatsapp.queue_delay_seconds', 10));
     }
 }

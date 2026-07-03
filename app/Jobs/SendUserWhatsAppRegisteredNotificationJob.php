@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\User;
-use App\Services\FonnteWhatsAppService;
+use App\Services\WhatsAppNotificationService;
 use App\Support\WhatsAppNumber;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,18 +34,18 @@ class SendUserWhatsAppRegisteredNotificationJob implements ShouldQueue
 
     public function middleware(): array
     {
-        $delaySeconds = (int) config('services.fonnte.queue_delay_seconds', 10);
+        $delaySeconds = (int) config('services.whatsapp.queue_delay_seconds', 10);
 
         if ($delaySeconds <= 0) {
             return [];
         }
 
         return [
-            (new RateLimitedWithRedis('fonnte-whatsapp'))->releaseAfter($delaySeconds),
+            (new RateLimitedWithRedis('whatsapp-send'))->releaseAfter($delaySeconds),
         ];
     }
 
-    public function handle(FonnteWhatsAppService $whatsApp): void
+    public function handle(WhatsAppNotificationService $whatsApp): void
     {
         $user = User::query()
             ->select(['id', 'nama_lengkap', 'whatsapp_number', 'whatsapp_verified_at'])

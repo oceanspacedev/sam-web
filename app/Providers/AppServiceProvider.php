@@ -122,14 +122,14 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
-        RateLimiter::for('fonnte-whatsapp', function ($job = null) {
-            $delaySeconds = (int) config('services.fonnte.queue_delay_seconds', 10);
+        RateLimiter::for('whatsapp-send', function ($job = null) {
+            $delaySeconds = (int) config('services.whatsapp.queue_delay_seconds', 10);
 
             if ($delaySeconds <= 0) {
                 return Limit::none();
             }
 
-            return Limit::perSecond(1, $delaySeconds)->by('fonnte-whatsapp:send');
+            return Limit::perSecond(1, $delaySeconds)->by('whatsapp-send:queue');
         });
 
         // Expensive operations limiter: exports, downloads, bulk imports, etc.

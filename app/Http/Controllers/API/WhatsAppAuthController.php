@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Models\WhatsappOtp;
-use App\Services\FonnteWhatsAppService;
+use App\Services\WhatsAppNotificationService;
 use App\Support\WhatsAppNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +20,7 @@ class WhatsAppAuthController extends Controller
     private const MAX_ATTEMPTS = 5;
 
     public function __construct(
-        protected FonnteWhatsAppService $whatsApp
+        protected WhatsAppNotificationService $whatsApp
     ) {}
 
     public function requestLoginOtp(Request $request): JsonResponse
@@ -178,7 +178,7 @@ class WhatsAppAuthController extends Controller
 
     protected function issueOtp(User $user, string $number, string $purpose): JsonResponse
     {
-        $expiresIn = (int) config('services.fonnte.otp_expires_in', 60);
+        $expiresIn = (int) config('services.whatsapp.otp_expires_in', 60);
         $expiresAt = now()->addSeconds($expiresIn);
         $otp = (string) random_int(100000, 999999);
 
@@ -202,7 +202,7 @@ class WhatsAppAuthController extends Controller
         } catch (Throwable $exception) {
             $otpRecord->forceFill(['expires_at' => now()])->save();
 
-            Log::warning('Gagal mengirim OTP WhatsApp via Fonnte', [
+            Log::warning('Gagal mengirim OTP WhatsApp', [
                 'user_id' => $user->id,
                 'purpose' => $purpose,
                 'whatsapp_last4' => substr($number, -4),

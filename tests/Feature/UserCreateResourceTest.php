@@ -11,7 +11,7 @@ use App\Models\Permission;
 use App\Models\Region;
 use App\Models\Role;
 use App\Models\User;
-use App\Services\FonnteWhatsAppService;
+use App\Services\WhatsAppNotificationService;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
@@ -71,13 +71,13 @@ it('sends whatsapp registered message for active whatsapp user', function (): vo
         'whatsapp_verified_at' => now(),
     ]);
 
-    $this->mock(FonnteWhatsAppService::class)
+    $this->mock(WhatsAppNotificationService::class)
         ->shouldReceive('sendAccountRegistered')
         ->once()
         ->with('6281234567890', 'USER WHATSAPP READY');
 
     app(SendUserWhatsAppRegisteredNotificationJob::class, ['userId' => $user->id])
-        ->handle(app(FonnteWhatsAppService::class));
+        ->handle(app(WhatsAppNotificationService::class));
 });
 
 it('notifies user when admin adds whatsapp number on edit', function (): void {

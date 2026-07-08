@@ -7,8 +7,16 @@
         "laravel"
     ],
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/apriansyahrs/mekaya-theme.git",
+            "no-api": true
+        }
+    ],
     "require": {
-        "php": "^8.2",
+        "php": "^8.3",
+        "apriansyahrs/mekaya-theme": "dev-main",
         "bezhansalleh/filament-shield": "^4.0",
         "dedoc/scramble": "^0.13.0",
         "filament/filament": "^4.0",
@@ -92,11 +100,15 @@
     },
     "config": {
         "optimize-autoloader": true,
-        "preferred-install": "dist",
+        "preferred-install": {
+            "apriansyahrs/mekaya-theme": "source",
+            "*": "dist"
+        },
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true
-        }
+        },
+        "github-protocols": ["https"]
     },
     "minimum-stability": "stable",
     "prefer-stable": true

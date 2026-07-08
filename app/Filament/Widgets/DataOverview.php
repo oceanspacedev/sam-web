@@ -37,7 +37,7 @@ class DataOverview extends StatsOverviewWidget implements HasActions
 
     public static function canView(): bool
     {
-        return Gate::allows('View:DataOverview');
+        return false;
     }
 
     public function getSectionContentComponent(): Component

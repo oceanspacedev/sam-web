@@ -9,6 +9,7 @@ use App\Support\UserOrganizationalScopeCleanup;
 use App\Support\WhatsAppQueueDelay;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
+use STS\FilamentImpersonate\Actions\Impersonate;
 
 class EditUser extends EditRecord
 {
@@ -60,6 +61,8 @@ class EditUser extends EditRecord
     {
         return [
             DeleteAction::make(),
+            Impersonate::make('impersonate')
+                ->visible(fn (User $record): bool => (bool) $record->role?->can_access_web),
         ];
     }
 }

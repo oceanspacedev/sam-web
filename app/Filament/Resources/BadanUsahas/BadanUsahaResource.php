@@ -24,7 +24,7 @@ class BadanUsahaResource extends Resource
 {
     protected static ?string $model = BadanUsaha::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-office-2';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-building-08';
 
     protected static ?int $navigationSort = 1;
 

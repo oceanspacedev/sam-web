@@ -28,6 +28,7 @@ class EditRole extends EditRecord
                 'name',
                 'parent_role_id',
                 'can_access_web',
+                'can_access_mobile',
                 'organizational_scope_level',
                 'select_all',
                 'guard_name',
@@ -41,6 +42,7 @@ class EditRole extends EditRecord
             'name' => $data['name'],
             'parent_role_id' => $data['parent_role_id'] ?? null,
             'can_access_web' => $data['can_access_web'],
+            'can_access_mobile' => $data['can_access_mobile'],
             'organizational_scope_level' => $data['organizational_scope_level'],
         ];
     }
@@ -48,11 +50,26 @@ class EditRole extends EditRecord
     protected function afterSave(): void
     {
         $permissionModels = $this->permissions
-            ->map(fn (string $permission): Permission => Permission::firstOrCreate([
-                'name' => $permission,
-                'guard_name' => $this->record->guard_name ?? config('auth.defaults.guard'),
-            ]));
+            ->map(fn (string $permission): Permission => $this->findOrRestorePermission($permission));
 
         $this->record->syncPermissions($permissionModels);
+    }
+
+    private function findOrRestorePermission(string $name): Permission
+    {
+        $permission = Permission::withTrashed()->firstOrNew([
+            'name' => $name,
+        ]);
+
+        $permission->name = $name;
+        $permission->guard_name = $this->record->guard_name ?? config('auth.defaults.guard');
+
+        if ($permission->trashed()) {
+            $permission->restore();
+        }
+
+        $permission->save();
+
+        return $permission;
     }
 }

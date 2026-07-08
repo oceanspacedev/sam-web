@@ -38,7 +38,7 @@ class PlanVisitResource extends Resource
 {
     protected static ?string $model = PlanVisit::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calendar-date-range';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-calendar-date';
 
     protected static ?int $navigationSort = 4;
 

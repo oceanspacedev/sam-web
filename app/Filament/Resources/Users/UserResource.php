@@ -52,7 +52,7 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-users-03';
 
     protected static ?int $navigationSort = 0;
 
@@ -671,14 +671,19 @@ class UserResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('nama_lengkap')
-                    ->searchable(),
+                    ->label('Nama Lengkap')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('username')
+                    ->label('Username')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('whatsapp_number')
                     ->label('Nomor WhatsApp')
                     ->searchable()
                     ->placeholder('-')
                     ->toggleable(),
-                // Tables\Columns\TextColumn::make('username')
-                //     ->searchable(),
                 TextColumn::make('role.name')
                     ->searchable()
                     ->badge()

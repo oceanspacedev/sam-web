@@ -2,11 +2,12 @@
 
 namespace App\Filament\Pages\Auth;
 
+use Apriansyahrs\MekayaTheme\Auth\MekayaLogin;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Illuminate\Validation\ValidationException;
 
-class Login extends \Filament\Auth\Pages\Login
+class Login extends MekayaLogin
 {
     public function form(Schema $schema): Schema
     {

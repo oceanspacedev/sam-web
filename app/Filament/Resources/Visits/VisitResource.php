@@ -52,7 +52,7 @@ class VisitResource extends Resource
 {
     protected static ?string $model = Visit::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-camera';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-camera-02';
 
     protected static ?int $navigationSort = 3;
 

@@ -267,7 +267,7 @@ return [
     */
 
     'custom_permissions' => [
-        'impersonate' => 'Impersonate (Login as) Other Users',
+        'Impersonate' => 'Impersonate (Login as) Other Users',
     ],
 
     /*

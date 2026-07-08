@@ -31,7 +31,7 @@ class DivisionResource extends Resource
 {
     protected static ?string $model = Division::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-briefcase';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-briefcase-02';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 

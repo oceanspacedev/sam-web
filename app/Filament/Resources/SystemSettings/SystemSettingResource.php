@@ -19,7 +19,7 @@ class SystemSettingResource extends Resource
 {
     protected static ?string $model = SystemSetting::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-settings-04';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 

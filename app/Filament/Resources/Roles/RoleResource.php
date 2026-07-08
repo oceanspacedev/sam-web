@@ -7,7 +7,6 @@ use App\Filament\Resources\Roles\Pages\EditRole;
 use App\Filament\Resources\Roles\Pages\ListRoles;
 use App\Models\Role;
 use App\Models\User;
-use App\Support\FilamentTableEagerLoad;
 use BezhanSalleh\FilamentShield\Traits\HasShieldFormComponents;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -32,7 +31,7 @@ class RoleResource extends Resource
 
     protected static ?string $model = Role::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-settings-02';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 

@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Login;
+use Apriansyahrs\MekayaTheme\MekayaPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -12,7 +13,6 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -30,22 +30,19 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->plugin(
+                MekayaPlugin::make()
+                    ->colors([
+                        'primary' => Color::Amber,
+                    ])
+                    ->sidebarWidth('16rem'),
+            )
+            ->viteTheme('resources/css/app.css')
             ->login(Login::class)
+            ->passwordReset(null)
             ->profile(EditProfile::class)
-            ->colors([
-                'primary' => Color::Amber,
-            ])
-            ->spa(hasPrefetching: true)
-            ->spaUrlExceptions([
-                '/docs/api',
-                '/docs/api/*',
-            ])
             ->databaseNotifications()
             ->databaseNotificationsPolling('60s')
-            ->brandLogo(asset('icon/samsam.png'))
-            ->sidebarCollapsibleOnDesktop()
-            ->maxContentWidth(Width::Full)
-            ->sidebarWidth('16rem')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->navigationItems([
@@ -75,7 +72,6 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
 
             ])
-            ->viteTheme('resources/css/filament/admin/theme.css')
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): string => '

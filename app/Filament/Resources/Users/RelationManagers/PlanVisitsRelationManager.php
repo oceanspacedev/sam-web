@@ -11,6 +11,7 @@ use Filament\Actions\EditAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PlanVisitsRelationManager extends RelationManager
 {
@@ -18,9 +19,11 @@ class PlanVisitsRelationManager extends RelationManager
 
     protected static string $relationship = 'planvisit';
 
-    protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder
+    protected function getTableQuery(): Builder
     {
-        return parent::getTableQuery()->with(FilamentTableEagerLoad::visitableTarget());
+        return PlanVisit::query()
+            ->where('user_id', $this->getOwnerRecord()->id)
+            ->with(FilamentTableEagerLoad::visitableTarget());
     }
 
     public function table(Table $table): Table

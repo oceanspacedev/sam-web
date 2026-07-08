@@ -29,6 +29,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use PDOException;
 
@@ -51,6 +52,13 @@ class AppServiceProvider extends ServiceProvider
         $this->registerObservers();
         $this->configureScramble();
         $this->configureGates();
+        $this->registerFilamentViewOverrides();
+    }
+
+    protected function registerFilamentViewOverrides(): void
+    {
+        View::prependNamespace('filament-panels', resource_path('views/vendor/filament-panels'));
+        View::prependNamespace('mekaya', resource_path('views/vendor/mekaya'));
     }
 
     /**

@@ -27,8 +27,11 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function canImpersonate(): bool
     {
-        // Check if user has impersonation permission via their role
-        return $this->permissions->contains('name', 'impersonate');
+        // Check if user has impersonation permission (either via Gate/Spatie or direct/role permissions)
+        return $this->can('Impersonate')
+            || $this->can('impersonate')
+            || $this->permissions->contains('name', 'Impersonate')
+            || $this->permissions->contains('name', 'impersonate');
     }
 
     public function getFilamentName(): string

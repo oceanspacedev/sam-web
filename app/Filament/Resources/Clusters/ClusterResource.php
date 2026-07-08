@@ -33,7 +33,7 @@ class ClusterResource extends Resource
 {
     protected static ?string $model = Cluster::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-map-pin';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-marker-pin-02';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 

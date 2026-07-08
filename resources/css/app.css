@@ -1,1 +1,8 @@
+@import '../../vendor/apriansyahrs/mekaya-theme/resources/css/theme.css';
 @import 'tailwindcss';
+
+.fi-badge {
+  width: fit-content !important;
+  align-self: flex-start !important;
+  justify-self: start !important;
+}

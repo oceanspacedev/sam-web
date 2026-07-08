@@ -83,3 +83,50 @@ it('syncs selected permissions when creating and editing a role', function (): v
     expect($createdRole->permissions()->pluck('name')->all())
         ->toMatchArray(['Update:User']);
 });
+
+it('restores a soft deleted custom permission instead of inserting a duplicate', function (): void {
+    Filament::setCurrentPanel('admin');
+
+    $adminRole = Role::factory()->create([
+        'name' => 'SUPER ADMIN',
+        'can_access_web' => true,
+        'organizational_scope_level' => 'all',
+    ]);
+
+    $user = User::factory()->create([
+        'role_id' => $adminRole->id,
+    ]);
+
+    $user->assignRole($adminRole);
+
+    Permission::firstOrCreate([
+        'name' => 'Impersonate',
+        'guard_name' => 'web',
+    ])->delete();
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $this->actingAs($user);
+
+    $role = Role::factory()->create([
+        'name' => 'Sales Lead',
+        'can_access_web' => true,
+        'can_access_mobile' => false,
+        'organizational_scope_level' => 'cluster',
+    ]);
+
+    Livewire::test(EditRolePage::class, ['record' => $role->getKey()])
+        ->fillForm([
+            'name' => 'Sales Lead',
+            'parent_role_id' => null,
+            'can_access_web' => true,
+            'can_access_mobile' => false,
+            'organizational_scope_level' => 'cluster',
+            'custom_permissions_tab' => ['Impersonate'],
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(Permission::query()->where('name', 'Impersonate')->exists())->toBeTrue();
+    expect($role->refresh()->permissions()->pluck('name')->all())->toContain('Impersonate');
+});

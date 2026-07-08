@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\RelationManagers;
 
+use App\Models\User;
 use App\Support\FilamentTableEagerLoad;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
@@ -16,7 +17,9 @@ class TeamMembersRelationManager extends RelationManager
 
     protected function getTableQuery(): Builder
     {
-        return parent::getTableQuery()->with(FilamentTableEagerLoad::userAssignments());
+        return User::query()
+            ->where('tm_id', $this->getOwnerRecord()->id)
+            ->with(FilamentTableEagerLoad::userAssignments());
     }
 
     public function table(Table $table): Table

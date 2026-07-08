@@ -26,7 +26,9 @@ class VisitsRelationManager extends RelationManager
 
     protected function getTableQuery(): Builder
     {
-        return parent::getTableQuery()->with(FilamentTableEagerLoad::visitableTarget());
+        return Visit::query()
+            ->where('user_id', $this->getOwnerRecord()->id)
+            ->with(FilamentTableEagerLoad::visitableTarget());
     }
 
     public function table(Table $table): Table

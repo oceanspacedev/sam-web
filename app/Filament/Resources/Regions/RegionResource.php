@@ -32,7 +32,7 @@ class RegionResource extends Resource
 {
     protected static ?string $model = Region::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-flag';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-flag-06';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Settings';
 

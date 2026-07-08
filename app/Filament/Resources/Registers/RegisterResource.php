@@ -59,7 +59,7 @@ class RegisterResource extends Resource
 {
     protected static ?string $model = Register::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-office';
+    protected static string|\BackedEnum|null $navigationIcon = 'untitledui-file-check-02';
 
     protected static ?int $navigationSort = 2;
 

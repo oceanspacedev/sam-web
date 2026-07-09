@@ -67,3 +67,5 @@ tasklist-fixer.md
 api_integration_test.dart
 
 .superpowers/
+
+.worktrees/

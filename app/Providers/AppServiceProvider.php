@@ -109,7 +109,13 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('whatsapp-otp', function (Request $request) {
-            $number = WhatsAppNumber::normalize((string) ($request->input('whatsapp_number') ?? $request->input('nomor_whatsapp') ?? ''));
+            $number = WhatsAppNumber::normalize((string) (
+                $request->input('whatsapp_number')
+                ?? $request->input('nomor_whatsapp')
+                ?? $request->input('phone')
+                ?? $request->input('data.whatsapp_number')
+                ?? ''
+            ));
             $identifier = $number !== '' ? md5($number) : 'unknown';
             $actor = $request->user()?->id ?: $request->ip();
 
@@ -121,7 +127,13 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('whatsapp-verify', function (Request $request) {
-            $number = WhatsAppNumber::normalize((string) ($request->input('whatsapp_number') ?? $request->input('nomor_whatsapp') ?? ''));
+            $number = WhatsAppNumber::normalize((string) (
+                $request->input('whatsapp_number')
+                ?? $request->input('nomor_whatsapp')
+                ?? $request->input('phone')
+                ?? $request->input('data.whatsapp_number')
+                ?? ''
+            ));
             $identifier = $number !== '' ? md5($number) : 'unknown';
 
             return [

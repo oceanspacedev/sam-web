@@ -6,3 +6,7 @@
   align-self: flex-start !important;
   justify-self: start !important;
 }
+
+.whatsapp-login-icon {
+  fill: #25d366;
+}

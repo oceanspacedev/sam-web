@@ -80,6 +80,10 @@ class AdminPanelProvider extends PanelProvider
                     <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
                 ',
             )
+            ->renderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn () => view('auth.login-extra'),
+            )
             ->authMiddleware([
                 Authenticate::class,
             ]);

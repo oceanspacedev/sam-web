@@ -173,36 +173,48 @@ class OrganizationalManagementScope
             return $query;
         }
 
-        $badanUsahaIds = $user->badanUsahas()->pluck('badan_usahas.id')->all();
-        $divisiIds = $user->divisis()->pluck('divisions.id')->all();
-        $regionIds = $user->regions()->pluck('regions.id')->all();
-        $clusterIds = $user->clusters()->pluck('clusters.id')->all();
+        $grants = $user->getEffectiveOrganizationalGrants();
 
-        $hasAnyAssignment = $badanUsahaIds !== []
-            || $divisiIds !== []
-            || $regionIds !== []
-            || $clusterIds !== [];
-
-        if (! $hasAnyAssignment) {
+        if (OrganizationalEffectiveGrants::isEmpty($grants)) {
             return $query->whereRaw('1 = 0');
         }
 
-        if ($badanUsahaIds !== []) {
-            $query->whereIn($badanUsahaColumn, $badanUsahaIds);
+        $columnMap = ['badanusaha' => $badanUsahaColumn];
+
+        if ($divisiColumn !== null) {
+            $columnMap['divisi'] = $divisiColumn;
         }
 
-        if ($divisiColumn !== null && $divisiIds !== []) {
-            $query->whereIn($divisiColumn, $divisiIds);
+        if ($regionColumn !== null) {
+            $columnMap['region'] = $regionColumn;
         }
 
-        if ($regionColumn !== null && $regionIds !== []) {
-            $query->whereIn($regionColumn, $regionIds);
+        if ($clusterColumn !== null) {
+            $columnMap['cluster'] = $clusterColumn;
         }
 
-        if ($clusterColumn !== null && $clusterIds !== []) {
-            $query->whereIn($clusterColumn, $clusterIds);
+        $table = $query->getModel()->getTable();
+
+        // For hierarchy entity listing (id columns), expand full grants downward
+        // so a full-divisi grant includes all regions/clusters under it.
+        if (($divisiColumn === 'id' || $regionColumn === 'id' || $clusterColumn === 'id')) {
+            $entity = match (true) {
+                $clusterColumn === 'id' => 'cluster',
+                $regionColumn === 'id' => 'region',
+                $divisiColumn === 'id' => 'divisi',
+                default => 'badanusaha',
+            };
+
+            $raw = [
+                'badanusaha' => array_map('intval', $user->badanUsahas()->pluck('badan_usahas.id')->all()),
+                'divisi' => array_map('intval', $user->divisis()->pluck('divisions.id')->all()),
+                'region' => array_map('intval', $user->regions()->pluck('regions.id')->all()),
+                'cluster' => array_map('intval', $user->clusters()->pluck('clusters.id')->all()),
+            ];
+
+            return OrganizationalEffectiveGrants::applyHierarchyVisibility($query, $grants, $raw, $entity);
         }
 
-        return $query;
+        return OrganizationalEffectiveGrants::applyOrColumns($query, $grants, $table, $columnMap);
     }
 }

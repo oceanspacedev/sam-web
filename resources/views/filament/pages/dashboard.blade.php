@@ -53,7 +53,7 @@
 
 <div class="space-y-8">
 
-    {{-- Header: operator + range filter (judul "Dashboard Operasional" dirender Filament sebagai page header) --}}
+    {{-- Header: operator + range filter (judul "Dashboard" dirender Filament sebagai page header) --}}
     <div class="space-y-3 sm:flex sm:items-start sm:justify-between sm:space-x-4 sm:space-y-0">
         <div>
             @if ($viewer)

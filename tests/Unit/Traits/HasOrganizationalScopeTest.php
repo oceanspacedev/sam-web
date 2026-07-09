@@ -107,7 +107,7 @@ test('user with cluster scope sees only assigned cluster outlets', function () {
     expect($visibleOutlets->contains($outlet2))->toBeFalse();
 });
 
-test('empty pivot tables treated as all access for that level', function () {
+test('empty pivot tables block access for scoped roles', function () {
     $badanUsaha = BadanUsaha::factory()->create();
     $role = Role::factory()->create(['organizational_scope_level' => 'badanusaha']);
     $user = User::factory()->create(['role_id' => $role->id]);
@@ -115,9 +115,8 @@ test('empty pivot tables treated as all access for that level', function () {
 
     $outlet = Outlet::factory()->create(['badanusaha_id' => $badanUsaha->id]);
 
-    // Empty pivot = 'all' access for that scope level
-    expect(Outlet::query()->visibleTo($user)->count())->toBeGreaterThan(0);
-    expect($outlet->isVisibleTo($user))->toBeTrue();
+    expect(Outlet::query()->visibleTo($user)->count())->toBe(0);
+    expect($outlet->isVisibleTo($user))->toBeFalse();
 });
 
 test('organizational IDs are cached to avoid N+1 queries', function () {

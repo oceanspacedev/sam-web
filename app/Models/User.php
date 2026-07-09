@@ -50,91 +50,80 @@ class User extends Authenticatable implements FilamentUser, HasName
     protected ?array $cachedOrganizationalIds = null;
 
     /**
+     * Cached effective OR grants derived from pivots.
+     *
+     * @var array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>}|null
+     */
+    protected ?array $cachedEffectiveGrants = null;
+
+    /**
+     * Cached downward-expanded accessible IDs from effective grants.
+     *
+     * @var array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>}|null
+     */
+    protected ?array $cachedExpandedOrganizationalIds = null;
+
+    /**
      * Scope query berdasarkan organizational hierarchy user.
      * Uses many-to-many pivot tables for User model.
+     * Visibility is the OR of overlapping assignments under effective grants.
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        // Check if user has a role
         if (! $user->role) {
-            return $query->whereRaw('1 = 0'); // Return empty result
+            return $query->whereRaw('1 = 0');
         }
 
-        // If role has full access, no filtering needed
         if ($user->role->hasFullAccess()) {
             return $query;
         }
 
-        // Use cached organizational IDs from user to avoid N+1 queries
-        $ids = $user->getOrganizationalIds();
-        $scopeLevel = $ids['scope_level'];
+        $grants = $user->getEffectiveOrganizationalGrants();
 
-        // Apply hierarchical filtering based on scope level using pivot tables
-        switch ($scopeLevel) {
-            case 'badanusaha':
-                if (! empty($ids['badanusaha'])) {
-                    $query->whereHas('badanUsahas', function ($q) use ($ids) {
-                        $q->whereIn('badan_usahas.id', $ids['badanusaha']);
-                    });
-                }
-                break;
-
-            case 'divisi':
-                if (! empty($ids['badanusaha'])) {
-                    $query->whereHas('badanUsahas', function ($q) use ($ids) {
-                        $q->whereIn('badan_usahas.id', $ids['badanusaha']);
-                    });
-                }
-                if (! empty($ids['divisi'])) {
-                    $query->whereHas('divisis', function ($q) use ($ids) {
-                        $q->whereIn('divisions.id', $ids['divisi']);
-                    });
-                }
-                break;
-
-            case 'region':
-                if (! empty($ids['badanusaha'])) {
-                    $query->whereHas('badanUsahas', function ($q) use ($ids) {
-                        $q->whereIn('badan_usahas.id', $ids['badanusaha']);
-                    });
-                }
-                if (! empty($ids['divisi'])) {
-                    $query->whereHas('divisis', function ($q) use ($ids) {
-                        $q->whereIn('divisions.id', $ids['divisi']);
-                    });
-                }
-                if (! empty($ids['region'])) {
-                    $query->whereHas('regions', function ($q) use ($ids) {
-                        $q->whereIn('regions.id', $ids['region']);
-                    });
-                }
-                break;
-
-            case 'cluster':
-                if (! empty($ids['badanusaha'])) {
-                    $query->whereHas('badanUsahas', function ($q) use ($ids) {
-                        $q->whereIn('badan_usahas.id', $ids['badanusaha']);
-                    });
-                }
-                if (! empty($ids['divisi'])) {
-                    $query->whereHas('divisis', function ($q) use ($ids) {
-                        $q->whereIn('divisions.id', $ids['divisi']);
-                    });
-                }
-                if (! empty($ids['region'])) {
-                    $query->whereHas('regions', function ($q) use ($ids) {
-                        $q->whereIn('regions.id', $ids['region']);
-                    });
-                }
-                if (! empty($ids['cluster'])) {
-                    $query->whereHas('clusters', function ($q) use ($ids) {
-                        $q->whereIn('clusters.id', $ids['cluster']);
-                    });
-                }
-                break;
+        if (\App\Support\OrganizationalEffectiveGrants::isEmpty($grants)) {
+            return $query->whereRaw('1 = 0');
         }
 
-        return $query;
+        $accessible = $user->getExpandedOrganizationalIds();
+
+        return $query->where(function (Builder $scope) use ($accessible): void {
+            $applied = false;
+
+            if ($accessible['badanusaha'] !== []) {
+                $scope->whereHas('badanUsahas', function (Builder $q) use ($accessible): void {
+                    $q->whereIn('badan_usahas.id', $accessible['badanusaha']);
+                });
+                $applied = true;
+            }
+
+            if ($accessible['divisi'] !== []) {
+                $method = $applied ? 'orWhereHas' : 'whereHas';
+                $scope->{$method}('divisis', function (Builder $q) use ($accessible): void {
+                    $q->whereIn('divisions.id', $accessible['divisi']);
+                });
+                $applied = true;
+            }
+
+            if ($accessible['region'] !== []) {
+                $method = $applied ? 'orWhereHas' : 'whereHas';
+                $scope->{$method}('regions', function (Builder $q) use ($accessible): void {
+                    $q->whereIn('regions.id', $accessible['region']);
+                });
+                $applied = true;
+            }
+
+            if ($accessible['cluster'] !== []) {
+                $method = $applied ? 'orWhereHas' : 'whereHas';
+                $scope->{$method}('clusters', function (Builder $q) use ($accessible): void {
+                    $q->whereIn('clusters.id', $accessible['cluster']);
+                });
+                $applied = true;
+            }
+
+            if (! $applied) {
+                $scope->whereRaw('1 = 0');
+            }
+        });
     }
 
     /**
@@ -161,9 +150,37 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->cachedOrganizationalIds;
     }
 
+    /**
+     * @return array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>}
+     */
+    public function getEffectiveOrganizationalGrants(): array
+    {
+        if ($this->cachedEffectiveGrants !== null) {
+            return $this->cachedEffectiveGrants;
+        }
+
+        return $this->cachedEffectiveGrants = \App\Support\OrganizationalEffectiveGrants::forUser($this);
+    }
+
+    /**
+     * @return array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>}
+     */
+    public function getExpandedOrganizationalIds(): array
+    {
+        if ($this->cachedExpandedOrganizationalIds !== null) {
+            return $this->cachedExpandedOrganizationalIds;
+        }
+
+        return $this->cachedExpandedOrganizationalIds = \App\Support\OrganizationalEffectiveGrants::expandAccessibleIds(
+            $this->getEffectiveOrganizationalGrants(),
+        );
+    }
+
     public function forgetOrganizationalIdsCache(): void
     {
         $this->cachedOrganizationalIds = null;
+        $this->cachedEffectiveGrants = null;
+        $this->cachedExpandedOrganizationalIds = null;
     }
 
     public function outlets(): HasMany

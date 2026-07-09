@@ -204,7 +204,7 @@ it('clears stale organizational assignments when role changes on user create', f
         ->and($createdUser->clusters()->count())->toBe(0);
 });
 
-it('prunes unrelated parent selections when adding multiple badan usaha on user create', function (): void {
+it('keeps extra badan usaha as full grant when adding multiple badan usaha on user create', function (): void {
     Filament::setCurrentPanel('admin');
 
     $createUserPermission = Permission::firstOrCreate([
@@ -269,8 +269,9 @@ it('prunes unrelated parent selections when adding multiple badan usaha on user 
 
     $createdUser = User::query()->where('username', 'user-multi-bu')->firstOrFail();
 
-    expect($createdUser->badanUsahas()->pluck('badan_usahas.id')->all())
-        ->toEqual([$buA->id])
+    // buA is ancestor of cluster path; buB without children is a full BU grant.
+    expect($createdUser->badanUsahas()->pluck('badan_usahas.id')->map(fn ($id) => (int) $id)->all())
+        ->toEqualCanonicalizing([$buA->id, $buB->id])
         ->and($createdUser->divisis()->pluck('divisions.id')->all())->toEqual([$divisionA->id])
         ->and($createdUser->regions()->pluck('regions.id')->all())->toEqual([$regionA->id])
         ->and($createdUser->clusters()->pluck('clusters.id')->all())->toEqual([$clusterA->id]);
@@ -371,7 +372,7 @@ it('clears stale organizational assignments when role changes on user edit', fun
         ->and($targetUser->clusters()->count())->toBe(0);
 });
 
-it('prunes unrelated parent selections when editing a cluster scoped user', function (): void {
+it('keeps extra badan usaha as full grant when editing a cluster scoped user', function (): void {
     $actor = createAdminActor(['Update:User']);
     $this->actingAs($actor);
 
@@ -420,7 +421,9 @@ it('prunes unrelated parent selections when editing a cluster scoped user', func
 
     $targetUser->refresh();
 
-    expect($targetUser->badanUsahas()->pluck('badan_usahas.id')->all())->toEqual([$buA->id])
+    // buA is ancestor of cluster path; buB without children is a full BU grant.
+    expect($targetUser->badanUsahas()->pluck('badan_usahas.id')->map(fn ($id) => (int) $id)->all())
+        ->toEqualCanonicalizing([$buA->id, $buB->id])
         ->and($targetUser->divisis()->pluck('divisions.id')->all())->toEqual([$division->id])
         ->and($targetUser->regions()->pluck('regions.id')->all())->toEqual([$region->id])
         ->and($targetUser->clusters()->pluck('clusters.id')->all())->toEqual([$cluster->id]);

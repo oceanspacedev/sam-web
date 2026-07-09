@@ -1,167 +1,297 @@
 <x-filament-panels::page>
-    @php $s = $treeData['summary']; @endphp
+    @php
+        $s = $treeData['summary'];
+        $generatedAt = $treeData['generated_at'] ?? null;
 
-    <div x-data="diagramJabatanChart(@js($treeData))" x-init="init()" x-on:keydown.escape.window="isCanvasFullscreen && toggleCanvasFullscreen()" x-cloak class="space-y-8">
+        $cardWrap = 'p-1 bg-gray-50 dark:bg-gray-950 rounded-xl ring-1 ring-gray-200 dark:ring-white/10 overflow-hidden';
+        $cardInner = 'rounded-lg bg-white p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-white/10';
+        $sectionHead = 'font-sans text-base font-semibold text-gray-900 dark:text-white';
+        $sectionDesc = 'mt-1 max-w-3xl text-sm text-gray-500 dark:text-gray-400';
 
-        {{-- Stat tiles (shopper nested-ring) --}}
-        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-            @php
-                $tiles = [
-                    ['Badan Usaha', $s['badan_usaha_active'], $s['badan_usaha_total'], 'heroicon-o-building-office-2', 'indigo'],
-                    ['Division',    $s['division_active'],    $s['division_total'],    'heroicon-o-rectangle-stack', 'sky'],
-                    ['Region',      $s['region_active'],      $s['region_total'],      'heroicon-o-map',             'teal'],
-                    ['Cluster',     $s['cluster_active'],     $s['cluster_total'],     'heroicon-o-squares-2x2',     'amber'],
-                    ['User',        $s['user_active'],        $s['user_total'],        'heroicon-o-users',          'emerald'],
-                    ['Role',        $s['role_active'],        $s['role_total'],        'heroicon-o-shield-check',   'violet'],
-                ];
-            @endphp
+        $tiles = [
+            ['Badan Usaha', $s['badan_usaha_active'], $s['badan_usaha_total'], 'heroicon-o-building-office-2', 'bg-indigo-500'],
+            ['Division',    $s['division_active'],    $s['division_total'],    'heroicon-o-rectangle-stack', 'bg-sky-500'],
+            ['Region',      $s['region_active'],      $s['region_total'],      'heroicon-o-map',             'bg-teal-500'],
+            ['Cluster',     $s['cluster_active'],     $s['cluster_total'],     'heroicon-o-squares-2x2',     'bg-amber-500'],
+            ['User',        $s['user_active'],        $s['user_total'],        'heroicon-o-users',          'bg-emerald-500'],
+            ['Role',        $s['role_active'],        $s['role_total'],        'heroicon-o-shield-check',   'bg-violet-500'],
+        ];
+
+        $tabBtn = 'rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap';
+        $tabActive = 'bg-primary-600 text-white shadow-sm';
+        $tabIdle = 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white';
+    @endphp
+
+    <div wire:ignore x-data="diagramJabatanChart(@js($treeData))" x-init="init()" x-on:keydown.escape.window="isCanvasFullscreen && toggleCanvasFullscreen()" class="space-y-8">
+
+        {{-- Meta row --}}
+        @if ($generatedAt)
+            <p class="text-xs text-gray-400 dark:text-gray-500">
+                Data live dari database · diperbarui {{ $generatedAt }}
+            </p>
+        @endif
+
+        {{-- Stat cards (dashboard pattern) --}}
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             @foreach ($tiles as $t)
-                <div class="rounded-xl bg-white p-4 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-white/10">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{{ $t[0] }}</span>
-                        <x-filament::icon :icon="$t[3]" class="size-4 text-gray-300 dark:text-gray-600" />
+                <div class="{{ $cardWrap }}">
+                    <div class="{{ $cardInner }}">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ $t[0] }}</span>
+                            <span class="size-2 rounded-full {{ $t[4] }}"></span>
+                        </div>
+                        <p class="mt-2 font-sans text-2xl font-bold text-gray-900 dark:text-white">{{ $t[1] }}</p>
+                        <p class="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{{ $t[2] }} total · {{ max($t[2] - $t[1], 0) }} nonaktif</p>
                     </div>
-                    <p class="mt-2 font-sans text-2xl font-bold text-gray-900 dark:text-white">{{ $t[1] }}</p>
-                    <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">/ {{ $t[2] }} total</p>
                 </div>
             @endforeach
         </div>
 
-        {{-- Tabs (shopper underline) --}}
-        <nav class="-mb-px flex space-x-6 overflow-x-auto border-b border-gray-200 dark:border-white/10">
-            <button type="button" x-on:click="pane = 'org'" @class(['border-b-2 px-1 py-3 text-sm font-medium whitespace-nowrap transition-colors', 'border-primary-500 text-primary-600 dark:text-primary-400' => "pane === 'org'", 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400' => "pane !== 'org'"])>
-                1. Hirarki Organisasi
-            </button>
-            <button type="button" x-on:click="pane = 'roles'" @class(['border-b-2 px-1 py-3 text-sm font-medium whitespace-nowrap transition-colors', 'border-primary-500 text-primary-600 dark:text-primary-400' => "pane === 'roles'", 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400' => "pane !== 'roles'"])>
-                2. Pohon Peran
-            </button>
-            <button type="button" x-on:click="pane = 'tm'" @class(['border-b-2 px-1 py-3 text-sm font-medium whitespace-nowrap transition-colors', 'border-primary-500 text-primary-600 dark:text-primary-400' => "pane === 'tm'", 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400' => "pane !== 'tm'"])>
-                3. Hirarki Tim
-            </button>
-        </nav>
-
-        {{-- Toolbar + legend (shopper small buttons) --}}
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <span class="font-medium">Badan Usaha</span>
-                <select x-model="selectedBadanUsaha" x-on:change="renderOrgTree()" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 dark:border-white/10 dark:bg-gray-900 dark:text-gray-300">
-                    <option value="all">Semua Badan Usaha</option>
-                    <template x-for="item in orgOptions" :key="item.id">
-                        <option :value="String(item.id)" x-text="item.name"></option>
-                    </template>
-                </select>
-            </label>
-
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="mr-1 text-sm tabular-nums text-gray-400 dark:text-gray-500" x-text="`${Math.round(orgZoom * 100)}%`"></span>
-                <button type="button" x-on:click="zoomOut()" class="dj-btn" title="Zoom out"><x-filament::icon icon="heroicon-o-magnifying-glass-minus" class="size-4" /></button>
-                <button type="button" x-on:click="zoomIn()" class="dj-btn" title="Zoom in"><x-filament::icon icon="heroicon-o-magnifying-glass-plus" class="size-4" /></button>
-                <button type="button" x-on:click="resetZoom()" class="dj-btn" title="Reset">Reset</button>
-                <span class="mx-1 h-5 w-px bg-gray-200 dark:bg-white/10"></span>
-                <button type="button" x-on:click="expandAll('org', true)" class="dj-btn"><x-filament::icon icon="heroicon-o-arrows-pointing-out" class="size-4" /> Expand</button>
-                <button type="button" x-on:click="expandAll('org', false)" class="dj-btn"><x-filament::icon icon="heroicon-o-bars-3-bottom-left" class="size-4" /> Collapse</button>
-                <span class="mx-1 h-5 w-px bg-gray-200 dark:bg-white/10"></span>
-                <button type="button" x-on:click="toggleCanvasFullscreen()" class="dj-btn-primary">
-                    <x-filament::icon icon="heroicon-o-window" class="size-4" />
-                    <span x-text="isCanvasFullscreen ? 'Keluar' : 'Fullscreen'"></span>
+        {{-- Tab switcher (dashboard segmented control) --}}
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="inline-flex max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-white p-0.5 dark:border-white/10 dark:bg-gray-900" role="tablist" aria-label="Tampilan diagram">
+                <button type="button" role="tab" x-on:click="pane = 'org'" :aria-selected="pane === 'org'" :class="pane === 'org' ? '{{ $tabBtn }} {{ $tabActive }}' : '{{ $tabBtn }} {{ $tabIdle }}'">
+                    Hirarki Organisasi
+                </button>
+                <button type="button" role="tab" x-on:click="pane = 'roles'" :aria-selected="pane === 'roles'" :class="pane === 'roles' ? '{{ $tabBtn }} {{ $tabActive }}' : '{{ $tabBtn }} {{ $tabIdle }}'">
+                    Pohon Peran
+                </button>
+                <button type="button" role="tab" x-on:click="pane = 'tm'" :aria-selected="pane === 'tm'" :class="pane === 'tm' ? '{{ $tabBtn }} {{ $tabActive }}' : '{{ $tabBtn }} {{ $tabIdle }}'">
+                    Hirarki Tim
                 </button>
             </div>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-500 dark:text-gray-400">
-            <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-indigo-500"></span>Badan Usaha</span>
-            <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-sky-500"></span>Division</span>
-            <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-teal-500"></span>Region</span>
-            <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-amber-500"></span>Cluster</span>
-            <span class="text-gray-400 dark:text-gray-500">Klik kotak untuk expand/collapse · klik chip <b class="font-medium text-gray-600 dark:text-gray-300">User</b> untuk daftar user · drag area kosong untuk geser · scroll untuk zoom.</span>
+            <p class="text-xs text-gray-400 dark:text-gray-500" x-show="pane === 'org'" x-cloak>Drag area kosong untuk geser · scroll untuk zoom</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500" x-show="pane === 'roles'" x-cloak>Klik kotak untuk expand/collapse cabang peran</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500" x-show="pane === 'tm'" x-cloak>Diurutkan berdasarkan jumlah anggota tim</p>
         </div>
 
         {{-- ORG canvas --}}
-        <div x-show="pane==='org'" class="dj-panel">
-            <div
-                x-ref="orgViewport"
-                class="orgchart-canvas rounded-xl ring-1 ring-gray-200 dark:ring-white/10"
-                x-bind:class="{ 'is-fullscreen': isCanvasFullscreen }"
-                x-on:pointerdown="startPan($event)"
-                x-on:pointermove.window="panCanvas($event)"
-                x-on:pointerup.window="stopPan()"
-                x-on:pointercancel.window="stopPan()"
-                x-on:wheel.prevent="zoomWheel($event)"
-            >
-                <ul x-ref="orgTree" class="orgchart !list-none !m-0 !p-0"></ul>
-
-                {{-- User popover --}}
-                <div
-                    x-show="hoveredNodeUsers"
-                    x-cloak
-                    x-transition.opacity.duration.120ms
-                    class="dj-user-popover rounded-xl bg-white p-3 ring-1 ring-gray-200 shadow-lg dark:bg-gray-900 dark:ring-white/10"
-                    x-on:pointerdown.stop x-on:click.stop x-on:wheel.stop
-                >
-                    <div class="flex items-start justify-between gap-3 pb-2">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-primary-600 dark:text-primary-400">Daftar user akses</p>
-                            <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white" x-text="hoveredNodeUsers?.title"></p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400" x-text="hoveredNodeUsers?.subtitle"></p>
-                        </div>
-                        <button type="button" x-on:click="closeUserPopover()" aria-label="Tutup" class="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white">×</button>
-                    </div>
-                    <template x-if="hoveredNodeUsers && hoveredNodeUsers.users.length === 0">
-                        <p class="py-2 text-sm text-gray-500 dark:text-gray-400">Tidak ada user aktif dengan akses tepat di level ini.</p>
-                    </template>
-                    <div class="grid gap-2" x-show="hoveredNodeUsers && hoveredNodeUsers.users.length > 0">
-                        <template x-for="user in hoveredNodeUsers?.users || []" :key="user.id">
-                            <div class="flex items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2 ring-1 ring-gray-200 dark:bg-white/5 dark:ring-white/10">
-                                <div class="min-w-0">
-                                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white" x-text="user.name"></p>
-                                    <p class="truncate text-xs text-gray-500 dark:text-gray-400">
-                                        <span x-text="user.role"></span>
-                                        <span x-show="user.username" x-text="`@${user.username}`"></span>
-                                    </p>
+        <div x-show="pane === 'org'" role="tabpanel" class="dj-panel">
+            <div class="{{ $cardWrap }}">
+                <div class="px-4 pt-4 pb-3">
+                    <h3 class="{{ $sectionHead }}">Hirarki Organisasi</h3>
+                    <p class="{{ $sectionDesc }}">Badan Usaha → Division → Region → Cluster. Klik chip <span class="font-medium text-gray-600 dark:text-gray-300">User</span> untuk melihat daftar user akses per level.</p>
+                </div>
+                <div class="{{ $cardInner }} !p-0 overflow-hidden">
+                    <div
+                        x-ref="orgViewport"
+                        class="orgchart-canvas"
+                        x-bind:class="{ 'is-fullscreen': isCanvasFullscreen }"
+                        x-on:pointerdown="startPan($event)"
+                        x-on:pointermove.window="panCanvas($event)"
+                        x-on:pointerup.window="stopPan()"
+                        x-on:pointercancel.window="stopPan()"
+                        x-on:wheel.prevent="zoomWheel($event)"
+                    >
+                        <div class="dj-float-controls" x-on:pointerdown.stop x-on:click.stop x-on:wheel.stop>
+                            <div class="dj-float-controls-left">
+                                <div class="dj-cluster">
+                                    <x-filament::icon icon="heroicon-o-funnel" class="dj-cluster-icon" />
+                                    <select x-model="selectedBadanUsaha" x-on:change="renderOrgTree()" class="dj-select" aria-label="Filter Badan Usaha">
+                                        <option value="all">Semua Badan Usaha</option>
+                                        <template x-for="item in orgOptions" :key="item.id">
+                                            <option :value="String(item.id)" x-text="item.name"></option>
+                                        </template>
+                                    </select>
                                 </div>
-                                <template x-if="user.is_multi">
-                                    <span class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" x-text="`${user.assignment_count} area`"></span>
-                                </template>
                             </div>
-                        </template>
+                            <div class="dj-float-controls-right">
+                                <div class="dj-cluster" role="group" aria-label="Zoom">
+                                    <button type="button" x-on:click="zoomOut()" class="dj-icon-btn" title="Perkecil"><x-filament::icon icon="heroicon-o-minus" class="size-4" /></button>
+                                    <button type="button" x-on:click="resetZoom()" class="dj-zoom-label" title="Reset zoom" x-text="`${Math.round(orgZoom * 100)}%`"></button>
+                                    <button type="button" x-on:click="zoomIn()" class="dj-icon-btn" title="Perbesar"><x-filament::icon icon="heroicon-o-plus" class="size-4" /></button>
+                                </div>
+                                <div class="dj-cluster" role="group" aria-label="Expand collapse">
+                                    <button type="button" x-on:click="expandAll('org', true)" class="dj-icon-btn" title="Expand semua"><x-filament::icon icon="heroicon-o-arrows-pointing-out" class="size-4" /></button>
+                                    <button type="button" x-on:click="expandAll('org', false)" class="dj-icon-btn" title="Collapse semua"><x-filament::icon icon="heroicon-o-arrows-pointing-in" class="size-4" /></button>
+                                </div>
+                                <button type="button" x-on:click="toggleCanvasFullscreen()" class="dj-cluster dj-cluster--action" :title="isCanvasFullscreen ? 'Keluar fullscreen' : 'Fullscreen'">
+                                    <x-filament::icon icon="heroicon-o-arrows-pointing-out" class="size-4" x-show="!isCanvasFullscreen" />
+                                    <x-filament::icon icon="heroicon-o-arrows-pointing-in" class="size-4" x-show="isCanvasFullscreen" x-cloak />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="dj-legend" x-on:pointerdown.stop x-on:click.stop x-on:wheel.stop>
+                            <span class="dj-legend-item"><span class="dj-dot bg-indigo-500"></span>BU</span>
+                            <span class="dj-legend-item"><span class="dj-dot bg-sky-500"></span>Div</span>
+                            <span class="dj-legend-item"><span class="dj-dot bg-teal-500"></span>Reg</span>
+                            <span class="dj-legend-item"><span class="dj-dot bg-amber-500"></span>Clu</span>
+                        </div>
+
+                        <ul x-ref="orgTree" class="orgchart !list-none !m-0 !p-0"></ul>
+
+                        <div
+                            x-show="hoveredNodeUsers"
+                            x-cloak
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 translate-y-1"
+                            x-transition:enter-end="opacity-100 translate-y-0"
+                            class="dj-user-panel overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-white/10 dark:bg-gray-900"
+                            x-on:pointerdown.stop x-on:click.stop x-on:wheel.stop
+                        >
+                            <div class="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-white/10">
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <p class="truncate text-sm font-semibold text-gray-900 dark:text-white" x-text="formatPersonName(hoveredNodeUsers?.title)"></p>
+                                        <span class="inline-flex shrink-0 items-center rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700 ring-1 ring-inset ring-primary-600/20 dark:bg-primary-500/10 dark:text-primary-300 dark:ring-primary-400/30" x-text="hoveredNodeUsers?.areaLabel"></span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" x-show="!hoveredNodeUsers?.loading && hoveredNodeUsers?.users?.length" x-text="`${hoveredNodeUsers?.users?.length || 0} user dengan akses`"></p>
+                                </div>
+                                <button type="button" x-on:click="closeUserPopover()" aria-label="Tutup" class="dj-icon-btn dj-icon-btn--muted">
+                                    <x-filament::icon icon="heroicon-o-x-mark" class="size-4" />
+                                </button>
+                            </div>
+
+                            <div class="max-h-72 overflow-y-auto">
+                                <template x-if="hoveredNodeUsers?.loading">
+                                    <div class="flex items-center justify-center gap-2 px-4 py-8 text-sm text-gray-500 dark:text-gray-400">
+                                        <svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                        Memuat daftar user...
+                                    </div>
+                                </template>
+
+                                <template x-if="hoveredNodeUsers && !hoveredNodeUsers.loading && hoveredNodeUsers.error">
+                                    <div class="flex flex-col items-center px-6 py-8 text-center">
+                                        <x-filament::icon icon="heroicon-o-exclamation-triangle" class="size-6 text-amber-500" />
+                                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Gagal memuat daftar user.</p>
+                                    </div>
+                                </template>
+
+                                <template x-if="hoveredNodeUsers && !hoveredNodeUsers.loading && !hoveredNodeUsers.error && hoveredNodeUsers.users.length === 0">
+                                    <div class="flex flex-col items-center px-6 py-10 text-center">
+                                        <x-filament::icon icon="heroicon-o-user-minus" class="size-6 text-gray-300 dark:text-gray-600" />
+                                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Tidak ada user aktif di level ini.</p>
+                                    </div>
+                                </template>
+
+                                <ul class="divide-y divide-gray-200 dark:divide-white/10" x-show="hoveredNodeUsers && !hoveredNodeUsers.loading && !hoveredNodeUsers.error && hoveredNodeUsers.users.length > 0">
+                                    <template x-for="user in hoveredNodeUsers?.users || []" :key="user.id">
+                                        <li class="flex items-start gap-3 px-4 py-3.5">
+                                            <span
+                                                class="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-semibold text-gray-600 ring-1 ring-gray-200 dark:bg-white/10 dark:text-gray-300 dark:ring-white/10"
+                                                x-text="userInitials(user.name)"
+                                            ></span>
+                                            <div class="min-w-0 flex-1 space-y-1.5">
+                                                <div>
+                                                    <p class="text-sm font-medium leading-snug text-gray-900 dark:text-white" x-text="formatPersonName(user.name)"></p>
+                                                    <p class="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                                                        <span x-text="user.role"></span>
+                                                        <template x-if="user.username"><span x-text="` · @${user.username}`"></span></template>
+                                                        <template x-if="shouldShowCoverage(user)">
+                                                            <span class="text-gray-400 dark:text-gray-500" x-text="` · ${user.areas.length} wilayah`"></span>
+                                                        </template>
+                                                    </p>
+                                                </div>
+
+                                                <template x-if="shouldShowCoverage(user) && !isUserAreasExpanded(user.id)">
+                                                    <div class="space-y-1.5">
+                                                        <p class="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Wilayah lain</p>
+                                                        <div class="flex flex-wrap gap-1.5">
+                                                            <template x-for="area in otherAreas(user).slice(0, 3)" :key="`${user.id}-preview-${area.id}`">
+                                                                <span class="inline-flex rounded-md bg-gray-50 px-2 py-1 text-[11px] leading-none text-gray-600 ring-1 ring-gray-200 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10" x-text="formatArea(area)"></span>
+                                                            </template>
+                                                            <span
+                                                                x-show="otherAreas(user).length > 3"
+                                                                class="inline-flex rounded-md bg-gray-50 px-2 py-1 text-[11px] leading-none text-gray-500 ring-1 ring-gray-200 dark:bg-white/5 dark:text-gray-400 dark:ring-white/10"
+                                                                x-text="`+${otherAreas(user).length - 3} lainnya`"
+                                                            ></span>
+                                                        </div>
+                                                        <button type="button" class="text-xs font-medium text-primary-600 hover:underline dark:text-primary-400" x-on:click="toggleUserAreas(user.id)">Lihat semua</button>
+                                                    </div>
+                                                </template>
+
+                                                <template x-if="shouldShowCoverage(user) && isUserAreasExpanded(user.id)">
+                                                    <div class="space-y-1.5">
+                                                        <p class="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Semua wilayah</p>
+                                                        <div class="flex flex-wrap gap-1.5">
+                                                            <template x-for="area in sortedAreas(user)" :key="`${user.id}-${area.id}`">
+                                                                <span
+                                                                    class="inline-flex rounded-md px-2 py-1 text-[11px] leading-none ring-1"
+                                                                    :class="area.id === hoveredNodeUsers?.scopeId
+                                                                        ? 'bg-primary-50 font-semibold text-primary-700 ring-primary-200 dark:bg-primary-500/10 dark:text-primary-300 dark:ring-primary-400/30'
+                                                                        : 'bg-gray-50 text-gray-600 ring-gray-200 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10'"
+                                                                    x-text="formatArea(area)"
+                                                                ></span>
+                                                            </template>
+                                                        </div>
+                                                        <button type="button" class="text-xs font-medium text-primary-600 hover:underline dark:text-primary-400" x-on:click="toggleUserAreas(user.id)">Tutup</button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </li>
+                                    </template>
+                            </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         {{-- ROLES tree --}}
-        <div x-show="pane==='roles'" x-cloak class="dj-panel">
-            <div class="flex flex-wrap items-center gap-2 pb-1">
-                <button type="button" x-on:click="expandAll('role', true)" class="dj-btn"><x-filament::icon icon="heroicon-o-arrows-pointing-out" class="size-4" /> Expand</button>
-                <button type="button" x-on:click="expandAll('role', false)" class="dj-btn"><x-filament::icon icon="heroicon-o-bars-3-bottom-left" class="size-4" /> Collapse</button>
-                <span class="text-xs text-gray-400 dark:text-gray-500">Pohon <code class="font-mono">parent_role_id</code> = lineage pelaporan, bukan filter akses data.</span>
-            </div>
-            <div class="orgchart-scroll rounded-xl ring-1 ring-gray-200 dark:ring-white/10">
-                <ul x-ref="roleTree" class="orgchart !list-none !m-0 !p-0"></ul>
+        <div x-show="pane === 'roles'" x-cloak role="tabpanel" class="dj-panel">
+            <div class="{{ $cardWrap }}">
+                <div class="px-4 pt-4 pb-3">
+                    <h3 class="{{ $sectionHead }}">Pohon Peran</h3>
+                    <p class="{{ $sectionDesc }}">Struktur <code class="font-mono text-xs">parent_role_id</code> menunjukkan lineage pelaporan antar role, bukan filter akses data operasional.</p>
+                </div>
+                <div class="{{ $cardInner }} !p-0 overflow-hidden">
+                    <div class="orgchart-scroll">
+                        <div class="dj-float-controls dj-float-controls--compact" x-on:pointerdown.stop x-on:click.stop x-on:wheel.stop>
+                            <div class="dj-cluster" role="group" aria-label="Expand collapse">
+                                <button type="button" x-on:click="expandAll('role', true)" class="dj-icon-btn" title="Expand semua"><x-filament::icon icon="heroicon-o-arrows-pointing-out" class="size-4" /></button>
+                                <button type="button" x-on:click="expandAll('role', false)" class="dj-icon-btn" title="Collapse semua"><x-filament::icon icon="heroicon-o-arrows-pointing-in" class="size-4" /></button>
+                            </div>
+                        </div>
+                        <ul x-ref="roleTree" class="orgchart !list-none !m-0 !p-0"></ul>
+                    </div>
+                </div>
             </div>
         </div>
 
         {{-- TM cards --}}
-        <div x-show="pane==='tm'" x-cloak class="dj-panel space-y-4">
-            <p class="text-xs text-gray-500 dark:text-gray-400">Top team lead via <code class="font-mono">tm_id</code> · anggota mengecualikan baris self-referencing.</p>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                @foreach ($treeData['tm_leads'] as $lead)
-                    <div class="group flex flex-col justify-between overflow-hidden rounded-xl bg-white p-4 ring-1 ring-emerald-200 dark:bg-gray-900 dark:ring-emerald-500/30">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{{ $lead['member_count'] }} anggota</span>
-                            <span class="inline-flex size-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
-                                <x-filament::icon icon="heroicon-o-user-group" class="size-4" />
-                            </span>
-                        </div>
-                        <div class="mt-4">
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ $lead['lead_name'] }}</h3>
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $lead['role'] }} · id#{{ $lead['lead_id'] }}</p>
-                        </div>
+        <div x-show="pane === 'tm'" x-cloak role="tabpanel" class="dj-panel">
+            <div class="{{ $cardWrap }}">
+                <div class="px-4 pt-4 pb-3">
+                    <h3 class="{{ $sectionHead }}">Hirarki Tim</h3>
+                    <p class="{{ $sectionDesc }}">Top team lead via <code class="font-mono text-xs">tm_id</code> · jumlah anggota mengecualikan baris self-referencing.</p>
+                </div>
+                <div class="{{ $cardInner }}">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        @foreach ($treeData['tm_leads'] as $i => $lead)
+                            <div class="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200 transition hover:ring-gray-300 dark:bg-white/5 dark:ring-white/10 dark:hover:ring-white/20">
+                                <div class="flex items-start justify-between gap-3">
+                                    <span class="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700 ring-1 ring-primary-600/20 dark:bg-primary-500/10 dark:text-primary-300 dark:ring-primary-400/30">{{ $i + 1 }}</span>
+                                    <span class="inline-flex size-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                                        <x-filament::icon icon="heroicon-o-user-group" class="size-4" />
+                                    </span>
+                                </div>
+                                <div class="mt-3">
+                                    <p class="font-sans text-lg font-semibold text-gray-900 dark:text-white">{{ $lead['lead_name'] }}</p>
+                                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $lead['role'] }}</p>
+                                </div>
+                                <dl class="mt-4 grid grid-cols-2 gap-2 text-sm">
+                                    <div class="rounded-md bg-white px-2.5 py-2 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-white/10">
+                                        <dt class="text-xs text-gray-500 dark:text-gray-400">Anggota</dt>
+                                        <dd class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ $lead['member_count'] }}</dd>
+                                    </div>
+                                    <div class="rounded-md bg-white px-2.5 py-2 ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-white/10">
+                                        <dt class="text-xs text-gray-500 dark:text-gray-400">Lead ID</dt>
+                                        <dd class="font-semibold tabular-nums text-gray-900 dark:text-white">#{{ $lead['lead_id'] }}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        @endforeach
                     </div>
-                @endforeach
-            </div>
-            <div class="rounded-xl bg-gray-50 p-4 text-sm text-gray-500 ring-1 ring-gray-200 dark:bg-white/5 dark:text-gray-400 dark:ring-white/10">
-                <b class="font-medium text-gray-700 dark:text-gray-200">Catatan:</b> <code class="font-mono">tm_id</code> dipakai untuk supervision/approval &amp; grouping, <b class="font-medium text-gray-700 dark:text-gray-200">bukan</b> batas akses data. Data anggota tim tetap ditentukan oleh role dan area kerja masing-masing.
+
+                    <div class="mt-5 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-500 ring-1 ring-gray-200 dark:bg-white/5 dark:text-gray-400 dark:ring-white/10">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Catatan:</span>
+                        <code class="font-mono text-xs">tm_id</code> dipakai untuk supervision/approval &amp; grouping,
+                        <span class="font-medium text-gray-700 dark:text-gray-200">bukan</span> batas akses data.
+                        Data anggota tim tetap ditentukan oleh role dan area kerja masing-masing.
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -171,22 +301,44 @@
         [x-cloak]{display:none!important}
         .dj-panel{display:grid;gap:1rem}
 
-        /* Small bordered buttons (shopper toolbar style) */
-        .dj-btn{display:inline-flex;align-items:center;gap:.375rem;border-radius:.5rem;border:1px solid rgb(229 231 235);background:#fff;padding:.375rem .625rem;font-size:.75rem;font-weight:500;color:#374151;transition:background-color .12s,color .12s}
-        .dj-btn:hover{background:#f9fafb;color:#111827}
-        .dark .dj-btn{border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#d1d5db}
-        .dark .dj-btn:hover{background:rgba(255,255,255,.1);color:#fff}
-        .dj-btn-primary{display:inline-flex;align-items:center;gap:.375rem;border-radius:.5rem;background:var(--c-primary-600,#d97706);padding:.375rem .75rem;font-size:.75rem;font-weight:600;color:#fff}
-        .dj-btn-primary:hover{opacity:.92}
-        .dark .dj-btn-primary{background:var(--c-primary-500,#f59e0b)}
+        /* Floating control clusters (dashboard segmented style) */
+        .dj-float-controls{position:absolute;top:12px;left:12px;right:12px;z-index:45;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;pointer-events:none}
+        .dj-float-controls--compact{justify-content:flex-start}
+        .dj-float-controls-left,.dj-float-controls-right{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;pointer-events:auto}
+        .dj-cluster{display:inline-flex;align-items:center;gap:.125rem;border-radius:.5rem;border:1px solid rgb(229 231 235);background:#fff;padding:.125rem;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+        .dark .dj-cluster{border-color:rgba(255,255,255,.1);background:rgb(17 24 39);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+        .dj-cluster--action{padding:.375rem;color:#374151;transition:background-color .12s,color .12s}
+        .dj-cluster--action:hover{background:#f9fafb;color:#111827}
+        .dark .dj-cluster--action{color:#d1d5db}
+        .dark .dj-cluster--action:hover{background:rgba(255,255,255,.08);color:#fff}
+        .dj-cluster-icon{margin-left:.5rem;width:1rem;height:1rem;color:#9ca3af;flex-shrink:0}
+        .dj-select{max-width:11rem;border:0;background:transparent;padding:.375rem .5rem .375rem .25rem;font-size:.8125rem;font-weight:500;color:#374151;outline:none;cursor:pointer}
+        .dark .dj-select{color:#e5e7eb}
+        .dj-icon-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:.375rem;border:0;background:transparent;padding:.375rem;color:#6b7280;transition:background-color .12s,color .12s}
+        .dj-icon-btn:hover{background:#f3f4f6;color:#111827}
+        .dark .dj-icon-btn{color:#9ca3af}
+        .dark .dj-icon-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+        .dj-icon-btn--muted{padding:.25rem}
+        .dj-zoom-label{min-width:2.75rem;border:0;background:transparent;padding:.375rem .25rem;font-size:.75rem;font-weight:600;font-variant-numeric:tabular-nums;color:#6b7280;cursor:pointer;border-radius:.375rem;transition:background-color .12s,color .12s}
+        .dj-zoom-label:hover{background:#f3f4f6;color:#111827}
+        .dark .dj-zoom-label{color:#9ca3af}
+        .dark .dj-zoom-label:hover{background:rgba(255,255,255,.08);color:#fff}
 
-        /* Canvas + tree (mechanics only — cannot be Tailwind utilities) */
-        .orgchart-canvas{overflow:hidden;position:relative;height:min(72vh,720px);cursor:grab;touch-action:none;user-select:none;background:rgba(249,250,251,.6)}
+        .dj-legend{position:absolute;bottom:12px;left:12px;z-index:45;display:inline-flex;align-items:center;gap:.625rem;border-radius:.5rem;border:1px solid rgb(229 231 235);background:rgba(255,255,255,.92);padding:.25rem .5rem;font-size:.6875rem;color:#6b7280;backdrop-filter:blur(6px);pointer-events:auto}
+        .dark .dj-legend{border-color:rgba(255,255,255,.1);background:rgba(17,24,39,.9);color:#9ca3af}
+        .dj-legend-item{display:inline-flex;align-items:center;gap:.375rem}
+        .dj-dot{width:.5rem;height:.5rem;border-radius:9999px;flex-shrink:0}
+
+        /* User access panel */
+        .dj-user-panel{position:absolute;z-index:50;bottom:12px;right:12px;width:min(380px,calc(100% - 24px));max-height:min(420px,calc(100% - 80px));display:flex;flex-direction:column;pointer-events:auto}
+
+        .orgchart-canvas{overflow:hidden;position:relative;height:min(72vh,760px);cursor:grab;touch-action:none;user-select:none;background:rgb(249 250 251)}
         .orgchart-canvas.is-panning{cursor:grabbing}
         .orgchart-canvas.is-fullscreen{position:fixed;inset:16px;z-index:60;height:auto;border-radius:12px;background:#f8fafc;box-shadow:0 24px 80px rgba(15,23,42,.28)}
-        .dark .orgchart-canvas{background:rgba(3,7,18,.32)}
+        .dark .orgchart-canvas{background:rgb(3 7 18)}
         .dark .orgchart-canvas.is-fullscreen{background:#020617;box-shadow:0 24px 80px rgba(0,0,0,.65)}
-        .orgchart-scroll{overflow:auto;padding:18px 20px 26px;max-height:min(70vh,700px)}
+        .orgchart-scroll{overflow:auto;position:relative;padding:52px 20px 28px;max-height:min(72vh,760px);background:rgb(249 250 251)}
+        .dark .orgchart-scroll{background:rgb(3 7 18)}
 
         .orgchart,.orgchart ul{list-style:none;margin:0;padding:0;display:flex;justify-content:center;position:relative}
         .orgchart{width:max-content;min-width:100%;justify-content:flex-start;transform-origin:top left;transition:transform .18s cubic-bezier(.2,.8,.2,1);--org-line:rgb(203 213 225)}
@@ -207,7 +359,6 @@
         .orgchart li:first-child::after{border-radius:6px 0 0 0}
         .orgchart ul::before{content:'';position:absolute;top:0;left:50%;border-left:2px solid var(--org-line);width:0;height:26px}
 
-        /* Org-card box (tokenized via Tailwind classes on the element; only layout here) */
         .orgcard{min-width:180px;max-width:240px;padding:11px 14px;border-radius:10px;text-align:center;cursor:pointer;transition:background-color .12s,transform .12s,border-color .12s;position:relative}
         .orgcard:hover{background-color:rgba(99,102,241,.05)}
         .dark .orgcard:hover{background-color:rgba(99,102,241,.12)}
@@ -230,13 +381,15 @@
         .orgcard .ochip-action:hover b,.orgcard .ochip-action:focus-visible b,.orgcard .ochip-action.is-active b{color:rgb(49 46 129)}
         .dark .orgcard .ochip-action:hover b,.dark .orgcard .ochip-action:focus-visible b,.dark .orgcard .ochip-action.is-active b{color:rgb(224 231 255)}
 
-        .dj-user-popover{position:absolute;z-index:50;top:12px;right:12px;width:min(360px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;box-shadow:0 18px 44px rgba(15,23,42,.2)}
-        .dark .dj-user-popover{box-shadow:0 18px 40px rgba(0,0,0,.45)}
 
         @media (max-width:720px){
-            .orgchart-canvas{height:520px}
+            .orgchart-canvas{height:min(65vh,560px)}
             .orgchart-canvas.is-fullscreen{inset:8px;border-radius:10px}
+            .orgchart-scroll{max-height:min(65vh,560px)}
             .orgcard{min-width:160px}
+            .dj-float-controls{justify-content:flex-start}
+            .dj-select{max-width:8.5rem}
+            .dj-user-panel{bottom:12px;left:12px;right:12px;width:auto;max-height:min(360px,50vh)}
         }
     </style>
 
@@ -254,6 +407,9 @@
                 isCanvasFullscreen: false,
                 orgRenderer: null,
                 hoveredNodeUsers: null,
+                expandedUserAreas: {},
+                userCache: {},
+                userFetchToken: 0,
                 orgOptions: (data.org || []).map(item => ({
                     id: String(item.id),
                     name: item.name || item.code || `Badan Usaha #${item.id}`,
@@ -271,11 +427,11 @@
                     const chip = (label, val, extra) => `<span class="ochip ${extra || ''}">${label} <b>${val}</b></span>`;
                     const levelLabels = { bu: 'Badan Usaha', div: 'Division', reg: 'Region', clu: 'Cluster' };
                     const userChip = (node, level) => {
-                        const users = node.scope_users || [];
-                        return `<button type="button" class="ochip ochip-action ochip-user" data-users='${esc(JSON.stringify(users))}' data-node-name="${esc(node.name || '-')}" data-node-code="${esc(node.code || '')}" data-area-label="${esc(levelLabels[level] || 'area')}" aria-label="Lihat daftar user ${esc(node.name || '-')}">User <b>${users.length}</b></button>`;
+                        const count = node.user_count || 0;
+                        if (!count) return '';
+                        return `<button type="button" class="ochip ochip-action ochip-user" data-node-id="${esc(String(node.id))}" data-level="${esc(level)}" data-node-name="${esc(node.name || '-')}" data-node-code="${esc(node.code || '')}" data-area-label="${esc(levelLabels[level] || 'area')}" aria-label="Lihat daftar user ${esc(node.name || '-')}">User <b>${count}</b></button>`;
                     };
 
-                    // Ring-based level color (Tailwind classes compiled from this file's markup usage)
                     const lvlRing = {
                         bu: 'ring-1 ring-indigo-300 dark:ring-indigo-500/40',
                         div: 'ring-1 ring-sky-300 dark:ring-sky-500/40',
@@ -344,19 +500,10 @@
                         if (el.dataset.diagramListener === 'true') return;
                         el.dataset.diagramListener = 'true';
 
-                        const showFromUserChip = e => {
-                            const userButton = e.target.closest('.ochip-action');
-                            if (userButton) this.showUserPopover(userButton);
-                        };
-                        el.addEventListener('pointerover', showFromUserChip);
-                        el.addEventListener('mouseover', showFromUserChip);
-                        el.addEventListener('focusin', e => {
-                            const userButton = e.target.closest('.ochip-action');
-                            if (userButton) this.showUserPopover(userButton);
-                        });
                         el.addEventListener('click', e => {
-                            const userButton = e.target.closest('.ochip-action');
+                            const userButton = e.target.closest('.ochip-user');
                             if (userButton) {
+                                e.preventDefault();
                                 e.stopPropagation();
                                 this.showUserPopover(userButton);
                                 return;
@@ -385,22 +532,133 @@
                     });
                     if (refName === 'org') this.$nextTick(() => this.centerOrgRoot());
                 },
-                showUserPopover(button) {
-                    const users = JSON.parse(button.dataset.users || '[]');
+                async callLivewire(method, ...args) {
+                    const wire = this.$wire ?? this.$root?._x_livewire;
+                    if (!wire) {
+                        throw new Error('Livewire tidak tersedia');
+                    }
+                    if (typeof wire[method] === 'function') {
+                        return await wire[method](...args);
+                    }
+                    return await wire.call(method, ...args);
+                },
+                async showUserPopover(button) {
                     const nodeName = button.dataset.nodeName || '-';
-                    const nodeCode = button.dataset.nodeCode || '';
                     const areaLabel = button.dataset.areaLabel || 'area';
-                    this.$refs.orgTree?.querySelectorAll('.ochip-action.is-active').forEach(el => el.classList.remove('is-active'));
+                    const scopeId = parseInt(button.dataset.nodeId || '0', 10) || null;
+                    const level = button.dataset.level || 'bu';
+                    const cacheKey = `${level}:${scopeId}`;
+                    this.$refs.orgTree?.querySelectorAll('.ochip-user.is-active').forEach(el => el.classList.remove('is-active'));
                     button.classList.add('is-active');
+                    this.expandedUserAreas = {};
+
+                    if (this.userCache[cacheKey]) {
+                        this.hoveredNodeUsers = {
+                            title: nodeName,
+                            areaLabel,
+                            scopeId,
+                            users: this.userCache[cacheKey],
+                            loading: false,
+                            error: false,
+                        };
+                        return;
+                    }
+
+                    const fetchToken = ++this.userFetchToken;
                     this.hoveredNodeUsers = {
-                        title: `User: ${nodeName}`,
-                        subtitle: nodeCode ? `${nodeCode} - level akses ${areaLabel}` : `Level akses ${areaLabel}`,
-                        areaLabel, users,
+                        title: nodeName,
+                        areaLabel,
+                        scopeId,
+                        users: [],
+                        loading: true,
+                        error: false,
                     };
+                    try {
+                        const users = await this.callLivewire('fetchScopeUsers', scopeId, level);
+                        if (fetchToken !== this.userFetchToken) return;
+                        const list = Array.isArray(users) ? users : [];
+                        this.userCache[cacheKey] = list;
+                        this.hoveredNodeUsers = {
+                            title: nodeName,
+                            areaLabel,
+                            scopeId,
+                            users: list,
+                            loading: false,
+                            error: false,
+                        };
+                    } catch (error) {
+                        if (fetchToken !== this.userFetchToken) return;
+                        this.hoveredNodeUsers = {
+                            title: nodeName,
+                            areaLabel,
+                            scopeId,
+                            users: [],
+                            loading: false,
+                            error: true,
+                        };
+                    }
                 },
                 closeUserPopover() {
                     this.hoveredNodeUsers = null;
-                    this.$refs.orgTree?.querySelectorAll('.ochip-action.is-active').forEach(el => el.classList.remove('is-active'));
+                    this.expandedUserAreas = {};
+                    this.$refs.orgTree?.querySelectorAll('.ochip-user.is-active').forEach(el => el.classList.remove('is-active'));
+                },
+                formatPersonName(name) {
+                    return this.formatLabel(name);
+                },
+                formatArea(area) {
+                    return this.formatLabel(area?.name || area?.code || '');
+                },
+                userInitials(name) {
+                    const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean);
+                    if (!parts.length) return '?';
+                    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+                    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                },
+                formatLabel(value) {
+                    const raw = String(value ?? '').trim();
+                    if (!raw) return '-';
+                    const normalized = raw.replace(/_/g, ' ');
+                    if (this.isCodeLabel(normalized)) {
+                        return normalized;
+                    }
+                    return normalized.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                },
+                isCodeLabel(value) {
+                    const compact = value.replace(/\s/g, '');
+                    if (/^[A-Z0-9]+(?:[.\-][A-Z0-9]+)+$/.test(compact)) {
+                        return true;
+                    }
+                    return compact.length <= 10 && compact === compact.toUpperCase() && /^[A-Z0-9.\-]+$/.test(compact);
+                },
+                shouldShowCoverage(user) {
+                    return (user?.areas?.length || 0) > 1;
+                },
+                sortedAreas(user) {
+                    const scopeId = this.hoveredNodeUsers?.scopeId;
+                    return [...(user?.areas || [])].sort((a, b) => {
+                        if (a.id === scopeId) return -1;
+                        if (b.id === scopeId) return 1;
+                        return this.formatArea(a).localeCompare(this.formatArea(b));
+                    });
+                },
+                otherAreas(user) {
+                    const scopeId = this.hoveredNodeUsers?.scopeId;
+                    return this.sortedAreas(user).filter(area => area.id !== scopeId);
+                },
+                coverageSummary(user) {
+                    const others = this.otherAreas(user);
+                    if (!others.length) return '';
+                    const preview = others.slice(0, 3).map(area => this.formatArea(area));
+                    const remaining = others.length - preview.length;
+                    if (remaining > 0) preview.push(`+${remaining} lainnya`);
+                    return preview.join(', ');
+                },
+                isUserAreasExpanded(userId) {
+                    return !!this.expandedUserAreas[userId];
+                },
+                toggleUserAreas(userId) {
+                    this.expandedUserAreas[userId] = !this.expandedUserAreas[userId];
                 },
                 filteredOrg() {
                     if (this.selectedBadanUsaha === 'all') return this.data.org || [];
@@ -408,6 +666,7 @@
                 },
                 renderOrgTree(keepScroll = true) {
                     if (!this.orgRenderer || !this.$refs.orgTree) return;
+                    this.closeUserPopover();
                     const viewport = this.$refs.orgViewport;
                     const previousPanX = this.orgPanX;
                     const previousPanY = this.orgPanY;
@@ -430,7 +689,7 @@
                     const firstRoot = this.$refs.orgTree?.querySelector(':scope > li > .orgcard');
                     if (!viewport || !firstRoot) return;
                     this.orgPanX = (viewport.clientWidth / 2) - ((firstRoot.offsetLeft + (firstRoot.offsetWidth / 2)) * this.orgZoom);
-                    this.orgPanY = 16;
+                    this.orgPanY = 72;
                     this.applyOrgZoom();
                 },
                 keepCardInView(card) {
@@ -485,7 +744,7 @@
                     this.applyOrgZoom();
                 },
                 startPan(event) {
-                    if (event.button !== 0 || event.target.closest('.orgcard')) return;
+                    if (event.button !== 0 || event.target.closest('.orgcard, .ochip-user, .dj-user-panel, .dj-float-controls, .dj-legend')) return;
                     this.panState = {
                         pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
                         panX: this.orgPanX, panY: this.orgPanY, moved: false,

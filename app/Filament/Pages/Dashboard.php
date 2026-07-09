@@ -12,7 +12,9 @@ use Livewire\Attributes\Url;
 
 class Dashboard extends BaseDashboard
 {
-    protected static ?string $title = 'Dashboard Operasional';
+    protected static ?string $navigationLabel = 'Dashboard';
+
+    protected static ?string $title = 'Dashboard';
 
     #[Url(as: 'range', history: true)]
     public ?string $range = null;

@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DiagramJabatan extends Page
@@ -13,9 +14,11 @@ class DiagramJabatan extends Page
 
     protected static string | \UnitEnum | null $navigationGroup = 'Struktur Organisasi';
 
-    protected static ?string $navigationLabel = 'Diagram Jabatan';
+    protected static ?string $navigationLabel = 'Diagram';
 
-    protected static ?string $title = 'Diagram Jabatan & Hirarki Organisasi';
+    protected static ?string $title = 'Diagram';
+
+    protected static ?string $slug = 'diagram';
 
     protected static ?int $navigationSort = 2;
 
@@ -28,24 +31,38 @@ class DiagramJabatan extends Page
 
     public function getSubheading(): ?string
     {
-        return 'Visualisasi hirarki Badan Usaha → Division → Region → Cluster, pohon peran (parent_role_id), dan tim (tm_id) dari data live DB. Murni visualisasi — tidak mengubah skema.';
+        return 'Lihat struktur organisasi, hierarki peran, dan susunan tim dalam satu tampilan.';
     }
 
     /** @return array<string, mixed> */
     protected function getViewData(): array
     {
         return [
-            'treeData' => $this->buildTreeData(),
+            'treeData' => Cache::remember('diagram_jabatan:tree:v2', 120, fn (): array => $this->buildTreeData()),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function fetchScopeUsers(int $scopeId, string $level): array
+    {
+        [$pivotTable, $pivotColumn, $scopeLevel] = $this->pivotConfig($level);
+
+        if ($pivotTable === null) {
+            return [];
+        }
+
+        return $this->scopeUsersForScope($pivotTable, $pivotColumn, $scopeLevel, $scopeId);
     }
 
     /** @return array<string, mixed> */
     protected function buildTreeData(): array
     {
-        $badanUsahaScopeUsers = $this->scopeUsersByPivot('user_badan_usaha', 'badanusaha_id', 'badanusaha');
-        $divisionScopeUsers = $this->scopeUsersByPivot('user_divisi', 'divisi_id', 'divisi');
-        $regionScopeUsers = $this->scopeUsersByPivot('user_regions', 'region_id', 'region');
-        $clusterScopeUsers = $this->scopeUsersByPivot('user_clusters', 'cluster_id', 'cluster');
+        $badanUsahaUserCounts = $this->scopeUserCountsByPivot('user_badan_usaha', 'badanusaha_id', 'badanusaha');
+        $divisionUserCounts = $this->scopeUserCountsByPivot('user_divisi', 'divisi_id', 'divisi');
+        $regionUserCounts = $this->scopeUserCountsByPivot('user_regions', 'region_id', 'region');
+        $clusterUserCounts = $this->scopeUserCountsByPivot('user_clusters', 'cluster_id', 'cluster');
 
         $clusters = DB::table('clusters')
             ->whereNull('clusters.deleted_at')
@@ -58,7 +75,7 @@ class DiagramJabatan extends Page
                 'id' => $c->id,
                 'code' => $c->code,
                 'name' => $c->name,
-                'scope_users' => $clusterScopeUsers[$c->id] ?? [],
+                'user_count' => (int) ($clusterUserCounts[$c->id] ?? 0),
             ];
         }
 
@@ -72,7 +89,7 @@ class DiagramJabatan extends Page
                 'code' => $r->code,
                 'name' => $r->name,
                 'cluster_count' => count($kids),
-                'scope_users' => $regionScopeUsers[$r->id] ?? [],
+                'user_count' => (int) ($regionUserCounts[$r->id] ?? 0),
                 'children' => $kids,
             ];
         }
@@ -89,7 +106,7 @@ class DiagramJabatan extends Page
                 'name' => $d->name,
                 'region_count' => count($kids),
                 'cluster_count' => $cCount,
-                'scope_users' => $divisionScopeUsers[$d->id] ?? [],
+                'user_count' => (int) ($divisionUserCounts[$d->id] ?? 0),
                 'children' => $kids,
             ];
         }
@@ -108,12 +125,11 @@ class DiagramJabatan extends Page
                 'division_count' => count($kids),
                 'region_count' => $rCount,
                 'cluster_count' => $cCount,
-                'scope_users' => $badanUsahaScopeUsers[$b->id] ?? [],
+                'user_count' => (int) ($badanUsahaUserCounts[$b->id] ?? 0),
                 'children' => $kids,
             ];
         }
 
-        // Pohon peran (parent_role_id) — role aktif
         $roles = DB::table('roles')->whereNull('deleted_at')
             ->select('id', 'name', 'parent_role_id', 'organizational_scope_level', 'can_access_web')
             ->get();
@@ -135,7 +151,6 @@ class DiagramJabatan extends Page
         }
         $roleRoots = array_values(array_filter($roleById, fn ($r) => $r['parent_role_id'] === null));
 
-        // Top team lead via tm_id (aktif), exclude self-reference
         $tmGroups = DB::table('users')
             ->whereNull('users.deleted_at')
             ->whereNotNull('users.tm_id')
@@ -187,10 +202,39 @@ class DiagramJabatan extends Page
     }
 
     /**
-     * @return array<int, array<int, array{id: int, name: string, username: string, role: string, assignment_count: int, is_multi: bool}>>
+     * @return array<int, int>
      */
-    protected function scopeUsersByPivot(string $pivotTable, string $pivotColumn, string $scopeLevel): array
+    protected function scopeUserCountsByPivot(string $pivotTable, string $pivotColumn, string $scopeLevel): array
     {
+        return DB::table($pivotTable)
+            ->join('users', 'users.id', '=', "{$pivotTable}.user_id")
+            ->join('roles', 'roles.id', '=', 'users.role_id')
+            ->whereNull('users.deleted_at')
+            ->where('roles.organizational_scope_level', $scopeLevel)
+            ->groupBy("{$pivotTable}.{$pivotColumn}")
+            ->select("{$pivotTable}.{$pivotColumn} as scope_id", DB::raw('COUNT(DISTINCT users.id) as user_count'))
+            ->pluck('user_count', 'scope_id')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function scopeUsersForScope(
+        string $pivotTable,
+        string $pivotColumn,
+        string $scopeLevel,
+        int $scopeId,
+    ): array {
+        [$entityTable] = match ($pivotTable) {
+            'user_badan_usaha' => ['badan_usahas'],
+            'user_divisi' => ['divisions'],
+            'user_regions' => ['regions'],
+            'user_clusters' => ['clusters'],
+            default => [null],
+        };
+
         $assignmentCounts = DB::table($pivotTable)
             ->select('user_id', DB::raw("COUNT(DISTINCT {$pivotColumn}) as assignment_count"))
             ->groupBy('user_id');
@@ -201,36 +245,102 @@ class DiagramJabatan extends Page
             ->joinSub($assignmentCounts, 'assignment_counts', function ($join) use ($pivotTable): void {
                 $join->on('assignment_counts.user_id', '=', "{$pivotTable}.user_id");
             })
+            ->where("{$pivotTable}.{$pivotColumn}", $scopeId)
             ->whereNull('users.deleted_at')
             ->where('roles.organizational_scope_level', $scopeLevel)
             ->select(
-                "{$pivotTable}.{$pivotColumn} as scope_id",
                 'users.id',
                 'users.username',
                 'users.nama_lengkap',
                 'roles.name as role_name',
                 'assignment_counts.assignment_count',
             )
-            ->get()
-            ->sortBy([
-                ['scope_id', 'asc'],
-                ['nama_lengkap', 'asc'],
-                ['username', 'asc'],
-            ]);
+            ->orderBy('users.nama_lengkap')
+            ->orderBy('users.username')
+            ->get();
 
-        $usersByScope = [];
+        if ($rows->isEmpty()) {
+            return [];
+        }
 
+        $multiUserIds = $rows
+            ->filter(fn ($row): bool => (int) $row->assignment_count > 1)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $areasByUser = ($entityTable && $multiUserIds !== [])
+            ? $this->assignmentAreasByUser($pivotTable, $pivotColumn, $entityTable, $multiUserIds)
+            : [];
+
+        $users = [];
         foreach ($rows as $row) {
-            $usersByScope[(int) $row->scope_id][] = [
-                'id' => (int) $row->id,
-                'name' => $row->nama_lengkap ?: ($row->username ?: 'User #'.$row->id),
+            $userId = (int) $row->id;
+            $displayName = $row->nama_lengkap ?: ($row->username ?: 'User #'.$row->id);
+            $users[] = [
+                'id' => $userId,
+                'name' => $displayName,
                 'username' => (string) ($row->username ?? ''),
                 'role' => (string) ($row->role_name ?? ''),
                 'assignment_count' => (int) $row->assignment_count,
                 'is_multi' => (int) $row->assignment_count > 1,
+                'areas' => $areasByUser[$userId] ?? [],
             ];
         }
 
-        return $usersByScope;
+        return $users;
+    }
+
+    /**
+     * @return array{0: string|null, 1: string|null, 2: string|null}
+     */
+    protected function pivotConfig(string $level): array
+    {
+        return match ($level) {
+            'bu' => ['user_badan_usaha', 'badanusaha_id', 'badanusaha'],
+            'div' => ['user_divisi', 'divisi_id', 'divisi'],
+            'reg' => ['user_regions', 'region_id', 'region'],
+            'clu' => ['user_clusters', 'cluster_id', 'cluster'],
+            default => [null, null, null],
+        };
+    }
+
+    /**
+     * @param  array<int, int>  $userIds
+     * @return array<int, array<int, array{id: int, name: string, code: string}>>
+     */
+    protected function assignmentAreasByUser(
+        string $pivotTable,
+        string $pivotColumn,
+        string $entityTable,
+        array $userIds,
+    ): array {
+        if ($userIds === []) {
+            return [];
+        }
+
+        $assignmentRows = DB::table($pivotTable)
+            ->join($entityTable, "{$entityTable}.id", '=', "{$pivotTable}.{$pivotColumn}")
+            ->whereNull("{$entityTable}.deleted_at")
+            ->whereIn("{$pivotTable}.user_id", $userIds)
+            ->select(
+                "{$pivotTable}.user_id",
+                "{$pivotTable}.{$pivotColumn} as scope_id",
+                "{$entityTable}.name",
+                "{$entityTable}.code",
+            )
+            ->orderBy("{$entityTable}.name")
+            ->get();
+
+        $areasByUser = [];
+        foreach ($assignmentRows as $row) {
+            $areasByUser[(int) $row->user_id][] = [
+                'id' => (int) $row->scope_id,
+                'name' => (string) ($row->name ?? ''),
+                'code' => (string) ($row->code ?? ''),
+            ];
+        }
+
+        return $areasByUser;
     }
 }

@@ -17,6 +17,8 @@ it('computes dashboard metrics with batched queries', function (): void {
     $viewer = Auth::loginUsingId(cache()->get('admin-performance-benchmark:viewer-id'));
     $viewer->load('role');
     $viewer->getOrganizationalIds();
+    $viewer->getEffectiveOrganizationalGrants();
+    $viewer->getExpandedOrganizationalIds();
 
     $range = [
         'currentStart' => now()->subDays(6)->startOfDay(),

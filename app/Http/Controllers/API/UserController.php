@@ -579,7 +579,54 @@ class UserController extends Controller
                 break;
         }
 
-        $requiredFields = match ($scope) {
+        // Ensure ancestors exist for finer grants without wiping coarser grants
+        // on other branches (mixed multi-level OR access).
+        if ($resolved['cluster_ids'] !== []) {
+            $clusters = \App\Models\Cluster::query()
+                ->whereKey($resolved['cluster_ids'])
+                ->get(['id', 'region_id', 'divisi_id', 'badanusaha_id']);
+
+            $resolved['region_ids'] = $this->mergeAssignmentIds(
+                $resolved['region_ids'],
+                $clusters->pluck('region_id')->filter()->map(fn ($id) => (int) $id)->all(),
+            );
+            $resolved['divisi_ids'] = $this->mergeAssignmentIds(
+                $resolved['divisi_ids'],
+                $clusters->pluck('divisi_id')->filter()->map(fn ($id) => (int) $id)->all(),
+            );
+            $resolved['badanusaha_ids'] = $this->mergeAssignmentIds(
+                $resolved['badanusaha_ids'],
+                $clusters->pluck('badanusaha_id')->filter()->map(fn ($id) => (int) $id)->all(),
+            );
+        }
+
+        if ($resolved['region_ids'] !== []) {
+            $regions = \App\Models\Region::query()
+                ->whereKey($resolved['region_ids'])
+                ->get(['id', 'divisi_id', 'badanusaha_id']);
+
+            $resolved['divisi_ids'] = $this->mergeAssignmentIds(
+                $resolved['divisi_ids'],
+                $regions->pluck('divisi_id')->filter()->map(fn ($id) => (int) $id)->all(),
+            );
+            $resolved['badanusaha_ids'] = $this->mergeAssignmentIds(
+                $resolved['badanusaha_ids'],
+                $regions->pluck('badanusaha_id')->filter()->map(fn ($id) => (int) $id)->all(),
+            );
+        }
+
+        if ($resolved['divisi_ids'] !== []) {
+            $divisions = \App\Models\Division::query()
+                ->whereKey($resolved['divisi_ids'])
+                ->get(['id', 'badanusaha_id']);
+
+            $resolved['badanusaha_ids'] = $this->mergeAssignmentIds(
+                $resolved['badanusaha_ids'],
+                $divisions->pluck('badanusaha_id')->filter()->map(fn ($id) => (int) $id)->all(),
+            );
+        }
+
+        $allowedFields = match ($scope) {
             'badanusaha' => ['badanusaha_ids'],
             'divisi' => ['badanusaha_ids', 'divisi_ids'],
             'region' => ['badanusaha_ids', 'divisi_ids', 'region_ids'],
@@ -587,18 +634,39 @@ class UserController extends Controller
             default => [],
         };
 
-        $missing = [];
-        foreach ($requiredFields as $field) {
-            if ($resolved[$field] === []) {
-                $missing[$field] = ['Required'];
+        if ($allowedFields !== []) {
+            $hasAny = false;
+            foreach ($allowedFields as $field) {
+                if ($resolved[$field] !== []) {
+                    $hasAny = true;
+                    break;
+                }
+            }
+
+            if (! $hasAny) {
+                $missing = [];
+                foreach ($allowedFields as $field) {
+                    $missing[$field] = ['Required'];
+                }
+
+                throw new BadRequestException('Organizational assignment wajib diisi untuk role ini', $missing);
             }
         }
 
-        if ($missing !== []) {
-            throw new BadRequestException('Organizational assignment wajib diisi untuk role ini', $missing);
-        }
-
         return $resolved;
+    }
+
+    /**
+     * @param  array<int>  $current
+     * @param  array<int>  $incoming
+     * @return array<int>
+     */
+    protected function mergeAssignmentIds(array $current, array $incoming): array
+    {
+        return array_values(array_unique(array_map(
+            static fn ($id): int => (int) $id,
+            array_merge($current, $incoming),
+        )));
     }
 
     protected function getOrganizationalAssignments(User $user): array

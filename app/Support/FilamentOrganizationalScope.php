@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 class FilamentOrganizationalScope
 {
     /**
-     * @return 'block'|'all'|array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>, scope_level: string}
+     * @return 'block'|'all'|array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>, scope_level: string, effective: array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>}}
      */
     public static function resolve(User $user): string|array
     {
@@ -26,6 +26,8 @@ class FilamentOrganizationalScope
         if (! self::hasAnyAssignment($ids)) {
             return 'block';
         }
+
+        $ids['effective'] = $user->getEffectiveOrganizationalGrants();
 
         return $ids;
     }
@@ -62,7 +64,12 @@ class FilamentOrganizationalScope
             return $query;
         }
 
-        return self::applyResolvedDirectColumns($query, $resolved, $table, $columnMap);
+        return OrganizationalEffectiveGrants::applyOrColumns(
+            $query,
+            $resolved['effective'],
+            $table,
+            $columnMap,
+        );
     }
 
     public static function applyDivisionScope(Builder $query, User $user): Builder
@@ -77,14 +84,17 @@ class FilamentOrganizationalScope
             return $query;
         }
 
-        if (empty($resolved['badanusaha']) && empty($resolved['divisi'])) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return self::applyResolvedDirectColumns($query, $resolved, 'divisions', [
-            'badanusaha' => 'badanusaha_id',
-            'divisi' => 'id',
-        ]);
+        return OrganizationalEffectiveGrants::applyHierarchyVisibility(
+            $query,
+            $resolved['effective'],
+            [
+                'badanusaha' => $resolved['badanusaha'] ?? [],
+                'divisi' => $resolved['divisi'] ?? [],
+                'region' => $resolved['region'] ?? [],
+                'cluster' => $resolved['cluster'] ?? [],
+            ],
+            'divisi',
+        );
     }
 
     public static function applyRegionScope(Builder $query, User $user): Builder
@@ -99,51 +109,17 @@ class FilamentOrganizationalScope
             return $query;
         }
 
-        if (empty($resolved['badanusaha']) && empty($resolved['divisi']) && empty($resolved['region'])) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        return self::applyResolvedDirectColumns($query, $resolved, 'regions', [
-            'badanusaha' => 'badanusaha_id',
-            'divisi' => 'divisi_id',
-            'region' => 'id',
-        ]);
-    }
-
-    /**
-     * Kolom organisasi yang boleh difilter per scope_level (kumulatif dari yang
-     * paling kasar ke scope_level user). Konsisten dengan HasOrganizationalScope::scopeVisibleTo.
-     */
-    private const ALLOWED_COLUMNS_BY_LEVEL = [
-        'badanusaha' => ['badanusaha'],
-        'divisi' => ['badanusaha', 'divisi'],
-        'region' => ['badanusaha', 'divisi', 'region'],
-        'cluster' => ['badanusaha', 'divisi', 'region', 'cluster'],
-    ];
-
-    /**
-     * @param  array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>, scope_level: string}  $resolved
-     * @param  array<string, string>  $columnMap
-     */
-    protected static function applyResolvedDirectColumns(
-        Builder $query,
-        array $resolved,
-        string $table,
-        array $columnMap,
-    ): Builder {
-        // Hanya terapkan whereIn untuk kolom pada atau di atas scope_level user,
-        // agar pivot finer-level yang tertinggal (mis. cluster pada user region-
-        // scoped) tidak menyempitkan hasil melebihi scope yang dimaksud.
-        $allowed = self::ALLOWED_COLUMNS_BY_LEVEL[$resolved['scope_level'] ?? 'cluster']
-            ?? array_keys($columnMap);
-
-        foreach ($columnMap as $key => $column) {
-            if (in_array($key, $allowed, true) && ! empty($resolved[$key])) {
-                $query->whereIn("{$table}.{$column}", $resolved[$key]);
-            }
-        }
-
-        return $query;
+        return OrganizationalEffectiveGrants::applyHierarchyVisibility(
+            $query,
+            $resolved['effective'],
+            [
+                'badanusaha' => $resolved['badanusaha'] ?? [],
+                'divisi' => $resolved['divisi'] ?? [],
+                'region' => $resolved['region'] ?? [],
+                'cluster' => $resolved['cluster'] ?? [],
+            ],
+            'region',
+        );
     }
 
     public static function applyBadanUsahaIds(Builder $query, User $user, string $column = 'badan_usahas.id'): Builder
@@ -158,11 +134,17 @@ class FilamentOrganizationalScope
             return $query;
         }
 
-        if (empty($resolved['badanusaha'])) {
+        $accessible = $user->getExpandedOrganizationalIds();
+        $badanUsahaIds = array_values(array_unique(array_merge(
+            $accessible['badanusaha'],
+            array_map('intval', $resolved['badanusaha'] ?? []),
+        )));
+
+        if ($badanUsahaIds === []) {
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereIn($column, $resolved['badanusaha']);
+        return $query->whereIn($column, $badanUsahaIds);
     }
 
     public static function applyViaUserForeignKey(Builder $query, User $user, string $foreignKey = 'user_id'): Builder
@@ -195,40 +177,53 @@ class FilamentOrganizationalScope
             return $query;
         }
 
-        return self::applyUserScopeWithIds($query, $resolved);
+        return self::applyUserScopeWithIds($query, $resolved, $viewer);
     }
 
     /**
-     * @param  array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>, scope_level: string}  $ids
+     * @param  array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>, scope_level: string, effective: array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>}}  $ids
      */
-    protected static function applyUserScopeWithIds(Builder $query, array $ids): Builder
+    protected static function applyUserScopeWithIds(Builder $query, array $ids, User $viewer): Builder
     {
-        $scopeLevel = $ids['scope_level'];
+        $accessible = $viewer->getExpandedOrganizationalIds();
 
-        if (! empty($ids['badanusaha'])) {
-            $query->whereIn('users.id', DB::table('user_badan_usaha')
-                ->select('user_id')
-                ->whereIn('badanusaha_id', $ids['badanusaha']));
-        }
+        return $query->where(function (Builder $scope) use ($accessible): void {
+            $applied = false;
 
-        if (! empty($ids['divisi'])) {
-            $query->whereIn('users.id', DB::table('user_divisi')
-                ->select('user_id')
-                ->whereIn('divisi_id', $ids['divisi']));
-        }
+            if ($accessible['badanusaha'] !== []) {
+                $scope->whereIn('users.id', DB::table('user_badan_usaha')
+                    ->select('user_id')
+                    ->whereIn('badanusaha_id', $accessible['badanusaha']));
+                $applied = true;
+            }
 
-        if (in_array($scopeLevel, ['region', 'cluster'], true) && ! empty($ids['region'])) {
-            $query->whereIn('users.id', DB::table('user_regions')
-                ->select('user_id')
-                ->whereIn('region_id', $ids['region']));
-        }
+            if ($accessible['divisi'] !== []) {
+                $method = $applied ? 'orWhereIn' : 'whereIn';
+                $scope->{$method}('users.id', DB::table('user_divisi')
+                    ->select('user_id')
+                    ->whereIn('divisi_id', $accessible['divisi']));
+                $applied = true;
+            }
 
-        if ($scopeLevel === 'cluster' && ! empty($ids['cluster'])) {
-            $query->whereIn('users.id', DB::table('user_clusters')
-                ->select('user_id')
-                ->whereIn('cluster_id', $ids['cluster']));
-        }
+            if ($accessible['region'] !== []) {
+                $method = $applied ? 'orWhereIn' : 'whereIn';
+                $scope->{$method}('users.id', DB::table('user_regions')
+                    ->select('user_id')
+                    ->whereIn('region_id', $accessible['region']));
+                $applied = true;
+            }
 
-        return $query;
+            if ($accessible['cluster'] !== []) {
+                $method = $applied ? 'orWhereIn' : 'whereIn';
+                $scope->{$method}('users.id', DB::table('user_clusters')
+                    ->select('user_id')
+                    ->whereIn('cluster_id', $accessible['cluster']));
+                $applied = true;
+            }
+
+            if (! $applied) {
+                $scope->whereRaw('1 = 0');
+            }
+        });
     }
 }

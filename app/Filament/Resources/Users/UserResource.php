@@ -169,29 +169,13 @@ class UserResource extends Resource
                         ])
                             ->columnSpan(['default' => 1, 'xl' => 8]),
                         Section::make('Struktur Organisasi')
+                            ->description('Divisi tanpa region = akses penuh divisi itu. Isi region/cluster hanya untuk akses parsial. Assignment boleh campur antar cabang.')
                             ->schema([
                                 Grid::make(['default' => 1])
                                     ->schema([
                                         Select::make('badanUsahas')
                                             ->label('Badan Usaha')
                                             ->multiple()
-                                            ->maxItems(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                if (! $roleId) {
-                                                    return null;
-                                                }
-                                                $role = Role::find($roleId);
-
-                                                if (! $role) {
-                                                    return null;
-                                                }
-
-                                                if (in_array($role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                                    return null;
-                                                }
-
-                                                return $role->organizational_scope_level !== 'badanusaha' ? 1 : null;
-                                            })
                                             ->relationship('badanUsahas', 'name', modifyQueryUsing: function (Builder $query): Builder {
                                                 $user = Auth::user();
 
@@ -218,6 +202,7 @@ class UserResource extends Resource
                                                     ->orderBy('name', 'asc');
                                             })
                                             ->searchable()
+                                            ->preload()
                                             ->reactive()
                                             ->placeholder('Pilih badan usaha')
                                             ->visible(function (callable $get) {
@@ -229,15 +214,7 @@ class UserResource extends Resource
 
                                                 return $role && in_array($role->organizational_scope_level, ['badanusaha', 'divisi', 'region', 'cluster']);
                                             })
-                                            ->required(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                if (! $roleId) {
-                                                    return false;
-                                                }
-                                                $role = Role::find($roleId);
-
-                                                return $role && in_array($role->organizational_scope_level, ['badanusaha', 'divisi', 'region', 'cluster']);
-                                            })
+                                            ->required(false)
                                             ->rule(fn (): \Closure => self::organizationalAssignmentRule('badanusaha'))
                                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                 $roleId = $get('role_id');
@@ -299,23 +276,7 @@ class UserResource extends Resource
                                         Select::make('divisis')
                                             ->label('Divisi')
                                             ->multiple()
-                                            ->maxItems(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                if (! $roleId) {
-                                                    return null;
-                                                }
-                                                $role = Role::find($roleId);
-
-                                                if (! $role) {
-                                                    return null;
-                                                }
-
-                                                if (in_array($role->organizational_scope_level, ['region', 'cluster'], true)) {
-                                                    return null;
-                                                }
-
-                                                return $role->organizational_scope_level !== 'divisi' ? 1 : null;
-                                            })
+                                            ->helperText('Tanpa region di bawahnya = akses penuh divisi ini.')
                                             ->relationship('divisis', 'name', modifyQueryUsing: function (Builder $query, callable $get): Builder {
                                                 $badanUsahaIds = $get('badanUsahas');
 
@@ -340,6 +301,7 @@ class UserResource extends Resource
                                                 return $query->orderBy('name', 'asc');
                                             })
                                             ->searchable()
+                                            ->preload()
                                             ->reactive()
                                             ->placeholder('Pilih divisi')
                                             ->visible(function (callable $get) {
@@ -351,20 +313,19 @@ class UserResource extends Resource
 
                                                 return $role && in_array($role->organizational_scope_level, ['divisi', 'region', 'cluster']);
                                             })
-                                            ->required(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                if (! $roleId) {
-                                                    return false;
-                                                }
-                                                $role = Role::find($roleId);
-
-                                                return $role && in_array($role->organizational_scope_level, ['divisi', 'region', 'cluster']);
-                                            })
+                                            ->required(false)
                                             ->rule(fn (): \Closure => self::organizationalAssignmentRule('divisi'))
                                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                                 $roleId = $get('role_id');
                                                 $role = $roleId ? Role::find($roleId) : null;
                                                 $scopeLevel = $role?->organizational_scope_level;
+
+                                                $divisionIds = self::normalizeSelection($state);
+                                                $divisionAncestors = self::divisionAncestorIds($divisionIds);
+                                                $set('badanUsahas', self::mergeSelection(
+                                                    self::normalizeSelection($get('badanUsahas')),
+                                                    $divisionAncestors['badanUsahas'],
+                                                ));
 
                                                 if (! in_array($scopeLevel, ['region', 'cluster'], true)) {
                                                     $set('regions', null);
@@ -372,10 +333,6 @@ class UserResource extends Resource
 
                                                     return;
                                                 }
-
-                                                $divisionIds = self::normalizeSelection($state);
-                                                $divisionAncestors = self::divisionAncestorIds($divisionIds);
-                                                $set('badanUsahas', $divisionAncestors['badanUsahas']);
 
                                                 $currentRegionIds = self::normalizeSelection($get('regions'));
                                                 $allowedRegionIds = empty($divisionIds)
@@ -405,19 +362,7 @@ class UserResource extends Resource
                                         Select::make('regions')
                                             ->label('Region')
                                             ->multiple()
-                                            ->maxItems(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                if (! $roleId) {
-                                                    return null;
-                                                }
-                                                $role = Role::find($roleId);
-
-                                                if (! $role) {
-                                                    return null;
-                                                }
-
-                                                return in_array($role->organizational_scope_level, ['region', 'cluster'], true) ? null : 1;
-                                            })
+                                            ->helperText('Kosongkan untuk full akses divisi terpilih. Isi hanya region yang ingin dibatasi.')
                                             ->relationship('regions', 'name', modifyQueryUsing: function (Builder $query, callable $get): Builder {
                                                 $divisiIds = $get('divisis');
 
@@ -444,6 +389,7 @@ class UserResource extends Resource
                                                     ->orderBy('name', 'asc');
                                             })
                                             ->searchable()
+                                            ->preload()
                                             ->reactive()
                                             ->placeholder('Pilih region')
                                             ->visible(function (callable $get) {
@@ -455,15 +401,7 @@ class UserResource extends Resource
 
                                                 return $role && in_array($role->organizational_scope_level, ['region', 'cluster'], true);
                                             })
-                                            ->required(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                if (! $roleId) {
-                                                    return false;
-                                                }
-                                                $role = Role::find($roleId);
-
-                                                return $role && in_array($role->organizational_scope_level, ['region', 'cluster'], true);
-                                            })
+                                            ->required(false)
                                             ->rule(fn (): \Closure => self::organizationalAssignmentRule('region'))
                                             ->getOptionLabelFromRecordUsing(function (Region $region): string {
                                                 $divisionName = $region->divisi?->name ?? '-';
@@ -475,16 +413,22 @@ class UserResource extends Resource
                                                 $role = $roleId ? Role::find($roleId) : null;
                                                 $scopeLevel = $role?->organizational_scope_level;
 
+                                                $regionIds = self::normalizeSelection($state);
+                                                $regionAncestors = self::regionAncestorIds($regionIds);
+                                                $set('divisis', self::mergeSelection(
+                                                    self::normalizeSelection($get('divisis')),
+                                                    $regionAncestors['divisis'],
+                                                ));
+                                                $set('badanUsahas', self::mergeSelection(
+                                                    self::normalizeSelection($get('badanUsahas')),
+                                                    $regionAncestors['badanUsahas'],
+                                                ));
+
                                                 if ($scopeLevel !== 'cluster') {
                                                     $set('clusters', null);
 
                                                     return;
                                                 }
-
-                                                $regionIds = self::normalizeSelection($state);
-                                                $regionAncestors = self::regionAncestorIds($regionIds);
-                                                $set('divisis', $regionAncestors['divisis']);
-                                                $set('badanUsahas', $regionAncestors['badanUsahas']);
 
                                                 $currentClusterIds = self::normalizeSelection($get('clusters'));
                                                 $allowedClusterIds = empty($regionIds)
@@ -498,7 +442,8 @@ class UserResource extends Resource
                                             }),
                                         Select::make('clusters')
                                             ->label('Cluster')
-                                            ->multiple() // Cluster selalu multiple jika visible (scope = cluster)
+                                            ->multiple()
+                                            ->helperText('Kosongkan untuk full akses region terpilih. Isi hanya cluster yang ingin dibatasi.')
                                             ->relationship('clusters', 'name', modifyQueryUsing: function (Builder $query, callable $get): Builder {
                                                 $regionIds = $get('regions');
 
@@ -528,6 +473,7 @@ class UserResource extends Resource
                                                     ->orderBy('name', 'asc');
                                             })
                                             ->searchable()
+                                            ->preload()
                                             ->reactive()
                                             ->placeholder('Pilih cluster')
                                             ->visible(function (callable $get) {
@@ -539,22 +485,23 @@ class UserResource extends Resource
 
                                                 return $role && $role->organizational_scope_level === 'cluster';
                                             })
-                                            ->required(function (callable $get) {
-                                                $roleId = $get('role_id');
-                                                if (! $roleId) {
-                                                    return false;
-                                                }
-                                                $role = Role::find($roleId);
-
-                                                return $role && $role->organizational_scope_level === 'cluster';
-                                            })
+                                            ->required(false)
                                             ->rule(fn (): \Closure => self::organizationalAssignmentRule('cluster'))
-                                            ->afterStateUpdated(function ($state, callable $set): void {
+                                            ->afterStateUpdated(function ($state, callable $set, callable $get): void {
                                                 $clusterAncestors = self::clusterAncestorIds(self::normalizeSelection($state));
 
-                                                $set('regions', $clusterAncestors['regions']);
-                                                $set('divisis', $clusterAncestors['divisis']);
-                                                $set('badanUsahas', $clusterAncestors['badanUsahas']);
+                                                $set('regions', self::mergeSelection(
+                                                    self::normalizeSelection($get('regions')),
+                                                    $clusterAncestors['regions'],
+                                                ));
+                                                $set('divisis', self::mergeSelection(
+                                                    self::normalizeSelection($get('divisis')),
+                                                    $clusterAncestors['divisis'],
+                                                ));
+                                                $set('badanUsahas', self::mergeSelection(
+                                                    self::normalizeSelection($get('badanUsahas')),
+                                                    $clusterAncestors['badanUsahas'],
+                                                ));
                                             })
                                             ->getOptionLabelFromRecordUsing(function (Cluster $cluster): string {
                                                 $regionName = $cluster->region?->name ?? '-';
@@ -1016,6 +963,16 @@ class UserResource extends Resource
         ));
     }
 
+    /**
+     * @param  array<int|string>  $current
+     * @param  array<int|string>  $incoming
+     * @return array<int|string>
+     */
+    protected static function mergeSelection(array $current, array $incoming): array
+    {
+        return self::normalizeSelection(array_merge($current, $incoming));
+    }
+
     public static function syncOrganizationalAssignmentsFromState(User $user, array $state): void
     {
         $hasSynced = false;
@@ -1046,47 +1003,42 @@ class UserResource extends Resource
     }
 
     /**
-     * Keep persisted pivots on one hierarchy path by deriving parents from the
-     * most specific selected level.
+     * Ensure ancestors exist for finer grants without removing coarser
+     * full grants on other branches (mixed multi-level access).
      */
     public static function pruneInconsistentOrganizationalHierarchy(User $user): void
     {
         $clusterIds = self::normalizeSelection($user->clusters()->pluck('clusters.id')->all());
+        $regionIds = self::normalizeSelection($user->regions()->pluck('regions.id')->all());
+        $divisionIds = self::normalizeSelection($user->divisis()->pluck('divisions.id')->all());
+        $badanUsahaIds = self::normalizeSelection($user->badanUsahas()->pluck('badan_usahas.id')->all());
 
         if ($clusterIds !== []) {
             $ancestors = self::clusterAncestorIds($clusterIds);
-
+            $regionIds = self::mergeSelection($regionIds, $ancestors['regions']);
+            $divisionIds = self::mergeSelection($divisionIds, $ancestors['divisis']);
+            $badanUsahaIds = self::mergeSelection($badanUsahaIds, $ancestors['badanUsahas']);
             $user->clusters()->sync($ancestors['clusters']);
-            $user->regions()->sync($ancestors['regions']);
-            $user->divisis()->sync($ancestors['divisis']);
-            $user->badanUsahas()->sync($ancestors['badanUsahas']);
-            $user->forgetOrganizationalIdsCache();
-
-            return;
         }
-
-        $regionIds = self::normalizeSelection($user->regions()->pluck('regions.id')->all());
 
         if ($regionIds !== []) {
             $ancestors = self::regionAncestorIds($regionIds);
-
+            $divisionIds = self::mergeSelection($divisionIds, $ancestors['divisis']);
+            $badanUsahaIds = self::mergeSelection($badanUsahaIds, $ancestors['badanUsahas']);
             $user->regions()->sync($ancestors['regions']);
-            $user->divisis()->sync($ancestors['divisis']);
-            $user->badanUsahas()->sync($ancestors['badanUsahas']);
-            $user->forgetOrganizationalIdsCache();
-
-            return;
         }
-
-        $divisionIds = self::normalizeSelection($user->divisis()->pluck('divisions.id')->all());
 
         if ($divisionIds !== []) {
             $ancestors = self::divisionAncestorIds($divisionIds);
-
+            $badanUsahaIds = self::mergeSelection($badanUsahaIds, $ancestors['badanUsahas']);
             $user->divisis()->sync($ancestors['divisis']);
-            $user->badanUsahas()->sync($ancestors['badanUsahas']);
-            $user->forgetOrganizationalIdsCache();
         }
+
+        if ($badanUsahaIds !== []) {
+            $user->badanUsahas()->sync(self::normalizeSelection($badanUsahaIds));
+        }
+
+        $user->forgetOrganizationalIdsCache();
     }
 
     /**
@@ -1271,6 +1223,29 @@ class UserResource extends Resource
 
         if (! $requiresOrganizationalStructure) {
             return;
+        }
+
+        if (! $hasOrganizationalSelection) {
+            $messages = match ($scopeLevel) {
+                'badanusaha' => ['badanUsahas' => 'Pilih minimal satu badan usaha.'],
+                'divisi' => [
+                    'badanUsahas' => 'Pilih minimal satu assignment organisasi (badan usaha atau divisi).',
+                    'divisis' => 'Pilih minimal satu assignment organisasi (badan usaha atau divisi).',
+                ],
+                'region' => [
+                    'badanUsahas' => 'Pilih minimal satu assignment organisasi (badan usaha, divisi, atau region).',
+                    'divisis' => 'Pilih minimal satu assignment organisasi (badan usaha, divisi, atau region).',
+                    'regions' => 'Pilih minimal satu assignment organisasi (badan usaha, divisi, atau region).',
+                ],
+                default => [
+                    'badanUsahas' => 'Pilih minimal satu assignment organisasi.',
+                    'divisis' => 'Pilih minimal satu assignment organisasi.',
+                    'regions' => 'Pilih minimal satu assignment organisasi.',
+                    'clusters' => 'Pilih minimal satu assignment organisasi.',
+                ],
+            };
+
+            throw ValidationException::withMessages($messages);
         }
 
         $messages = [];

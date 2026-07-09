@@ -224,38 +224,24 @@ class Outlet extends Model
 
     /**
      * Scope query to outlets accessible by the given user based on RBAC.
-     * Uses cached organizational IDs from the user to avoid N+1 queries.
+     * Uses effective OR grants from the user's organizational pivots.
      */
     public function scopeAccessibleTo(Builder $query, User $user): Builder
     {
         $ids = $user->getOrganizationalIds();
-        $scopeLevel = $ids['scope_level'];
 
-        // If full access, no filtering needed
-        if ($scopeLevel === 'all') {
+        if (($ids['scope_level'] ?? null) === 'all') {
             return $query;
         }
 
-        // Apply hierarchical filtering based on scope level
-        if (! empty($ids['badanusaha'])) {
-            $query->whereIn('badanusaha_id', $ids['badanusaha']);
-        }
+        $grants = $user->getEffectiveOrganizationalGrants();
 
-        if (! empty($ids['divisi'])) {
-            $query->whereIn('divisi_id', $ids['divisi']);
-        }
-
-        // Apply region and cluster filters for cluster-level scope
-        if ($scopeLevel === 'cluster') {
-            if (! empty($ids['region'])) {
-                $query->whereIn('region_id', $ids['region']);
-            }
-            if (! empty($ids['cluster'])) {
-                $query->whereIn('cluster_id', $ids['cluster']);
-            }
-        }
-
-        return $query;
+        return \App\Support\OrganizationalEffectiveGrants::applyOrColumns($query, $grants, $query->getModel()->getTable(), [
+            'badanusaha' => 'badanusaha_id',
+            'divisi' => 'divisi_id',
+            'region' => 'region_id',
+            'cluster' => 'cluster_id',
+        ]);
     }
 
     /**

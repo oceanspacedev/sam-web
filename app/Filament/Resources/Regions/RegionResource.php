@@ -50,7 +50,7 @@ class RegionResource extends Resource
                     ->label('Badan Usaha')
                     ->searchable()
                     ->required()
-                    ->reactive()
+                    ->live()
                     ->placeholder('Pilih badan usaha')
                     ->createOptionForm(
                         $canCreateBadanUsaha
@@ -81,7 +81,7 @@ class RegionResource extends Resource
                     ->label('Divisi')
                     ->searchable()
                     ->required()
-                    ->reactive()
+                    ->live()
                     ->placeholder('Pilih divisi')
                     ->createOptionForm(
                         $canCreateDivision

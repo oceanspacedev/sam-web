@@ -75,7 +75,7 @@ class RegisterResource extends Resource
                                     TextInput::make('nama_outlet')
                                         ->required()
                                         ->maxLength(255)
-                                        ->reactive()
+                                        ->live()
                                         ->label('Nama Outlet'),
                                     TextInput::make('distric')
                                         ->required()
@@ -285,7 +285,7 @@ class RegisterResource extends Resource
                                                 ->label('Badan Usaha')
                                                 ->searchable()
                                                 ->required()
-                                                ->reactive()
+                                                ->live()
                                                 ->placeholder('Pilih badan usaha')
                                                 ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha(activeOnly: false))
                                                 ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
@@ -299,7 +299,7 @@ class RegisterResource extends Resource
                                                 ->label('Divisi')
                                                 ->searchable()
                                                 ->required()
-                                                ->reactive()
+                                                ->live()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id'), activeOnly: false))
                                                 ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id'), activeOnly: false))
                                                 ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
@@ -311,7 +311,7 @@ class RegisterResource extends Resource
                                                 ->label('Region')
                                                 ->searchable()
                                                 ->required()
-                                                ->reactive()
+                                                ->live()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('divisi_id'), activeOnly: false))
                                                 ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('divisi_id'), activeOnly: false))
                                                 ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
@@ -322,7 +322,7 @@ class RegisterResource extends Resource
                                                 ->label('Cluster')
                                                 ->searchable()
                                                 ->required()
-                                                ->reactive()
+                                                ->live()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::cluster($get('region_id'), activeOnly: false))
                                                 ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchCluster($search, $get('region_id'), activeOnly: false))
                                                 ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::clusterLabel($value)),
@@ -1004,7 +1004,7 @@ class RegisterResource extends Resource
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->reactive()
+                            ->live()
                             ->searchable()
                             ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha(activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
@@ -1016,7 +1016,7 @@ class RegisterResource extends Resource
                             }),
                         Select::make('division')
                             ->label('Divisi')
-                            ->reactive()
+                            ->live()
                             ->searchable()
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('businessEntity'), activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity'), activeOnly: false))
@@ -1032,7 +1032,7 @@ class RegisterResource extends Resource
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division'), activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division'), activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
-                            ->reactive(),
+                            ->live(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         if ($data['businessEntity'] ?? null) {

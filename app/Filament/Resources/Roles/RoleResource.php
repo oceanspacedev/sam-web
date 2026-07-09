@@ -65,12 +65,12 @@ class RoleResource extends Resource
                             Toggle::make('can_access_web')
                                 ->label('Dapat Akses Web')
                                 ->helperText('Aktifkan jika role ini dapat mengakses panel web (Filament).')
-                                ->reactive()
+                                ->live()
                                 ->default(false),
                             Toggle::make('can_access_mobile')
                                 ->label('Dapat Akses Mobile')
                                 ->helperText('Aktifkan jika role ini dapat mengakses aplikasi mobile.')
-                                ->reactive()
+                                ->live()
                                 ->default(false),
                             Select::make('organizational_scope_level')
                                 ->label('Organizational Scope Level')
@@ -83,7 +83,7 @@ class RoleResource extends Resource
                                     'cluster' => 'Cluster',
                                 ])
                                 ->default('cluster')
-                                ->reactive()
+                                ->live()
                                 ->required(),
                         ])
                         ->columns(1),

@@ -134,7 +134,7 @@ class UserResource extends Resource
                                         Select::make('role_id')
                                             ->searchable()
                                             ->required()
-                                            ->reactive()  // Make reactive to trigger field visibility
+                                            ->live()  // Live to trigger field visibility
                                             ->label('Role')
                                             ->placeholder('Pilih role')
                                             ->options(fn (): array => self::searchAssignableRoles(''))
@@ -203,7 +203,7 @@ class UserResource extends Resource
                                             })
                                             ->searchable()
                                             ->preload()
-                                            ->reactive()
+                                            ->live()
                                             ->placeholder('Pilih badan usaha')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
@@ -302,7 +302,7 @@ class UserResource extends Resource
                                             })
                                             ->searchable()
                                             ->preload()
-                                            ->reactive()
+                                            ->live()
                                             ->placeholder('Pilih divisi')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
@@ -390,7 +390,7 @@ class UserResource extends Resource
                                             })
                                             ->searchable()
                                             ->preload()
-                                            ->reactive()
+                                            ->live()
                                             ->placeholder('Pilih region')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
@@ -474,7 +474,7 @@ class UserResource extends Resource
                                             })
                                             ->searchable()
                                             ->preload()
-                                            ->reactive()
+                                            ->live()
                                             ->placeholder('Pilih cluster')
                                             ->visible(function (callable $get) {
                                                 $roleId = $get('role_id');
@@ -702,7 +702,7 @@ class UserResource extends Resource
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->reactive()
+                            ->live()
                             ->searchable()
                             ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha(activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
@@ -714,7 +714,7 @@ class UserResource extends Resource
                             }),
                         Select::make('division')
                             ->label('Divisi')
-                            ->reactive()
+                            ->live()
                             ->searchable()
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('businessEntity'), activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity'), activeOnly: false))
@@ -730,7 +730,7 @@ class UserResource extends Resource
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division'), activeOnly: false))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division'), activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
-                            ->reactive(),
+                            ->live(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         if ($data['businessEntity'] ?? null) {

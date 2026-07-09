@@ -141,7 +141,7 @@ class OutletsRelationManager extends RelationManager
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->reactive()
+                            ->live()
                             ->searchable()
                             ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search, activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::badanUsahaLabel($value, activeOnly: false))
@@ -152,7 +152,7 @@ class OutletsRelationManager extends RelationManager
                             }),
                         Select::make('division')
                             ->label('Divisi')
-                            ->reactive()
+                            ->live()
                             ->searchable()
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity'), activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
@@ -166,7 +166,7 @@ class OutletsRelationManager extends RelationManager
                             ->placeholder('Pilih Region')
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division'), activeOnly: false))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
-                            ->reactive(),
+                            ->live(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         if ($data['businessEntity'] ?? null) {

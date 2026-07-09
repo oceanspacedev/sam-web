@@ -52,7 +52,7 @@ class ClusterResource extends Resource
                     ->label('Badan Usaha')
                     ->searchable()
                     ->required()
-                    ->reactive()
+                    ->live()
                     ->placeholder('Pilih badan usaha')
                     ->createOptionForm(
                         $canCreateBadanUsaha
@@ -85,7 +85,7 @@ class ClusterResource extends Resource
                     ->label('Divisi')
                     ->searchable()
                     ->required()
-                    ->reactive()
+                    ->live()
                     ->placeholder('Pilih divisi')
                     ->createOptionForm(
                         $canCreateDivision
@@ -132,7 +132,7 @@ class ClusterResource extends Resource
                     ->label('Region')
                     ->searchable()
                     ->required()
-                    ->reactive()
+                    ->live()
                     ->placeholder('Pilih region')
                     ->createOptionForm(
                         $canCreateRegion

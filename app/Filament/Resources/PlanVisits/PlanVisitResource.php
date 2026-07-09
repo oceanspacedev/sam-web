@@ -51,7 +51,7 @@ class PlanVisitResource extends Resource
                         Select::make('user_id')
                             ->searchable()
                             ->required()
-                            ->reactive()
+                            ->live()
                             ->label('Pilih User')
                             ->placeholder('Cari User berdasarkan nama lengkap')
                             ->options(fn (): array => ScopedUserSelectOptions::search(Auth::user(), ''))

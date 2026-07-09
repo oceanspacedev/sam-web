@@ -214,7 +214,7 @@ class OutletResource extends Resource
                                                 ->label('Badan Usaha')
                                                 ->searchable()
                                                 ->required()
-                                                ->reactive()
+                                                ->live()
                                                 ->placeholder('Pilih badan usaha')
                                                 ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha())
                                                 ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search))
@@ -228,7 +228,7 @@ class OutletResource extends Resource
                                                 ->label('Divisi')
                                                 ->searchable()
                                                 ->required()
-                                                ->reactive()
+                                                ->live()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('badanusaha_id')))
                                                 ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('badanusaha_id')))
                                                 ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::divisionLabel($value))
@@ -240,7 +240,7 @@ class OutletResource extends Resource
                                                 ->label('Region')
                                                 ->searchable()
                                                 ->required()
-                                                ->reactive()
+                                                ->live()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('divisi_id')))
                                                 ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('divisi_id')))
                                                 ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
@@ -251,7 +251,7 @@ class OutletResource extends Resource
                                                 ->label('Cluster')
                                                 ->searchable()
                                                 ->required()
-                                                ->reactive()
+                                                ->live()
                                                 ->options(fn (callable $get): array => OrganizationalHierarchyOptions::cluster($get('region_id')))
                                                 ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchCluster($search, $get('region_id')))
                                                 ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::clusterLabel($value)),
@@ -535,7 +535,7 @@ class OutletResource extends Resource
                     ->schema([
                         Select::make('businessEntity')
                             ->label('Badan Usaha')
-                            ->reactive()
+                            ->live()
                             ->searchable()
                             ->options(fn (): array => OrganizationalHierarchyOptions::badanUsaha())
                             ->getSearchResultsUsing(fn (string $search): array => OrganizationalHierarchyOptions::searchBadanUsaha($search))
@@ -547,7 +547,7 @@ class OutletResource extends Resource
                             }),
                         Select::make('division')
                             ->label('Divisi')
-                            ->reactive()
+                            ->live()
                             ->searchable()
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::division($get('businessEntity')))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchDivision($search, $get('businessEntity')))
@@ -563,7 +563,7 @@ class OutletResource extends Resource
                             ->options(fn (callable $get): array => OrganizationalHierarchyOptions::region($get('division')))
                             ->getSearchResultsUsing(fn (string $search, callable $get): array => OrganizationalHierarchyOptions::searchRegion($search, $get('division')))
                             ->getOptionLabelUsing(fn ($value): ?string => OrganizationalHierarchyOptions::regionLabel($value))
-                            ->reactive(),
+                            ->live(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         if ($data['businessEntity'] ?? null) {

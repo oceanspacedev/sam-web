@@ -111,6 +111,17 @@ class FilamentOrganizationalScope
     }
 
     /**
+     * Kolom organisasi yang boleh difilter per scope_level (kumulatif dari yang
+     * paling kasar ke scope_level user). Konsisten dengan HasOrganizationalScope::scopeVisibleTo.
+     */
+    private const ALLOWED_COLUMNS_BY_LEVEL = [
+        'badanusaha' => ['badanusaha'],
+        'divisi' => ['badanusaha', 'divisi'],
+        'region' => ['badanusaha', 'divisi', 'region'],
+        'cluster' => ['badanusaha', 'divisi', 'region', 'cluster'],
+    ];
+
+    /**
      * @param  array{badanusaha: array<int>, divisi: array<int>, region: array<int>, cluster: array<int>, scope_level: string}  $resolved
      * @param  array<string, string>  $columnMap
      */
@@ -120,8 +131,14 @@ class FilamentOrganizationalScope
         string $table,
         array $columnMap,
     ): Builder {
+        // Hanya terapkan whereIn untuk kolom pada atau di atas scope_level user,
+        // agar pivot finer-level yang tertinggal (mis. cluster pada user region-
+        // scoped) tidak menyempitkan hasil melebihi scope yang dimaksud.
+        $allowed = self::ALLOWED_COLUMNS_BY_LEVEL[$resolved['scope_level'] ?? 'cluster']
+            ?? array_keys($columnMap);
+
         foreach ($columnMap as $key => $column) {
-            if (! empty($resolved[$key])) {
+            if (in_array($key, $allowed, true) && ! empty($resolved[$key])) {
                 $query->whereIn("{$table}.{$column}", $resolved[$key]);
             }
         }

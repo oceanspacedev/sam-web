@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Roles\Pages;
 
 use App\Filament\Resources\Roles\RoleResource;
 use App\Models\Permission;
+use App\Models\User;
+use App\Support\UserOrganizationalScopeCleanup;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Collection;
@@ -53,6 +55,18 @@ class EditRole extends EditRecord
             ->map(fn (string $permission): Permission => $this->findOrRestorePermission($permission));
 
         $this->record->syncPermissions($permissionModels);
+
+        // Saat scope level role di-coarsen (mis. cluster -> region), pivot
+        // finer-level user lama harus di-prune agar tidak menyempitkan scope
+        // di luar yang dimaksud (FilamentOrganizationalScope mengikuti scope_level).
+        if ($this->record->wasChanged('organizational_scope_level')) {
+            User::where('role_id', $this->record->id)
+                ->chunkById(200, function (Collection $users): void {
+                    foreach ($users as $user) {
+                        UserOrganizationalScopeCleanup::pruneAssignments($user);
+                    }
+                });
+        }
     }
 
     private function findOrRestorePermission(string $name): Permission

@@ -16,7 +16,7 @@ return [
         'brand_logo_height' => '2rem',
 
         // Favicon path (relative to /public).
-        'favicon' => 'favicon.ico',
+        'favicon' => 'icon/samsam.png',
     ],
 
     'settings' => [

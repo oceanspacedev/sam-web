@@ -6,21 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Models\WhatsappOtp;
-use App\Services\WhatsAppNotificationService;
+use App\Services\WhatsAppOtpService;
 use App\Support\WhatsAppNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class WhatsAppAuthController extends Controller
 {
-    private const MAX_ATTEMPTS = 5;
-
     public function __construct(
-        protected WhatsAppNotificationService $whatsApp
+        protected WhatsAppOtpService $otpService
     ) {}
 
     public function requestLoginOtp(Request $request): JsonResponse
@@ -42,7 +37,7 @@ class WhatsAppAuthController extends Controller
             return $this->loginUnavailableResponse();
         }
 
-        return $this->issueOtp($user, $number, WhatsappOtp::PURPOSE_LOGIN);
+        return $this->issueOtpResponse($user, $number, WhatsappOtp::PURPOSE_LOGIN);
     }
 
     public function verifyLoginOtp(Request $request): JsonResponse
@@ -78,7 +73,7 @@ class WhatsAppAuthController extends Controller
             return $this->loginUnavailableResponse();
         }
 
-        $otpRecord = $this->verifyStoredOtp($user, $number, WhatsappOtp::PURPOSE_LOGIN, $otp);
+        $otpRecord = $this->otpService->verify($user, $number, WhatsappOtp::PURPOSE_LOGIN, $otp);
 
         if (! $otpRecord) {
             return $this->invalidOtpResponse();
@@ -125,7 +120,7 @@ class WhatsAppAuthController extends Controller
             ]);
         }
 
-        return $this->issueOtp($user, $number, WhatsappOtp::PURPOSE_PROFILE_UPDATE);
+        return $this->issueOtpResponse($user, $number, WhatsappOtp::PURPOSE_PROFILE_UPDATE);
     }
 
     public function verifyProfileOtp(Request $request): JsonResponse
@@ -152,7 +147,7 @@ class WhatsAppAuthController extends Controller
             ]);
         }
 
-        $otpRecord = $this->verifyStoredOtp($user, $number, WhatsappOtp::PURPOSE_PROFILE_UPDATE, $otp);
+        $otpRecord = $this->otpService->verify($user, $number, WhatsappOtp::PURPOSE_PROFILE_UPDATE, $otp);
 
         if (! $otpRecord) {
             return $this->invalidOtpResponse();
@@ -176,39 +171,11 @@ class WhatsAppAuthController extends Controller
         ]);
     }
 
-    protected function issueOtp(User $user, string $number, string $purpose): JsonResponse
+    protected function issueOtpResponse(User $user, string $number, string $purpose): JsonResponse
     {
-        $expiresIn = (int) config('services.whatsapp.otp_expires_in', 60);
-        $expiresAt = now()->addSeconds($expiresIn);
-        $otp = (string) random_int(100000, 999999);
-
-        WhatsappOtp::query()
-            ->where('whatsapp_number', $number)
-            ->where('purpose', $purpose)
-            ->whereNull('verified_at')
-            ->update(['expires_at' => now()]);
-
-        $otpRecord = WhatsappOtp::query()->create([
-            'user_id' => $user->id,
-            'whatsapp_number' => $number,
-            'purpose' => $purpose,
-            'otp_hash' => Hash::make($otp),
-            'expires_at' => $expiresAt,
-            'attempt_count' => 0,
-        ]);
-
         try {
-            $this->whatsApp->sendOtp($number, $otp);
-        } catch (Throwable $exception) {
-            $otpRecord->forceFill(['expires_at' => now()])->save();
-
-            Log::warning('Gagal mengirim OTP WhatsApp', [
-                'user_id' => $user->id,
-                'purpose' => $purpose,
-                'whatsapp_last4' => substr($number, -4),
-                'error' => $exception->getMessage(),
-            ]);
-
+            $result = $this->otpService->issue($user, $number, $purpose);
+        } catch (Throwable) {
             return response()->json([
                 'meta' => [
                     'code' => 502,
@@ -227,47 +194,11 @@ class WhatsAppAuthController extends Controller
                 'message' => 'OTP berhasil dikirim.',
             ],
             'data' => [
-                'expires_in' => $expiresIn,
+                'expires_in' => $result['expires_in'],
                 'masked_number' => WhatsAppNumber::mask($number),
             ],
             'errors' => null,
         ]);
-    }
-
-    protected function verifyStoredOtp(User $user, string $number, string $purpose, string $otp): ?WhatsappOtp
-    {
-        $otpRecord = WhatsappOtp::query()
-            ->where('whatsapp_number', $number)
-            ->where('purpose', $purpose)
-            ->where(function ($query) use ($user) {
-                $query->where('user_id', $user->id)->orWhereNull('user_id');
-            })
-            ->whereNull('verified_at')
-            ->latest('id')
-            ->first();
-
-        if (! $otpRecord || $otpRecord->expires_at->isPast() || $otpRecord->attempt_count >= self::MAX_ATTEMPTS) {
-            return null;
-        }
-
-        if (! Hash::check($otp, $otpRecord->otp_hash)) {
-            $attempts = $otpRecord->attempt_count + 1;
-            $payload = ['attempt_count' => $attempts];
-
-            if ($attempts >= self::MAX_ATTEMPTS) {
-                $payload['expires_at'] = now();
-            }
-
-            $otpRecord->forceFill($payload)->save();
-
-            return null;
-        }
-
-        DB::transaction(function () use ($otpRecord): void {
-            $otpRecord->forceFill(['verified_at' => now()])->save();
-        });
-
-        return $otpRecord;
     }
 
     protected function requestNumber(Request $request, bool $allowAlias = false): ?string

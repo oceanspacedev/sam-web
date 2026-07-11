@@ -106,8 +106,8 @@
                                     <button type="button" x-on:click="expandAll('org', false)" class="dj-icon-btn" title="Collapse semua"><x-filament::icon icon="heroicon-o-arrows-pointing-in" class="size-4" /></button>
                                 </div>
                                 <button type="button" x-on:click="toggleCanvasFullscreen()" class="dj-cluster dj-cluster--action" :title="isCanvasFullscreen ? 'Keluar fullscreen' : 'Fullscreen'">
-                                    <x-filament::icon icon="heroicon-o-arrows-pointing-out" class="size-4" x-show="!isCanvasFullscreen" />
-                                    <x-filament::icon icon="heroicon-o-arrows-pointing-in" class="size-4" x-show="isCanvasFullscreen" x-cloak />
+                                    <x-filament::icon icon="heroicon-o-window" class="size-4" x-show="!isCanvasFullscreen" />
+                                    <x-filament::icon icon="heroicon-o-x-mark" class="size-4" x-show="isCanvasFullscreen" x-cloak />
                                 </button>
                             </div>
                         </div>

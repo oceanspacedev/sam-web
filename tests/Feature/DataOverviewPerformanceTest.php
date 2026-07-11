@@ -15,8 +15,9 @@ it('loads data overview cards with batched dashboard queries', function (): void
     $seed->invoke($benchmark);
 
     $viewer = Auth::loginUsingId(cache()->get('admin-performance-benchmark:viewer-id'));
-    $viewer->load('role');
+    $viewer->load(['role', 'roles', 'permissions', 'roles.permissions']);
     $viewer->getOrganizationalIds();
+    Gate::allows('ViewAny:User');
 
     DB::flushQueryLog();
     DB::enableQueryLog();

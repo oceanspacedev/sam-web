@@ -24,9 +24,7 @@ class DiagramJabatan extends Page
 
     public static function canAccess(): bool
     {
-        $user = auth()->user();
-
-        return $user?->role?->can_access_web === 1;
+        return auth()->user()?->can('View:DiagramJabatan') ?? false;
     }
 
     public function getSubheading(): ?string

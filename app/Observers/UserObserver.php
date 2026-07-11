@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class UserObserver
 {
@@ -13,6 +14,7 @@ class UserObserver
     public function created(User $user): void
     {
         $this->cleanupOrganizationalPivots($user);
+        Cache::forget('diagram_jabatan:tree:v2');
     }
 
     /**
@@ -21,6 +23,31 @@ class UserObserver
     public function updated(User $user): void
     {
         $this->cleanupOrganizationalPivots($user);
+        Cache::forget('diagram_jabatan:tree:v2');
+    }
+
+    /**
+     * Handle the User "deleted" event.
+     */
+    public function deleted(User $user): void
+    {
+        Cache::forget('diagram_jabatan:tree:v2');
+    }
+
+    /**
+     * Handle the User "restored" event.
+     */
+    public function restored(User $user): void
+    {
+        Cache::forget('diagram_jabatan:tree:v2');
+    }
+
+    /**
+     * Handle the User "force deleted" event.
+     */
+    public function forceDeleted(User $user): void
+    {
+        Cache::forget('diagram_jabatan:tree:v2');
     }
 
     /**

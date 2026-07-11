@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Services\OrganizationalCacheService;
 use App\Support\OrganizationalPivotSync;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class OrganizationalObserver
 {
@@ -47,6 +48,8 @@ class OrganizationalObserver
     protected function clearRelevantCache(Model $model): void
     {
         $class = get_class($model);
+
+        Cache::forget('diagram_jabatan:tree:v2');
 
         match ($class) {
             BadanUsaha::class => $this->cacheService->clearBadanUsahaCache(),

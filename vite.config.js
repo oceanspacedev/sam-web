@@ -11,8 +11,8 @@ export default defineConfig({
       input: [
         'resources/css/app.css',
         'resources/js/app.js',
-        'vendor/apriansyahrs/mekaya-theme/resources/css/theme.css',
-        'vendor/apriansyahrs/mekaya-theme/resources/js/mekaya.js',
+        'vendor/kungfufafa/mekaya-theme/resources/css/theme.css',
+        'vendor/kungfufafa/mekaya-theme/resources/js/mekaya.js',
       ],
       refresh: true,
     }),

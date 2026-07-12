@@ -260,27 +260,27 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 10,
+                'maxProcesses' => 3,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
             'supervisor-media' => [
-                'maxProcesses' => 8,    // More media workers in production
-                'balanceMaxShift' => 2,
-                'balanceCooldown' => 1,
+                'maxProcesses' => 2,    // More media workers in production
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
             ],
             'supervisor-imports' => [
-                'maxProcesses' => 2,
+                'maxProcesses' => 1,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
             'supervisor-exports' => [
-                'maxProcesses' => 2,
+                'maxProcesses' => 1,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
             'supervisor-notifications' => [
-                'maxProcesses' => 4,    // More notification workers in production
+                'maxProcesses' => 2,    // More notification workers in production
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],

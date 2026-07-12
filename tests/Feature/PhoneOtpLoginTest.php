@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\WhatsappOtp;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Livewire\Livewire;
 
 function makeWebUser(array $overrides = []): User
@@ -27,6 +28,12 @@ test('login page exposes WhatsApp entry point', function (): void {
         ->assertSee('Atau masuk dengan')
         ->assertSee('WhatsApp')
         ->assertSee(route('phone-login'), false);
+});
+
+test('phone login relies on the web middleware group for csrf protection', function (): void {
+    $middleware = app('router')->getRoutes()->getByName('phone-login')->gatherMiddleware();
+
+    expect($middleware)->not->toContain(VerifyCsrfToken::class);
 });
 
 test('verified web user can request OTP and login via WhatsApp', function (): void {

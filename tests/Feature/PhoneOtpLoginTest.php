@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Livewire\Livewire;
+use Livewire\Mechanisms\ComponentRegistry;
 
 function makeWebUser(array $overrides = []): User
 {
@@ -34,6 +35,11 @@ test('phone login relies on the web middleware group for csrf protection', funct
     $middleware = app('router')->getRoutes()->getByName('phone-login')->gatherMiddleware();
 
     expect($middleware)->not->toContain(VerifyCsrfToken::class);
+});
+
+test('phone login is registered for subsequent Livewire requests', function (): void {
+    expect(app(ComponentRegistry::class)->getClass('phone-login'))
+        ->toBe(PhoneLogin::class);
 });
 
 test('verified web user can request OTP and login via WhatsApp', function (): void {

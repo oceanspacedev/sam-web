@@ -2,7 +2,6 @@
 
 use App\Filament\Auth\Pages\PhoneLogin;
 use App\Http\Controllers\ArchivedStorageController;
-use App\Http\Controllers\Auth\PhoneOtpLoginController;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Illuminate\Support\Facades\Route;
@@ -46,11 +45,3 @@ Route::get('/phone-login', PhoneLogin::class)
         DispatchServingFilamentEvent::class,
     ])
     ->name('phone-login');
-
-Route::get('/phone-login/verify', [PhoneOtpLoginController::class, 'showVerifyForm'])
-    ->middleware('guest')
-    ->name('phone-login.verify');
-
-Route::post('/phone-login/verify', [PhoneOtpLoginController::class, 'verifyOtp'])
-    ->middleware(['guest', 'throttle:whatsapp-verify'])
-    ->name('phone-login.verify.submit');

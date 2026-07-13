@@ -45,10 +45,13 @@ test('phone login is registered for subsequent Livewire requests', function (): 
 test('verified web user can request OTP and login via WhatsApp', function (): void {
     $user = makeWebUser();
 
-    Livewire::test(PhoneLogin::class)
+    $component = Livewire::test(PhoneLogin::class)
         ->fillForm(['whatsapp_number' => '081234567890'])
         ->call('send')
-        ->assertRedirect(route('phone-login.verify'));
+        ->assertNoRedirect()
+        ->assertSet('awaitingOtp', true)
+        ->assertSet('data.whatsapp_number', '6281234567890')
+        ->assertSeeHtml('wire:submit="verify"');
 
     $otp = WhatsappOtp::query()->where('user_id', $user->id)->latest('id')->firstOrFail();
     expect($otp->purpose)->toBe(WhatsappOtp::PURPOSE_LOGIN);
@@ -61,15 +64,18 @@ test('verified web user can request OTP and login via WhatsApp', function (): vo
         'verified_at' => null,
     ])->save();
 
-    $this->from(route('phone-login.verify'))
-        ->post(route('phone-login.verify.submit'), [
-            'phone' => '6281234567890',
-            'otp' => '123456',
-        ])
+    $component
+        ->set('data.otp', '123456')
+        ->call('verify')
         ->assertRedirect('/admin');
 
     expect(Auth::check())->toBeTrue()
         ->and(Auth::id())->toBe($user->id);
+});
+
+test('phone login does not expose a separate verification route', function (): void {
+    expect(app('router')->getRoutes()->getByName('phone-login.verify'))->toBeNull()
+        ->and(app('router')->getRoutes()->getByName('phone-login.verify.submit'))->toBeNull();
 });
 
 test('rejects unverified WhatsApp number', function (): void {
@@ -111,12 +117,12 @@ test('rejects wrong OTP', function (): void {
         'attempt_count' => 0,
     ]);
 
-    $this->from(route('phone-login.verify'))
-        ->post(route('phone-login.verify.submit'), [
-            'phone' => '6281234567890',
-            'otp' => '000000',
-        ])
-        ->assertSessionHasErrors('otp');
+    Livewire::test(PhoneLogin::class)
+        ->fillForm(['whatsapp_number' => '081234567890'])
+        ->set('awaitingOtp', true)
+        ->set('data.otp', '000000')
+        ->call('verify')
+        ->assertHasFormErrors(['otp']);
 
     expect(Auth::check())->toBeFalse();
 });

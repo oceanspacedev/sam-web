@@ -150,8 +150,7 @@ class PhoneLogin extends SimplePage
                 ->autocomplete('tel')
                 ->disabled(fn (): bool => $this->awaitingOtp)
                 ->dehydrated()
-                ->autofocus()
-                ->helperText('Contoh: 081234567890'),
+                ->autofocus(),
             TextInput::make('otp')
                 ->label('Kode OTP')
                 ->helperText('Masukkan 6 digit kode yang dikirim ke WhatsApp.')

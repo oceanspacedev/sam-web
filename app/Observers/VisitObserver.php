@@ -41,6 +41,8 @@ class VisitObserver
         }
 
         $visitDate = Carbon::parse($visit->tanggal_visit)->startOfDay();
+        $yesterday = $visitDate->copy()->subDay();
+        $tomorrow = $visitDate->copy()->addDay();
 
         /** @var PlanVisit|null $plan */
         $plan = PlanVisit::query()
@@ -48,17 +50,21 @@ class VisitObserver
             ->where('visitable_type', $visit->visitable_type)
             ->where('visitable_id', $visit->visitable_id)
             ->unrealized()
-            ->where(function (Builder $query) use ($visitDate): void {
-                $query->where(function (Builder $subQuery) use ($visitDate): void {
+            ->where(function (Builder $query) use ($visitDate, $yesterday, $tomorrow): void {
+                $query->where(function (Builder $subQuery) use ($yesterday, $tomorrow): void {
                     $subQuery
                         ->where('schedule_scope', 'weekly')
-                        ->whereDate('period_start', '<=', $visitDate->toDateString())
-                        ->whereDate('period_end', '>=', $visitDate->toDateString());
+                        ->whereDate('period_start', '<=', $tomorrow->toDateString())
+                        ->whereDate('period_end', '>=', $yesterday->toDateString());
                 })
-                    ->orWhere(function (Builder $subQuery) use ($visitDate): void {
+                    ->orWhere(function (Builder $subQuery) use ($visitDate, $yesterday, $tomorrow): void {
                         $subQuery
                             ->where('schedule_scope', 'daily')
-                            ->whereDate('period_start', $visitDate->toDateString());
+                            ->where(function ($q) use ($visitDate, $yesterday, $tomorrow) {
+                                $q->whereDate('period_start', $visitDate->toDateString())
+                                  ->orWhereDate('period_start', $yesterday->toDateString())
+                                  ->orWhereDate('period_start', $tomorrow->toDateString());
+                            });
                     });
             })
             ->orderByDesc('schedule_scope')
@@ -74,6 +80,12 @@ class VisitObserver
             : ($visit->check_in_time ? Carbon::parse($visit->check_in_time) : now());
 
         $plan->markAsRealized($visit, $realizedAt);
+
+        if ($visit->tipe_visit !== 'PLANNED') {
+            Visit::withoutEvents(function () use ($visit) {
+                $visit->forceFill(['tipe_visit' => 'PLANNED'])->save();
+            });
+        }
     }
 
     /**

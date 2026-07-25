@@ -427,33 +427,41 @@ class VisitController extends Controller
                 }
             }
 
-            if ($request->tipe_visit === 'PLANNED') {
-                $today = now()->startOfDay();
+            $tipeVisit = $request->tipe_visit;
 
-                $hasPlannedTarget = PlanVisit::query()
-                    ->where('user_id', $user->id)
-                    ->where('visitable_type', $visitableType)
-                    ->where('visitable_id', $target->id)
-                    ->unrealized()
-                    ->where(function (Builder $query) use ($today): void {
-                        $query
-                            ->where(function (Builder $daily) use ($today): void {
-                                $daily
-                                    ->where('schedule_scope', 'daily');
-                                $this->whereDayRange($daily, 'period_start', $today);
-                            })
-                            ->orWhere(function (Builder $weekly) use ($today): void {
-                                $weekly
-                                    ->where('schedule_scope', 'weekly')
-                                    ->where('period_start', '<=', $today->toDateString())
-                                    ->where('period_end', '>=', $today->toDateString());
-                            });
-                    })
-                    ->exists();
+            $today = now()->startOfDay();
+            $yesterday = $today->copy()->subDay();
+            $tomorrow = $today->copy()->addDay();
 
-                if (! $hasPlannedTarget) {
-                    throw new BadRequestException('Target ini tidak ada di Plan Visit hari ini. Gunakan EXTRACALL.');
-                }
+            $hasPlannedTarget = PlanVisit::query()
+                ->where('user_id', $user->id)
+                ->where('visitable_type', $visitableType)
+                ->where('visitable_id', $target->id)
+                ->unrealized()
+                ->where(function (Builder $query) use ($today, $yesterday, $tomorrow): void {
+                    $query
+                        ->where(function (Builder $daily) use ($today, $yesterday, $tomorrow): void {
+                            $daily
+                                ->where('schedule_scope', 'daily')
+                                ->where(function ($q) use ($today, $yesterday, $tomorrow) {
+                                    $q->whereDate('period_start', $today->toDateString())
+                                      ->orWhereDate('period_start', $yesterday->toDateString())
+                                      ->orWhereDate('period_start', $tomorrow->toDateString());
+                                });
+                        })
+                        ->orWhere(function (Builder $weekly) use ($yesterday, $tomorrow): void {
+                            $weekly
+                                ->where('schedule_scope', 'weekly')
+                                ->where('period_start', '<=', $tomorrow->toDateString())
+                                ->where('period_end', '>=', $yesterday->toDateString());
+                        });
+                })
+                ->exists();
+
+            if ($hasPlannedTarget) {
+                $tipeVisit = 'PLANNED';
+            } elseif ($tipeVisit === 'PLANNED') {
+                $tipeVisit = 'EXTRACALL';
             }
 
             // Check max visit per day (for both outlet and register)
@@ -496,7 +504,7 @@ class VisitController extends Controller
                 'user_id' => $user->id,
                 'visitable_type' => $visitableType,
                 'visitable_id' => $target->id,
-                'tipe_visit' => $request->tipe_visit,
+                'tipe_visit' => $tipeVisit,
                 'latlong_in' => $request->latlong_in,
                 'check_in_time' => now(),
                 'picture_visit_in' => $temporaryPath,

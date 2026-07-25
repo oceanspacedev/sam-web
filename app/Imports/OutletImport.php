@@ -12,6 +12,7 @@ use App\Support\ImportSpreadsheetValidator;
 use App\Support\ImportSummaryStore;
 use App\Support\OrganizationalName;
 use App\Support\StorageDisk;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
@@ -221,10 +222,14 @@ class OutletImport implements OnEachRow, ShouldQueue, WithChunkReading, WithEven
             }
 
             if ($existing->cluster_id !== $clusterId) {
+                // Only current week and future plans block cluster moves; past weeks are ignored.
+                $currentWeekStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
+
                 $hasUnrealizedPlanVisits = PlanVisit::query()
                     ->unrealized()
                     ->where('visitable_type', Outlet::class)
                     ->where('visitable_id', $existing->id)
+                    ->whereDate('period_end', '>=', $currentWeekStart)
                     ->exists();
 
                 if ($hasUnrealizedPlanVisits) {

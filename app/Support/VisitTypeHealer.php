@@ -28,7 +28,7 @@ class VisitTypeHealer
                     ->whereColumn('plan_visits.visitable_type', 'visits.visitable_type')
                     ->whereColumn('plan_visits.visitable_id', 'visits.visitable_id')
                     ->whereNotNull('plan_visits.realized_at')
-                    ->whereRaw('DATE(plan_visits.realized_at) = visits.tanggal_visit');
+                    ->whereRaw('DATE(plan_visits.realized_at) = DATE(visits.tanggal_visit)');
             })
             ->pluck('id');
 

@@ -17,6 +17,7 @@ use App\Models\Register;
 use App\Models\Visit;
 use App\Services\FileUploadService;
 use App\Services\SystemSettingResolver;
+use App\Support\PlanVisitMatcher;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -429,34 +430,12 @@ class VisitController extends Controller
 
             $tipeVisit = $request->tipe_visit;
 
-            $today = now()->startOfDay();
-            $yesterday = $today->copy()->subDay();
-            $tomorrow = $today->copy()->addDay();
-
-            $hasPlannedTarget = PlanVisit::query()
-                ->where('user_id', $user->id)
-                ->where('visitable_type', $visitableType)
-                ->where('visitable_id', $target->id)
-                ->unrealized()
-                ->where(function (Builder $query) use ($today, $yesterday, $tomorrow): void {
-                    $query
-                        ->where(function (Builder $daily) use ($today, $yesterday, $tomorrow): void {
-                            $daily
-                                ->where('schedule_scope', 'daily')
-                                ->where(function ($q) use ($today, $yesterday, $tomorrow) {
-                                    $q->whereDate('period_start', $today->toDateString())
-                                      ->orWhereDate('period_start', $yesterday->toDateString())
-                                      ->orWhereDate('period_start', $tomorrow->toDateString());
-                                });
-                        })
-                        ->orWhere(function (Builder $weekly) use ($yesterday, $tomorrow): void {
-                            $weekly
-                                ->where('schedule_scope', 'weekly')
-                                ->where('period_start', '<=', $tomorrow->toDateString())
-                                ->where('period_end', '>=', $yesterday->toDateString());
-                        });
-                })
-                ->exists();
+            $hasPlannedTarget = PlanVisitMatcher::shouldMarkPlanned(
+                (int) $user->id,
+                $visitableType,
+                (int) $target->id,
+                today(),
+            );
 
             if ($hasPlannedTarget) {
                 $tipeVisit = 'PLANNED';

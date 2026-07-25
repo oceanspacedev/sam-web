@@ -162,33 +162,19 @@ class PlanVisitImport implements OnEachRow, ShouldQueue, WithChunkReading, WithE
 
             $schedulePayload = PlanVisit::schedulePayload($tanggal, $this->scheduleScope);
 
-            $existing = PlanVisit::query()
-                ->where('visitable_type', Outlet::class)
-                ->where('visitable_id', $outlet->id)
-                ->where('user_id', $user->id)
-                ->where('schedule_scope', $this->scheduleScope)
-                ->whereDate('period_start', $schedulePayload['period_start'])
-                ->first();
-
-            if ($existing) {
-                $existing->update(array_merge($schedulePayload, [
-                    'user_id' => $user->id,
-                    'visitable_type' => Outlet::class,
-                    'visitable_id' => $outlet->id,
-                ]));
-
-                $this->incrementUpdated();
-
-                return;
-            }
-
-            PlanVisit::create(array_merge($schedulePayload, [
+            $attributes = array_merge($schedulePayload, [
                 'user_id' => $user->id,
                 'visitable_type' => Outlet::class,
                 'visitable_id' => $outlet->id,
-            ]));
+            ]);
 
-            $this->incrementCreated();
+            [, $created] = PlanVisit::updateOrCreateForPeriod($attributes);
+
+            if ($created) {
+                $this->incrementCreated();
+            } else {
+                $this->incrementUpdated();
+            }
         } catch (Exception $exception) {
             $this->rememberError($rowIndex, $data, $exception->getMessage());
 

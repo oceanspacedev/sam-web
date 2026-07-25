@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class PlanVisitController extends Controller
 {
@@ -383,15 +384,15 @@ class PlanVisitController extends Controller
 
         $schedulePayload = PlanVisit::schedulePayload($periodStart, 'daily');
 
-        $existingPlan = PlanVisit::query()
-            ->where('user_id', $user->id)
-            ->where('visitable_type', $visitableType)
-            ->where('visitable_id', $target->id)
-            ->where('schedule_scope', 'daily');
-        $this->wherePlanPeriodRange($existingPlan, $periodStart, $periodStart);
-        $existingPlan = $existingPlan->first();
+        $attributes = array_merge($schedulePayload, [
+            'user_id' => (string) $user->id,
+            'visitable_type' => $visitableType,
+            'visitable_id' => $target->id,
+        ]);
 
-        if ($existingPlan) {
+        try {
+            $addPlan = PlanVisit::createOrRestoreForPeriod($attributes);
+        } catch (ValidationException $exception) {
             Log::channel('planvisit')->warning('Plan visit add failed: duplicate', [
                 'user_id' => $user->id,
                 'visitable_type' => $visitableType,
@@ -401,12 +402,6 @@ class PlanVisitController extends Controller
 
             throw new BadRequestException('Plan visit untuk target ini sudah ada');
         }
-
-        $addPlan = PlanVisit::create(array_merge($schedulePayload, [
-            'user_id' => (string) $user->id,
-            'visitable_type' => $visitableType,
-            'visitable_id' => $target->id,
-        ]));
 
         Log::channel('planvisit')->info('Plan visit add success', [
             'plan_visit_id' => $addPlan->id,

@@ -9,12 +9,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Validation\ValidationException;
 
 class PlanVisit extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
+    /**
+     * Unique period key: (user_id, visitable_type, visitable_id, schedule_scope, period_start).
+     * Soft-deleted rows still occupy that key — restore/reuse instead of inserting a duplicate.
+     */
     protected $guarded = [
         'id',
     ];
@@ -90,6 +96,152 @@ class PlanVisit extends Model
             'realized_at' => null,
             'realized_visit_id' => null,
         ])->save();
+    }
+
+    public static function periodKeyExists(
+        int $userId,
+        string $visitableType,
+        int $visitableId,
+        string $scheduleScope,
+        Carbon|string $periodStart,
+        ?int $exceptId = null,
+    ): bool {
+        return static::queryForPeriodKey($userId, $visitableType, $visitableId, $scheduleScope, $periodStart)
+            ->when($exceptId, fn (Builder $query) => $query->where('id', '!=', $exceptId))
+            ->exists();
+    }
+
+    /**
+     * @return Builder<static>
+     */
+    public static function queryForPeriodKey(
+        int $userId,
+        string $visitableType,
+        int $visitableId,
+        string $scheduleScope,
+        Carbon|string $periodStart,
+    ): Builder {
+        $periodStart = $periodStart instanceof Carbon
+            ? $periodStart->toDateString()
+            : Carbon::parse($periodStart)->toDateString();
+
+        return static::withTrashed()
+            ->where('user_id', $userId)
+            ->where('visitable_type', $visitableType)
+            ->where('visitable_id', $visitableId)
+            ->where('schedule_scope', $scheduleScope)
+            ->whereDate('period_start', $periodStart);
+    }
+
+    /**
+     * Restore a soft-deleted plan that occupies the unique period key, clearing prior realization.
+     */
+    public function restoreForReuse(array $attributes = []): static
+    {
+        if ($this->trashed()) {
+            $this->restore();
+        }
+
+        $this->forceFill(array_merge($attributes, [
+            'realized_at' => null,
+            'realized_visit_id' => null,
+        ]))->save();
+
+        return $this;
+    }
+
+    /**
+     * Create a plan for the period key, or restore the soft-deleted row that still occupies it.
+     *
+     * @throws ValidationException when an active plan already occupies the key
+     */
+    public static function createOrRestoreForPeriod(array $attributes): static
+    {
+        $existing = static::findForPeriodAttributes($attributes);
+
+        if ($existing && ! $existing->trashed()) {
+            throw ValidationException::withMessages([
+                'period_start' => 'Plan visit untuk target, scope, dan periode ini sudah ada.',
+            ]);
+        }
+
+        if ($existing) {
+            return $existing->restoreForReuse($attributes);
+        }
+
+        try {
+            return static::create($attributes);
+        } catch (ValidationException|UniqueConstraintViolationException $exception) {
+            $existing = static::findForPeriodAttributes($attributes);
+
+            if ($existing?->trashed()) {
+                return $existing->restoreForReuse($attributes);
+            }
+
+            if ($existing) {
+                throw ValidationException::withMessages([
+                    'period_start' => 'Plan visit untuk target, scope, dan periode ini sudah ada.',
+                ]);
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Update an existing plan for the period key (including soft-deleted), or create one.
+     *
+     * @return array{0: static, 1: bool} Plan and whether it was newly created
+     */
+    public static function updateOrCreateForPeriod(array $attributes): array
+    {
+        $existing = static::findForPeriodAttributes($attributes);
+
+        if ($existing) {
+            if ($existing->trashed()) {
+                $existing->restoreForReuse($attributes);
+            } else {
+                $existing->update($attributes);
+            }
+
+            return [$existing->fresh() ?? $existing, false];
+        }
+
+        try {
+            return [static::create($attributes), true];
+        } catch (ValidationException|UniqueConstraintViolationException $exception) {
+            $existing = static::findForPeriodAttributes($attributes);
+
+            if (! $existing) {
+                throw $exception;
+            }
+
+            if ($existing->trashed()) {
+                $existing->restoreForReuse($attributes);
+            } else {
+                $existing->update($attributes);
+            }
+
+            return [$existing->fresh() ?? $existing, false];
+        }
+    }
+
+    public static function findForPeriodAttributes(array $attributes): ?static
+    {
+        $userId = (int) ($attributes['user_id'] ?? 0);
+        $visitableType = (string) ($attributes['visitable_type'] ?? '');
+        $visitableId = (int) ($attributes['visitable_id'] ?? 0);
+        $scheduleScope = (string) ($attributes['schedule_scope'] ?? '');
+        $periodStart = $attributes['period_start'] ?? null;
+
+        if (! $userId || $visitableType === '' || ! $visitableId || $scheduleScope === '' || $periodStart === null) {
+            return null;
+        }
+
+        return static::queryForPeriodKey($userId, $visitableType, $visitableId, $scheduleScope, $periodStart)
+            ->orderByRaw('deleted_at is not null')
+            ->orderBy('id')
+            ->first();
     }
 
     public static function schedulePayload(Carbon|string $startDate, string $scope = 'daily', Carbon|string|null $endDate = null): array

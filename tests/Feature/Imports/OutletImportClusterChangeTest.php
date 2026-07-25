@@ -8,8 +8,13 @@ use App\Models\Outlet;
 use App\Models\PlanVisit;
 use App\Models\Region;
 use App\Models\User;
+use Carbon\Carbon;
 
-it('blocks outlet cluster changes on import when there are unrealized plan visits', function () {
+/**
+ * @return array{0: Outlet, 1: Cluster, 2: Cluster, 3: array<string, string>}
+ */
+function outletClusterChangeFixture(): array
+{
     $badanUsaha = BadanUsaha::factory()->create(['name' => 'BU-TEST']);
     $division = Division::factory()->create([
         'name' => 'DIV-TEST',
@@ -43,23 +48,6 @@ it('blocks outlet cluster changes on import when there are unrealized plan visit
         'cluster_id' => $clusterOld->id,
     ]);
 
-    $user = User::factory()->create();
-
-    PlanVisit::create([
-        'user_id' => $user->id,
-        'visitable_type' => Outlet::class,
-        'visitable_id' => $outlet->id,
-        'tanggal_visit' => now()->toDateString(),
-        'realized_at' => null,
-        'schedule_scope' => 'daily',
-        'period_start' => now()->startOfDay(),
-        'period_end' => now()->endOfDay(),
-        'schedule_week' => now()->weekOfYear,
-        'schedule_year' => now()->year,
-    ]);
-
-    $import = new OutletImport('update');
-
     $row = [
         'badan_usaha' => 'BU-TEST',
         'divisi' => 'DIV-TEST',
@@ -68,6 +56,66 @@ it('blocks outlet cluster changes on import when there are unrealized plan visit
         'cluster_baru' => 'CLUSTER-NEW',
         'kode_outlet' => 'OUT-001',
     ];
+
+    return [$outlet, $clusterOld, $clusterNew, $row];
+}
+
+it('blocks outlet cluster changes on import when there are unrealized plan visits in the current week', function () {
+    [$outlet, $clusterOld, , $row] = outletClusterChangeFixture();
+    $user = User::factory()->create();
+    $payload = PlanVisit::schedulePayload(now(), 'weekly');
+
+    PlanVisit::create([
+        'user_id' => $user->id,
+        'visitable_type' => Outlet::class,
+        'visitable_id' => $outlet->id,
+        'realized_at' => null,
+        ...$payload,
+    ]);
+
+    $import = new OutletImport('update');
+
+    expect(fn () => $import->model($row, 2))
+        ->toThrow(Exception::class, 'Perubahan cluster ditolak');
+
+    expect($outlet->refresh()->cluster_id)->toBe($clusterOld->id);
+});
+
+it('allows outlet cluster changes when unrealized plan visits are only in past weeks', function () {
+    [$outlet, , $clusterNew, $row] = outletClusterChangeFixture();
+    $user = User::factory()->create();
+    $pastWeek = now()->startOfWeek(Carbon::MONDAY)->subWeek();
+    $payload = PlanVisit::schedulePayload($pastWeek, 'weekly');
+
+    PlanVisit::create([
+        'user_id' => $user->id,
+        'visitable_type' => Outlet::class,
+        'visitable_id' => $outlet->id,
+        'realized_at' => null,
+        ...$payload,
+    ]);
+
+    $import = new OutletImport('update');
+    $import->model($row, 2);
+
+    expect($outlet->refresh()->cluster_id)->toBe($clusterNew->id);
+});
+
+it('blocks outlet cluster changes when unrealized plan visits are in a future week', function () {
+    [$outlet, $clusterOld, , $row] = outletClusterChangeFixture();
+    $user = User::factory()->create();
+    $nextWeek = now()->startOfWeek(Carbon::MONDAY)->addWeek();
+    $payload = PlanVisit::schedulePayload($nextWeek, 'weekly');
+
+    PlanVisit::create([
+        'user_id' => $user->id,
+        'visitable_type' => Outlet::class,
+        'visitable_id' => $outlet->id,
+        'realized_at' => null,
+        ...$payload,
+    ]);
+
+    $import = new OutletImport('update');
 
     expect(fn () => $import->model($row, 2))
         ->toThrow(Exception::class, 'Perubahan cluster ditolak');

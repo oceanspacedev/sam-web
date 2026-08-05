@@ -5,6 +5,7 @@ namespace App\Exports\Outlet;
 use App\Exports\Concerns\PreservesTextColumns;
 use App\Models\Outlet;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
@@ -16,12 +17,24 @@ class AllOutletsSheet implements FromCollection, WithColumnFormatting, WithCusto
 {
     use PreservesTextColumns;
 
-    public function __construct(public User $user) {}
+    public function __construct(
+        public User $user,
+        public ?int $month = null,
+        public ?int $year = null,
+    ) {
+        $this->month = $this->month ?? (int) now()->format('m');
+        $this->year = $this->year ?? (int) now()->format('Y');
+    }
 
     public function collection(): Collection
     {
+        $anchor = Carbon::createFromDate($this->year, $this->month, 1);
+        $end = $anchor->copy()->endOfMonth();
+
         /** @var \Illuminate\Database\Eloquent\Collection<int, Outlet> $outlets */
-        $outlets = Outlet::visibleTo($this->user)->with(['region:id,name', 'cluster:id,name'])
+        $outlets = Outlet::visibleTo($this->user)
+            ->where('created_at', '<=', $end)
+            ->with(['region:id,name', 'cluster:id,name'])
             ->orderBy('kode_outlet')
             ->get();
 

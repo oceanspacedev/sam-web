@@ -18,23 +18,32 @@ class UnvisitedOutletsSheet implements FromCollection, WithColumnFormatting, Wit
 {
     use PreservesTextColumns;
 
-    public function __construct(public User $user) {}
+    public function __construct(
+        public User $user,
+        public ?int $month = null,
+        public ?int $year = null,
+    ) {
+        $this->month = $this->month ?? (int) now()->format('m');
+        $this->year = $this->year ?? (int) now()->format('Y');
+    }
 
     public function collection(): Collection
     {
-        $start = Carbon::now()->startOfMonth()->toDateString();
-        $end = Carbon::now()->endOfMonth()->toDateString();
+        $anchor = Carbon::createFromDate($this->year, $this->month, 1);
+        $start = $anchor->copy()->startOfMonth()->toDateString();
+        $end = $anchor->copy()->endOfMonth();
 
         $visitedOutletIds = Visit::query()
             ->where('user_id', $this->user->id)
             ->where('visitable_type', Outlet::class)
-            ->whereBetween('tanggal_visit', [$start, $end])
+            ->whereBetween('tanggal_visit', [$start, $end->toDateString()])
             ->pluck('visitable_id')
             ->unique()
             ->filter()
             ->values();
 
         $outlets = Outlet::visibleTo($this->user)
+            ->where('created_at', '<=', $end)
             ->when($visitedOutletIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $visitedOutletIds))
             ->with(['region:id,name', 'cluster:id,name'])
             ->orderBy('kode_outlet')
@@ -62,7 +71,7 @@ class UnvisitedOutletsSheet implements FromCollection, WithColumnFormatting, Wit
 
     public function title(): string
     {
-        return 'Unvisited (This Month)';
+        return sprintf('Unvisited (%04d-%02d)', $this->year, $this->month);
     }
 
     protected function textColumns(): array

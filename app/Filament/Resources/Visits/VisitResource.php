@@ -27,6 +27,7 @@ use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -93,6 +94,10 @@ class VisitResource extends Resource
                                     ->default('EXTRACALL')
                                     ->live()
                                     ->afterStateUpdated(fn (callable $set) => $set('outlet_id', null)),
+                                Placeholder::make('jadwal')
+                                    ->label('Jadwal')
+                                    ->content(fn (?Visit $record): string => $record?->loadMissing('realizedPlanVisit')->plannedScheduleLabel() ?? '-')
+                                    ->visible(fn (string $context): bool => $context === 'edit'),
                                 Select::make('user_id')
                                     ->searchable()
                                     ->required()
@@ -139,7 +144,7 @@ class VisitResource extends Resource
                                         : ($get('tipe_visit') === 'EXTRACALL' && $get('user_id')
                                             ? 'Hanya menampilkan target sesuai scope user yang dipilih'
                                             : null))
-                                    ->getSearchResultsUsing(function (string $search, callable $get) {
+                                    ->getSearchResultsUsing(function (string $search, callable $get, ?Visit $record) {
                                         $type = (string) $get('visitable_type');
                                         $tipeVisit = (string) $get('tipe_visit');
                                         $selectedUserId = $get('user_id');
@@ -157,7 +162,8 @@ class VisitResource extends Resource
                                             $plannedIds = VisitTargetSelectOptions::plannedVisitableIdsForDate(
                                                 $selectedUser->id,
                                                 $type,
-                                                $get('tanggal_visit')
+                                                $get('tanggal_visit'),
+                                                $record?->id,
                                             );
 
                                             if ($plannedIds === []) {
@@ -186,7 +192,7 @@ class VisitResource extends Resource
                                             $plannedIds
                                         );
                                     })
-                                    ->options(function (callable $get) {
+                                    ->options(function (callable $get, ?Visit $record) {
                                         $type = (string) $get('visitable_type');
                                         $id = $get('visitable_id');
                                         $tipeVisit = (string) $get('tipe_visit');
@@ -204,7 +210,8 @@ class VisitResource extends Resource
                                                 $plannedIds = VisitTargetSelectOptions::plannedVisitableIdsForDate(
                                                     $selectedUser->id,
                                                     $type,
-                                                    $get('tanggal_visit')
+                                                    $get('tanggal_visit'),
+                                                    $record?->id,
                                                 );
                                             }
 
@@ -350,6 +357,16 @@ class VisitResource extends Resource
                                             'EXTRACALL' => 'info',
                                             default => 'gray',
                                         }),
+                                    TextEntry::make('realizedPlanVisit.schedule_scope')
+                                        ->label('Jadwal')
+                                        ->badge()
+                                        ->placeholder('-')
+                                        ->formatStateUsing(fn (?string $state): string => $state ? ucfirst($state) : '-')
+                                        ->color(fn (?string $state): string => match ($state) {
+                                            'daily' => 'success',
+                                            'weekly' => 'info',
+                                            default => 'gray',
+                                        }),
                                     TextEntry::make('user.nama_lengkap')
                                         ->label('User'),
                                     TextEntry::make('visitable.nama_outlet')
@@ -444,6 +461,16 @@ class VisitResource extends Resource
                     ->color(fn (?string $state): string => match ($state) {
                         'PLANNED' => 'primary',
                         'EXTRACALL' => 'info',
+                        default => 'gray',
+                    }),
+                TextColumn::make('realizedPlanVisit.schedule_scope')
+                    ->label('Jadwal')
+                    ->badge()
+                    ->placeholder('-')
+                    ->formatStateUsing(fn (?string $state): string => $state ? ucfirst($state) : '-')
+                    ->color(fn (?string $state): string => match ($state) {
+                        'daily' => 'success',
+                        'weekly' => 'info',
                         default => 'gray',
                     }),
                 TextColumn::make('latlong_in')
@@ -553,7 +580,10 @@ class VisitResource extends Resource
 
         return parent::getEloquentQuery()
             ->tap(fn (Builder $query) => FilamentOrganizationalScope::applyViaUserForeignKey($query, $user))
-            ->with(FilamentTableEagerLoad::visitableTarget());
+            ->with([
+                ...FilamentTableEagerLoad::visitableTarget(),
+                'realizedPlanVisit',
+            ]);
     }
 
     public static function getRelations(): array

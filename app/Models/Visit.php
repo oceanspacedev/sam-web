@@ -6,6 +6,7 @@ use App\Traits\CleansUpMedia;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -41,6 +42,29 @@ class Visit extends Model
     public function visitable(): MorphTo
     {
         return $this->morphTo()->withTrashed();
+    }
+
+    public function realizedPlanVisit(): HasOne
+    {
+        return $this->hasOne(PlanVisit::class, 'realized_visit_id');
+    }
+
+    /**
+     * Daily/Weekly from the linked plan. Extracall and orphan planned visits return "-".
+     */
+    public function plannedScheduleLabel(): string
+    {
+        if (strtoupper((string) $this->tipe_visit) !== 'PLANNED') {
+            return '-';
+        }
+
+        $scope = strtolower((string) ($this->realizedPlanVisit?->schedule_scope ?? ''));
+
+        return match ($scope) {
+            'daily' => 'Daily',
+            'weekly' => 'Weekly',
+            default => '-',
+        };
     }
 
     public function isOutletVisit(): bool

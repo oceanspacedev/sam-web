@@ -11,7 +11,11 @@ use Illuminate\Support\Collection;
 class PlanVisitMatcher
 {
     /**
-     * Unrealized plans that cover the visit date (daily ±1 day / weekly ±1 day window).
+     * Unrealized plans that cover the visit date.
+     *
+     * Weekly matches only the period that contains the visit date (Mon–Sun).
+     * Daily still allows a ±1 day window, but in-period rows are preferred so
+     * Monday never consumes the previous week's weekly plan.
      *
      * @return Collection<int, PlanVisit>
      */
@@ -22,30 +26,35 @@ class PlanVisitMatcher
         Carbon|string $visitDate,
     ): Collection {
         $visitDate = Carbon::parse($visitDate)->startOfDay();
-        $yesterday = $visitDate->copy()->subDay();
-        $tomorrow = $visitDate->copy()->addDay();
+        $visitDateString = $visitDate->toDateString();
+        $yesterday = $visitDate->copy()->subDay()->toDateString();
+        $tomorrow = $visitDate->copy()->addDay()->toDateString();
 
         return PlanVisit::query()
             ->where('user_id', $userId)
             ->where('visitable_type', $visitableType)
             ->where('visitable_id', $visitableId)
             ->unrealized()
-            ->where(function (Builder $query) use ($visitDate, $yesterday, $tomorrow): void {
-                $query->where(function (Builder $weekly) use ($yesterday, $tomorrow): void {
+            ->where(function (Builder $query) use ($visitDateString, $yesterday, $tomorrow): void {
+                $query->where(function (Builder $weekly) use ($visitDateString): void {
                     $weekly
                         ->where('schedule_scope', 'weekly')
-                        ->whereDate('period_start', '<=', $tomorrow->toDateString())
-                        ->whereDate('period_end', '>=', $yesterday->toDateString());
-                })->orWhere(function (Builder $daily) use ($visitDate, $yesterday, $tomorrow): void {
+                        ->whereDate('period_start', '<=', $visitDateString)
+                        ->whereDate('period_end', '>=', $visitDateString);
+                })->orWhere(function (Builder $daily) use ($visitDateString, $yesterday, $tomorrow): void {
                     $daily
                         ->where('schedule_scope', 'daily')
-                        ->where(function (Builder $q) use ($visitDate, $yesterday, $tomorrow): void {
-                            $q->whereDate('period_start', $visitDate->toDateString())
-                                ->orWhereDate('period_start', $yesterday->toDateString())
-                                ->orWhereDate('period_start', $tomorrow->toDateString());
+                        ->where(function (Builder $q) use ($visitDateString, $yesterday, $tomorrow): void {
+                            $q->whereDate('period_start', $visitDateString)
+                                ->orWhereDate('period_start', $yesterday)
+                                ->orWhereDate('period_start', $tomorrow);
                         });
                 });
             })
+            ->orderByRaw(
+                'case when date(period_start) <= ? and date(coalesce(period_end, period_start)) >= ? then 0 else 1 end',
+                [$visitDateString, $visitDateString]
+            )
             ->orderByDesc('schedule_scope')
             ->orderBy('period_start')
             ->orderBy('id')
@@ -153,6 +162,17 @@ class PlanVisitMatcher
             ->whereDate('tanggal_visit', '>=', $periodStart)
             ->whereDate('tanggal_visit', '<=', $periodEnd)
             ->whereDate('tanggal_visit', '<>', $visitDate->toDateString())
+            ->whereNotExists(function ($sub) use ($plan, $periodStart): void {
+                $sub->selectRaw('1')
+                    ->from('plan_visits')
+                    ->whereColumn('plan_visits.realized_visit_id', 'visits.id')
+                    ->whereNull('plan_visits.deleted_at')
+                    ->where(function ($linked) use ($plan, $periodStart): void {
+                        $linked
+                            ->where('plan_visits.schedule_scope', '!=', $plan->schedule_scope)
+                            ->orWhereDate('plan_visits.period_start', '!=', $periodStart);
+                    });
+            })
             ->exists();
     }
 }

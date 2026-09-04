@@ -18,6 +18,7 @@ class VisitExporter extends BaseExporter
     {
         return $query->with([
             'user.role',
+            'realizedPlanVisit',
             'visitable' => fn (MorphTo $morphTo) => $morphTo->morphWith([
                 Outlet::class => ['badanusaha', 'divisi', 'region', 'cluster'],
                 Register::class => ['badanusaha', 'divisi', 'region', 'cluster'],
@@ -63,6 +64,10 @@ class VisitExporter extends BaseExporter
             ExportColumn::make('tipe_visit')
                 ->label('Tipe')
                 ->default('-'),
+
+            ExportColumn::make('realizedPlanVisit.schedule_scope')
+                ->label('Jadwal')
+                ->formatStateUsing(fn ($state, Visit $record): string => $record->plannedScheduleLabel()),
 
             ExportColumn::make('visitable_kode_outlet')
                 ->label('Kode Outlet')

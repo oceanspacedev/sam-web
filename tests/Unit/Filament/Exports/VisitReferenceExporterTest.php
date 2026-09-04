@@ -14,6 +14,7 @@ it('uses polymorphic visitable columns in visit exporter', function () {
     expect($columnNames)
         ->toContain('visitable_type')
         ->toContain('tipe_visit')
+        ->toContain('realizedPlanVisit.schedule_scope')
         ->toContain('visitable_kode_outlet')
         ->toContain('visitable_nama_outlet')
         ->toContain('visitable_badan_usaha')
@@ -55,7 +56,7 @@ it('eager loads polymorphic visitable relation for visit exporter', function () 
     expect($query)
         ->toBeInstanceOf(Builder::class)
         ->and(array_keys($query->getEagerLoads()))
-        ->toContain('user.role', 'visitable');
+        ->toContain('user.role', 'visitable', 'realizedPlanVisit');
 });
 
 it('eager loads polymorphic visitable relation for plan visit exporter', function () {

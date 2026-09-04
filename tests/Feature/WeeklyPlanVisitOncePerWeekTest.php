@@ -394,3 +394,106 @@ test('updateOrCreateForPeriod restores soft-deleted plan instead of failing', fu
                 ->count()
         )->toBe(1);
 });
+
+test('monday check-in realizes this weeks weekly plan not the previous week', function () {
+    $hierarchy = weeklyOnceHierarchy('week-boundary');
+    $user = weeklyOnceUser($hierarchy);
+    $outlet = weeklyOnceOutlet($hierarchy, 'ONCE-MON');
+
+    $lastMonday = Carbon::parse('2026-08-17')->startOfDay();
+    $thisMonday = Carbon::parse('2026-08-24')->startOfDay();
+
+    $lastWeek = PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload($lastMonday, 'weekly'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
+        ]
+    ));
+    $thisWeek = PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload($thisMonday, 'weekly'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
+        ]
+    ));
+
+    Carbon::setTestNow($thisMonday->copy()->setTime(13, 0));
+
+    $checkin = $this->actingAs($user, 'sanctum')
+        ->postJson('/api/visit/checkin', weeklyOnceCheckin($outlet->id, 'EXTRACALL'));
+
+    $checkin->assertOk();
+    expect($checkin->json('data.tipe_visit'))->toBe('PLANNED');
+
+    $visitId = $checkin->json('data.id');
+
+    expect($thisWeek->fresh()->realized_visit_id)->toBe($visitId)
+        ->and($thisWeek->fresh()->realized_at)->not->toBeNull()
+        ->and($lastWeek->fresh()->realized_visit_id)->toBeNull()
+        ->and($lastWeek->fresh()->realized_at)->toBeNull();
+
+    Carbon::setTestNow($thisMonday->copy()->addDays(3)->setTime(14, 0));
+
+    $second = $this->actingAs($user, 'sanctum')
+        ->postJson('/api/visit/checkin', weeklyOnceCheckin($outlet->id, 'PLANNED'));
+
+    $second->assertOk();
+    expect($second->json('data.tipe_visit'))->toBe('EXTRACALL')
+        ->and($thisWeek->fresh()->realized_visit_id)->toBe($visitId)
+        ->and($lastWeek->fresh()->realized_at)->toBeNull();
+
+    Carbon::setTestNow();
+});
+
+test('planned visit already linked to previous week does not block this weeks realization', function () {
+    $hierarchy = weeklyOnceHierarchy('legacy-mislink');
+    $user = weeklyOnceUser($hierarchy);
+    $outlet = weeklyOnceOutlet($hierarchy, 'ONCE-LEG');
+
+    $lastMonday = Carbon::parse('2026-08-17')->startOfDay();
+    $thisMonday = Carbon::parse('2026-08-24')->startOfDay();
+    $thursday = $thisMonday->copy()->addDays(3);
+
+    $lastWeek = PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload($lastMonday, 'weekly'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
+        ]
+    ));
+    $thisWeek = PlanVisit::create(array_merge(
+        PlanVisit::schedulePayload($thisMonday, 'weekly'),
+        [
+            'user_id' => $user->id,
+            'visitable_type' => Outlet::class,
+            'visitable_id' => $outlet->id,
+        ]
+    ));
+
+    $mondayVisit = Visit::withoutEvents(fn () => Visit::create([
+        'user_id' => $user->id,
+        'visitable_type' => Outlet::class,
+        'visitable_id' => $outlet->id,
+        'tanggal_visit' => $thisMonday->toDateString(),
+        'tipe_visit' => 'PLANNED',
+        'check_in_time' => $thisMonday->copy()->setTime(13, 0),
+        'latlong_in' => '-6.2000,106.8166',
+    ]));
+    $lastWeek->markAsRealized($mondayVisit, $thisMonday->copy()->setTime(13, 0));
+
+    Carbon::setTestNow($thursday->copy()->setTime(14, 0));
+
+    $checkin = $this->actingAs($user, 'sanctum')
+        ->postJson('/api/visit/checkin', weeklyOnceCheckin($outlet->id, 'PLANNED'));
+
+    $checkin->assertOk();
+    expect($checkin->json('data.tipe_visit'))->toBe('PLANNED')
+        ->and($thisWeek->fresh()->realized_visit_id)->toBe($checkin->json('data.id'))
+        ->and($lastWeek->fresh()->realized_visit_id)->toBe($mondayVisit->id);
+
+    Carbon::setTestNow();
+});

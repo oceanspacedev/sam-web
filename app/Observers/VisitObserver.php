@@ -23,6 +23,24 @@ class VisitObserver
         $this->markRelatedPlanVisit($visit);
     }
 
+    public function updated(Visit $visit): void
+    {
+        if (strtoupper((string) $visit->tipe_visit) !== 'PLANNED') {
+            if ($visit->wasChanged('tipe_visit')) {
+                PlanVisit::query()
+                    ->where('realized_visit_id', $visit->id)
+                    ->get()
+                    ->each(function (PlanVisit $plan): void {
+                        $plan->clearRealization();
+                    });
+            }
+
+            return;
+        }
+
+        $this->markRelatedPlanVisit($visit);
+    }
+
     public function deleted(Visit $visit): void
     {
         PlanVisit::query()

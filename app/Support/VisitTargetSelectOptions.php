@@ -146,8 +146,12 @@ class VisitTargetSelectOptions
     /**
      * @return array<int, int>
      */
-    public static function plannedVisitableIdsForDate(int|string $userId, string $visitableType, mixed $visitDate): array
-    {
+    public static function plannedVisitableIdsForDate(
+        int|string $userId,
+        string $visitableType,
+        mixed $visitDate,
+        ?int $includeRealizedVisitId = null,
+    ): array {
         if (! $visitDate) {
             return [];
         }
@@ -157,7 +161,13 @@ class VisitTargetSelectOptions
         return PlanVisit::query()
             ->where('user_id', $userId)
             ->where('visitable_type', $visitableType)
-            ->whereNull('realized_at')
+            ->where(function (Builder $query) use ($includeRealizedVisitId): void {
+                $query->whereNull('realized_at');
+
+                if ($includeRealizedVisitId) {
+                    $query->orWhere('realized_visit_id', $includeRealizedVisitId);
+                }
+            })
             ->where(function (Builder $query) use ($date): void {
                 $query
                     ->where(function (Builder $daily) use ($date): void {

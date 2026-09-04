@@ -37,6 +37,7 @@ class VisitsThisMonthSheet implements FromCollection, WithColumnFormatting, With
 
         $visits = Visit::query()
             ->with([
+                'realizedPlanVisit',
                 'visitable' => fn (MorphTo $morphTo) => $morphTo->morphWith([
                     Outlet::class => ['region:id,name', 'cluster:id,name'],
                     Register::class => ['region:id,name', 'cluster:id,name'],
@@ -65,6 +66,7 @@ class VisitsThisMonthSheet implements FromCollection, WithColumnFormatting, With
                 'Region' => $v->visitable?->region?->name ?? '-',
                 'Cluster' => $v->visitable?->cluster?->name ?? '-',
                 'Tipe Visit' => $v->tipe_visit,
+                'Jadwal' => $v->plannedScheduleLabel(),
                 'Durasi (mnt)' => $v->durasi_visit,
                 'Check In' => $v->check_in_time ? Carbon::parse($v->check_in_time)->format('Y-m-d H:i') : null,
                 'Check Out' => $v->check_out_time ? Carbon::parse($v->check_out_time)->format('Y-m-d H:i') : null,
@@ -75,7 +77,7 @@ class VisitsThisMonthSheet implements FromCollection, WithColumnFormatting, With
     public function headings(): array
     {
         return [
-            'Tanggal Visit', 'Jenis Target', 'Kode Outlet', 'Nama Outlet', 'Distrik', 'Region', 'Cluster', 'Tipe Visit', 'Durasi (mnt)', 'Check In', 'Check Out',
+            'Tanggal Visit', 'Jenis Target', 'Kode Outlet', 'Nama Outlet', 'Distrik', 'Region', 'Cluster', 'Tipe Visit', 'Jadwal', 'Durasi (mnt)', 'Check In', 'Check Out',
         ];
     }
 

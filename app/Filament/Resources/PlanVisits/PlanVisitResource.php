@@ -10,6 +10,7 @@ use App\Models\PlanVisit;
 use App\Models\Register;
 use App\Models\User;
 use App\Services\SystemSettingResolver;
+use App\Support\FilamentMorphVisitableSearch;
 use App\Support\FilamentOrganizationalScope;
 use App\Support\FilamentTableEagerLoad;
 use App\Support\ScopedUserSelectOptions;
@@ -281,6 +282,9 @@ class PlanVisitResource extends Resource
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->deferLoading()
+            ->searchUsing(function (Builder $query, string $search): void {
+                FilamentMorphVisitableSearch::apply($query, $search);
+            })
             ->filters([
                 Filter::make('tanggal_visit')
                     ->label('Tanggal Visit')

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\RelationManagers;
 
 use App\Models\Visit;
+use App\Support\FilamentMorphVisitableSearch;
 use App\Support\FilamentTableEagerLoad;
 use App\Support\StorageDisk;
 use Filament\Actions\BulkActionGroup;
@@ -99,6 +100,9 @@ class VisitsRelationManager extends RelationManager
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->deferLoading()
+            ->searchUsing(function (Builder $query, string $search): void {
+                FilamentMorphVisitableSearch::apply($query, $search);
+            })
             ->filters([
                 TrashedFilter::make()
                     ->hidden(fn () => ! Gate::any(['RestoreAny:Visit', 'ForceDeleteAny:Visit'], Visit::class)),

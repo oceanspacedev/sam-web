@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Visit;
 use App\Services\FilenameGeneratorService;
 use App\Services\SystemSettingResolver;
+use App\Support\FilamentMorphVisitableSearch;
 use App\Support\FilamentOrganizationalScope;
 use App\Support\FilamentTableEagerLoad;
 use App\Support\ScopedUserSelectOptions;
@@ -530,6 +531,9 @@ class VisitResource extends Resource
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->deferLoading()
+            ->searchUsing(function (Builder $query, string $search): void {
+                FilamentMorphVisitableSearch::apply($query, $search);
+            })
             ->filters([
                 Filter::make('created_at')
                     ->schema([

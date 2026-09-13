@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\RelationManagers;
 
 use App\Models\PlanVisit;
+use App\Support\FilamentMorphVisitableSearch;
 use App\Support\FilamentTableEagerLoad;
 use Carbon\Carbon;
 use Filament\Actions\BulkActionGroup;
@@ -63,6 +64,9 @@ class PlanVisitsRelationManager extends RelationManager
             ->paginationPageOptions([10, 25, 50])
             ->defaultPaginationPageOption(10)
             ->deferLoading()
+            ->searchUsing(function (Builder $query, string $search): void {
+                FilamentMorphVisitableSearch::apply($query, $search);
+            })
             ->filters([
                 //
             ])

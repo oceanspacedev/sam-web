@@ -304,8 +304,10 @@ class User extends Authenticatable implements FilamentUser, HasName
      */
     public function getProfilePhotoUrlAttribute(): string
     {
-        if ($this->profile_photo_path) {
-            return StorageDisk::url($this->profile_photo_path);
+        $url = StorageDisk::url($this->profile_photo_path);
+
+        if (is_string($url) && $url !== '') {
+            return $url;
         }
 
         $name = $this->nama_lengkap ?? $this->username ?? 'User';

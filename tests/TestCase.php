@@ -12,6 +12,7 @@ abstract class TestCase extends BaseTestCase
 
         config([
             'filesystems.default' => 'public',
+            'filament.default_filesystem_disk' => 'public',
         ]);
     }
 }

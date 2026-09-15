@@ -25,7 +25,7 @@ class ImportSpreadsheetValidator
             throw new InvalidArgumentException('Berkas tidak ditemukan di server. Silakan unggah ulang dan coba lagi.');
         }
 
-        $absolutePath = Storage::disk($disk)->path($relativePath);
+        [$absolutePath, $cleanupPath] = StoragePathResolver::resolveForLocalAccess($disk, $relativePath);
 
         try {
             $reader = IOFactory::createReaderForFile($absolutePath);
@@ -36,6 +36,8 @@ class ImportSpreadsheetValidator
                 'File tidak dapat dibaca. Pastikan format .xlsx/.csv valid dan tidak sedang dibuka di Excel.',
                 previous: $exception,
             );
+        } finally {
+            StoragePathResolver::cleanupTemporaryPath($cleanupPath);
         }
 
         $sheet = $spreadsheet->getSheet(0);

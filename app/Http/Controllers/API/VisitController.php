@@ -12,7 +12,6 @@ use App\Http\Requests\API\CheckoutVisitRequest;
 use App\Http\Resources\Visit\VisitCompactResource;
 use App\Http\Resources\Visit\VisitResource;
 use App\Models\Outlet;
-use App\Models\PlanVisit;
 use App\Models\Register;
 use App\Models\Visit;
 use App\Services\FileUploadService;
@@ -23,7 +22,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class VisitController extends Controller
 {
@@ -363,238 +361,171 @@ class VisitController extends Controller
 
     public function checkin(CheckinVisitRequest $request)
     {
-        $temporaryFiles = [];
-        $mediaQueue = [];
-        $mediaDispatched = false;
+        $user = Auth::user();
 
-        try {
-            $user = Auth::user();
+        // Validate no active visit
+        $activeVisit = Visit::where('user_id', $user->id)
+            ->whereNull('check_out_time')
+            ->tap(fn (Builder $query) => $this->whereDayRange($query, 'tanggal_visit', today()))
+            ->first();
 
-            // Validate no active visit
-            $activeVisit = Visit::where('user_id', $user->id)
-                ->whereNull('check_out_time')
-                ->tap(fn (Builder $query) => $this->whereDayRange($query, 'tanggal_visit', today()))
-                ->first();
+        if ($activeVisit) {
+            $name = $activeVisit->visitable->nama_outlet ?? $activeVisit->visitable->kode_outlet ?? 'target';
+            throw (new BadRequestException(
+                "Belum check out dari {$name}"
+            ))->withData(['active_visit_id' => $activeVisit->id]);
+        }
 
-            if ($activeVisit) {
-                $name = $activeVisit->visitable->nama_outlet ?? $activeVisit->visitable->kode_outlet ?? 'target';
-                throw (new BadRequestException(
-                    "Belum check out dari {$name}"
-                ))->withData(['active_visit_id' => $activeVisit->id]);
+        // Resolve visitable target
+        if ($request->filled('outlet_id')) {
+            $target = Outlet::visibleTo($user)->where('id', $request->outlet_id)->first();
+            if (! $target) {
+                Log::channel('visit')->warning('Check-in visit gagal: outlet tidak ditemukan', [
+                    'user_id' => $user->id,
+                    'outlet_id' => $request->outlet_id,
+                ]);
+
+                throw new ResourceNotFoundException('Outlet tidak ditemukan');
+            }
+            $visitableType = Outlet::class;
+        } else {
+            $target = Register::visibleTo($user)->where('id', $request->register_id)->first();
+            if (! $target) {
+                Log::channel('visit')->warning('Check-in visit gagal: register tidak ditemukan', [
+                    'user_id' => $user->id,
+                    'register_id' => $request->register_id,
+                ]);
+
+                throw new ResourceNotFoundException('Register tidak ditemukan');
+            }
+            $visitableType = Register::class;
+
+            if (! $this->systemSettings->allowsRegisterVisitForModel($target)) {
+                throw new BadRequestException('Setting sistem tidak mengizinkan visit ke LEAD/NOO untuk target ini');
             }
 
-            // Resolve visitable target
-            if ($request->filled('outlet_id')) {
-                $target = Outlet::visibleTo($user)->where('id', $request->outlet_id)->first();
-                if (! $target) {
-                    Log::channel('visit')->warning('Check-in visit gagal: outlet tidak ditemukan', [
-                        'user_id' => $user->id,
-                        'outlet_id' => $request->outlet_id,
-                    ]);
+            $registerType = strtoupper((string) $target->type);
+            $registerStatus = strtoupper((string) $target->status);
 
-                    throw new ResourceNotFoundException('Outlet tidak ditemukan');
-                }
-                $visitableType = Outlet::class;
-            } else {
-                $target = Register::visibleTo($user)->where('id', $request->register_id)->first();
-                if (! $target) {
-                    Log::channel('visit')->warning('Check-in visit gagal: register tidak ditemukan', [
-                        'user_id' => $user->id,
-                        'register_id' => $request->register_id,
-                    ]);
-
-                    throw new ResourceNotFoundException('Register tidak ditemukan');
-                }
-                $visitableType = Register::class;
-
-                if (! $this->systemSettings->allowsRegisterVisitForModel($target)) {
-                    throw new BadRequestException('Setting sistem tidak mengizinkan visit ke LEAD/NOO untuk target ini');
-                }
-
-                $registerType = strtoupper((string) $target->type);
-                $registerStatus = strtoupper((string) $target->status);
-
-                // Approved register must be visited via Outlet target.
-                if ($registerStatus === 'APPROVED') {
-                    throw new BadRequestException('Register sudah menjadi outlet, gunakan target outlet');
-                }
-
-                if ($registerStatus === 'REJECTED') {
-                    throw new BadRequestException('Register sudah REJECTED dan tidak dapat dijadikan target visit');
-                }
-
-                if ($registerType === 'LEAD') {
-                    $this->enforceLeadVisitLimit($user, $target);
-                }
+            // Approved register must be visited via Outlet target.
+            if ($registerStatus === 'APPROVED') {
+                throw new BadRequestException('Register sudah menjadi outlet, gunakan target outlet');
             }
 
-            $tipeVisit = $request->tipe_visit;
-
-            $hasPlannedTarget = PlanVisitMatcher::shouldMarkPlanned(
-                (int) $user->id,
-                $visitableType,
-                (int) $target->id,
-                today(),
-            );
-
-            if ($hasPlannedTarget) {
-                $tipeVisit = 'PLANNED';
-            } elseif ($tipeVisit === 'PLANNED') {
-                $tipeVisit = 'EXTRACALL';
+            if ($registerStatus === 'REJECTED') {
+                throw new BadRequestException('Register sudah REJECTED dan tidak dapat dijadikan target visit');
             }
 
-            // Check max visit per day (for both outlet and register)
-            $this->enforceMaxVisitPerDay($user, $target);
-
-            // Check duplicate visit
-            $existingVisit = Visit::where('user_id', $user->id)
-                ->where('visitable_type', $visitableType)
-                ->where('visitable_id', $target->id)
-                ->tap(fn (Builder $query) => $this->whereDayRange($query, 'tanggal_visit', today()))
-                ->first();
-
-            if ($existingVisit) {
-                $name = $target->nama_outlet ?? $target->kode_outlet ?? 'target';
-                throw (new BadRequestException(
-                    "Anda sudah pernah visit ke {$name} hari ini"
-                ))->withData(['existing_visit_id' => $existingVisit->id]);
-            }
-
-            $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
-            $imageName = date('Y-m-d').'-'.$user->username.'-IN-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
-
-            // FileUploadService throws RuntimeException on error, Handler will catch it
-            $temporaryPath = $this->fileUpload->storeTemporary(
-                $request->file('picture_visit'),
-                'tmp',
-                ['filename' => $imageName]
-            );
-            $temporaryFiles[] = $temporaryPath;
-            $mediaQueue[] = [
-                'field' => 'picture_visit_in',
-                'tmp_path' => $temporaryPath,
-                'type' => 'visit-in',
-                'filename' => $imageName,
-            ];
-
-            // Create visit with polymorphic fields
-            $visit = Visit::create([
-                'tanggal_visit' => today(),
-                'user_id' => $user->id,
-                'visitable_type' => $visitableType,
-                'visitable_id' => $target->id,
-                'tipe_visit' => $tipeVisit,
-                'latlong_in' => $request->latlong_in,
-                'check_in_time' => now(),
-                'picture_visit_in' => $temporaryPath,
-            ]);
-
-            // Process media
-            if ($mediaQueue !== []) {
-                $mediaDispatched = $this->dispatchMediaJob('visit', $visit->id, $mediaQueue);
-                $visit->refresh();
-            }
-
-            $name = $target->nama_outlet ?? $target->kode_outlet ?? 'target';
-            Log::channel('visit')->info('Check-in visit berhasil', [
-                'visit_id' => $visit->id,
-                'user_id' => $user->id,
-                'visitable_type' => $visitableType,
-                'visitable_id' => $target->id,
-                'name' => $name,
-            ]);
-
-            return response()->json([
-                'meta' => [
-                    'code' => 200,
-                    'status' => 'success',
-                    'message' => 'Check-in berhasil',
-                ],
-                'data' => new VisitResource($visit),
-                'errors' => null,
-            ]);
-        } finally {
-            // Cleanup temporary files if media job wasn't dispatched
-            if (! $mediaDispatched && $temporaryFiles !== []) {
-                $this->cleanupTemporaryFiles($temporaryFiles);
+            if ($registerType === 'LEAD') {
+                $this->enforceLeadVisitLimit($user, $target);
             }
         }
+
+        $tipeVisit = $request->tipe_visit;
+
+        $hasPlannedTarget = PlanVisitMatcher::shouldMarkPlanned(
+            (int) $user->id,
+            $visitableType,
+            (int) $target->id,
+            today(),
+        );
+
+        if ($hasPlannedTarget) {
+            $tipeVisit = 'PLANNED';
+        } elseif ($tipeVisit === 'PLANNED') {
+            $tipeVisit = 'EXTRACALL';
+        }
+
+        // Check max visit per day (for both outlet and register)
+        $this->enforceMaxVisitPerDay($user, $target);
+
+        // Check duplicate visit
+        $existingVisit = Visit::where('user_id', $user->id)
+            ->where('visitable_type', $visitableType)
+            ->where('visitable_id', $target->id)
+            ->tap(fn (Builder $query) => $this->whereDayRange($query, 'tanggal_visit', today()))
+            ->first();
+
+        if ($existingVisit) {
+            $name = $target->nama_outlet ?? $target->kode_outlet ?? 'target';
+            throw (new BadRequestException(
+                "Anda sudah pernah visit ke {$name} hari ini"
+            ))->withData(['existing_visit_id' => $existingVisit->id]);
+        }
+
+        $path = $this->fileUpload->put($request->file('picture_visit'), 'visit-in');
+
+        $visit = Visit::create([
+            'tanggal_visit' => today(),
+            'user_id' => $user->id,
+            'visitable_type' => $visitableType,
+            'visitable_id' => $target->id,
+            'tipe_visit' => $tipeVisit,
+            'latlong_in' => $request->latlong_in,
+            'check_in_time' => now(),
+            'picture_visit_in' => $path,
+        ]);
+
+        $name = $target->nama_outlet ?? $target->kode_outlet ?? 'target';
+        Log::channel('visit')->info('Check-in visit berhasil', [
+            'visit_id' => $visit->id,
+            'user_id' => $user->id,
+            'visitable_type' => $visitableType,
+            'visitable_id' => $target->id,
+            'name' => $name,
+        ]);
+
+        return response()->json([
+            'meta' => [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Check-in berhasil',
+            ],
+            'data' => new VisitResource($visit),
+            'errors' => null,
+        ]);
     }
 
     public function checkout(CheckoutVisitRequest $request, int $id)
     {
-        $temporaryFiles = [];
-        $mediaQueue = [];
-        $mediaDispatched = false;
+        $user = Auth::user();
 
-        try {
-            $user = Auth::user();
+        // Get visit
+        $visit = Visit::where('id', $id)
+            ->where('user_id', $user->id)
+            ->whereNull('check_out_time')
+            ->first();
 
-            // Get visit
-            $visit = Visit::where('id', $id)
-                ->where('user_id', $user->id)
-                ->whereNull('check_out_time')
-                ->first();
-
-            if (! $visit) {
-                throw new ResourceNotFoundException('Visit tidak ditemukan atau sudah check-out');
-            }
-
-            $ext = $request->file('picture_visit')->guessExtension() ?: $request->file('picture_visit')->extension();
-            $imageName = date('Y-m-d').'-'.$user->username.'-OUT-'.Carbon::now()->getPreciseTimestamp(3).'.'.$ext;
-
-            // FileUploadService throws RuntimeException on error, Handler will catch it
-            $temporaryPath = $this->fileUpload->storeTemporary(
-                $request->file('picture_visit'),
-                'tmp',
-                ['filename' => $imageName]
-            );
-            $temporaryFiles[] = $temporaryPath;
-            $mediaQueue[] = [
-                'field' => 'picture_visit_out',
-                'tmp_path' => $temporaryPath,
-                'type' => 'visit-out',
-                'filename' => $imageName,
-            ];
-
-            // Calculate duration
-            $checkInTime = Carbon::parse($visit->check_in_time);
-            $checkOutTime = now();
-            $duration = $checkOutTime->diffInMinutes($checkInTime);
-
-            // Update visit
-            $visit->forceFill([
-                'latlong_out' => $request->latlong_out,
-                'check_out_time' => $checkOutTime,
-                'laporan_visit' => $request->laporan_visit,
-                'transaksi' => $request->transaksi,
-                'durasi_visit' => $duration,
-                'picture_visit_out' => $temporaryPath,
-            ])->save();
-
-            // Process media
-            if ($mediaQueue !== []) {
-                $mediaDispatched = $this->dispatchMediaJob('visit', $visit->id, $mediaQueue);
-                $visit->refresh();
-            }
-
-            Log::channel('visit')->info('Check-out visit berhasil', [
-                'visit_id' => $visit->id,
-                'user_id' => $user->id,
-                'durasi' => $duration.' minutes',
-            ]);
-
-            return response()->json([
-                'meta' => ['code' => 200, 'status' => 'success', 'message' => 'Check-out berhasil'],
-                'data' => new VisitResource($visit),
-                'errors' => null,
-            ]);
-        } finally {
-            // Cleanup temporary files if media job wasn't dispatched
-            if (! $mediaDispatched && $temporaryFiles !== []) {
-                $this->cleanupTemporaryFiles($temporaryFiles);
-            }
+        if (! $visit) {
+            throw new ResourceNotFoundException('Visit tidak ditemukan atau sudah check-out');
         }
+
+        $path = $this->fileUpload->put($request->file('picture_visit'), 'visit-out');
+
+        $checkInTime = Carbon::parse($visit->check_in_time);
+        $checkOutTime = now();
+        $duration = $checkOutTime->diffInMinutes($checkInTime);
+
+        $visit->forceFill([
+            'latlong_out' => $request->latlong_out,
+            'check_out_time' => $checkOutTime,
+            'laporan_visit' => $request->laporan_visit,
+            'transaksi' => $request->transaksi,
+            'durasi_visit' => $duration,
+            'picture_visit_out' => $path,
+        ])->save();
+
+        Log::channel('visit')->info('Check-out visit berhasil', [
+            'visit_id' => $visit->id,
+            'user_id' => $user->id,
+            'durasi' => $duration.' minutes',
+        ]);
+
+        return response()->json([
+            'meta' => ['code' => 200, 'status' => 'success', 'message' => 'Check-out berhasil'],
+            'data' => new VisitResource($visit),
+            'errors' => null,
+        ]);
     }
 
     private function enforceMaxVisitPerDay($user, Outlet|Register $target): void
@@ -950,22 +881,5 @@ class VisitController extends Controller
             'lead_visit_window_days' => self::LEAD_VISIT_WINDOW_DAYS,
             'lead_visit_window_start' => $windowStart->toDateString(),
         ]);
-    }
-
-    private function cleanupTemporaryFiles(array $paths): void
-    {
-        if ($paths === []) {
-            return;
-        }
-
-        $disk = Storage::disk($this->fileUpload->temporaryDisk());
-
-        foreach ($paths as $path) {
-            if (! $path) {
-                continue;
-            }
-
-            $disk->delete($path);
-        }
     }
 }

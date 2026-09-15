@@ -1,9 +1,5 @@
 <?php
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schedule;
-
 /*
 |--------------------------------------------------------------------------
 | Console Routes
@@ -17,13 +13,6 @@ use Illuminate\Support\Facades\Schedule;
 
 // // Archive old data monthly
 // Schedule::command('data:archive')->monthly()->at('02:00');
-
-if (config('filesystems.archive.enabled')) {
-    Schedule::command('storage:archive-old-files')
-        ->dailyAt((string) config('filesystems.archive.schedule_time', '02:30'))
-        ->withoutOverlapping(120)
-        ->appendOutputTo(storage_path('logs/storage-archive.log'));
-}
 
 // // ===================================
 // // Outlet Lifecycle Maintenance

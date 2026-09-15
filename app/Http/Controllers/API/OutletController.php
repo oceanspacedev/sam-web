@@ -183,10 +183,7 @@ class OutletController extends Controller
     public function update(UpdateOutletRequest $request, int $id)
     {
         $user = Auth::user();
-        $temporaryFiles = [];
-        $mediaQueue = [];
-        $originalMediaPaths = [];
-        $mediaDispatched = false;
+        $storedFiles = [];
 
         try {
             Log::channel('outlet')->info('Pembaruan outlet dimulai', [
@@ -225,25 +222,17 @@ class OutletController extends Controller
                 }
 
                 try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
+                    $path = $this->fileUpload->put(
+                        $file,
+                        MediaProcessingService::getFileTypeFromField($field, 'outlet'),
+                    );
                 } catch (Throwable $e) {
                     throw (new FileUploadException('Gagal mengupload foto'))
                         ->withData(['field' => $field]);
                 }
 
-                if (! array_key_exists($field, $originalMediaPaths)) {
-                    $originalMediaPaths[$field] = $outlet->{$field};
-                }
-
-                $temporaryFiles[] = $temporaryPath;
-                $mediaQueue[] = [
-                    'field' => $field,
-                    'tmp_path' => $temporaryPath,
-                    'old_path' => $originalMediaPaths[$field],
-                    'preserve_old_path' => true,
-                    'type' => MediaProcessingService::getFileTypeFromField($field, 'outlet'),
-                ];
-                $outlet->{$field} = $temporaryPath;
+                $storedFiles[] = $path;
+                $outlet->{$field} = $path;
             }
 
             // Proses foto (mendukung photo0..4 dan photos[])
@@ -281,24 +270,16 @@ class OutletController extends Controller
                 }
 
                 try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
+                    $path = $this->fileUpload->put(
+                        $file,
+                        MediaProcessingService::getFileTypeFromField($targetField, 'outlet'),
+                    );
                 } catch (Throwable $e) {
                     throw new FileUploadException('Gagal mengupload foto');
                 }
 
-                if (! array_key_exists($targetField, $originalMediaPaths)) {
-                    $originalMediaPaths[$targetField] = $outlet->{$targetField};
-                }
-
-                $temporaryFiles[] = $temporaryPath;
-                $mediaQueue[] = [
-                    'field' => $targetField,
-                    'tmp_path' => $temporaryPath,
-                    'old_path' => $originalMediaPaths[$targetField],
-                    'preserve_old_path' => true,
-                    'type' => MediaProcessingService::getFileTypeFromField($targetField, 'outlet'),
-                ];
-                $outlet->{$targetField} = $temporaryPath;
+                $storedFiles[] = $path;
+                $outlet->{$targetField} = $path;
             }
 
             // Proses video (opsional)
@@ -310,25 +291,17 @@ class OutletController extends Controller
                 }
 
                 try {
-                    $temporaryPath = $this->fileUpload->storeTemporary($videoFile, 'tmp');
+                    $path = $this->fileUpload->put(
+                        $videoFile,
+                        MediaProcessingService::getFileTypeFromField('video', 'outlet'),
+                    );
                 } catch (Throwable $e) {
                     throw (new FileUploadException('Gagal mengupload video'))
                         ->withData(['field' => 'video']);
                 }
 
-                if (! array_key_exists('video', $originalMediaPaths)) {
-                    $originalMediaPaths['video'] = $outlet->video;
-                }
-
-                $temporaryFiles[] = $temporaryPath;
-                $mediaQueue[] = [
-                    'field' => 'video',
-                    'tmp_path' => $temporaryPath,
-                    'old_path' => $originalMediaPaths['video'],
-                    'preserve_old_path' => true,
-                    'type' => MediaProcessingService::getFileTypeFromField('video', 'outlet'),
-                ];
-                $outlet->video = $temporaryPath;
+                $storedFiles[] = $path;
+                $outlet->video = $path;
             }
 
             // Update field teks - hanya jika ada di request (untuk mendukung partial update)
@@ -357,6 +330,7 @@ class OutletController extends Controller
             }
 
             $outlet->save();
+            $storedFiles = [];
 
             $archive = $outlet->recordChangeArchive(
                 OutletChangeArchive::ACTION_UPDATE,
@@ -365,18 +339,6 @@ class OutletController extends Controller
                 $outlet->changeArchiveSnapshot(),
                 $this->archiveRequestMeta($request)
             );
-
-            if ($mediaQueue !== []) {
-                $mediaDispatched = $this->dispatchMediaJob('outlet', $outlet->id, $mediaQueue);
-                if (! $mediaDispatched) {
-                    foreach ($originalMediaPaths as $field => $oldPath) {
-                        $outlet->{$field} = $oldPath;
-                    }
-                    $outlet->save();
-
-                    throw new FileUploadException('Gagal mengantrekan media outlet');
-                }
-            }
 
             Log::channel('outlet')->info('Pembaruan outlet berhasil', [
                 'user_id' => $user->id,
@@ -397,9 +359,7 @@ class OutletController extends Controller
                 'errors' => null,
             ]);
         } catch (Throwable $e) {
-            if (! $mediaDispatched && $temporaryFiles !== []) {
-                $this->cleanupTemporaryFiles($temporaryFiles);
-            }
+            $this->cleanupTemporaryFiles($storedFiles);
 
             throw $e;
         }

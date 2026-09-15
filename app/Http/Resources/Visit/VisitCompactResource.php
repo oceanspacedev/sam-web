@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Visit;
 
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -48,6 +49,8 @@ class VisitCompactResource extends JsonResource
             'durasi_visit' => $this->durasi_visit,
             'picture_visit_in' => $this->picture_visit_in,
             'picture_visit_out' => $this->picture_visit_out,
+            'picture_visit_in_url' => StorageDisk::url($this->picture_visit_in),
+            'picture_visit_out_url' => StorageDisk::url($this->picture_visit_out),
             'latlong_in' => $this->latlong_in,
             'latlong_out' => $this->latlong_out,
             'laporan_visit' => $this->laporan_visit,

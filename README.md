@@ -49,7 +49,7 @@ SAM menyatukan operasional sales lapangan dengan administrasi HO. Alur utamanya 
 - Login panel username/kata sandi di `/admin/login` dan OTP WhatsApp di `/phone-login`.
 - Login API username/kata sandi (`POST /api/login`) dan OTP WhatsApp (`/api/login/whatsapp/*`).
 - Import/export Excel (outlet, user, plan visit, visit, register) di panel.
-- Pemrosesan media, antrean Horizon, arsip storage ke NAS/SFTP atau S3, notifikasi WhatsApp, dan push OneSignal.
+- Pemrosesan media ke disk Laravel (`local` / `public` / `s3`), antrean Horizon, notifikasi WhatsApp, dan push OneSignal.
 - Dokumentasi OpenAPI Scramble di `/docs/api` (gate `SUPER ADMIN`).
 
 ### Di luar scope implementasi saat ini
@@ -136,7 +136,6 @@ flowchart LR
     F --> G
     G --> H[Check-out visit]
     H --> I[Monitor sesuai scope]
-    J[Scheduler] --> K[storage:archive-old-files]
 ```
 
 ### 1. Bootstrap organisasi dan user
@@ -191,10 +190,8 @@ flowchart TB
     Services --> Models
     Worker[Horizon / queue] --> Media[ProcessMediaJob]
     Worker --> Notif[WhatsApp dan OneSignal]
-    Scheduler[Laravel Scheduler] --> Archive[storage:archive-old-files]
     Models --> DB[(SQLite local / MySQL)]
-    Services --> Files[(Disk local public S3 nas_sftp)]
-    Archive --> Files
+    Services --> Files[(Disk local / public / s3)]
     Notif --> WA[Gateway WAHA / Fonnte]
 ```
 
@@ -214,13 +211,13 @@ flowchart TB
 | `app/Services` | Approval register, upload, WhatsApp, OTP, cache organisasi |
 | `app/Support` | Scope organisasi, storage disk, import, dashboard |
 | `app/Jobs` | Media, notifikasi, import, hapus file |
-| `app/Console/Commands` | Arsip storage, clone disk, perbaikan plan visit |
+| `app/Console/Commands` | Perbaikan plan visit, cek koneksi disk |
 | `app/Exports` / `app/Imports` | Excel |
 | `database/migrations` | Evolusi schema |
 | `database/seeders` | Data awal development |
 | `routes/api.php` | Route REST |
-| `routes/web.php` | Redirect `/` → `/admin`, phone-login, storage archive |
-| `routes/console.php` | Jadwal `storage:archive-old-files` |
+| `routes/web.php` | Redirect `/` → `/admin`, phone-login |
+| `routes/console.php` | Jadwal Artisan (opsional) |
 | `docs/API.md` | Kontrak field API (pointer) |
 | `tests` | Pest Feature/Unit |
 
@@ -234,7 +231,7 @@ Folder Repository belum ada; sebagian controller API masih gemuk dan berbicara l
 | Admin UI | Filament 4, Livewire, Mekaya Theme |
 | Frontend build | Vite 6, Tailwind CSS 4 |
 | Database | SQLite default `.env.example`; MySQL/MariaDB untuk deployment utama; SQLite in-memory untuk test |
-| Filesystem | Disk Laravel `local` / `public`; S3 (`league/flysystem-aws-s3-v3`); NAS SFTP (`league/flysystem-sftp-v3`) |
+| Filesystem | Disk Laravel `local` / `public` / `s3` (`FILESYSTEM_DISK`; S3 memakai `league/flysystem-aws-s3-v3`) |
 | API auth | Laravel Sanctum 4 |
 | API docs | Dedoc Scramble / OpenAPI |
 | Authorization | Filament Shield / Spatie Permission |
@@ -260,7 +257,7 @@ Repositori ini **tidak** mengirim Docker Compose, workflow CI, PHPStan, atau Rec
 - Redis jika memakai default `QUEUE_CONNECTION=redis` dan Horizon.
 - Extension PHP yang biasa dipakai Laravel/Filament, termasuk `curl`, `fileinfo`, `gd`, `intl`, `mbstring`, `openssl`, `pdo_sqlite` atau `pdo_mysql`, `xml`, dan `zip`.
 
-Gateway WhatsApp, S3, NAS/SFTP, OneSignal, dan Octane bersifat opsional untuk menjalankan panel dasar. OTP dan notifikasi WhatsApp membutuhkan konfigurasi `WHATSAPP_GATEWAY_*`.
+Gateway WhatsApp, S3, OneSignal, dan Octane bersifat opsional untuk menjalankan panel dasar. OTP dan notifikasi WhatsApp membutuhkan konfigurasi `WHATSAPP_GATEWAY_*`.
 
 ### Clone dan dependency
 
@@ -340,23 +337,16 @@ Jangan commit `.env` atau credential apa pun ke Git. Daftar berikut mengikuti [`
 | `APP_URL` | Ya | Base URL aplikasi, asset, dan tautan |
 | `APP_NAME` | Tidak | Nama tampilan; `.env.example` `Laravel` |
 | `APP_ENV` / `APP_DEBUG` | Ya | Environment dan debug |
-| `APP_LOCALE` | Tidak | Locale; `.env.example` `id` (timezone aplikasi tetap `Asia/Jakarta` di `config/app.php`) |
 | `DB_CONNECTION` / `DB_*` | Ya | Driver dan koneksi; default contoh `sqlite` |
 | `CACHE_STORE` | Ya | Cache default Laravel; `.env.example` `database` |
 | `FILESYSTEM_DISK` | Ya | Disk default; `local`, `public`, atau `s3` |
 | `SESSION_DRIVER` | Ya | Penyimpanan session; default contoh `database` |
 | `QUEUE_CONNECTION` | Ya | Backend queue; default contoh `redis` |
-| `BROADCAST_CONNECTION` | Tidak | Default `null` |
+| `QUEUE_RETRY_AFTER` | Tidak | Timeout retry job Redis; default `900` |
 | `REDIS_CLIENT` / `REDIS_HOST` / `REDIS_PASSWORD` / `REDIS_PORT` | Jika Redis dipakai | Koneksi Redis untuk queue/Horizon |
 | `MAIL_*` | Untuk email | SMTP; `.env.example` memakai `MAIL_MAILER=log` |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_DEFAULT_REGION` / `AWS_BUCKET` | Untuk S3 | Disk `s3` |
-| `AWS_ENDPOINT` / `AWS_URL` / `AWS_USE_PATH_STYLE_ENDPOINT` | Untuk S3-compatible | Endpoint path-style / MinIO |
-| `STORAGE_ARCHIVE_ENABLED` | Tidak | Menyalakan jadwal `storage:archive-old-files`; default `false` |
-| `STORAGE_ARCHIVE_SOURCE_DISK` / `STORAGE_ARCHIVE_TARGET_DISK` | Untuk arsip | Default `public` → `nas_sftp` |
-| `STORAGE_ARCHIVE_READ_FALLBACK_NAS_ENABLED` / `STORAGE_ARCHIVE_READ_FALLBACK_S3_ENABLED` | Tidak | Baca fallback `/storage` ke NAS lalu S3 |
-| `STORAGE_ARCHIVE_OLDER_THAN_DAYS` / `STORAGE_ARCHIVE_SCHEDULE_TIME` / `STORAGE_ARCHIVE_BATCH_SIZE` | Tidak | Umur file, jam jadwal (`02:30`), ukuran batch |
-| `NAS_SFTP_HOST` / `NAS_SFTP_PORT` / `NAS_SFTP_USERNAME` / `NAS_SFTP_PASSWORD` | Untuk NAS | Disk `nas_sftp` |
-| `NAS_SFTP_PRIVATE_KEY` / `NAS_SFTP_PASSPHRASE` / `NAS_SFTP_ROOT` / `NAS_SFTP_TIMEOUT` / `NAS_SFTP_URL` | Untuk NAS | Alternatif kunci, root `/STORAGE` |
+| `AWS_ENDPOINT` / `AWS_URL` / `AWS_USE_PATH_STYLE_ENDPOINT` | Untuk S3-compatible | Endpoint path-style / MinIO / SeaweedFS |
 | `ONESIGNAL_APP_ID` | Untuk push | Helper `SendNotif` / `SendNotificationJob` |
 | `WHATSAPP_GATEWAY_PROVIDER` / `WHATSAPP_GATEWAY_FALLBACK_PROVIDER` | Untuk WhatsApp | Default `waha` dengan cadangan `fonnte` |
 | `WHATSAPP_GATEWAY_WAHA_BASE_URL` / `WHATSAPP_GATEWAY_WAHA_API_KEY` / `WHATSAPP_GATEWAY_WAHA_SESSION` | Untuk WAHA | Gateway utama |
@@ -367,7 +357,6 @@ Jangan commit `.env` atau credential apa pun ke Git. Daftar berikut mengikuti [`
 | `PLAN_VISIT_UPLOAD_CUTOFF_DAY` / `PLAN_VISIT_UPLOAD_CUTOFF_TIME` | Tidak | Default `wednesday` / `17:00` |
 | `IMPORT_SYNC_FALLBACK` / `IMPORT_FORCE_SYNC` / `IMPORT_SUMMARY_TTL_MINUTES` | Tidak | Perilaku import Excel |
 | `OCTANE_SERVER` / `OCTANE_HTTPS` | Tidak | Default contoh `frankenphp` / `true`; tidak wajib untuk `artisan serve` |
-| `VITE_APP_NAME` | Tidak | Nama Vite; default mengikuti `APP_NAME` |
 
 Jangan memasukkan secret ke Git. Untuk local tanpa SMTP, biarkan `MAIL_MAILER=log`.
 
@@ -402,11 +391,7 @@ php artisan queue:work
 php artisan horizon
 ```
 
-Scheduler tidak wajib untuk UI. Arsip storage hanya terdaftar jika `STORAGE_ARCHIVE_ENABLED=true`:
-
-```bash
-php artisan schedule:work
-```
+Scheduler tidak wajib untuk UI.
 
 Untuk frontend production-like:
 
@@ -416,37 +401,19 @@ npm run build
 
 Octane/FrankenPHP opsional dan tidak menggantikan `php artisan serve` untuk onboarding local.
 
-### Perintah storage archive
+### Storage file
 
-Default target arsip adalah disk `nas_sftp`. Cek koneksi tanpa memindahkan data:
+Disk mengikuti standar Laravel. `FILESYSTEM_DISK` memilih `local`, `public`, atau `s3`. Upload media (`FileUploadService`, Filament `FileUpload`) dan URL (`StorageDisk::url()`) memakai disk default itu.
 
-```bash
-php artisan storage:check-disk nas_sftp
-```
+- `public`: file di `storage/app/public`, URL `/storage/...` setelah `php artisan storage:link`
+- `s3`: objek di bucket `AWS_BUCKET`; URL dari `Storage::url()` / `AWS_URL`
+- `local`: file privat di `storage/app/private`
 
-Probe tulis/hapus kecil:
-
-```bash
-php artisan storage:check-disk nas_sftp --write
-```
-
-URL `/storage/...` dicek ke storage lokal dulu. Jika file tidak ada, aplikasi membaca fallback yang aktif: `nas_sftp` bila `STORAGE_ARCHIVE_READ_FALLBACK_NAS_ENABLED=true`, lalu `s3` bila `STORAGE_ARCHIVE_READ_FALLBACK_S3_ENABLED=true`. Aktifkan NAS hanya setelah `NAS_SFTP_*` lengkap. Read fallback tetap berlaku meskipun jadwal arsip mati.
-
-Clone file dari S3 ke NAS tanpa menghapus sumber:
+Cek koneksi disk (berguna untuk S3):
 
 ```bash
-php artisan storage:clone-disk --source-disk=s3 --target-disk=nas_sftp
-php artisan storage:clone-disk --source-disk=s3 --target-disk=nas_sftp --dry-run
-php artisan storage:clone-disk --source-disk=s3 --target-disk=nas_sftp --batch=5000 --progress=500 --verify-attempts=5 --verify-sleep-ms=500
-```
-
-Command manual gagal jika ada file yang tidak tercopy. Untuk migrasi yang harus terus berjalan, pakai [`tools/clone_s3_to_nas_loop.sh`](tools/clone_s3_to_nas_loop.sh).
-
-Arsip file lama:
-
-```bash
-php artisan storage:archive-old-files --dry-run
-php artisan storage:archive-old-files
+php artisan storage:check-disk
+php artisan storage:check-disk s3 --write
 ```
 
 ## API dan dokumentasi
@@ -594,10 +561,9 @@ Daftar ini adalah batas perilaku aktual, bukan fitur yang dijanjikan:
 4. **Role `SALES` tidak masuk panel.** `can_access_web=false`; akun seed `sales` ditolak `canAccessPanel()`.
 5. **Seeder development bukan data produksi.** Password tetap, tanpa outlet/visit, dan tidak untuk dijalankan berulang di environment berisi data.
 6. **Queue default `redis`.** Tanpa Redis, job media/notifikasi/Horizon gagal sampai `QUEUE_CONNECTION` diubah (misalnya `sync` local).
-7. **Arsip storage default mati.** `STORAGE_ARCHIVE_ENABLED=false`; read fallback NAS/S3 juga default `false`.
-8. **Tidak ada Docker Compose atau CI di repo.** Deployment, image, dan quality gate otomatis dikelola di luar repositori ini.
-9. **Reset password dan registrasi publik dimatikan.** Onboarding user tetap manual / seeder / import.
-10. **Login API menolak klien dengan `version` di bawah `2.1.0`.**
+7. **Tidak ada Docker Compose atau CI di repo.** Deployment, image, dan quality gate otomatis dikelola di luar repositori ini.
+8. **Reset password dan registrasi publik dimatikan.** Onboarding user tetap manual / seeder / import.
+9. **Login API menolak klien dengan `version` di bawah `2.1.0`.**
 
 ## Troubleshooting
 
@@ -626,11 +592,13 @@ php artisan optimize:clear
 
 ### Lampiran atau asset `/storage` 404
 
+Untuk `FILESYSTEM_DISK=public`:
+
 ```bash
 php artisan storage:link
 ```
 
-Jika file sudah diarsipkan, aktifkan read fallback NAS/S3 yang sesuai dan cek `php artisan storage:check-disk nas_sftp`.
+Untuk `FILESYSTEM_DISK=s3`, URL file datang dari disk `s3` (`AWS_URL` / `Storage::url()`), bukan symlink `public/storage`. Cek kredensial dengan `php artisan storage:check-disk s3`.
 
 ### OTP WhatsApp atau notifikasi tidak terkirim
 
@@ -638,15 +606,6 @@ Jika file sudah diarsipkan, aktifkan read fallback NAS/S3 yang sesuai dan cek `p
 2. Pastikan nomor valid (format `08…` atau `62…`).
 3. Periksa `storage/logs/laravel.log`.
 4. Jika `QUEUE_CONNECTION=redis`, pastikan Redis dan worker/Horizon berjalan.
-
-### Koneksi NAS/SFTP gagal
-
-```bash
-php artisan storage:check-disk nas_sftp
-php artisan storage:check-disk nas_sftp --write
-```
-
-Lengkapi `NAS_SFTP_HOST`, port, username, dan password atau private key. Jangan menyalakan `STORAGE_ARCHIVE_READ_FALLBACK_NAS_ENABLED` sebelum probe berhasil.
 
 ### Queue / Horizon tidak memproses job
 

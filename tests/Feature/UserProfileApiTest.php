@@ -34,13 +34,14 @@ test('user dapat mengupdate profil sendiri', function (): void {
 });
 
 test('user dapat mengupload foto profil', function (): void {
-    Storage::fake('public');
+    $disk = \App\Support\StorageDisk::default();
+    Storage::fake($disk);
 
     $user = User::factory()->create([
         'profile_photo_path' => 'profile-photos/old-photo.jpg',
     ]);
 
-    Storage::disk('public')->put('profile-photos/old-photo.jpg', 'legacy-photo');
+    Storage::disk($disk)->put('profile-photos/old-photo.jpg', 'legacy-photo');
 
     $response = $this->actingAs($user, 'sanctum')
         ->post('/api/user/photo', [
@@ -55,8 +56,9 @@ test('user dapat mengupload foto profil', function (): void {
 
     $user->refresh();
     expect($user->profile_photo_path)->not->toBeNull();
-    expect(Storage::disk('public')->exists($user->profile_photo_path))->toBeTrue();
-    expect(Storage::disk('public')->exists('profile-photos/old-photo.jpg'))->toBeFalse();
+    expect(Storage::disk($disk)->exists($user->profile_photo_path))->toBeTrue();
+    expect(Storage::disk($disk)->exists('profile-photos/old-photo.jpg'))->toBeFalse();
+    expect($user->profile_photo_url)->toBe(\App\Support\StorageDisk::url($user->profile_photo_path));
 });
 
 test('user dapat menghapus akun sendiri', function (): void {

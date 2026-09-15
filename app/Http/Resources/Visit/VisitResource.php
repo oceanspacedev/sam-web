@@ -5,6 +5,7 @@ namespace App\Http\Resources\Visit;
 use App\Http\Resources\Outlet\OutletResource;
 use App\Http\Resources\Register\RegisterResource;
 use App\Http\Resources\UserResource;
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -58,6 +59,8 @@ class VisitResource extends JsonResource
             'durasi_visit' => $this->durasi_visit,
             'picture_visit_in' => $this->picture_visit_in,
             'picture_visit_out' => $this->picture_visit_out,
+            'picture_visit_in_url' => StorageDisk::url($this->picture_visit_in),
+            'picture_visit_out_url' => StorageDisk::url($this->picture_visit_out),
             'transaksi' => $this->transaksi,
 
             // Relationships

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Register;
 
 use App\Support\OrganizationalName;
+use App\Support\StorageDisk;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -72,6 +73,12 @@ class RegisterResource extends JsonResource
             'poto_kanan' => $this->poto_kanan,
             'poto_ktp' => $this->poto_ktp,
             'video' => $this->video,
+            'poto_shop_sign_url' => StorageDisk::url($this->poto_shop_sign),
+            'poto_depan_url' => StorageDisk::url($this->poto_depan),
+            'poto_kiri_url' => StorageDisk::url($this->poto_kiri),
+            'poto_kanan_url' => StorageDisk::url($this->poto_kanan),
+            'poto_ktp_url' => StorageDisk::url($this->poto_ktp),
+            'video_url' => StorageDisk::url($this->video),
             'latlong' => $this->latlong,
             'radius' => $systemSettings->defaultRegisterRadiusForIds(
                 $this->badanusaha_id ? (int) $this->badanusaha_id : null,

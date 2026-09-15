@@ -87,6 +87,8 @@ test('visit owner can fetch visit detail', function (): void {
         'laporan_visit' => 'Laporan detail visit',
         'transaksi' => 3,
         'durasi_visit' => 45,
+        'picture_visit_in' => 'vi-test-in.jpg',
+        'picture_visit_out' => 'vo-test-out.jpg',
     ]);
 
     $this->actingAs($user, 'sanctum')
@@ -98,7 +100,10 @@ test('visit owner can fetch visit detail', function (): void {
         ->assertJsonPath('data.outlet.id', $outlet->id)
         ->assertJsonPath('data.outlet.kode_outlet', 'VISIT-DETAIL-001')
         ->assertJsonPath('data.user.id', $user->id)
-        ->assertJsonPath('data.laporan_visit', 'Laporan detail visit');
+        ->assertJsonPath('data.laporan_visit', 'Laporan detail visit')
+        ->assertJsonPath('data.picture_visit_in', 'vi-test-in.jpg')
+        ->assertJsonPath('data.picture_visit_in_url', \App\Support\StorageDisk::url('vi-test-in.jpg'))
+        ->assertJsonPath('data.picture_visit_out_url', \App\Support\StorageDisk::url('vo-test-out.jpg'));
 });
 
 test('non owner without monitor permission cannot fetch another user visit detail', function (): void {

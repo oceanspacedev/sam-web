@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Outlet;
 use App\Models\Register;
 use App\Models\Visit;
+use App\Support\StoragePathResolver;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -62,41 +63,31 @@ class MediaProcessingService
     public function processTemporaryFile(string $temporaryPath, string $type, array $options = []): array
     {
         $userId = $options['user_id'] ?? auth()->id();
-        $disk = $options['disk'] ?? $this->fileUpload->disk();
+        $tempDisk = $this->fileUpload->temporaryDisk();
 
-        // Validate temporary file exists
-        if (! Storage::disk($this->fileUpload->temporaryDisk())->exists($temporaryPath)) {
+        if (! Storage::disk($tempDisk)->exists($temporaryPath)) {
             throw new RuntimeException("Temporary file {$temporaryPath} does not exist");
         }
 
-        try {
-            // Get file info from temporary storage
-            $tempStorage = Storage::disk($this->fileUpload->temporaryDisk());
-            $fileInfo = [
-                'path' => $tempStorage->path($temporaryPath),
-                'name' => basename($temporaryPath),
-                'size' => $tempStorage->size($temporaryPath),
-                'mime_type' => $tempStorage->mimeType($temporaryPath),
-            ];
+        [$localPath, $cleanupPath] = StoragePathResolver::resolveForLocalAccess($tempDisk, $temporaryPath);
 
-            // Create UploadedFile instance
+        try {
+            $tempStorage = Storage::disk($tempDisk);
             $uploadedFile = new UploadedFile(
-                $fileInfo['path'],
-                $fileInfo['name'],
-                $fileInfo['mime_type'],
+                $localPath,
+                basename($temporaryPath),
+                $tempStorage->mimeType($temporaryPath),
                 null,
                 true
             );
 
-            // Process with consistent flow
-            $result = $this->processFileUpload($uploadedFile, $type, array_merge($options, [
+            return $this->processFileUpload($uploadedFile, $type, array_merge($options, [
                 'user_id' => $userId,
             ]));
-
-            return $result;
-
         } catch (\Exception $e) {
             throw new RuntimeException("Failed to process temporary file: {$e->getMessage()}");
+        } finally {
+            StoragePathResolver::cleanupTemporaryPath($cleanupPath);
         }
     }
 

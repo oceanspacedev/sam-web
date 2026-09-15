@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\StorageDisk;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -10,7 +11,7 @@ use Throwable;
 class CheckStorageDiskConnection extends Command
 {
     protected $signature = 'storage:check-disk
-        {disk=nas_sftp : Disk filesystem yang akan dicek}
+        {disk? : Disk filesystem yang akan dicek (default: FILESYSTEM_DISK)}
         {--path= : Path probe file untuk opsi --write}
         {--write : Tulis lalu hapus file probe kecil}';
 
@@ -18,7 +19,7 @@ class CheckStorageDiskConnection extends Command
 
     public function handle(): int
     {
-        $disk = (string) $this->argument('disk');
+        $disk = (string) ($this->argument('disk') ?: StorageDisk::default());
         $config = config("filesystems.disks.{$disk}");
 
         if (! is_array($config)) {

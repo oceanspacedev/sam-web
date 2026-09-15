@@ -34,7 +34,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -49,9 +48,7 @@ class RegisterController extends Controller
 
     public function submitLead(SubmitLeadRequest $request)
     {
-        $temporaryFiles = [];
-        $mediaQueue = [];
-        $mediaDispatched = false;
+        $storedFiles = [];
 
         try {
             $user = Auth::user();
@@ -130,43 +127,20 @@ class RegisterController extends Controller
                     $target = 'poto_shop_sign';
                 }
 
-                $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
-
-                $temporaryFiles[] = $temporaryPath;
-                $data[$target] = $temporaryPath;
-
-                // Map target to file type for optimized processing
-                $fileType = $this->mapTargetToFileType($target);
-
-                $mediaQueue[] = [
-                    'field' => $target,
-                    'tmp_path' => $temporaryPath,
-                    'type' => $fileType, // Use type instead of directory - TRUE FLAT STORAGE!
-                ];
+                $path = $this->fileUpload->put($file, $this->mapTargetToFileType($target));
+                $storedFiles[] = $path;
+                $data[$target] = $path;
             }
 
             if ($request->hasFile('video')) {
                 $video = $request->file('video');
-                $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
-
-                Log::channel('lead')->info('Video lead diantrekan untuk penyimpanan', [
-                    'user_id' => $user->id,
-                    'original_name' => $video->getClientOriginalName(),
-                ]);
-
-                $temporaryFiles[] = $temporaryPath;
-                $data['video'] = $temporaryPath;
-                $mediaQueue[] = [
-                    'field' => 'video',
-                    'tmp_path' => $temporaryPath,
-                    'type' => 'register-video',
-                ];
+                $path = $this->fileUpload->put($video, 'register-video');
+                $storedFiles[] = $path;
+                $data['video'] = $path;
             }
 
             $register = Register::create($data);
-
-            // Process media files using unified trait
-            $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
+            $storedFiles = [];
 
             // Log Lead store completed
             Log::channel('lead')->info('Penyimpanan lead selesai', [
@@ -184,12 +158,10 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (RuntimeException $e) {
-            $this->cleanupTemporaryFiles($temporaryFiles);
+            $this->cleanupTemporaryFiles($storedFiles);
             throw new FileUploadException($e->getMessage());
         } catch (Exception $e) {
-            if (! $mediaDispatched) {
-                $this->cleanupTemporaryFiles($temporaryFiles);
-            }
+            $this->cleanupTemporaryFiles($storedFiles);
 
             Log::channel('lead')->error('Penyimpanan lead gagal', [
                 'user_id' => Auth::id(),
@@ -539,9 +511,7 @@ class RegisterController extends Controller
 
     public function submitNoo(SubmitNooRequest $request)
     {
-        $temporaryFiles = [];
-        $mediaQueue = [];
-        $mediaDispatched = false;
+        $storedFiles = [];
 
         try {
             $user = Auth::user();
@@ -609,36 +579,16 @@ class RegisterController extends Controller
                     $target = 'poto_shop_sign';
                 }
 
-                $temporaryPath = $this->fileUpload->storeTemporary($file, 'tmp');
-                $temporaryFiles[] = $temporaryPath;
-
-                $fileType = $this->mapTargetToFileType($target);
-
-                $mediaQueue[] = [
-                    'field' => $target,
-                    'tmp_path' => $temporaryPath,
-                    'type' => $fileType,
-                ];
-                $data[$target] = $temporaryPath;
+                $path = $this->fileUpload->put($file, $this->mapTargetToFileType($target));
+                $storedFiles[] = $path;
+                $data[$target] = $path;
             }
 
-            // Queue video upload for background processing
             if ($request->hasFile('video')) {
                 $video = $request->file('video');
-                $temporaryPath = $this->fileUpload->storeTemporary($video, 'tmp');
-
-                Log::channel('noo')->info('Video NOO diantrekan untuk penyimpanan', [
-                    'user_id' => $user->id,
-                    'original_name' => $video->getClientOriginalName(),
-                ]);
-
-                $temporaryFiles[] = $temporaryPath;
-                $mediaQueue[] = [
-                    'field' => 'video',
-                    'tmp_path' => $temporaryPath,
-                    'type' => 'register-video',
-                ];
-                $data['video'] = $temporaryPath;
+                $path = $this->fileUpload->put($video, 'register-video');
+                $storedFiles[] = $path;
+                $data['video'] = $path;
             } else {
                 // Log missing video file (as seen in production logs)
                 Log::channel('noo')->warning('File video NOO hilang', [
@@ -648,14 +598,10 @@ class RegisterController extends Controller
             }
 
             $register = Register::create($data);
+            $storedFiles = [];
 
             if ($register) {
                 SendRegisterCreatedNotificationJob::dispatch($register->id, $user->id, $hierarchy);
-            }
-
-            // Process media files using unified trait
-            if ($register && $mediaQueue !== []) {
-                $mediaDispatched = $this->dispatchMediaJob('register', $register->id, $mediaQueue);
             }
 
             // Log NOO store completed
@@ -674,12 +620,10 @@ class RegisterController extends Controller
                 'errors' => null,
             ]);
         } catch (RuntimeException $e) {
-            $this->cleanupTemporaryFiles($temporaryFiles);
+            $this->cleanupTemporaryFiles($storedFiles);
             throw new FileUploadException($e->getMessage());
         } catch (Exception $e) {
-            if (! $mediaDispatched) {
-                $this->cleanupTemporaryFiles($temporaryFiles);
-            }
+            $this->cleanupTemporaryFiles($storedFiles);
 
             Log::channel('noo')->error('Penyimpanan NOO gagal', [
                 'user_id' => Auth::id(),
@@ -739,23 +683,6 @@ class RegisterController extends Controller
             ]);
 
             throw $e;
-        }
-    }
-
-    private function cleanupTemporaryFiles(array $paths): void
-    {
-        if ($paths === []) {
-            return;
-        }
-
-        $disk = Storage::disk($this->fileUpload->temporaryDisk());
-
-        foreach ($paths as $path) {
-            if (! $path) {
-                continue;
-            }
-
-            $disk->delete($path);
         }
     }
 

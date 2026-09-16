@@ -149,6 +149,11 @@ class EnvExampleLaravel12Test extends TestCase
             $liveAssignments['QUEUE_CONNECTION'] ?? null,
             '.env.example must keep QUEUE_CONNECTION=redis for Horizon',
         );
+        $this->assertSame(
+            'SAM',
+            $liveAssignments['APP_NAME'] ?? null,
+            '.env.example must keep APP_NAME=SAM',
+        );
     }
 
     /**

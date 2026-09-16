@@ -292,7 +292,7 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-Nilai `APP_NAME` di `.env.example` masih `Laravel`; set ke `SAM` pada development.
+Nilai `APP_NAME` di `.env.example` adalah `SAM`.
 
 Untuk local tanpa Redis, antrean bisa disinkronkan:
 

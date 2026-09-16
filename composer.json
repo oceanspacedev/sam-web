@@ -18,7 +18,7 @@
         "php": "^8.3",
         "bezhansalleh/filament-shield": "^4.0",
         "dedoc/scramble": "^0.13.0",
-        "filament/filament": "^4.0",
+        "filament/filament": "^4.11",
         "guzzlehttp/guzzle": "^7.0.1",
         "kungfufafa/mekaya-theme": "dev-main",
         "laravel/framework": "^12.69",

@@ -19,7 +19,6 @@ use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\Select;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -89,8 +88,9 @@ class DivisionResource extends Resource
                     ->label('Nama')
                     ->searchable()
                     ->sortable(),
-                BadgeColumn::make('badanusaha.name')
+                TextColumn::make('badanusaha.name')
                     ->label('Badan Usaha')
+                    ->badge()
                     ->color('primary')
                     ->searchable(),
                 TextColumn::make('regions_count')

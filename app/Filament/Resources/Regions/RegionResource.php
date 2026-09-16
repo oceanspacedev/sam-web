@@ -20,7 +20,6 @@ use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\Select;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -139,12 +138,14 @@ class RegionResource extends Resource
                     ->label('Nama')
                     ->searchable()
                     ->sortable(),
-                BadgeColumn::make('badanusaha.name')
+                TextColumn::make('badanusaha.name')
                     ->label('Badan Usaha')
+                    ->badge()
                     ->color('primary')
                     ->searchable(),
-                BadgeColumn::make('divisi.name')
+                TextColumn::make('divisi.name')
                     ->label('Divisi')
+                    ->badge()
                     ->color('success')
                     ->searchable(),
                 TextColumn::make('clusters_count')

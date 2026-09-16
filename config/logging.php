@@ -17,7 +17,12 @@ return [
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'custom'),
+    'default' => env('LOG_CHANNEL', 'stack'),
+
+    'deprecations' => [
+        'channel' => env('LOG_DEPRECATIONS_CHANNEL', 'null'),
+        'trace' => env('LOG_DEPRECATIONS_TRACE', false),
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -37,7 +42,7 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
             'ignore_exceptions' => false,
         ],
 

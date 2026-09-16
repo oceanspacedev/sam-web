@@ -20,6 +20,7 @@ use App\Observers\PlanVisitObserver;
 use App\Observers\RegisterObserver;
 use App\Observers\UserObserver;
 use App\Observers\VisitObserver;
+use App\Support\ObservabilityAccess;
 use App\Support\WhatsAppNumber;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -51,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Livewire::component('phone-login', PhoneLogin::class);
+        ObservabilityAccess::register();
         $this->configureRateLimiting();
         $this->registerObservers();
         $this->configureScramble();

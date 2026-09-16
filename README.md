@@ -190,9 +190,9 @@ flowchart TB
     Services --> Models
     Worker[Horizon / queue] --> Media[ProcessMediaJob]
     Worker --> Notif[WhatsApp dan OneSignal]
-    Models --> DB[(SQLite local / MySQL)]
+    Models --> DB[(MySQL)]
     Services --> Files[(Disk local / public / s3)]
-    Notif --> WA[Gateway WAHA / Fonnte]
+    Notif --> WA[Gateway WagHub]
 ```
 
 ### Peta source code
@@ -230,16 +230,17 @@ Folder Repository belum ada; sebagian controller API masih gemuk dan berbicara l
 | Backend | PHP `^8.3`, Laravel 12 |
 | Admin UI | Filament 4, Livewire, Mekaya Theme |
 | Frontend build | Vite 6, Tailwind CSS 4 |
-| Database | SQLite default `.env.example`; MySQL/MariaDB untuk deployment utama; SQLite in-memory untuk test |
+| Database | MySQL (default `.env.example`); SQLite in-memory untuk test |
 | Filesystem | Disk Laravel `local` / `public` / `s3` (`FILESYSTEM_DISK`; S3 memakai `league/flysystem-aws-s3-v3`) |
 | API auth | Laravel Sanctum 4 |
 | API docs | Dedoc Scramble / OpenAPI |
 | Authorization | Filament Shield / Spatie Permission |
 | Queue | Laravel Horizon 5; default `.env.example` `QUEUE_CONNECTION=redis` |
+| Logs | [opcodesio/log-viewer](https://github.com/opcodesio/log-viewer) di `/log-viewer` |
 | Runtime opsional | Laravel Octane 2, FrankenPHP (`OCTANE_SERVER=frankenphp`) |
 | Import/export | Maatwebsite Excel `^3.1` |
 | Observability | Spatie Activitylog, Debugbar (dev) |
-| Notifikasi | WhatsApp (WAHA + cadangan Fonnte), OneSignal |
+| Notifikasi | WhatsApp (WagHub `WAG_URL` / `WAG_TOKEN`), OneSignal |
 | Test | Pest 4 / `php artisan test` |
 | Formatter | Laravel Pint |
 
@@ -253,11 +254,11 @@ Repositori ini **tidak** mengirim Docker Compose, workflow CI, PHPStan, atau Rec
 - PHP 8.3 atau lebih baru.
 - Composer 2.
 - Node.js 20+ (Vite 6).
-- SQLite untuk setup local default; MySQL 8+ atau MariaDB yang kompatibel untuk deployment utama.
+- MySQL 8+ (atau MariaDB yang kompatibel) untuk development dan deployment.
 - Redis jika memakai default `QUEUE_CONNECTION=redis` dan Horizon.
-- Extension PHP yang biasa dipakai Laravel/Filament, termasuk `curl`, `fileinfo`, `gd`, `intl`, `mbstring`, `openssl`, `pdo_sqlite` atau `pdo_mysql`, `xml`, dan `zip`.
+- Extension PHP yang biasa dipakai Laravel/Filament, termasuk `curl`, `fileinfo`, `gd`, `intl`, `mbstring`, `openssl`, `pdo_mysql`, `xml`, dan `zip`.
 
-Gateway WhatsApp, S3, OneSignal, dan Octane bersifat opsional untuk menjalankan panel dasar. OTP dan notifikasi WhatsApp membutuhkan konfigurasi `WHATSAPP_GATEWAY_*`.
+Gateway WhatsApp, S3, OneSignal, dan Octane bersifat opsional untuk menjalankan panel dasar. OTP dan notifikasi WhatsApp membutuhkan `WAG_URL` dan `WAG_TOKEN`.
 
 ### Clone dan dependency
 
@@ -275,13 +276,7 @@ Jangan menjalankan `composer update` hanya untuk setup; gunakan versi dependency
 
 ### Konfigurasi database
 
-Seperti skeleton Laravel 12, `.env.example` memakai SQLite. Buat file database bila menjalankan langkah setup secara manual:
-
-```bash
-php -r "file_exists('database/database.sqlite') || touch('database/database.sqlite');"
-```
-
-Untuk memakai MySQL/MariaDB, ganti koneksi di `.env` dan buat database kosong:
+`.env.example` memakai MySQL. Buat database kosong lalu sesuaikan koneksi:
 
 ```dotenv
 APP_NAME=SAM
@@ -337,20 +332,23 @@ Jangan commit `.env` atau credential apa pun ke Git. Daftar berikut mengikuti [`
 | `APP_URL` | Ya | Base URL aplikasi, asset, dan tautan |
 | `APP_NAME` | Tidak | Nama tampilan; `.env.example` `Laravel` |
 | `APP_ENV` / `APP_DEBUG` | Ya | Environment dan debug |
-| `DB_CONNECTION` / `DB_*` | Ya | Driver dan koneksi; default contoh `sqlite` |
+| `DB_CONNECTION` / `DB_*` | Ya | Driver dan koneksi; default proyek `mysql` |
 | `CACHE_STORE` | Ya | Cache default Laravel; `.env.example` `database` |
 | `FILESYSTEM_DISK` | Ya | Disk default; `local`, `public`, atau `s3` |
 | `SESSION_DRIVER` | Ya | Penyimpanan session; default contoh `database` |
 | `QUEUE_CONNECTION` | Ya | Backend queue; default contoh `redis` |
 | `QUEUE_RETRY_AFTER` | Tidak | Timeout retry job Redis; default `900` |
+| `HORIZON_PATH` | Tidak | UI Horizon; default `horizon` |
+| `LOG_VIEWER_ENABLED` / `LOG_VIEWER_PATH` | Tidak | UI [Log Viewer](https://github.com/opcodesio/log-viewer); default `/log-viewer` |
 | `REDIS_CLIENT` / `REDIS_HOST` / `REDIS_PASSWORD` / `REDIS_PORT` | Jika Redis dipakai | Koneksi Redis untuk queue/Horizon |
 | `MAIL_*` | Untuk email | SMTP; `.env.example` memakai `MAIL_MAILER=log` |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_DEFAULT_REGION` / `AWS_BUCKET` | Untuk S3 | Disk `s3` |
 | `AWS_ENDPOINT` / `AWS_URL` / `AWS_USE_PATH_STYLE_ENDPOINT` | Untuk S3-compatible | Endpoint path-style / MinIO / SeaweedFS |
 | `ONESIGNAL_APP_ID` | Untuk push | Helper `SendNotif` / `SendNotificationJob` |
-| `WHATSAPP_GATEWAY_PROVIDER` / `WHATSAPP_GATEWAY_FALLBACK_PROVIDER` | Untuk WhatsApp | Default `waha` dengan cadangan `fonnte` |
-| `WHATSAPP_GATEWAY_WAHA_BASE_URL` / `WHATSAPP_GATEWAY_WAHA_API_KEY` / `WHATSAPP_GATEWAY_WAHA_SESSION` | Untuk WAHA | Gateway utama |
-| `WHATSAPP_GATEWAY_FONNTE_ENDPOINT` / `WHATSAPP_GATEWAY_FONNTE_TOKEN` | Untuk Fonnte | Cadangan |
+| `WAG_URL` | Untuk WhatsApp | Endpoint WagHub; default `https://waghub.mekayastudio.com` |
+| `WAG_TOKEN` | Untuk WhatsApp | Bearer credential WagHub |
+| `WA_CONNECT_TIMEOUT` | Tidak | Timeout koneksi gateway; default `5` detik |
+| `WA_API_TIMEOUT` | Tidak | Timeout request gateway; default `15` detik |
 | `WHATSAPP_OTP_EXPIRES_IN` | Tidak | Umur OTP detik; default `60` |
 | `WHATSAPP_QUEUE_DELAY_SECONDS` | Tidak | Jeda antrean kirim; default `10` |
 | `SAM_ANDROID_DOWNLOAD_URL` / `SAM_IOS_TESTFLIGHT_URL` | Tidak | Tautan di pesan WhatsApp akun terdaftar |
@@ -360,7 +358,7 @@ Jangan commit `.env` atau credential apa pun ke Git. Daftar berikut mengikuti [`
 
 Jangan memasukkan secret ke Git. Untuk local tanpa SMTP, biarkan `MAIL_MAILER=log`.
 
-Panel dan API dasar tetap berjalan tanpa WhatsApp. Tanpa `WHATSAPP_GATEWAY_WAHA_API_KEY` (atau token Fonnte jika cadangan dipakai), OTP login dan notifikasi WhatsApp tidak selesai.
+Panel dan API dasar tetap berjalan tanpa WhatsApp. Tanpa `WAG_TOKEN`, OTP login dan notifikasi WhatsApp tidak selesai.
 
 ## Menjalankan aplikasi
 
@@ -534,7 +532,7 @@ Sebelum membuka PR, pastikan:
 
 ## Testing dan quality check
 
-`phpunit.xml` mengunci test ke SQLite in-memory (`DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`), `CACHE_DRIVER=array`, session array, queue sync, dan mail array. Full test suite tidak menggunakan database development dari `.env`.
+`phpunit.xml` mengunci test ke SQLite in-memory (`DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`), `CACHE_STORE=array`, session array, queue sync, dan mail array. Full test suite tidak menggunakan database development dari `.env`.
 
 ```bash
 php artisan test
@@ -557,7 +555,7 @@ Daftar ini adalah batas perilaku aktual, bukan fitur yang dijanjikan:
 
 1. **Controller API masih gemuk.** `RegisterController`, `VisitController`, dan `PlanVisitController` masih banyak berbicara ke model/queue. Folder Repository belum ada; PHPDoc service/controller belum seragam.
 2. **`POST /api/notif` publik.** Helper OneSignal tidak berada di belakang Sanctum; batasi pemakaiannya dan jangan anggap sebagai kontrak klien.
-3. **Gate Horizon longgar/tidak selaras.** `viewHorizon` memeriksa `hasRole('admin')` (huruf kecil) dan daftar email hardcoded; role seed adalah `ADMIN`. Jangan mengandalkan `/horizon` sebagai boundary yang sudah diaudit.
+3. **Horizon dan Log Viewer hanya untuk `SUPER ADMIN`.** Gate `viewHorizon` / `viewLogViewer` memakai `ObservabilityAccess`; role `ADMIN` tidak otomatis mendapat akses.
 4. **Role `SALES` tidak masuk panel.** `can_access_web=false`; akun seed `sales` ditolak `canAccessPanel()`.
 5. **Seeder development bukan data produksi.** Password tetap, tanpa outlet/visit, dan tidak untuk dijalankan berulang di environment berisi data.
 6. **Queue default `redis`.** Tanpa Redis, job media/notifikasi/Horizon gagal sampai `QUEUE_CONNECTION` diubah (misalnya `sync` local).
@@ -602,7 +600,7 @@ Untuk `FILESYSTEM_DISK=s3`, URL file datang dari disk `s3` (`AWS_URL` / `Storage
 
 ### OTP WhatsApp atau notifikasi tidak terkirim
 
-1. Isi `WHATSAPP_GATEWAY_PROVIDER` (`waha` atau `fonnte`) plus kredensial terkait (`WHATSAPP_GATEWAY_WAHA_*` atau `WHATSAPP_GATEWAY_FONNTE_TOKEN`).
+1. Isi `WAG_URL` dan `WAG_TOKEN`.
 2. Pastikan nomor valid (format `08…` atau `62…`).
 3. Periksa `storage/logs/laravel.log`.
 4. Jika `QUEUE_CONNECTION=redis`, pastikan Redis dan worker/Horizon berjalan.

@@ -4,6 +4,8 @@ use Illuminate\Support\Str;
 
 return [
 
+    'name' => env('HORIZON_NAME'),
+
     /*
     |--------------------------------------------------------------------------
     | Horizon Domain

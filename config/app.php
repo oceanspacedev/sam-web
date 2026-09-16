@@ -50,11 +50,11 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'locale' => 'id',
+    'locale' => env('APP_LOCALE', 'id'),
 
-    'fallback_locale' => 'en',
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
-    'faker_locale' => 'id_ID',
+    'faker_locale' => env('APP_FAKER_LOCALE', 'id_ID'),
 
     /*
     |--------------------------------------------------------------------------

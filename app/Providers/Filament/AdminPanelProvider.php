@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Dashboard;
+use App\Support\ObservabilityAccess;
 use Apriansyahrs\MekayaTheme\MekayaPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -51,6 +52,7 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-code-bracket-square')
                     ->visible(fn () => auth()->user()?->role->name === 'SUPER ADMIN')
                     ->group('Developer'),
+                ...ObservabilityAccess::filamentNavigationItems(),
             ])
             ->pages([
                 Dashboard::class,

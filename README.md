@@ -379,11 +379,7 @@ Buka:
 - Health check: `http://127.0.0.1:8000/up`
 - Dokumentasi API: `http://127.0.0.1:8000/docs/api` (gate `SUPER ADMIN`; Scramble juga longgar di `local`)
 
-Queue default contoh adalah `redis`. Jalankan worker atau Horizon saat fitur yang mengantrekan job dipakai (media, notifikasi, import):
-
-```bash
-php artisan queue:work
-```
+Queue default adalah `redis`. Jalankan Horizon saat fitur yang mengantrekan job dipakai (media, notifikasi, import, export):
 
 ```bash
 php artisan horizon
@@ -603,11 +599,11 @@ Untuk `FILESYSTEM_DISK=s3`, URL file datang dari disk `s3` (`AWS_URL` / `Storage
 1. Isi `WAG_URL` dan `WAG_TOKEN`.
 2. Pastikan nomor valid (format `08…` atau `62…`).
 3. Periksa `storage/logs/laravel.log`.
-4. Jika `QUEUE_CONNECTION=redis`, pastikan Redis dan worker/Horizon berjalan.
+4. Pastikan Redis dan `php artisan horizon` berjalan.
 
 ### Queue / Horizon tidak memproses job
 
-Pastikan Redis hidup, `QUEUE_CONNECTION=redis`, lalu `php artisan horizon` atau `php artisan queue:work`. Untuk development tanpa Redis, set `QUEUE_CONNECTION=sync`.
+Pastikan Redis hidup, `QUEUE_CONNECTION=redis`, lalu `php artisan horizon`. Tes memakai `QUEUE_CONNECTION=sync` di `phpunit.xml`. Development tanpa Redis boleh `QUEUE_CONNECTION=sync`, tetapi job tidak masuk dashboard Horizon.
 
 ### Login panel ditolak
 

@@ -194,67 +194,15 @@ return [
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['default'],
+            'queue' => ['notifications', 'default', 'media', 'exports', 'imports'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 60,
-            'nice' => 0,
-        ],
-        'supervisor-media' => [
-            'connection' => 'redis',
-            'queue' => ['media'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 3,    // More workers for media processing
-            'maxTime' => 300,       // 5 minutes max per job
-            'maxJobs' => 50,        // Max 50 jobs before restart
-            'memory' => 256,        // More memory for media processing
-            'tries' => 3,           // More retries for media jobs
-            'timeout' => 300,       // 5 minutes timeout
-            'nice' => 0,
-        ],
-        'supervisor-imports' => [
-            'connection' => 'redis',
-            'queue' => ['imports'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 600,
-            'maxJobs' => 25,
             'memory' => 512,
-            'tries' => 2,
+            'tries' => 3,
             'timeout' => 600,
-            'nice' => 0,
-        ],
-        'supervisor-exports' => [
-            'connection' => 'redis',
-            'queue' => ['exports'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 300,
-            'maxJobs' => 50,
-            'memory' => 256,
-            'tries' => 2,
-            'timeout' => 300,
-            'nice' => 0,
-        ],
-        'supervisor-notifications' => [
-            'connection' => 'redis',
-            'queue' => ['notifications'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 2,    // Fewer workers for notifications
-            'maxTime' => 60,        // 1 minute max per notification
-            'maxJobs' => 100,       // Max 100 jobs before restart
-            'memory' => 64,         // Lower memory for notifications
-            'tries' => 2,           // 2 retries for notifications
-            'timeout' => 60,        // 1 minute timeout
             'nice' => 0,
         ],
     ],
@@ -262,27 +210,7 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 3,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-            'supervisor-media' => [
-                'maxProcesses' => 2,    // More media workers in production
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-            'supervisor-imports' => [
-                'maxProcesses' => 1,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-            'supervisor-exports' => [
-                'maxProcesses' => 1,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-            'supervisor-notifications' => [
-                'maxProcesses' => 2,    // More notification workers in production
+                'maxProcesses' => 6,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
@@ -290,19 +218,7 @@ return [
 
         'local' => [
             'supervisor-1' => [
-                'maxProcesses' => 3,
-            ],
-            'supervisor-media' => [
-                'maxProcesses' => 2,    // 2 media workers for local development
-            ],
-            'supervisor-imports' => [
-                'maxProcesses' => 1,
-            ],
-            'supervisor-exports' => [
-                'maxProcesses' => 1,
-            ],
-            'supervisor-notifications' => [
-                'maxProcesses' => 1,    // 1 notification worker for local development
+                'maxProcesses' => 4,
             ],
         ],
     ],
